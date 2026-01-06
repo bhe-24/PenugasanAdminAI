@@ -9,28 +9,66 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <style>
-        /* CSS SAMA SEPERTI SEBELUMNYA */
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 15px; }
         .page-header h2 { margin: 0; color: #003366; font-size: 1.5rem; }
+        
         .select-container { background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 30px; }
+        
+        /* CARD PENILAIAN */
         .grading-card { background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; border: 1px solid #e0e0e0; display: flex; flex-direction: column; }
         .card-header { background: #003366; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .card-header h3 { margin: 0; font-size: 1.1rem; }
+        .card-header h3 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
         .badge-status { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; }
         .card-body { padding: 20px; }
-        .student-answer-box { background: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 20px; line-height: 1.6; color: #333; white-space: pre-wrap; }
+
+        /* JAWABAN SISWA (Support HTML) */
+        .student-answer-box { 
+            background: #f9f9f9; border: 1px solid #eee; padding: 15px; border-radius: 8px; 
+            max-height: 300px; overflow-y: auto; margin-bottom: 20px; 
+            line-height: 1.6; color: #333; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Agar styling bold/italic dari user/AI muncul */
+        .student-answer-box b, .student-answer-box strong { font-weight: 700; color: #000; }
+        .student-answer-box i, .student-answer-box em { font-style: italic; }
+        .student-answer-box p { margin-bottom: 10px; }
+
+        /* TOMBOL AI */
         .btn-ai { width: 100%; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: filter 0.2s; margin-bottom: 20px; }
         .btn-ai:hover { filter: brightness(1.1); }
         .btn-ai:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* FORM INPUT */
         .grading-form { display: flex; gap: 15px; align-items: flex-start; border-top: 1px dashed #ccc; padding-top: 20px; }
-        .input-group { flex: 1; }
-        .input-group label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
-        .score-input { width: 80px; text-align: center; font-size: 1.1rem; font-weight: bold; padding: 10px; }
-        .feedback-input { width: 100%; padding: 10px; font-family: sans-serif; resize: vertical; }
-        .btn-save { background: #28a745; color: white; border: none; padding: 0 25px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 50px; align-self: flex-end; }
+        .input-group { flex: 1; display: flex; flex-direction: column; }
+        .input-group label { font-weight: 600; margin-bottom: 5px; color: #555; }
+        .score-input { width: 80px; text-align: center; font-size: 1.1rem; font-weight: bold; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+
+        /* RICH TEXT EDITOR (Pengganti Textarea) */
+        .rich-editor {
+            width: 100%; min-height: 80px; padding: 10px; 
+            border: 1px solid #ccc; border-radius: 5px; 
+            font-family: sans-serif; line-height: 1.5;
+            background: white; overflow-y: auto;
+            white-space: pre-wrap; /* Agar enter manual terbaca */
+        }
+        .rich-editor:focus { outline: 2px solid #667eea; border-color: transparent; }
+        /* Placeholder manual untuk div contenteditable */
+        .rich-editor[contenteditable]:empty::before {
+            content: "Berikan catatan untuk siswa...";
+            color: #aaa;
+        }
+
+        .btn-save { background: #28a745; color: white; border: none; padding: 0 25px; border-radius: 8px; font-weight: bold; cursor: pointer; height: 50px; align-self: flex-start; margin-top: 24px; }
         .btn-save:hover { background: #218838; }
-        @media (max-width: 600px) { .grading-form { flex-direction: column; } .input-group { width: 100%; } .score-input { width: 100%; } .btn-save { width: 100%; margin-top: 10px; } .page-header h2 { font-size: 1.2rem; } }
+
+        @media (max-width: 600px) { 
+            .grading-form { flex-direction: column; } 
+            .input-group, .score-input, .btn-save { width: 100%; } 
+            .btn-save { margin-top: 10px; }
+        }
+
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .hidden { display: none !important; }
     </style>
@@ -61,12 +99,11 @@
 
     <div id="loading-overlay" class="hidden">
         <i class="fa-solid fa-robot fa-bounce" style="font-size: 3rem; color: #667eea;"></i>
-        <p style="margin-top: 15px; font-weight: bold; color: #555;" id="loading-text">AI sedang menganalisis jawaban...</p>
+        <p style="margin-top: 15px; font-weight: bold; color: #555;" id="loading-text">AI sedang menganalisis & menyusun format...</p>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        // IMPORT BARU: getDoc ditambahkan
         import { collection, query, orderBy, getDocs, getDoc, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         (async () => {
@@ -84,7 +121,7 @@
                     const data = d.data();
                     const opt = document.createElement('option');
                     opt.value = d.id;
-                    opt.text = `${data.judul} (Sem ${data.semester || 1})`;
+                    opt.text = `${data.judul}`;
                     opt.dataset.instruksi = encodeURIComponent(data.instruksi);
                     sel.appendChild(opt);
                 });
@@ -109,36 +146,40 @@
                 
                 listDiv.innerHTML = '';
                 if(snap.empty) {
-                    listDiv.innerHTML = '<p style="text-align:center; padding:20px;">Belum ada siswa yang mengumpulkan tugas ini.</p>';
+                    listDiv.innerHTML = '<p style="text-align:center; padding:20px;">Belum ada siswa yang mengumpulkan.</p>';
                     return;
                 }
 
-                // GANTI forEach MENJADI LOOP BIASA (async aware)
-                // Agar kita bisa mengambil nama siswa satu per satu
+                // Loop Async agar bisa fetch nama satu per satu
                 for (const d of snap.docs) {
                     const s = {id: d.id, ...d.data()};
                     const isGraded = s.nilai !== null && s.nilai !== undefined && s.nilai !== "";
                     
-                    // --- PERBAIKAN NAMA HILANG ---
-                    // Cek jika nama tidak ada di submission, ambil dari collection 'users'
-                    let finalName = s.studentName;
-                    
-                    if (!finalName || finalName === "Unknown") {
+                    // --- PERBAIKAN LOGIKA NAMA ---
+                    let displayName = "Memuat Nama...";
+                    let studentUID = s.uid || s.studentId || s.userId; // Cek berbagai kemungkinan nama field ID
+
+                    // Jika nama sudah tersimpan di submission (cache), pakai itu
+                    if(s.studentName && s.studentName !== "Unknown") {
+                        displayName = s.studentName;
+                    } 
+                    // Jika tidak, cari manual ke koleksi 'users'
+                    else if (studentUID) {
                         try {
-                            // Asumsi field ID siswa di submission bernama 'uid' atau 'studentId'
-                            const uidSiswa = s.uid || s.studentId; 
-                            if(uidSiswa) {
-                                const userSnap = await getDoc(doc(db, 'users', uidSiswa));
-                                if (userSnap.exists()) {
-                                    finalName = userSnap.data().name;
-                                } else {
-                                    finalName = "Siswa Tidak Dikenal (ID Error)";
-                                }
+                            const userSnap = await getDoc(doc(db, 'users', studentUID));
+                            if(userSnap.exists()) {
+                                displayName = userSnap.data().name;
+                                // Opsional: Update balik ke submission agar besok tidak perlu fetch lagi
+                                // updateDoc(doc(db, 'submissions', s.id), { studentName: displayName });
+                            } else {
+                                displayName = "Siswa Tidak Dikenal (ID Salah)";
                             }
-                        } catch (err) {
-                            console.log("Gagal ambil nama user", err);
-                            finalName = "Error Load Name";
+                        } catch(err) {
+                            console.error("Error ambil nama:", err);
+                            displayName = "Error Koneksi Nama";
                         }
+                    } else {
+                        displayName = "Data Siswa Korup (No ID)";
                     }
 
                     let kontenJawaban = '';
@@ -147,23 +188,26 @@
                     if(s.fileUrl) {
                         kontenJawaban = `
                             <div style="background:#f0f4f8; padding:20px; text-align:center; border-radius:8px;">
-                                <i class="fa-solid fa-file-pdf" style="font-size:2rem; color:#dc3545;"></i><br>
-                                <p style="margin:10px 0;">Siswa mengumpulkan file dokumen.</p>
-                                <a href="${s.fileUrl}" target="_blank" class="btn btn-secondary btn-sm">Download / Lihat File</a>
+                                <i class="fa-solid fa-file-pdf" style="font-size:2rem; color:#dc3545;"></i>
+                                <p style="margin:10px 0;">File Terlampir</p>
+                                <a href="${s.fileUrl}" target="_blank" class="btn btn-secondary btn-sm">Buka File</a>
                             </div>`;
                     } else {
-                        kontenJawaban = `<div class="student-answer-box">${s.jawabanTeks}</div>`;
-                        // Tombol AI
+                        // Pakai innerHTML agar bold/italic dari siswa terbaca
+                        kontenJawaban = `<div class="student-answer-box">${s.jawabanTeks || '<i>Tidak ada jawaban teks.</i>'}</div>`;
+                        
                         tombolAI = `
-                            <button class="btn-ai" onclick="window.gradeWithAI('${s.id}', '${encodeURIComponent(s.jawabanTeks)}', '${encodeURIComponent(instruksiSoal)}')">
-                                <i class="fa-solid fa-magic"></i> Analisis & Nilai dengan AI
+                            <button class="btn-ai" onclick="window.gradeWithAI('${s.id}', '${encodeURIComponent(s.jawabanTeks||'')}', '${encodeURIComponent(instruksiSoal)}')">
+                                <i class="fa-solid fa-magic"></i> Analisis & Tulis Catatan Otomatis
                             </button>`;
                     }
 
+                    // Render Card
+                    // PERHATIKAN: Feedback menggunakan div contenteditable, bukan textarea
                     listDiv.innerHTML += `
                         <div class="grading-card">
                             <div class="card-header">
-                                <h3><i class="fa-solid fa-user-graduate"></i> ${finalName}</h3>
+                                <h3><i class="fa-solid fa-user-graduate"></i> <span id="name-${s.id}">${displayName}</span></h3>
                                 <span class="badge-status">${isGraded ? '✅ Dinilai' : '⏳ Menunggu'}</span>
                             </div>
                             <div class="card-body">
@@ -172,12 +216,12 @@
                                 
                                 <div class="grading-form">
                                     <div class="input-group" style="flex:0 0 100px;">
-                                        <label>Nilai</label>
-                                        <input type="number" id="n-${s.id}" value="${s.nilai||''}" class="form-control score-input" placeholder="0">
+                                        <label>Nilai (0-100)</label>
+                                        <input type="number" id="n-${s.id}" value="${s.nilai||''}" class="score-input" placeholder="0">
                                     </div>
                                     <div class="input-group">
-                                        <label>Feedback</label>
-                                        <textarea id="f-${s.id}" class="form-control feedback-input" rows="2" placeholder="Catatan...">${s.feedback||''}</textarea>
+                                        <label>Catatan / Feedback (Bisa Bold/Italic)</label>
+                                        <div id="f-${s.id}" class="rich-editor" contenteditable="true">${s.feedback || ''}</div>
                                     </div>
                                     <button class="btn-save" onclick="window.saveGrade('${s.id}')">
                                         <i class="fa-solid fa-save"></i>
@@ -186,10 +230,10 @@
                             </div>
                         </div>`;
                 }
-            } catch(e) { console.error(e); alert("Error memuat data."); }
+            } catch(e) { console.error(e); alert("Error memuat data: " + e.message); }
         };
 
-        // 3. LOGIKA AI DIPERBAIKI (Handling Error lebih detail)
+        // --- AI LOGIC ---
         window.gradeWithAI = async (subId, encodedAnswer, encodedInstruction) => {
             const overlay = document.getElementById('loading-overlay');
             overlay.classList.remove('hidden');
@@ -198,71 +242,76 @@
                 const answer = decodeURIComponent(encodedAnswer);
                 const instruction = decodeURIComponent(encodedInstruction);
 
+                // Prompt dimodifikasi agar outputnya HTML tags (<b>, <i>, <br>)
                 const prompt = `
-                    Bertindaklah sebagai Guru.
+                    Bertindaklah sebagai Guru yang sedang menilai.
                     SOAL: "${instruction}"
                     JAWABAN SISWA: "${answer}"
-                    TUGAS: Beri nilai (0-100) dan feedback singkat (max 2 kalimat).
-                    FORMAT RESPONS WAJIB JSON MURNI: { "score": 85, "feedback": "Komentar..." }
+                    
+                    TUGAS: 
+                    1. Berikan nilai (0-100).
+                    2. Berikan feedback singkat. PENTING: Gunakan tag HTML <b>untuk poin penting</b> dan <i>untuk penekanan</i>. Gunakan <br> untuk baris baru. Jangan gunakan Markdown (** atau *).
+                    
+                    FORMAT JSON WAJIB: { "score": 85, "feedback": "Jawabanmu <b>sangat baik</b>.<br>Namun perhatikan <i>penggunaan ejaan</i> ya." }
                 `;
 
-                // Panggil Backend
                 const response = await fetch('/api/grade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: prompt })
                 });
 
-                // Cek status HTTP dulu
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Server Error (${response.status}): ${errorText}`);
-                }
-
                 const data = await response.json();
-
                 if (data.error) throw new Error(data.error);
                 
-                // Parsing Hasil
                 let aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!aiText) throw new Error("Format respons AI tidak dikenali.");
+                if (!aiText) throw new Error("Format respons AI salah.");
                 
+                // Bersihkan JSON raw
                 aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const result = JSON.parse(aiText);
 
+                // Masukkan Nilai
                 document.getElementById(`n-${subId}`).value = result.score;
-                document.getElementById(`f-${subId}`).value = result.feedback;
-
-                alert("AI Selesai menganalisis!");
+                
+                // Masukkan HTML ke div contenteditable (Otomatis terformat bold/italic)
+                document.getElementById(`f-${subId}`).innerHTML = result.feedback;
 
             } catch (error) {
                 console.error("AI Error:", error);
-                alert("Gagal menggunakan AI:\n" + error.message + "\n\nCek apakah file 'api/grade.js' sudah ada dan API Key sudah diset.");
+                alert("Gagal AI: " + error.message);
             } finally {
                 overlay.classList.add('hidden');
             }
         };
 
+        // --- SAVE LOGIC ---
         window.saveGrade = async (id) => {
             const btn = event.currentTarget; 
             const originalIcon = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             btn.disabled = true;
             
+            // Ambil data dari DIV contenteditable (innerHTML) bukan value
+            const htmlFeedback = document.getElementById(`f-${id}`).innerHTML;
+            const scoreVal = document.getElementById(`n-${id}`).value;
+
             try {
                 await updateDoc(doc(db, 'submissions', id), {
-                    nilai: document.getElementById(`n-${id}`).value,
-                    feedback: document.getElementById(`f-${id}`).value
+                    nilai: scoreVal,
+                    feedback: htmlFeedback // Simpan format HTML-nya ke database
                 });
+                
                 btn.innerHTML = '<i class="fa-solid fa-check"></i>';
                 btn.style.background = "#28a745";
+                
                 setTimeout(() => {
                     btn.innerHTML = originalIcon;
                     btn.disabled = false;
-                    btn.style.background = ""; // Reset warna
+                    btn.style.background = ""; 
                 }, 1500);
             } catch(e) {
-                alert("Gagal: " + e.message);
+                alert("Gagal simpan: " + e.message);
                 btn.innerHTML = originalIcon;
                 btn.disabled = false;
             }
