@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Kelola Tugas - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .toolbar { background: #eee; padding: 5px; border-radius: 5px; margin-bottom: 5px; display:flex; gap:5px; }
+        .toolbar button { background: white; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </a>
+        
+        <h2>Kelola Tugas</h2>
+        <div id="list-tugas">Memuat...</div>
+
+        <hr style="margin:30px 0;">
+        
+        <h3>Buat / Edit Tugas</h3>
+        <form id="form-tugas" style="background:white; padding:20px; border-radius:10px; border:1px solid #ddd;">
+            <input type="hidden" id="edit-id">
+            <div class="form-group"><label>Judul</label><input type="text" id="judul" required></div>
+            <div class="form-group"><label>Mapel</label><input type="text" id="mapel" required></div>
+            <div class="form-group"><label>Tipe</label>
+                <select id="tipe" class="form-control">
+                    <option value="Esai">Esai (Teks)</option>
+                    <option value="Dokumen">Upload File</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Instruksi (HTML Support)</label>
+                <div class="toolbar">
+                    <button type="button" onclick="insert('<b>','</b>')"><b>B</b></button>
+                    <button type="button" onclick="insert('<i>','</i>')"><i>I</i></button>
+                    <button type="button" onclick="insertTable()">Tabel</button>
+                </div>
+                <textarea id="instruksi" rows="5" required></textarea>
+            </div>
+            <div class="form-group"><label>Deadline</label><input type="datetime-local" id="deadline" class="form-control" required></div>
+            <div class="form-group"><label>Semester</label><select id="semester" class="form-control"><option value="1">1</option><option value="2">2</option></select></div>
+            
+            <button type="submit" class="btn btn-success">Simpan Tugas</button>
+            <button type="button" id="cancel-edit" class="btn btn-secondary hidden">Batal</button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let currentUser = null;
+        window.insert = (s,e) => { const el=document.getElementById('instruksi'); const start=el.selectionStart; el.value=el.value.substring(0,start)+s+el.value.substring(start,el.selectionEnd)+e+el.value.substring(el.selectionEnd); };
+        window.insertTable = () => document.getElementById('instruksi').value += '\n<table border="1" style="width:100%"><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>';
+
+        (async () => {
+            currentUser = await checkAuth('pengajar');
+            if(currentUser) loadTugas();
+        })();
+
+        async function loadTugas() {
+            const div = document.getElementById('list-tugas');
+            div.innerHTML = 'Loading...';
+            const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
+            const snap = await getDocs(q);
+            div.innerHTML = '';
+            snap.forEach(d => {
+                const t = d.data();
+                div.innerHTML += `
+                    <div style="background:white; padding:15px; border:1px solid #ddd; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${t.judul}</strong> <span style="font-size:0.8em; background:#eee; padding:2px 5px;">Sem ${t.semester||1}</span><br>
+                            <small>${t.mapel} | ${new Date(t.deadline).toLocaleString()}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-secondary" onclick="window.edit('${d.id}')"><i class="fa fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="window.del('${d.id}')"><i class="fa fa-trash"></i></button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        window.del = async (id) => { if(confirm('Hapus?')) { await deleteDoc(doc(db,'assignments',id)); loadTugas(); }};
+        window.edit = (id) => { document.getElementById('edit-id').value=id; alert('Silakan edit di form bawah'); document.getElementById('cancel-edit').classList.remove('hidden'); };
+        
+        document.getElementById('form-tugas').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const data = {
+                judul: document.getElementById('judul').value, mapel: document.getElementById('mapel').value,
+                tipe: document.getElementById('tipe').value, instruksi: document.getElementById('instruksi').value,
+                deadline: document.getElementById('deadline').value, semester: parseInt(document.getElementById('semester').value),
+                namaPengajar: currentUser.name
+            };
+            if(id) await updateDoc(doc(db,'assignments',id), data);
+            else { data.createdAt = serverTimestamp(); await addDoc(collection(db,'assignments'), data); }
+            alert('Tersimpan!'); location.reload();
+        };
+    </script>
+</body>
+</html>
