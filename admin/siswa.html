@@ -100,7 +100,7 @@
         </div>
         
         <div class="search-box">
-            <input type="text" id="search" class="form-control" placeholder="Cari nama atau email siswa..." style="margin-bottom:0;">
+            <input type="text" id="search" class="form-control" oninput="window.searchSiswa()" placeholder="Cari nama atau email siswa..." style="margin-bottom:0;">
             <button onclick="window.searchSiswa()" class="btn btn-primary" style="width:auto; padding: 0 20px;">
                 <i class="fa-solid fa-magnifying-glass"></i>
             </button>
@@ -108,8 +108,8 @@
 
         <div id="list-siswa">
             <div style="text-align: center; color: #666; margin-top: 40px;">
-                <i class="fa-solid fa-user-group" style="font-size: 3rem; margin-bottom: 10px; color: #ddd;"></i>
-                <p>Ketik nama siswa di atas untuk mulai menginput nilai.</p>
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; margin-bottom: 10px; color: #003366;"></i>
+                <p>Sedang memuat data seluruh siswa...</p>
             </div>
         </div>
     </div>
@@ -122,17 +122,28 @@
 
         (async () => {
             if(await checkAuth('pengajar')) {
-                // Pre-load semua siswa agar pencarian instan
+                // Pre-load semua siswa
                 const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'siswa')));
                 snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                
+                // Urutkan nama A-Z
                 allStudents.sort((a,b) => a.name.localeCompare(b.name));
+                
+                // --- PERUBAHAN UTAMA DI SINI ---
+                // Langsung render semua siswa begitu data selesai ditarik
+                render(allStudents);
             }
         })();
 
         // Fungsi Cari (Triggered by button or enter)
         window.searchSiswa = () => {
             const key = document.getElementById('search').value.toLowerCase();
-            if(!key) return;
+            
+            // Jika search kosong, tampilkan semua lagi
+            if(!key) {
+                render(allStudents);
+                return;
+            }
             
             const filtered = allStudents.filter(s => s.name.toLowerCase().includes(key) || s.email.includes(key));
             render(filtered);
@@ -146,7 +157,15 @@
         function render(list) {
             const div = document.getElementById('list-siswa');
             div.innerHTML = '';
-            if(list.length === 0) { div.innerHTML = '<p style="text-align:center;">Siswa tidak ditemukan.</p>'; return; }
+            
+            if(list.length === 0) { 
+                div.innerHTML = `
+                    <div style="text-align: center; color: #666; margin-top: 40px;">
+                        <i class="fa-regular fa-folder-open" style="font-size: 3rem; margin-bottom: 10px; color: #ddd;"></i>
+                        <p>Siswa tidak ditemukan.</p>
+                    </div>`; 
+                return; 
+            }
 
             list.forEach(u => {
                 const n = u; 
@@ -215,8 +234,6 @@
             });
 
             // Hitung Rata-rata lalu konversi ke IPS (Skala 4)
-            // Rumus: (TotalNilai / JumlahItem) / 25
-            // Contoh: Rata2 100 -> 4.00, Rata2 50 -> 2.00
             const sem = parseInt(document.getElementById(`sem-${uid}`).value);
             const ips = count > 0 ? ((total/count)/25) : 0; 
             
@@ -224,8 +241,6 @@
                 await updateDoc(doc(db,'users',uid), { ...data, semester: sem, ips: ips });
                 alert(`Data Tersimpan! IPS Baru Siswa: ${ips.toFixed(2)}`);
                 
-                // Update tampilan IPS tanpa refresh
-                // (Optional: Bisa panggil window.searchSiswa() lagi, tapi ini cukup untuk UX cepat)
             } catch(e) {
                 alert("Gagal: " + e.message);
             } finally {
