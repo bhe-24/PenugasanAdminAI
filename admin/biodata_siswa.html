@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biodata & Kontrol Siswa</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        .page-header {
+            background: #fff; padding: 20px; border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 3px solid #11998e;
+        }
+        .page-header h2 { margin: 0; color: #11998e; font-size: 1.5rem; }
+
+        .search-box input {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;
+            margin-bottom: 20px; font-size: 1rem;
+        }
+
+        .student-grid { display: grid; gap: 15px; }
+
+        .biodata-card {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 5px solid #11998e;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 15px;
+        }
+        
+        .biodata-card.suspended { border-left-color: #ff9800; background: #fff3e0; }
+
+        .info-group h3 { margin: 0 0 5px 0; color: #333; }
+        .info-group p { margin: 2px 0; color: #666; font-size: 0.9rem; }
+        .status-label { font-weight: bold; font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-suspend { background: #fff3cd; color: #856404; }
+
+        .action-group { display: flex; gap: 10px; }
+        
+        .btn { border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+        .btn-suspend { background: #ff9800; }
+        .btn-suspend:hover { background: #e68900; }
+        
+        .btn-delete { background: #f44336; }
+        .btn-delete:hover { background: #d32f2f; }
+        
+        .btn-activate { background: #28a745; }
+
+        .btn-back { background: #6c757d; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h2><i class="fa-solid fa-id-card-clip"></i> Biodata & Kontrol</h2>
+            <a href="admin_dashboard.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Cari nama atau email..." oninput="window.searchSiswa()">
+        </div>
+
+        <div id="student-grid" class="student-grid">
+            <div style="text-align:center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let allStudents = [];
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) await signInAnonymously(auth);
+            loadData();
+        });
+
+        async function loadData() {
+            const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+            const snap = await getDocs(q);
+            allStudents = [];
+            snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+            render(allStudents);
+        }
+
+        window.searchSiswa = () => {
+            const key = document.getElementById('search').value.toLowerCase();
+            const filtered = allStudents.filter(s => 
+                s.name.toLowerCase().includes(key) || 
+                (s.email && s.email.toLowerCase().includes(key))
+            );
+            render(filtered);
+        };
+
+        function render(list) {
+            const container = document.getElementById('student-grid');
+            container.innerHTML = '';
+            
+            if(list.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Tidak ada data.</p>';
+                return;
+            }
+
+            list.forEach(s => {
+                const isSuspended = s.status === 'suspended';
+                const statusHtml = isSuspended 
+                    ? `<span class="status-label status-suspend">SUSPENDED</span>` 
+                    : `<span class="status-label status-active">AKTIF</span>`;
+                
+                const cardClass = isSuspended ? 'biodata-card suspended' : 'biodata-card';
+                
+                const suspendBtn = isSuspended
+                    ? `<button onclick="toggleSuspend('${s.id}', false)" class="btn btn-activate"><i class="fa-solid fa-check"></i> Aktifkan</button>`
+                    : `<button onclick="toggleSuspend('${s.id}', true)" class="btn btn-suspend"><i class="fa-solid fa-ban"></i> Suspend</button>`;
+
+                container.innerHTML += `
+                    <div class="${cardClass}">
+                        <div class="info-group">
+                            <h3>${s.name} ${statusHtml}</h3>
+                            <p><i class="fa-regular fa-envelope"></i> ${s.email || '-'}</p>
+                            <p><i class="fa-solid fa-graduation-cap"></i> Semester ${s.semester || 1} | IPS: ${parseFloat(s.ips||0).toFixed(2)}</p>
+                            <p style="font-size:0.8rem; color:#999;">ID: ${s.id}</p>
+                        </div>
+                        <div class="action-group">
+                            ${suspendBtn}
+                            <button onclick="deleteSiswa('${s.id}', '${s.name}')" class="btn btn-delete"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.toggleSuspend = async (id, shouldSuspend) => {
+            const action = shouldSuspend ? "membekukan (suspend)" : "mengaktifkan kembali";
+            if(confirm(`Apakah Anda yakin ingin ${action} akun siswa ini?`)) {
+                try {
+                    await updateDoc(doc(db, 'users', id), {
+                        status: shouldSuspend ? 'suspended' : 'active'
+                    });
+                    loadData(); // Reload
+                } catch(e) { alert("Gagal update: " + e.message); }
+            }
+        };
+
+        window.deleteSiswa = async (id, name) => {
+            const msg = `PERINGATAN KERAS!\n\nAnda akan menghapus permanen siswa: ${name}.\nData nilai dan tugas juga akan hilang referensinya.\n\nKetik "HAPUS" untuk konfirmasi:`;
+            const confirmation = prompt(msg);
+            
+            if(confirmation === "HAPUS") {
+                try {
+                    await deleteDoc(doc(db, 'users', id));
+                    alert("Data siswa berhasil dihapus.");
+                    loadData();
+                } catch(e) { alert("Gagal menghapus: " + e.message); }
+            }
+        };
+    </script>
+</body>
+</html>
