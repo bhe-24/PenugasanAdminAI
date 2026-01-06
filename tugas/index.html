@@ -1,45 +1,440 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <title>Tugas - Cendekia Aksara</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tugas Harian - Cendekia Aksara</title>
+    
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        /* --- STYLE KHUSUS HALAMAN TUGAS (RESPONSIF) --- */
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Grid Kartu Tugas */
+        .task-grid {
+            display: grid;
+            /* Responsif: Minimal lebar 300px, kalau sempit turun ke bawah */
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .task-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-left: 5px solid #ccc; /* Default border */
+        }
+
+        .task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        /* Warna Status Border Kiri */
+        .task-card.new { border-left-color: #007bff; } /* Biru: Baru */
+        .task-card.done { border-left-color: #28a745; } /* Hijau: Selesai */
+        .task-card.graded { border-left-color: #6f42c1; } /* Ungu: Dinilai */
+        .task-card.late { border-left-color: #dc3545; } /* Merah: Telat */
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+
+        .task-meta {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .task-meta i { margin-right: 5px; width: 15px; text-align: center; }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: white;
+            background: #999;
+        }
+        
+        .bg-blue { background: #007bff; }
+        .bg-green { background: #28a745; }
+        .bg-purple { background: #6f42c1; }
+        .bg-red { background: #dc3545; }
+
+        /* Tampilan Detail Tugas */
+        #detail-view {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .detail-instruction {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+
+        /* Form Pengumpulan */
+        .submission-area {
+            border-top: 2px dashed #ddd;
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+
+        /* Result Box (Nilai) */
+        .grade-box {
+            background: #f0f4ff;
+            border: 1px solid #d0e1ff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .grade-number { font-size: 2.5rem; font-weight: bold; color: #005a9c; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <a href="/dashboard" class="btn btn-secondary" style="width:auto; margin-bottom:15px;">Kembali ke Dashboard</a>
-        <h2>Daftar Tugas Harian</h2>
-        
-        <div id="assignment-list">Loading...</div>
-        
-        <div id="task-detail" class="hidden">
-             </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <a href="/dashboard" class="btn btn-secondary" style="width: auto; padding: 8px 15px;">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
+            <div id="user-semester-badge" style="font-size: 0.9em; background: #e7f3ff; color: #005a9c; padding: 5px 10px; border-radius: 8px; font-weight: bold;">
+                Memuat Semester...
+            </div>
+        </div>
+
+        <div id="list-view">
+            <h2 style="margin: 0;">Daftar Tugas Harian</h2>
+            <p style="color: #666; font-size: 0.9em;">Kerjakan tugas sesuai tenggat waktu.</p>
+            
+            <div id="loading-spinner" style="text-align: center; margin-top: 50px;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; color: #ccc;"></i>
+                <p>Mengambil data tugas...</p>
+            </div>
+
+            <div id="task-grid" class="task-grid"></div>
+        </div>
+
+        <div id="detail-view" class="hidden">
+            <button onclick="closeDetail()" class="btn btn-secondary" style="width: auto; margin-bottom: 15px;">
+                <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar
+            </button>
+            
+            <h2 id="dt-judul" style="margin-bottom: 5px;">Judul Tugas</h2>
+            <p style="color: #666; margin-top:0;"><span id="dt-mapel">Mapel</span> • Deadline: <span id="dt-deadline" style="color: #d63384; font-weight: bold;">-</span></p>
+            
+            <hr>
+            
+            <h4>Instruksi:</h4>
+            <div id="dt-instruksi" class="detail-instruction">
+                </div>
+
+            <div class="submission-area">
+                <div id="status-graded" class="hidden grade-box">
+                    <p style="margin:0; font-weight:bold; color:#666;">NILAI ANDA</p>
+                    <div id="grade-val" class="grade-number">0</div>
+                    <div style="text-align:left; margin-top:15px; background:white; padding:10px; border-radius:8px;">
+                        <strong>Feedback Guru:</strong><br>
+                        <span id="grade-feedback" style="font-style:italic; color:#555;">-</span>
+                    </div>
+                </div>
+
+                <div id="status-submitted" class="hidden" style="text-align:center; padding: 30px; color: #28a745;">
+                    <i class="fa-solid fa-circle-check" style="font-size: 3rem; margin-bottom: 10px;"></i>
+                    <h3>Tugas Berhasil Dikirim</h3>
+                    <p>Menunggu penilaian dari pengajar.</p>
+                    <p id="submitted-date" style="font-size: 0.8em; color: #666;"></p>
+                </div>
+
+                <div id="status-closed" class="hidden" style="text-align:center; padding: 30px; color: #dc3545; background: #fff5f5; border-radius: 8px;">
+                    <i class="fa-solid fa-lock" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <h3>Tugas Ditutup</h3>
+                    <p>Anda melewati batas waktu pengumpulan.</p>
+                </div>
+
+                <form id="submission-form" class="hidden">
+                    <h4 style="margin-bottom: 15px;"><i class="fa-solid fa-pen-to-square"></i> Kumpulkan Jawaban</h4>
+                    
+                    <input type="hidden" id="sub-task-id">
+                    
+                    <div id="input-esai" class="form-group hidden">
+                        <label>Jawaban Teks:</label>
+                        <textarea id="ans-text" rows="8" class="form-control" placeholder="Tulis jawaban Anda di sini..."></textarea>
+                    </div>
+
+                    <div id="input-file" class="form-group hidden">
+                        <label>Unggah Dokumen (PDF/Word/Gambar - Maks 2MB):</label>
+                        <input type="file" id="ans-file" class="form-control">
+                    </div>
+
+                    <button type="submit" id="btn-submit" class="btn btn-success" style="margin-top: 15px;">
+                        <i class="fa-solid fa-paper-plane"></i> Kirim Tugas
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script type="module">
-        import { db, storage, checkAuth } from "/js/firebase-config.js";
+        import { db, auth, storage, checkAuth } from "/js/firebase-config.js";
         import { collection, query, orderBy, getDocs, where, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        const user = await checkAuth('siswa');
-        
-        // --- LOGIKA FETCH TUGAS (Ambil dari function renderTugasView kode asli) ---
-        // PENTING: Sesuaikan variabelnya agar jalan di file ini.
-        // Contoh singkat:
-        async function loadTugas() {
-            const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
-            const snap = await getDocs(q);
-            const listDiv = document.getElementById('assignment-list');
-            listDiv.innerHTML = '';
+        let currentUser = null;
+        let mySubmissions = {}; // Cache pengumpulan siswa
+
+        // Init
+        (async () => {
+            currentUser = await checkAuth('siswa');
+            if(currentUser) {
+                document.getElementById('user-semester-badge').innerText = `Semester ${currentUser.semester || 1}`;
+                loadData();
+            }
+        })();
+
+        // --- FUNGSI UTAMA: LOAD DATA ---
+        async function loadData() {
+            const grid = document.getElementById('task-grid');
+            const spinner = document.getElementById('loading-spinner');
             
-            snap.forEach(doc => {
-                const data = doc.data();
-                // Render kartu tugas di sini...
-                // Saat diklik, jangan updateView, tapi tampilkan div #task-detail dan sembunyikan #assignment-list
-            });
+            try {
+                // 1. Ambil Semua Submission Siswa Ini (Agar tahu mana yg sudah dikerjakan)
+                const subQ = query(collection(db, 'submissions'), where('studentUid', '==', currentUser.uid));
+                const subSnap = await getDocs(subQ);
+                mySubmissions = {};
+                subSnap.forEach(doc => {
+                    const data = doc.data();
+                    mySubmissions[data.assignmentId] = data; // Map by Task ID
+                });
+
+                // 2. Ambil Semua Tugas (Diurutkan terbaru)
+                const taskQ = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
+                const taskSnap = await getDocs(taskQ);
+
+                // 3. Filter Semester & Render
+                let html = '';
+                let count = 0;
+                const userSem = parseInt(currentUser.semester) || 1;
+
+                taskSnap.forEach(doc => {
+                    const task = { id: doc.id, ...doc.data() };
+                    const taskSem = task.semester || 1; // Default sem 1 jika tidak ada
+
+                    // Filter: Hanya tampilkan tugas semester user
+                    if(taskSem === userSem) {
+                        count++;
+                        const sub = mySubmissions[task.id];
+                        const deadline = new Date(task.deadline);
+                        const isLate = new Date() > deadline;
+                        
+                        // Tentukan Status Visual
+                        let statusClass = 'new';
+                        let badgeHtml = '<span class="status-badge bg-blue">Baru</span>';
+
+                        if(sub) {
+                            if(sub.nilai !== null && sub.nilai !== undefined && sub.nilai !== "") {
+                                statusClass = 'graded';
+                                badgeHtml = `<span class="status-badge bg-purple">Nilai: ${sub.nilai}</span>`;
+                            } else {
+                                statusClass = 'done';
+                                badgeHtml = '<span class="status-badge bg-green">Terkirim</span>';
+                            }
+                        } else if(isLate) {
+                            statusClass = 'late';
+                            badgeHtml = '<span class="status-badge bg-red">Terlewat</span>';
+                        }
+
+                        // Simpan data task di elemen HTML agar mudah diambil saat klik
+                        const taskDataSafe = encodeURIComponent(JSON.stringify(task));
+
+                        html += `
+                        <div class="task-card ${statusClass}" onclick="openDetail('${taskDataSafe}')" style="cursor:pointer;">
+                            <div>
+                                <div class="task-header">
+                                    <div class="task-title">${task.judul}</div>
+                                    ${badgeHtml}
+                                </div>
+                                <div class="task-meta">
+                                    <i class="fa-solid fa-book"></i> ${task.mapel} <br>
+                                    <i class="fa-solid fa-clock"></i> ${deadline.toLocaleString('id-ID', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary" style="font-size:0.85em; padding:8px;">Lihat Detail</button>
+                        </div>
+                        `;
+                    }
+                });
+
+                spinner.style.display = 'none';
+                if(count === 0) {
+                    grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">Belum ada tugas untuk Semester ${userSem}.</div>`;
+                } else {
+                    grid.innerHTML = html;
+                }
+
+            } catch (error) {
+                console.error(error);
+                spinner.innerHTML = `<p style="color:red;">Gagal memuat data. Cek koneksi.</p>`;
+            }
         }
-        
-        loadTugas();
+
+        // --- BUKA DETAIL TUGAS ---
+        window.openDetail = (encodedTask) => {
+            const task = JSON.parse(decodeURIComponent(encodedTask));
+            const sub = mySubmissions[task.id];
+            const deadline = new Date(task.deadline);
+            const isLate = new Date() > deadline;
+
+            // Isi Info
+            document.getElementById('dt-judul').innerText = task.judul;
+            document.getElementById('dt-mapel').innerText = task.mapel;
+            document.getElementById('dt-deadline').innerText = deadline.toLocaleString('id-ID');
+            document.getElementById('dt-instruksi').innerHTML = task.instruksi; // Render HTML (bold/italic)
+            document.getElementById('sub-task-id').value = task.id;
+
+            // Reset Tampilan Status
+            document.getElementById('status-graded').classList.add('hidden');
+            document.getElementById('status-submitted').classList.add('hidden');
+            document.getElementById('status-closed').classList.add('hidden');
+            document.getElementById('submission-form').classList.add('hidden');
+            document.getElementById('input-esai').classList.add('hidden');
+            document.getElementById('input-file').classList.add('hidden');
+
+            // Logika Tampilan Form
+            if (sub) {
+                // SUDAH MENGUMPULKAN
+                if(sub.nilai !== null && sub.nilai !== undefined && sub.nilai !== "") {
+                    // SUDAH DINILAI
+                    document.getElementById('status-graded').classList.remove('hidden');
+                    document.getElementById('grade-val').innerText = sub.nilai;
+                    document.getElementById('grade-feedback').innerHTML = sub.feedback || 'Tidak ada catatan.';
+                } else {
+                    // BELUM DINILAI
+                    document.getElementById('status-submitted').classList.remove('hidden');
+                    const tgl = sub.submittedAt ? new Date(sub.submittedAt.seconds * 1000).toLocaleString() : '-';
+                    document.getElementById('submitted-date').innerText = `Dikirim pada: ${tgl}`;
+                }
+            } else if (isLate) {
+                // TELAT
+                document.getElementById('status-closed').classList.remove('hidden');
+            } else {
+                // BELUM MENGUMPULKAN (FORM AKTIF)
+                const form = document.getElementById('submission-form');
+                form.classList.remove('hidden');
+                
+                // Cek Tipe Soal
+                if(task.tipe === 'Dokumen') {
+                    document.getElementById('input-file').classList.remove('hidden');
+                    document.getElementById('ans-file').required = true;
+                    document.getElementById('ans-text').required = false;
+                } else {
+                    document.getElementById('input-esai').classList.remove('hidden');
+                    document.getElementById('ans-text').required = true;
+                    document.getElementById('ans-file').required = false;
+                }
+            }
+
+            // Switch View
+            document.getElementById('list-view').classList.add('hidden');
+            document.getElementById('detail-view').classList.remove('hidden');
+            window.scrollTo(0,0);
+        };
+
+        window.closeDetail = () => {
+            document.getElementById('detail-view').classList.add('hidden');
+            document.getElementById('list-view').classList.remove('hidden');
+            // Reset form
+            document.getElementById('submission-form').reset();
+        };
+
+        // --- LOGIKA SUBMIT ---
+        document.getElementById('submission-form').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            if(!confirm("Yakin ingin mengirim? Tugas tidak bisa diubah setelah dikirim.")) return;
+
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+
+            const taskId = document.getElementById('sub-task-id').value;
+            const fileInput = document.getElementById('ans-file');
+            const textInput = document.getElementById('ans-text');
+
+            try {
+                const payload = {
+                    assignmentId: taskId,
+                    studentUid: currentUser.uid,
+                    studentName: currentUser.name,
+                    submittedAt: serverTimestamp(),
+                    nilai: null,
+                    feedback: ''
+                };
+
+                // Upload File jika ada
+                if(!document.getElementById('input-file').classList.contains('hidden') && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    if(file.size > 2 * 1024 * 1024) throw new Error("Ukuran file maksimal 2MB.");
+                    
+                    const storageRef = ref(storage, `submissions/${taskId}/${currentUser.uid}_${file.name}`);
+                    const snap = await uploadBytes(storageRef, file);
+                    const url = await getDownloadURL(snap.ref);
+                    
+                    payload.fileUrl = url;
+                    payload.fileName = file.name;
+                } else {
+                    // Esai
+                    payload.jawabanTeks = textInput.value;
+                }
+
+                // Simpan ke Firestore
+                await addDoc(collection(db, 'submissions'), payload);
+
+                alert("Berhasil dikirim!");
+                location.reload(); // Reload agar data terupdate
+
+            } catch (error) {
+                alert("Gagal mengirim: " + error.message);
+                btn.disabled = false;
+                btn.innerText = 'Kirim Tugas';
+            }
+        };
     </script>
 </body>
 </html>
