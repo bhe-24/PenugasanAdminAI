@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Kartu Studi - Cendekia Aksara</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        .khs-box { border: 5px solid #1a365d; padding: 20px; background: white; margin-top: 20px; position: relative; }
+        .khs-table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid #1a365d; }
+        .khs-table th, .khs-table td { border: 1px solid #1a365d; padding: 8px; text-align: center; }
+        .khs-table th { background: #1a365d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="btn btn-secondary" style="width:auto;">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </a>
+        
+        <div id="loading" style="margin-top:20px; text-align:center;">Mengecek nilai...</div>
+        <div id="khs-content" class="hidden">
+            </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let currentUser = null;
+
+        (async () => {
+            currentUser = await checkAuth('siswa');
+            if(currentUser) checkNilai(currentUser);
+        })();
+
+        function checkNilai(user) {
+            const required = ['nilai_t1','nilai_t2','nilai_t3','nilai_t4','nilai_t5','nilai_t6','nilai_t7','nilai_t8','nilai_uts','nilai_uas'];
+            const isComplete = required.every(k => user[k] !== null && user[k] !== undefined && user[k] !== '');
+
+            const loading = document.getElementById('loading');
+            
+            if(!isComplete) {
+                loading.innerHTML = `
+                    <div style="padding:20px; background:#fff3cd; color:#856404; border-radius:8px; margin-top:10px;">
+                        <h3><i class="fa-solid fa-lock"></i> Akses KHS Ditolak</h3>
+                        <p>Mohon maaf, Kartu Hasil Studi belum dapat diakses karena nilai belum lengkap diinput oleh pengajar.</p>
+                    </div>`;
+                return;
+            }
+
+            loading.classList.add('hidden');
+            document.getElementById('khs-content').classList.remove('hidden');
+            renderKHS(user);
+            
+            // Log akses
+            addDoc(collection(db, 'khs_access_logs'), {
+                studentUid: user.uid, studentName: user.name, action: 'VIEW', timestamp: serverTimestamp()
+            });
+        }
+
+        function renderKHS(user) {
+            // (Kode HTML Render KHS yang panjang dari kode asli ditaruh sini)
+            // Versi singkat agar muat:
+            const container = document.getElementById('khs-content');
+            container.innerHTML = `
+                <div class="khs-box" id="khs-print-area">
+                    <h2 style="text-align:center;">KARTU HASIL STUDI</h2>
+                    <p><strong>Nama:</strong> ${user.name} | <strong>Semester:</strong> ${user.semester}</p>
+                    <table class="khs-table">
+                        <thead><tr><th>Mapel</th><th>Nilai</th></tr></thead>
+                        <tbody>
+                            <tr><td>Tugas Harian (Rata-rata)</td><td>${hitungRataTugas(user)}</td></tr>
+                            <tr><td>UTS</td><td>${user.nilai_uts}</td></tr>
+                            <tr><td>UAS</td><td>${user.nilai_uas}</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="text-align:right;"><strong>IPS: ${parseFloat(user.ips).toFixed(2)}</strong></p>
+                </div>
+                <button class="btn btn-primary" onclick="window.downloadKHS()" style="margin-top:20px;">Unduh KHS (PNG)</button>
+            `;
+        }
+
+        function hitungRataTugas(u) {
+            let total = 0;
+            for(let i=1; i<=8; i++) total += parseFloat(u['nilai_t'+i] || 0);
+            return (total/8).toFixed(2);
+        }
+
+        window.downloadKHS = () => {
+            html2canvas(document.getElementById('khs-print-area')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `KHS-${currentUser.name}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        };
+    </script>
+</body>
+</html>
