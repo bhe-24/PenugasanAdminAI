@@ -4,119 +4,311 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Cendekia Aksara</title>
-    <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- CSS Utama -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
     <style>
+        body {
+            background-color: #f4f6f9;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .container {
+            max-width: 400px; width: 90%;
+            background: white; padding: 40px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center; position: relative;
+        }
+
+        .header h1 { font-size: 1.8em; margin-bottom: 5px; color: var(--secondary-color); }
+        .header p { color: #666; margin-top: 0; margin-bottom: 30px; }
+
+        .form-group { margin-bottom: 15px; text-align: left; position: relative; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 600; font-size: 0.9rem; }
+        
+        .form-group input {
+            width: 100%; padding: 12px 40px 12px 12px; /* Padding kanan lebih besar untuk ikon mata */
+            border: 1px solid #ccc; border-radius: 8px;
+            box-sizing: border-box; transition: border-color 0.3s;
+        }
+        .form-group input:focus { border-color: var(--primary-color); outline: none; }
+
+        /* Icon Show/Hide Password */
+        .toggle-password {
+            position: absolute; right: 15px; top: 38px;
+            cursor: pointer; color: #888; transition: color 0.2s;
+        }
+        .toggle-password:hover { color: var(--primary-color); }
+
+        .btn {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, #005a9c, #003366);
+            color: white; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: bold; cursor: pointer;
+            margin-top: 15px; transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+
+        .toggle-auth {
+            margin-top: 20px; color: var(--primary-color); cursor: pointer;
+            font-size: 0.9rem; text-decoration: underline;
+        }
+        
+        .forgot-link {
+            display: block; text-align: right; margin-top: 5px;
+            font-size: 0.85rem; color: #666; cursor: pointer; text-decoration: none;
+        }
+        .forgot-link:hover { color: var(--primary-color); text-decoration: underline; }
+
+        /* Loading Overlay */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             z-index: 9999;
         }
         .spinner {
-            width: 50px; height: 50px; border: 5px solid #ccc;
-            border-top-color: #005a9c; border-radius: 50%;
+            width: 50px; height: 50px; border: 5px solid #e0e0e0;
+            border-top-color: var(--primary-color); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Custom Modal Popup Styles */
+        #success-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background: white; padding: 30px; border-radius: 12px;
+            width: 90%; max-width: 350px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform: scale(0.9);
+            animation: popIn 0.3s forwards;
+        }
+        
+        .modal-icon {
+            width: 60px; height: 60px; background: #e8f5e9; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin: 0 auto 15px auto; color: #28a745; font-size: 30px;
+        }
+        
+        .modal-content h3 { margin: 0 0 10px 0; color: #333; }
+        .modal-content p { color: #666; font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { to { transform: scale(1); } }
+
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
+
     <div class="container">
         <div class="header">
-            <h1>Cendekia Aksara</h1>
+            <h1><img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" style="height: 60px; vertical-align: middle; margin-right: 5px;"> Cendekia Aksara</h1>
             <p>Portal Akademik Terpadu</p>
         </div>
 
         <div id="auth-view">
+            
+            <!-- 1. FORM LOGIN -->
             <div id="login-form-container">
-                <h2>Masuk ke Portal</h2>
+                <h3 style="margin-bottom: 20px; color: #333;">Masuk ke Portal</h3>
                 <form id="login-form">
-                    <div class="form-group"><label>Email</label><input type="email" id="username" required></div>
-                    <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
-                    <button type="submit" class="btn">Login</button>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="username" placeholder="email@gmail.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="password" placeholder="******" required>
+                        <i class="fa-solid fa-eye toggle-password" onclick="togglePass('password', this)"></i>
+                    </div>
+                    
+                    <a class="forgot-link" id="to-forgot">Lupa Password?</a>
+
+                    <button type="submit" class="btn">Masuk</button>
                 </form>
-                <p class="toggle-auth" id="to-register">Belum punya akun? Daftar.</p>
+                <p class="toggle-auth" id="to-register">Belum punya akun? Daftar Sekarang.</p>
             </div>
             
+            <!-- 2. FORM REGISTER -->
             <div id="register-form-container" class="hidden">
-                 <h2>Daftar Baru</h2>
+                 <h3 style="margin-bottom: 20px; color: #333;">Daftar Akun Baru</h3>
                  <form id="register-form">
-                    <div class="form-group"><label>Nama Lengkap</label><input type="text" id="reg-name" required></div>
-                    <div class="form-group"><label>Email</label><input type="email" id="reg-email" required></div>
-                    <div class="form-group"><label>Password</label><input type="password" id="reg-pass" required minlength="6"></div>
-                    <button type="submit" class="btn">Daftar</button>
+                    <div class="form-group">
+                        <label>Nama Lengkap</label>
+                        <input type="text" id="reg-name" placeholder="Nama Lengkap" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="reg-email" placeholder="email@gmail.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="reg-pass" placeholder="Minimal 6 karakter" required minlength="6">
+                        <i class="fa-solid fa-eye toggle-password" onclick="togglePass('reg-pass', this)"></i>
+                    </div>
+                    <button type="submit" class="btn" style="background: var(--success-color);">Daftar</button>
                  </form>
-                 <p class="toggle-auth" id="to-login">Sudah punya akun? Login.</p>
+                 <p class="toggle-auth" id="to-login">Sudah punya akun? Login di sini.</p>
             </div>
+
+            <!-- 3. FORM LUPA PASSWORD -->
+            <div id="forgot-form-container" class="hidden">
+                <h3 style="margin-bottom: 10px; color: #333;">Reset Password</h3>
+                <p style="font-size: 0.9rem; margin-bottom: 20px;">Masukkan email Anda. Kami akan mengirimkan link untuk membuat password baru.</p>
+                <form id="forgot-form">
+                    <div class="form-group">
+                        <label>Email Terdaftar</label>
+                        <input type="email" id="forgot-email" placeholder="email@gmail.com" required>
+                    </div>
+                    <button type="submit" class="btn" style="background: #f7a04a;">Kirim Link Reset</button>
+                </form>
+                <p class="toggle-auth" id="back-to-login-from-forgot">Kembali ke Login</p>
+            </div>
+
         </div>
     </div>
 
+    <!-- LOADING SCREEN -->
     <div id="loading-overlay" class="hidden">
         <div class="spinner"></div>
         <p id="loading-text" style="margin-top:20px; font-weight:bold; color:#005a9c;">Memuat...</p>
     </div>
 
-    <script type="module">
-        import { auth, db } from "/js/firebase-config.js";
-        import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!-- POP-UP SUKSES MODAL -->
+    <div id="success-modal" class="hidden">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <i class="fa-solid fa-paper-plane"></i>
+            </div>
+            <h3>Email Terkirim!</h3>
+            <p id="modal-message">Link reset password telah dikirim. Silakan cek kotak masuk atau folder spam email Anda.</p>
+            <button id="modal-ok-btn" class="btn" style="background: #28a745; margin-top: 10px;">OK</button>
+        </div>
+    </div>
 
-        // Utils Loading
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi Firebase
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- UTILS UI ---
         const showLoading = (msg) => {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.remove('hidden');
         };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
 
-        // Cek Login Otomatis
+        // Fungsi Show/Hide Password Global
+        window.togglePass = (inputId, icon) => {
+            const input = document.getElementById(inputId);
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        };
+
+        // --- AUTH STATE LISTENER ---
         showLoading('Mengecek sesi...');
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
                     if (snap.exists()) {
-                        const role = snap.data().role;
-                        // Redirect sesuai role
-                        window.location.href = role === 'pengajar' ? '/admin' : '/dashboard';
+                        const data = snap.data();
+                        if (data.status === 'suspended') {
+                            alert("Akun dibekukan. Hubungi admin.");
+                            hideLoading(); return;
+                        }
+                        const target = data.role === 'pengajar' ? 'admin_dashboard.html' : 'dashboard.html';
+                        window.location.href = target;
                     } else {
-                        hideLoading(); // User ada di Auth tapi tidak di DB (jarang terjadi)
+                        hideLoading();
                     }
                 } catch (e) {
-                    console.error(e);
-                    hideLoading();
+                    console.error(e); hideLoading();
                 }
             } else {
-                hideLoading(); // Tidak ada user login, tampilkan form
+                hideLoading();
             }
         });
 
-        // Toggle Views
+        // --- NAVIGASI FORM ---
+        const loginForm = document.getElementById('login-form-container');
+        const regForm = document.getElementById('register-form-container');
+        const forgotForm = document.getElementById('forgot-form-container');
+        const successModal = document.getElementById('success-modal');
+
         document.getElementById('to-register').onclick = () => {
-            document.getElementById('login-form-container').classList.add('hidden');
-            document.getElementById('register-form-container').classList.remove('hidden');
+            loginForm.classList.add('hidden'); regForm.classList.remove('hidden');
         };
         document.getElementById('to-login').onclick = () => {
-            document.getElementById('register-form-container').classList.add('hidden');
-            document.getElementById('login-form-container').classList.remove('hidden');
+            regForm.classList.add('hidden'); loginForm.classList.remove('hidden');
+        };
+        document.getElementById('to-forgot').onclick = () => {
+            loginForm.classList.add('hidden'); forgotForm.classList.remove('hidden');
+        };
+        document.getElementById('back-to-login-from-forgot').onclick = () => {
+            forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden');
+        };
+        
+        // --- MODAL CONTROLLER ---
+        document.getElementById('modal-ok-btn').onclick = () => {
+            successModal.classList.add('hidden'); // Tutup modal
+            forgotForm.classList.add('hidden');   // Tutup form lupa password
+            loginForm.classList.remove('hidden'); // Kembali ke login
         };
 
-        // Submit Login
+        // --- 1. LOGIN ---
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Memverifikasi...');
             const email = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
+            
             try {
                 await signInWithEmailAndPassword(auth, email, pass);
-                // Tidak perlu redirect manual, onAuthStateChanged akan menanganinya
             } catch (error) {
                 hideLoading();
-                alert("Login Gagal: Email atau password salah.");
+                let msg = "Email atau password salah.";
+                if(error.code === 'auth/user-not-found') msg = "Akun tidak ditemukan. Silakan daftar.";
+                if(error.code === 'auth/wrong-password') msg = "Password salah.";
+                if(error.code === 'auth/too-many-requests') msg = "Terlalu banyak percobaan. Tunggu sebentar.";
+                alert(msg);
             }
         };
 
-        // Submit Register
+        // --- 2. REGISTER ---
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Mendaftarkan akun...');
@@ -128,15 +320,38 @@
             try {
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
                 await setDoc(doc(db, 'users', cred.user.uid), { 
-                    name, email, role, 
-                    semester: 1, ips: 0,
-                    noHp: '', alamat: '', bioSingkat: '' 
+                    name, email, role, semester: 1, ips: 0, status: 'active',
+                    createdAt: new Date().toISOString()
                 });
-                alert("Pendaftaran Berhasil! Mengalihkan...");
-                // Otomatis login dan redirect
+                alert("Pendaftaran Berhasil! Anda akan dialihkan...");
             } catch (err) { 
                 hideLoading();
-                alert("Gagal: " + err.message); 
+                let msg = err.message;
+                if(err.code === 'auth/email-already-in-use') msg = "Email sudah terdaftar.";
+                if(err.code === 'auth/weak-password') msg = "Password terlalu lemah (min 6 karakter).";
+                alert("Gagal Daftar: " + msg); 
+            }
+        };
+
+        // --- 3. FORGOT PASSWORD ---
+        document.getElementById('forgot-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgot-email').value;
+            
+            showLoading('Mengirim link reset...');
+            try {
+                await sendPasswordResetEmail(auth, email);
+                hideLoading();
+                
+                // TAMPILKAN MODAL SUKSES
+                document.getElementById('modal-message').innerHTML = `Link reset password telah dikirim ke <b>${email}</b>.<br>Silakan cek kotak masuk atau folder spam email Anda.`;
+                successModal.classList.remove('hidden');
+                
+            } catch (error) {
+                hideLoading();
+                let msg = error.message;
+                if(error.code === 'auth/user-not-found') msg = "Email tidak terdaftar di sistem kami.";
+                alert("Gagal: " + msg);
             }
         };
     </script>
