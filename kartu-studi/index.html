@@ -1,26 +1,279 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kartu Studi - Cendekia Aksara</title>
+    
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
-        .khs-box { border: 5px solid #1a365d; padding: 20px; background: white; margin-top: 20px; position: relative; }
-        .khs-table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 2px solid #1a365d; }
-        .khs-table th, .khs-table td { border: 1px solid #1a365d; padding: 8px; text-align: center; }
-        .khs-table th { background: #1a365d; color: white; }
+        /* --- STYLE CONTAINER UTAMA --- */
+        body {
+            background-color: #f0f4f8;
+        }
+        
+        .container {
+            max-width: 900px; /* Lebar area kerja */
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- STYLE KERTAS KHS (FIXED WIDTH UNTUK PRINT) --- */
+        .khs-wrapper {
+            width: 100%;
+            overflow-x: auto; /* Agar bisa discroll di HP */
+            padding: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .khs-paper {
+            background: white;
+            width: 650px; /* Lebar tetap agar hasil download konsisten */
+            min-width: 650px; /* Jangan mengecil di HP */
+            min-height: 800px;
+            padding: 40px;
+            border: 5px double #1a365d; /* Border ganda Navy */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            position: relative;
+            font-family: 'Noto Serif', 'Times New Roman', serif;
+            color: #000;
+            box-sizing: border-box;
+        }
+
+        /* Watermark di tengah kertas */
+        .khs-watermark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Kop Surat */
+        .khs-header {
+            text-align: center;
+            border-bottom: 3px solid #1a365d;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .khs-header img { height: 60px; margin-bottom: 10px; }
+        .khs-header h2 {
+            font-family: 'Merriweather', serif;
+            font-size: 24px;
+            color: #1a365d;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .khs-header p { margin: 5px 0 0; font-size: 14px; font-weight: bold; color: #1a365d; }
+
+        /* Info Siswa */
+        .student-info-table {
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 14px;
+            position: relative;
+            z-index: 1;
+        }
+        .student-info-table td { padding: 3px 0; vertical-align: top; }
+        .label-col { width: 100px; font-weight: bold; }
+        .sep-col { width: 10px; }
+
+        /* Tabel Nilai */
+        .grade-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+            border: 2px solid #000;
+        }
+        
+        .grade-table th, .grade-table td {
+            border: 1px solid #000;
+            padding: 8px 5px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .grade-table th {
+            background-color: #1a365d;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-family: 'Merriweather', serif;
+        }
+
+        .grade-table td:nth-child(2) { text-align: left; padding-left: 10px; } /* Nama Mapel Rata Kiri */
+
+        /* Footer & TTD */
+        .khs-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ips-box {
+            border: 2px solid #1a365d;
+            padding: 10px 20px;
+            font-weight: bold;
+            font-size: 16px;
+            background: #f8f9fa;
+        }
+
+        .ttd-box {
+            text-align: center;
+            width: 200px;
+        }
+        .ttd-box p { margin: 0; font-size: 14px; }
+        .ttd-img { height: 80px; margin: 5px auto; display: block; opacity: 0.9; transform: rotate(-3deg); }
+
+        .legal-footer {
+            margin-top: 30px;
+            font-size: 10px;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            padding-top: 5px;
+        }
+
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        
+        #loading-state {
+            text-align: center; padding: 50px;
+        }
+        
+        /* Hint untuk Mobile */
+        .mobile-hint {
+            display: none;
+            font-size: 0.8rem; color: #666; text-align: center; margin-bottom: 5px;
+        }
+        @media (max-width: 700px) {
+            .mobile-hint { display: block; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="/dashboard" class="btn btn-secondary" style="width:auto;">
-            <i class="fa-solid fa-arrow-left"></i> Kembali
-        </a>
-        
-        <div id="loading" style="margin-top:20px; text-align:center;">Mengecek nilai...</div>
-        <div id="khs-content" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <a href="/dashboard" class="btn btn-secondary" style="width: auto; padding: 8px 15px; border-radius: 50px;">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
+            <button onclick="window.downloadKHS()" id="btn-download" class="btn btn-primary hidden" style="width: auto; padding: 8px 15px; border-radius: 50px;">
+                <i class="fa-solid fa-download"></i> Unduh KHS (HD)
+            </button>
+        </div>
+
+        <div id="loading-state">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: #ccc;"></i>
+            <p style="margin-top: 15px; color: #666;">Memeriksa kelengkapan nilai...</p>
+        </div>
+
+        <div id="error-state" class="hidden" style="text-align: center; padding: 40px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+            <i class="fa-solid fa-lock" style="font-size: 4rem; color: #f7a04a; margin-bottom: 20px;"></i>
+            <h3 style="color: #333;">Akses KHS Ditolak</h3>
+            <p style="color: #666; max-width: 500px; margin: 0 auto 20px;">
+                Mohon maaf, Kartu Hasil Studi belum dapat diterbitkan. <br>
+                Nilai Anda belum lengkap diinput oleh pengajar atau administrator.
+            </p>
+            <div style="background: #fff3cd; padding: 10px; display: inline-block; border-radius: 8px; font-size: 0.9em; color: #856404;">
+                Status: Menunggu Input Nilai
             </div>
+        </div>
+
+        <div id="document-area" class="hidden">
+            <p class="mobile-hint"><i class="fa-solid fa-arrows-left-right"></i> Geser dokumen untuk melihat detail</p>
+            
+            <div class="khs-wrapper">
+                <div id="khs-paper" class="khs-paper">
+                    
+                    <img src="https://i.imgur.com/HDC6SWw.png" class="khs-watermark" alt="Watermark" crossorigin="anonymous">
+
+                    <div class="khs-header">
+                        <img src="https://i.imgur.com/HDC6SWw.png" alt="Logo" crossorigin="anonymous">
+                        <h2>KARTU HASIL STUDI</h2>
+                        <p>Sekolah Menulis Gratis Cendekia Aksara</p>
+                    </div>
+
+                    <table class="student-info-table">
+                        <tr>
+                            <td class="label-col">Nama</td><td class="sep-col">:</td>
+                            <td id="khs-nama">Nama Siswa</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">ID Siswa</td><td class="sep-col">:</td>
+                            <td id="khs-id">12345</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">Semester</td><td class="sep-col">:</td>
+                            <td id="khs-sem">1</td>
+                        </tr>
+                        <tr>
+                            <td class="label-col">Tahun Ajar</td><td class="sep-col">:</td>
+                            <td id="khs-tahun">2025/2026</td>
+                        </tr>
+                    </table>
+
+                    <table class="grade-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30px;">No</th>
+                                <th>Mata Pelajaran</th>
+                                <th style="width: 40px;">SKS</th>
+                                <th style="width: 60px;">Nilai</th>
+                                <th style="width: 60px;">Grade</th>
+                                <th style="width: 60px;">Mutu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="khs-tbody">
+                            </tbody>
+                        <tfoot>
+                            <tr style="background-color: #f8f9fa; font-weight: bold;">
+                                <td colspan="2" style="text-align: right; padding-right: 10px;">Total SKS</td>
+                                <td>12</td>
+                                <td colspan="3"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="khs-footer">
+                        <div class="ips-box">
+                            IPS : <span id="khs-ips">0.00</span>
+                        </div>
+                        
+                        <div class="ttd-box">
+                            <p>Mengetahui,<br>Kepala Cendekia</p>
+                            <img src="https://i.imgur.com/YvrNYRw.png" class="ttd-img" alt="TTD" crossorigin="anonymous">
+                            <p style="text-decoration: underline; font-weight: bold;">Mukhamad Bayu Aji</p>
+                        </div>
+                    </div>
+
+                    <div class="legal-footer">
+                        Dokumen ini diterbitkan secara elektronik oleh sistem Cendekia Aksara. 
+                        Dicetak pada: <span id="print-date"></span>. 
+                        Dokumen ini sah tanpa tanda tangan basah.
+                    </div>
+
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -31,68 +284,133 @@
 
         (async () => {
             currentUser = await checkAuth('siswa');
-            if(currentUser) checkNilai(currentUser);
+            if(currentUser) {
+                checkKelengkapanNilai(currentUser);
+            }
         })();
 
-        function checkNilai(user) {
+        function checkKelengkapanNilai(user) {
+            // Daftar kolom nilai wajib di database
             const required = ['nilai_t1','nilai_t2','nilai_t3','nilai_t4','nilai_t5','nilai_t6','nilai_t7','nilai_t8','nilai_uts','nilai_uas'];
-            const isComplete = required.every(k => user[k] !== null && user[k] !== undefined && user[k] !== '');
-
-            const loading = document.getElementById('loading');
             
-            if(!isComplete) {
-                loading.innerHTML = `
-                    <div style="padding:20px; background:#fff3cd; color:#856404; border-radius:8px; margin-top:10px;">
-                        <h3><i class="fa-solid fa-lock"></i> Akses KHS Ditolak</h3>
-                        <p>Mohon maaf, Kartu Hasil Studi belum dapat diakses karena nilai belum lengkap diinput oleh pengajar.</p>
-                    </div>`;
-                return;
+            // Cek apakah ada yang kosong/null/undefined
+            const isComplete = required.every(key => 
+                user[key] !== null && user[key] !== undefined && user[key] !== ""
+            );
+
+            document.getElementById('loading-state').classList.add('hidden');
+
+            if(isComplete) {
+                renderKHS(user);
+                document.getElementById('document-area').classList.remove('hidden');
+                document.getElementById('btn-download').classList.remove('hidden');
+                
+                // Log Akses (Diam-diam catat history)
+                try {
+                    addDoc(collection(db, 'khs_access_logs'), {
+                        studentUid: user.uid,
+                        studentName: user.name,
+                        action: 'VIEW',
+                        timestamp: serverTimestamp()
+                    });
+                } catch(e) {} // Abaikan error log
+            } else {
+                document.getElementById('error-state').classList.remove('hidden');
             }
-
-            loading.classList.add('hidden');
-            document.getElementById('khs-content').classList.remove('hidden');
-            renderKHS(user);
-            
-            // Log akses
-            addDoc(collection(db, 'khs_access_logs'), {
-                studentUid: user.uid, studentName: user.name, action: 'VIEW', timestamp: serverTimestamp()
-            });
         }
 
         function renderKHS(user) {
-            // (Kode HTML Render KHS yang panjang dari kode asli ditaruh sini)
-            // Versi singkat agar muat:
-            const container = document.getElementById('khs-content');
-            container.innerHTML = `
-                <div class="khs-box" id="khs-print-area">
-                    <h2 style="text-align:center;">KARTU HASIL STUDI</h2>
-                    <p><strong>Nama:</strong> ${user.name} | <strong>Semester:</strong> ${user.semester}</p>
-                    <table class="khs-table">
-                        <thead><tr><th>Mapel</th><th>Nilai</th></tr></thead>
-                        <tbody>
-                            <tr><td>Tugas Harian (Rata-rata)</td><td>${hitungRataTugas(user)}</td></tr>
-                            <tr><td>UTS</td><td>${user.nilai_uts}</td></tr>
-                            <tr><td>UAS</td><td>${user.nilai_uas}</td></tr>
-                        </tbody>
-                    </table>
-                    <p style="text-align:right;"><strong>IPS: ${parseFloat(user.ips).toFixed(2)}</strong></p>
-                </div>
-                <button class="btn btn-primary" onclick="window.downloadKHS()" style="margin-top:20px;">Unduh KHS (PNG)</button>
-            `;
+            // 1. Isi Data Diri
+            document.getElementById('khs-nama').innerText = user.name;
+            document.getElementById('khs-id').innerText = user.uid.substring(0,8).toUpperCase();
+            document.getElementById('khs-sem').innerText = user.semester || 1;
+            document.getElementById('khs-tahun').innerText = new Date().getFullYear();
+            document.getElementById('print-date').innerText = new Date().toLocaleString('id-ID');
+            document.getElementById('khs-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
+
+            // 2. Helper Hitung Nilai
+            // Rumus: Rata-rata 2 tugas per mapel.
+            // Konversi: >85 A, >75 B, >60 C, >50 D, <50 E
+            const getGrade = (val) => {
+                if(val >= 85) return { h: 'A', m: 4.0 };
+                if(val >= 75) return { h: 'B', m: 3.0 };
+                if(val >= 60) return { h: 'C', m: 2.0 };
+                if(val >= 50) return { h: 'D', m: 1.0 };
+                return { h: 'E', m: 0.0 };
+            };
+
+            const t = (k) => parseFloat(user[k] || 0);
+            
+            // Definisi Mata Pelajaran (Hardcoded sesuai permintaan)
+            const mapel = [
+                { no: 1, nama: "Seni Menemukan Cerita", sks: 2, val: (t('nilai_t1') + t('nilai_t2')) / 2 },
+                { no: 2, nama: "Seni Menghidupkan Dunia", sks: 2, val: (t('nilai_t3') + t('nilai_t4')) / 2 },
+                { no: 3, nama: "Seni Menjalin Peristiwa", sks: 2, val: (t('nilai_t5') + t('nilai_t6')) / 2 },
+                { no: 4, nama: "Seni Memoles Naskah", sks: 2, val: (t('nilai_t7') + t('nilai_t8')) / 2 },
+                { no: 5, nama: "Ujian Tengah Semester (UTS)", sks: 2, val: t('nilai_uts') },
+                { no: 6, nama: "Ujian Akhir Semester (UAS)", sks: 2, val: t('nilai_uas') },
+            ];
+
+            const tbody = document.getElementById('khs-tbody');
+            tbody.innerHTML = '';
+
+            mapel.forEach(m => {
+                const g = getGrade(m.val);
+                // Hitung Bobot (Nilai x SKS) - Opsional, di sini kita tampilkan mutu huruf saja
+                const mutu = (g.m * m.sks).toFixed(1); 
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${m.no}.</td>
+                        <td>${m.nama}</td>
+                        <td>${m.sks}</td>
+                        <td>${m.val.toFixed(0)}</td>
+                        <td>${g.h}</td>
+                        <td>${mutu}</td>
+                    </tr>
+                `;
+            });
         }
 
-        function hitungRataTugas(u) {
-            let total = 0;
-            for(let i=1; i<=8; i++) total += parseFloat(u['nilai_t'+i] || 0);
-            return (total/8).toFixed(2);
-        }
+        // --- FUNGSI DOWNLOAD ---
+        window.downloadKHS = async () => {
+            const btn = document.getElementById('btn-download');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
 
-        window.downloadKHS = () => {
-            html2canvas(document.getElementById('khs-print-area')).then(canvas => {
+            // Catat Log Download
+            addDoc(collection(db, 'khs_access_logs'), {
+                studentUid: currentUser.uid,
+                studentName: currentUser.name,
+                action: 'DOWNLOAD',
+                timestamp: serverTimestamp()
+            });
+
+            // Tunggu sebentar agar render stabil
+            await new Promise(r => setTimeout(r, 500));
+
+            const element = document.getElementById('khs-paper');
+            
+            // Konfigurasi Canvas agar tajam (Scale 2x)
+            html2canvas(element, {
+                scale: 2,
+                useCORS: true, // Penting untuk gambar eksternal (Imgur)
+                backgroundColor: "#ffffff",
+                logging: false
+            }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `KHS-${currentUser.name}.png`;
-                link.href = canvas.toDataURL();
+                link.download = `KHS_${currentUser.name}_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL("image/png");
                 link.click();
+                
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }).catch(err => {
+                console.error(err);
+                alert("Gagal mengunduh. Coba refresh halaman.");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             });
         };
     </script>
