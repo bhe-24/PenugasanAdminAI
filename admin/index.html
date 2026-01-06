@@ -88,6 +88,45 @@
             .header-brand-name { font-size: 1.4rem; }
             .dashboard-card { padding: 20px; min-height: 120px; }
         }
+
+        /* --- MODAL LOGOUT STYLE --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px); /* Efek Blur */
+            -webkit-backdrop-filter: blur(8px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1; pointer-events: all;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 16px;
+            text-align: center; width: 90%; max-width: 350px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-content i { font-size: 3rem; color: #dc3545; margin-bottom: 15px; }
+        .modal-content h3 { margin: 10px 0 5px; color: #333; font-family: 'Playfair Display', serif; }
+        .modal-content p { color: #666; margin-bottom: 25px; font-size: 0.95rem; }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        
+        .btn-confirm {
+            background: #dc3545; color: white; border: none; padding: 10px 25px;
+            border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        .btn-confirm:hover { background: #b02a37; transform: translateY(-2px); }
+        
+        .btn-cancel {
+            background: #f1f3f5; color: #333; border: none; padding: 10px 25px;
+            border-radius: 50px; cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        .btn-cancel:hover { background: #e9ecef; }
     </style>
 </head>
 <body>
@@ -152,6 +191,19 @@
         </div>
     </div>
 
+    <!-- CUSTOM LOGOUT MODAL -->
+    <div id="logout-modal" class="modal-overlay">
+        <div class="modal-content">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <h3>Konfirmasi Keluar</h3>
+            <p>Apakah Anda yakin ingin mengakhiri sesi admin ini?</p>
+            <div class="modal-actions">
+                <button id="btn-cancel-logout" class="btn-cancel">Batal</button>
+                <button id="btn-confirm-logout" class="btn-confirm">Ya, Keluar</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -191,11 +243,40 @@
             }
         });
 
-        document.getElementById('logout-btn').onclick = async () => {
-            if(confirm("Yakin ingin keluar?")) { 
-                await signOut(auth); 
-                // REVISI: Redirect ke index.html setelah logout
+        // --- CUSTOM LOGOUT LOGIC ---
+        const logoutBtn = document.getElementById('logout-btn');
+        const modal = document.getElementById('logout-modal');
+        const btnConfirm = document.getElementById('btn-confirm-logout');
+        const btnCancel = document.getElementById('btn-cancel-logout');
+
+        // Buka Modal
+        logoutBtn.onclick = () => {
+            modal.classList.add('active');
+        };
+
+        // Tutup Modal (Batal)
+        btnCancel.onclick = () => {
+            modal.classList.remove('active');
+        };
+
+        // Tutup jika klik di luar modal (overlay)
+        modal.onclick = (e) => {
+            if(e.target === modal) {
+                modal.classList.remove('active');
+            }
+        };
+
+        // Konfirmasi Logout
+        btnConfirm.onclick = async () => {
+            btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Loading icon
+            try {
+                await signOut(auth);
+                // Redirect ke index.html
                 window.location.href = 'index.html'; 
+            } catch(e) {
+                console.error(e);
+                alert("Gagal logout.");
+                btnConfirm.innerHTML = 'Ya, Keluar';
             }
         };
     </script>
