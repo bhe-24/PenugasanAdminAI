@@ -2,24 +2,141 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Log Aktivitas - Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsip Log - Admin</title>
+    
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
     <style>
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background: #f8f9fa; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        /* HEADER NAVY (Konsisten) */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; border-bottom: 3px solid #003366; padding-bottom: 15px;
+        }
+        .page-header h2 { margin: 0; color: #003366; font-size: 1.6rem; }
+
+        /* SEARCH & FILTER BAR */
+        .toolbar {
+            display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px;
+            font-size: 1rem;
+        }
+        .btn-refresh {
+            background: #003366; color: white; border: none; padding: 0 20px;
+            border-radius: 8px; cursor: pointer; font-weight: bold;
+        }
+        .btn-refresh:hover { background: #002244; }
+
+        /* --- TABEL LOG CANGGIH --- */
+        .log-container {
+            background: white; border-radius: 12px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); overflow: hidden;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        
+        thead { background: #f4f6f8; border-bottom: 2px solid #e0e0e0; }
+        
+        th { 
+            padding: 15px; text-align: left; font-size: 0.85rem; 
+            text-transform: uppercase; letter-spacing: 1px; color: #555; font-weight: 700;
+        }
+        
+        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 0.95rem; color: #333; }
+        
+        tr:hover { background-color: #f9fbfd; }
+
+        /* BADGES (Label Warna) */
+        .badge { padding: 5px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        
+        .badge-view { background: #e3f2fd; color: #0d47a1; }      /* Biru: Lihat */
+        .badge-download { background: #e8f5e9; color: #1b5e20; }  /* Hijau: Download */
+        .badge-submit { background: #fff3e0; color: #e65100; }    /* Oranye: Submit */
+        .badge-login { background: #f3e5f5; color: #7b1fa2; }     /* Ungu: Login */
+
+        .text-muted { font-size: 0.8rem; color: #888; }
+        .user-avatar { 
+            width: 30px; height: 30px; background: #003366; color: white; 
+            border-radius: 50%; display: inline-flex; justify-content: center; align-items: center; 
+            font-size: 0.8rem; margin-right: 8px; 
+        }
+
+        /* --- RESPONSIVE MODE (TABLE TO CARDS) --- */
+        @media (max-width: 768px) {
+            /* Sembunyikan Header Tabel Asli */
+            thead { display: none; }
+            
+            /* Ubah baris jadi blok (Kartu) */
+            tr { 
+                display: block; margin-bottom: 15px; 
+                background: white; border: 1px solid #ddd; border-radius: 10px; 
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px;
+            }
+            
+            /* Ubah sel jadi baris di dalam kartu */
+            td { 
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 10px 5px; border-bottom: 1px dashed #eee; font-size: 0.9rem;
+            }
+            
+            td:last-child { border-bottom: none; }
+
+            /* Tambahkan Label Judul Kolom (Penting!) */
+            td::before {
+                content: attr(data-label); /* Ambil teks dari atribut HTML data-label */
+                font-weight: bold; color: #666; font-size: 0.8rem; text-transform: uppercase;
+            }
+
+            .container { padding: 15px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
-        <h2>Log Aktivitas</h2>
-        <table>
-            <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th></tr></thead>
-            <tbody id="logs"><tr><td colspan="3">Memuat...</td></tr></tbody>
-        </table>
+        <div class="page-header">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Arsip Aktivitas Siswa</h2>
+            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
+                <i class="fa-solid fa-arrow-left"></i> Kembali
+            </a>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="search-log" class="search-input" placeholder="Cari nama siswa atau jenis aktivitas...">
+            <button class="btn-refresh" onclick="location.reload()">
+                <i class="fa-solid fa-rotate-right"></i> Segarkan
+            </button>
+        </div>
+
+        <div class="log-container">
+            <table id="log-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Waktu</th>
+                        <th style="width: 25%;">Pengguna (Siswa)</th>
+                        <th style="width: 20%;">Aktivitas</th>
+                        <th style="width: 25%;">Detail / Konteks</th>
+                        <th style="width: 10%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-logs">
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 40px; color: #999;">
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br>
+                            Sedang memuat catatan aktivitas...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <p style="text-align: center; color: #999; font-size: 0.8rem; margin-top: 20px;">
+            Menampilkan 50 aktivitas terakhir demi performa sistem.
+        </p>
     </div>
 
     <script type="module">
@@ -27,16 +144,105 @@
         import { collection, query, orderBy, getDocs, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         (async () => {
+            // Cek Login Admin
             if(await checkAuth('pengajar')) {
-                const snap = await getDocs(query(collection(db, 'khs_access_logs'), orderBy('timestamp', 'desc'), limit(50)));
-                const tbody = document.getElementById('logs');
-                tbody.innerHTML = '';
-                snap.forEach(d => {
-                    const l = d.data();
-                    tbody.innerHTML += `<tr><td>${l.timestamp?.toDate().toLocaleString()}</td><td>${l.studentName}</td><td>${l.action}</td></tr>`;
-                });
+                loadLogs();
             }
         })();
+
+        async function loadLogs() {
+            const tbody = document.getElementById('tbody-logs');
+            
+            try {
+                // Ambil Data Log
+                const q = query(collection(db, 'khs_access_logs'), orderBy('timestamp', 'desc'), limit(50));
+                const snap = await getDocs(q);
+
+                if(snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada aktivitas tercatat.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = ''; // Bersihkan loading
+
+                snap.forEach(doc => {
+                    const l = doc.data();
+                    
+                    // 1. Format Tanggal (Indonesia)
+                    // Cek jika timestamp valid
+                    let dateStr = "-";
+                    if (l.timestamp) {
+                        const date = l.timestamp.toDate();
+                        dateStr = date.toLocaleString('id-ID', { 
+                            weekday: 'short', day: 'numeric', month: 'short', 
+                            hour: '2-digit', minute: '2-digit' 
+                        });
+                    }
+
+                    // 2. Format Badge Aktivitas & Ikon
+                    let badge = '';
+                    let detailText = l.detail || "-"; // Jika nanti ada kolom detail di DB
+                    
+                    // Logika tampilan berdasarkan Action
+                    if (l.action === 'DOWNLOAD') {
+                        badge = `<span class="badge badge-download"><i class="fa-solid fa-download"></i> Unduh KHS</span>`;
+                        detailText = "Dokumen PDF/PNG";
+                    } else if (l.action === 'VIEW') {
+                        badge = `<span class="badge badge-view"><i class="fa-solid fa-eye"></i> Lihat KHS</span>`;
+                        detailText = "Akses Halaman";
+                    } else if (l.action === 'LOGIN') {
+                        badge = `<span class="badge badge-login"><i class="fa-solid fa-right-to-bracket"></i> Masuk</span>`;
+                        detailText = "Web Portal";
+                    } else {
+                        badge = `<span class="badge badge-submit"><i class="fa-solid fa-bolt"></i> ${l.action}</span>`;
+                    }
+
+                    // Inisial Nama untuk Avatar
+                    const initial = l.studentName ? l.studentName.charAt(0).toUpperCase() : "?";
+
+                    // 3. Render Baris (Perhatikan data-label untuk Mobile!)
+                    tbody.innerHTML += `
+                        <tr>
+                            <td data-label="Waktu">
+                                <strong>${dateStr}</strong>
+                            </td>
+                            <td data-label="Siswa">
+                                <div style="display:flex; align-items:center;">
+                                    <div class="user-avatar">${initial}</div>
+                                    <div>
+                                        <strong>${l.studentName}</strong><br>
+                                        <span class="text-muted">ID: ${l.studentUid ? l.studentUid.substring(0,6) : 'N/A'}...</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td data-label="Aktivitas">${badge}</td>
+                            <td data-label="Detail">
+                                <span style="color:#555;">${detailText}</span><br>
+                                <span class="text-muted" style="font-size:0.75rem;">IP: 192.168.x.x (Simulasi)</span>
+                            </td>
+                            <td data-label="Status">
+                                <i class="fa-solid fa-circle-check" style="color:#28a745;"></i> Sukses
+                            </td>
+                        </tr>
+                    `;
+                });
+
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Gagal memuat log: ${err.message}</td></tr>`;
+            }
+        }
+
+        // Fitur Pencarian Sederhana (Client Side)
+        document.getElementById('search-log').onkeyup = function() {
+            const val = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#tbody-logs tr');
+            
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(val) ? '' : 'none';
+            });
+        };
     </script>
 </body>
 </html>
