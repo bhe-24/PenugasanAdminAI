@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Siswa - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .student-card { background: white; border: 1px solid #ddd; padding: 20px; border-radius: 10px; margin-bottom: 15px; }
+        .nilai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 5px; margin-top: 10px; }
+        .nilai-grid input { text-align: center; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .ujian { background: #e3f2fd; font-weight: bold; border-color: #90caf9 !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        
+        <h2>Data Siswa & Input Nilai</h2>
+        
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <input type="text" id="search" class="form-control" placeholder="Cari nama siswa..." style="margin-bottom:0;">
+            <button onclick="window.searchSiswa()" class="btn btn-primary" style="width:auto;">Cari</button>
+        </div>
+
+        <div id="list-siswa">Silakan cari siswa...</div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let allStudents = [];
+
+        (async () => {
+            if(await checkAuth('pengajar')) {
+                // Pre-load semua siswa agar pencarian cepat
+                const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'siswa')));
+                snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                allStudents.sort((a,b) => a.name.localeCompare(b.name));
+                render(allStudents);
+            }
+        })();
+
+        window.searchSiswa = () => {
+            const key = document.getElementById('search').value.toLowerCase();
+            const filtered = allStudents.filter(s => s.name.toLowerCase().includes(key) || s.email.includes(key));
+            render(filtered);
+        };
+
+        function render(list) {
+            const div = document.getElementById('list-siswa');
+            div.innerHTML = '';
+            if(list.length === 0) { div.innerHTML = 'Tidak ditemukan.'; return; }
+
+            list.forEach(u => {
+                const n = u; 
+                const ips = parseFloat(u.ips||0).toFixed(2);
+                div.innerHTML += `
+                    <div class="student-card">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong>${u.name}</strong>
+                            <span>IPS: <b>${ips}</b> | Sem: <input type="number" id="sem-${u.id}" value="${u.semester||1}" style="width:40px;"></span>
+                        </div>
+                        <div class="nilai-grid">
+                            <input type="number" id="t1-${u.id}" value="${n.nilai_t1||''}" placeholder="T1">
+                            <input type="number" id="t2-${u.id}" value="${n.nilai_t2||''}" placeholder="T2">
+                            <input type="number" id="t3-${u.id}" value="${n.nilai_t3||''}" placeholder="T3">
+                            <input type="number" id="t4-${u.id}" value="${n.nilai_t4||''}" placeholder="T4">
+                            <input type="number" id="t5-${u.id}" value="${n.nilai_t5||''}" placeholder="T5">
+                            <input type="number" id="t6-${u.id}" value="${n.nilai_t6||''}" placeholder="T6">
+                            <input type="number" id="t7-${u.id}" value="${n.nilai_t7||''}" placeholder="T7">
+                            <input type="number" id="t8-${u.id}" value="${n.nilai_t8||''}" placeholder="T8">
+                            <input type="number" id="uts-${u.id}" value="${n.nilai_uts||''}" placeholder="UTS" class="ujian">
+                            <input type="number" id="uas-${u.id}" value="${n.nilai_uas||''}" placeholder="UAS" class="ujian">
+                        </div>
+                        <button class="btn btn-success btn-sm" style="margin-top:10px; width:100%;" onclick="window.save('${u.id}')">Simpan & Hitung IPS</button>
+                    </div>
+                `;
+            });
+        }
+
+        window.save = async (uid) => {
+            const keys = ['t1','t2','t3','t4','t5','t6','t7','t8','uts','uas'];
+            let total=0, count=0, data={};
+            
+            keys.forEach(k => {
+                const val = document.getElementById(`${k}-${uid}`).value;
+                if(val) { const num=parseFloat(val); data[`nilai_${k}`]=num; total+=num; count++; }
+                else data[`nilai_${k}`]=null;
+            });
+
+            const sem = parseInt(document.getElementById(`sem-${uid}`).value);
+            const ips = count>0 ? ((total/count)/100)*4 : 0;
+            
+            await updateDoc(doc(db,'users',uid), { ...data, semester: sem, ips: ips });
+            alert(`Tersimpan! IPS Baru: ${ips.toFixed(2)}`);
+        };
+    </script>
+</body>
+</html>
