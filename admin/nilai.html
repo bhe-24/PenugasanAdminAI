@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Penilaian - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .grading-card { background: white; padding: 20px; border: 1px solid #ddd; margin-bottom: 15px; border-radius: 8px; }
+        .btn-ai { width: 100%; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        
+        <h2>Beri Nilai Tugas</h2>
+        <select id="tugas-select" class="form-control" style="margin-bottom:20px;"></select>
+        
+        <div id="list-jawaban">Pilih tugas dulu...</div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, query, orderBy, getDocs, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const API_KEY = "AIzaSyCTwRap6VyKlN9bhj7hWuyAxsdPp6DFc_Y"; // API Gemini kamu
+        const GEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+
+        (async () => {
+            if(await checkAuth('pengajar')) loadDropdown();
+        })();
+
+        async function loadDropdown() {
+            const sel = document.getElementById('tugas-select');
+            sel.innerHTML = '<option value="">-- Pilih Tugas --</option>';
+            const snap = await getDocs(query(collection(db, 'assignments'), orderBy('createdAt', 'desc')));
+            snap.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id; opt.text = d.data().judul;
+                opt.dataset.instruksi = encodeURIComponent(d.data().instruksi);
+                sel.appendChild(opt);
+            });
+        }
+
+        document.getElementById('tugas-select').onchange = async (e) => {
+            const tid = e.target.value;
+            const inst = decodeURIComponent(e.target.options[e.target.selectedIndex].dataset.instruksi);
+            const div = document.getElementById('list-jawaban');
+            
+            if(!tid) { div.innerHTML = ''; return; }
+            div.innerHTML = 'Memuat jawaban...';
+            
+            const snap = await getDocs(query(collection(db, 'submissions'), where('assignmentId', '==', tid)));
+            div.innerHTML = '';
+            
+            if(snap.empty) div.innerHTML = 'Belum ada yang mengumpulkan.';
+
+            snap.forEach(d => {
+                const s = {id: d.id, ...d.data()};
+                const konten = s.fileUrl ? `<a href="${s.fileUrl}" target="_blank" class="btn btn-secondary">Download File</a>` : `<div style="background:#f9f9f9; padding:10px; max-height:200px; overflow-y:auto;">${s.jawabanTeks.replace(/\n/g,'<br>')}</div>`;
+                const btnAI = s.jawabanTeks ? `<button class="btn-ai" onclick="window.runAI('${s.id}', '${encodeURIComponent(s.jawabanTeks)}', '${encodeURIComponent(inst)}')"><i class="fa-solid fa-magic"></i> Grade with AI</button>` : '';
+
+                div.innerHTML += `
+                    <div class="grading-card">
+                        <h3>${s.studentName}</h3>
+                        ${konten} ${btnAI}
+                        <div style="margin-top:10px; display:flex; gap:10px;">
+                            <input type="number" id="n-${s.id}" value="${s.nilai||''}" placeholder="0-100" class="form-control" style="width:80px;">
+                            <textarea id="f-${s.id}" class="form-control" rows="1" placeholder="Feedback">${s.feedback||''}</textarea>
+                            <button class="btn btn-success" onclick="window.save('${s.id}')">Simpan</button>
+                        </div>
+                    </div>`;
+            });
+        };
+
+        window.save = async (id) => {
+            await updateDoc(doc(db,'submissions',id), { nilai: document.getElementById('n-'+id).value, feedback: document.getElementById('f-'+id).value });
+            alert('Disimpan!');
+        };
+
+        window.runAI = async (id, ans, inst) => {
+            if(!confirm("Gunakan AI untuk menilai?")) return;
+            try {
+                const prompt = `Peran: Guru. Instruksi: "${decodeURIComponent(inst)}". Jawaban: "${decodeURIComponent(ans)}". Output JSON: { "score": 0-100, "feedback": "Singkat & Jelas" }`;
+                const res = await fetch(GEN_API_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+                const d = await res.json();
+                const json = JSON.parse(d.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim());
+                document.getElementById('n-'+id).value = json.score;
+                document.getElementById('f-'+id).value = json.feedback;
+            } catch(e) { alert("AI Error: " + e.message); }
+        };
+    </script>
+</body>
+</html>
