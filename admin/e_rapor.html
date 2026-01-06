@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsip E-Rapor Siswa</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        .page-header {
+            background: #fff; padding: 20px; border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 3px solid #d63384;
+        }
+        .page-header h2 { margin: 0; color: #d63384; font-size: 1.5rem; }
+
+        .search-box input {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;
+            margin-bottom: 20px; font-size: 1rem;
+        }
+
+        .student-list { display: grid; gap: 15px; }
+
+        .student-item {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #eee;
+        }
+
+        .student-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee;
+        }
+        .student-name { font-weight: bold; font-size: 1.1rem; color: #333; }
+        .semester-badge { background: #e3f2fd; color: #0056b3; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+
+        .rapor-grid {
+            display: flex; flex-wrap: wrap; gap: 10px;
+        }
+
+        .btn-rapor {
+            background: #fff; border: 1px solid #d63384; color: #d63384;
+            padding: 8px 15px; border-radius: 6px; font-size: 0.9rem;
+            cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-rapor:hover { background: #d63384; color: white; }
+        
+        .btn-rapor.locked {
+            border-color: #ccc; color: #999; cursor: not-allowed; background: #f9f9f9;
+        }
+        .btn-rapor.locked:hover { background: #f9f9f9; color: #999; }
+
+        .btn-back { background: #6c757d; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h2><i class="fa-solid fa-file-invoice"></i> Arsip E-Rapor</h2>
+            <a href="admin_dashboard.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Cari nama siswa..." oninput="window.searchSiswa()">
+        </div>
+
+        <div id="student-list" class="student-list">
+            <div style="text-align:center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi Firebase
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let allStudents = [];
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) await signInAnonymously(auth);
+            loadData();
+        });
+
+        async function loadData() {
+            const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+            const snap = await getDocs(q);
+            allStudents = [];
+            snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+            allStudents.sort((a,b) => a.name.localeCompare(b.name));
+            render(allStudents);
+        }
+
+        window.searchSiswa = () => {
+            const key = document.getElementById('search').value.toLowerCase();
+            const filtered = allStudents.filter(s => s.name.toLowerCase().includes(key));
+            render(filtered);
+        };
+
+        function render(list) {
+            const container = document.getElementById('student-list');
+            container.innerHTML = '';
+            
+            if(list.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">Data tidak ditemukan.</p>';
+                return;
+            }
+
+            list.forEach(s => {
+                const currentSem = s.semester || 1;
+                let raporButtons = '';
+
+                // REVISI: Loop hanya sampai 3 Semester
+                for(let i=1; i<=3; i++) { 
+                    if(i <= currentSem) {
+                        // Semester sudah tercapai -> Tombol Aktif (Memanggil fungsi printRapor)
+                        raporButtons += `
+                            <button onclick="window.printRapor('${s.id}', ${i}, '${s.name}')" class="btn-rapor">
+                                <i class="fa-solid fa-download"></i> Sem ${i}
+                            </button>`;
+                    } else {
+                        // Semester belum tercapai -> Tombol Terkunci
+                        raporButtons += `
+                            <div class="btn-rapor locked" title="Belum tersedia">
+                                <i class="fa-solid fa-lock"></i> Sem ${i}
+                            </div>`;
+                    }
+                }
+
+                container.innerHTML += `
+                    <div class="student-item">
+                        <div class="student-header">
+                            <span class="student-name">${s.name}</span>
+                            <span class="semester-badge">Semester Saat Ini: ${currentSem}</span>
+                        </div>
+                        <div class="rapor-grid">
+                            ${raporButtons}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- FUNGSI PRINT RAPOR KUSTOM (DESAIN KHS FORMAL) ---
+        window.printRapor = async (id, sem, name) => {
+            // Ambil data terbaru siswa untuk mendapatkan nilai
+            let studentData = {};
+            try {
+                const docSnap = await getDoc(doc(db, 'users', id));
+                if(docSnap.exists()) {
+                    studentData = docSnap.data();
+                }
+            } catch(e) {
+                console.error("Gagal ambil nilai", e);
+                alert("Gagal memuat data nilai.");
+                return;
+            }
+
+            // Siapkan Tanggal Hari Ini
+            const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            // Template Baris Tabel Nilai
+            // Kita akan menampilkan Tugas 1-8, UTS, dan UAS sebagai komponen
+            const components = [
+                { name: "Tugas Harian 1", val: studentData.nilai_t1 },
+                { name: "Tugas Harian 2", val: studentData.nilai_t2 },
+                { name: "Tugas Harian 3", val: studentData.nilai_t3 },
+                { name: "Tugas Harian 4", val: studentData.nilai_t4 },
+                { name: "Tugas Harian 5", val: studentData.nilai_t5 },
+                { name: "Tugas Harian 6", val: studentData.nilai_t6 },
+                { name: "Tugas Harian 7", val: studentData.nilai_t7 },
+                { name: "Tugas Harian 8", val: studentData.nilai_t8 },
+                { name: "Ujian Tengah Semester (UTS)", val: studentData.nilai_uts },
+                { name: "Ujian Akhir Semester (UAS)", val: studentData.nilai_uas },
+            ];
+
+            let tableRows = "";
+            let no = 1;
+            components.forEach(comp => {
+                const nilai = comp.val !== undefined && comp.val !== null ? comp.val : "-";
+                // Konversi sederhana ke Huruf (Opsional)
+                let huruf = "-";
+                if(typeof nilai === 'number') {
+                    if(nilai >= 85) huruf = "A";
+                    else if(nilai >= 75) huruf = "B";
+                    else if(nilai >= 60) huruf = "C";
+                    else if(nilai >= 50) huruf = "D";
+                    else huruf = "E";
+                }
+
+                tableRows += `
+                    <tr>
+                        <td style="text-align:center;">${no++}</td>
+                        <td>${comp.name}</td>
+                        <td style="text-align:center;">${nilai}</td>
+                        <td style="text-align:center;">${huruf}</td>
+                    </tr>
+                `;
+            });
+
+            // Hitung IPS (jika belum ada di DB, gunakan 0)
+            const ips = parseFloat(studentData.ips || 0).toFixed(2);
+            const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
+
+            // Desain Cetak Formal
+            const printContent = `
+                <html>
+                <head>
+                    <title>KHS - ${name}</title>
+                    <style>
+                        body { font-family: 'Times New Roman', serif; padding: 40px; color: #000; }
+                        .header { text-align: center; border-bottom: 3px double #000; padding-bottom: 15px; margin-bottom: 20px; }
+                        .header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; letter-spacing: 1px; }
+                        .header h3 { margin: 5px 0 0 0; font-size: 14pt; font-weight: normal; }
+                        .header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
+                        
+                        .meta-table { width: 100%; margin-bottom: 25px; font-size: 12pt; }
+                        .meta-table td { padding: 4px 0; vertical-align: top; }
+                        
+                        .nilai-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12pt; }
+                        .nilai-table th, .nilai-table td { border: 1px solid #000; padding: 8px 10px; }
+                        .nilai-table th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
+                        
+                        .summary-box { border: 2px solid #000; padding: 10px 20px; width: fit-content; margin-bottom: 40px; }
+                        .signature-section { display: flex; justify-content: space-between; margin-top: 50px; font-size: 12pt; }
+                        .sig-block { text-align: center; width: 200px; }
+                        .sig-space { height: 70px; }
+                    </style>
+                </head>
+                <body>
+                    <!-- KOP SURAT -->
+                    <div class="header">
+                        <h2>Komunitas Literasi Cendekia Aksara</h2>
+                        <h3>KARTU HASIL STUDI (KHS)</h3>
+                        <p>Cendekia Aksara, Kabupaten Temanggung, Indonesia | Telp: 08895615630</p>
+                    </div>
+
+                    <!-- DATA MAHASISWA -->
+                    <table class="meta-table">
+                        <tr>
+                            <td width="150"><b>Nama Mahasiswa</b></td>
+                            <td width="10">:</td>
+                            <td>${name}</td>
+                            <td width="120"><b>Semester</b></td>
+                            <td width="10">:</td>
+                            <td>${sem} (Ganjil/Genap)</td>
+                        </tr>
+                        <tr>
+                            <td><b>NIM / ID</b></td>
+                            <td>:</td>
+                            <td>${id}</td>
+                            <td><b>Tahun Ajaran</b></td>
+                            <td>:</td>
+                            <td>2024/2025</td>
+                        </tr>
+                        <tr>
+                            <td><b>Program Studi</b></td>
+                            <td>:</td>
+                            <td>Sastra</td>
+                            <td></td><td></td><td></td>
+                        </tr>
+                    </table>
+
+                    <!-- TABEL NILAI -->
+                    <table class="nilai-table">
+                        <thead>
+                            <tr>
+                                <th width="50">No.</th>
+                                <th>Komponen Penilaian</th>
+                                <th width="100">Nilai Angka</th>
+                                <th width="100">Nilai Huruf</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+
+                    <!-- RANGKUMAN IPS -->
+                    <div class="summary-box">
+                        <strong>Indeks Prestasi Semester (IPS): <span style="font-size: 1.2rem;">${ips}</span></strong><br>
+                        <span style="font-size: 0.9rem;">Predikat: ${predikat}</span>
+                    </div>
+
+                    <!-- TANDA TANGAN -->
+                    <div class="signature-section">
+                        <div class="sig-block">
+                            <p>Mengetahui,<br>Orang Tua</p>
+                            <div class="sig-space"></div>
+                            <p><b>( ........................... )</b>
+                        </div>
+                        <div class="sig-block">
+                            <p>Temanggung, ${today}<br>Kepala Cendekia Aksara</p>
+                            <div class="sig-space"></div>
+                            <p><b>M. Bayu Aji Tolafudin</b><br>NIP. -</p>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `;
+            
+            const win = window.open('', '_blank');
+            win.document.write(printContent);
+            win.document.close();
+        };
+    </script>
+</body>
+</html>
