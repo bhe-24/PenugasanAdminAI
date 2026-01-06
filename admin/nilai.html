@@ -24,7 +24,7 @@
             border: 1px solid #ddd; margin-bottom: 30px;
         }
 
-        /* --- CARD PENILAIAN RESPONSIF --- */
+        /* --- CARD PENILAIAN --- */
         .grading-card {
             background: white; border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
@@ -126,19 +126,14 @@
 
     <div id="loading-overlay" class="hidden">
         <i class="fa-solid fa-robot fa-bounce" style="font-size: 3rem; color: #667eea;"></i>
-        <p style="margin-top: 15px; font-weight: bold; color: #555;" id="loading-text">AI sedang berpikir...</p>
+        <p style="margin-top: 15px; font-weight: bold; color: #555;" id="loading-text">AI sedang menganalisis jawaban...</p>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, query, orderBy, getDocs, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- KONFIGURASI AI ---
-        const API_KEY = "AIzaSyCTwRap6VyKlN9bhj7hWuyAxsdPp6DFc_Y"; // API Key Kamu
-        // Menggunakan model Flash (Lebih cepat untuk tugas sekolah)
-        const GEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-
-        // Init
+        // Init: Cek Login
         (async () => {
             if(await checkAuth('pengajar')) loadDropdown();
         })();
@@ -203,13 +198,12 @@
                                 <p style="margin:10px 0;">Siswa mengumpulkan file dokumen.</p>
                                 <a href="${s.fileUrl}" target="_blank" class="btn btn-secondary btn-sm">Download / Lihat File</a>
                             </div>`;
-                        // AI tidak bisa baca file langsung di versi ini, jadi tombol AI disembunyikan utk file
                     } else {
                         kontenJawaban = `<div class="student-answer-box">${s.jawabanTeks}</div>`;
-                        // Tombol AI Aktif jika jawaban teks
+                        // Tombol AI Aktif (Menghubungi Vercel Backend)
                         tombolAI = `
                             <button class="btn-ai" onclick="window.gradeWithAI('${s.id}', '${encodeURIComponent(s.jawabanTeks)}', '${encodeURIComponent(instruksiSoal)}')">
-                                <i class="fa-solid fa-robot"></i> Analisis & Nilai dengan AI
+                                <i class="fa-solid fa-magic"></i> Analisis & Nilai dengan AI
                             </button>`;
                     }
 
@@ -242,7 +236,7 @@
             } catch(e) { console.error(e); alert("Error memuat data."); }
         };
 
-        // 3. LOGIKA AI (GEMINI)
+        // 3. LOGIKA AI (AMAN: VIA VERCEL SERVERLESS)
         window.gradeWithAI = async (subId, encodedAnswer, encodedInstruction) => {
             const overlay = document.getElementById('loading-overlay');
             overlay.classList.remove('hidden'); // Tampilkan loading
@@ -251,41 +245,30 @@
                 const answer = decodeURIComponent(encodedAnswer);
                 const instruction = decodeURIComponent(encodedInstruction);
 
-                // Prompt Engineering yang lebih kuat
+                // Prompt Engineering
                 const prompt = `
                     Bertindaklah sebagai Guru yang objektif.
-                    
-                    SOAL/INSTRUKSI: 
-                    "${instruction}"
-                    
-                    JAWABAN SISWA: 
-                    "${answer}"
-                    
-                    TUGAS ANDA:
-                    Berikan penilaian (0-100) dan feedback singkat (maksimal 2 kalimat) yang membangun.
-                    
-                    FORMAT RESPONS WAJIB JSON:
-                    {
-                        "score": 85,
-                        "feedback": "Penjelasan cukup baik, namun kurang detail pada bagian X."
-                    }
-                    JANGAN gunakan Markdown. Langsung JSON mentah.
+                    SOAL/INSTRUKSI: "${instruction}"
+                    JAWABAN SISWA: "${answer}"
+                    TUGAS: Beri nilai (0-100) dan feedback singkat (max 2 kalimat) yang membangun.
+                    FORMAT RESPONS WAJIB JSON: { "score": 85, "feedback": "Komentar..." }
+                    JANGAN gunakan Markdown.
                 `;
 
-                const response = await fetch(GEN_API_URL, {
+                // Panggil Backend Vercel (api/grade.js)
+                // Pastikan kamu sudah membuat folder 'api' dan file 'grade.js'
+                const response = await fetch('/api/grade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }]
-                    })
+                    body: JSON.stringify({ prompt: prompt })
                 });
 
                 const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
                 
-                // Ambil teks dari AI
+                // Parsing Hasil (Membersihkan JSON dari Markdown jika ada)
                 let aiText = data.candidates[0].content.parts[0].text;
-                
-                // PENTING: Bersihkan Markdown (```json ... ```) jika AI bandel
                 aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
 
                 const result = JSON.parse(aiText);
@@ -294,13 +277,13 @@
                 document.getElementById(`n-${subId}`).value = result.score;
                 document.getElementById(`f-${subId}`).value = result.feedback;
 
-                // Animasi kecil biar admin tau sudah selesai
+                // Efek visual
                 document.getElementById(`f-${subId}`).style.borderColor = "#667eea";
                 setTimeout(() => document.getElementById(`f-${subId}`).style.borderColor = "#ccc", 2000);
 
             } catch (error) {
                 console.error(error);
-                alert("Gagal terhubung ke AI. Coba lagi atau nilai manual.");
+                alert("Gagal menggunakan AI: " + error.message + "\n\nPastikan file 'api/grade.js' sudah ada dan Environment Variables sudah disetting di Vercel.");
             } finally {
                 overlay.classList.add('hidden'); // Sembunyikan loading
             }
@@ -308,7 +291,7 @@
 
         // 4. Simpan Manual
         window.saveGrade = async (id) => {
-            const btn = event.currentTarget; // Tombol yang diklik
+            const btn = event.currentTarget; 
             const originalIcon = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             btn.disabled = true;
@@ -321,7 +304,6 @@
                     nilai: val,
                     feedback: fb
                 });
-                // Ubah jadi centang sebentar
                 btn.innerHTML = '<i class="fa-solid fa-check"></i>';
                 btn.style.background = "#28a745";
                 setTimeout(() => {
