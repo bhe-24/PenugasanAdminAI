@@ -2,104 +2,285 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kelola Tugas - Admin</title>
+    
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
     <style>
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        .toolbar { background: #eee; padding: 5px; border-radius: 5px; margin-bottom: 5px; display:flex; gap:5px; }
-        .toolbar button { background: white; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer; }
+        
+        /* Header */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; border-bottom: 2px solid #003366; padding-bottom: 15px;
+        }
+        .page-header h2 { margin: 0; color: #003366; }
+
+        /* Form Style */
+        .form-card {
+            background: white; padding: 25px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px;
+            border: 1px solid #ddd;
+        }
+        
+        /* Toolbar Editor */
+        .editor-toolbar {
+            background: #f1f1f1; padding: 8px; border-radius: 6px 6px 0 0;
+            border: 1px solid #ccc; border-bottom: none; display: flex; gap: 5px;
+        }
+        .editor-btn {
+            background: white; border: 1px solid #bbb; padding: 4px 10px;
+            cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 0.85em;
+        }
+        .editor-btn:hover { background: #e6e6e6; }
+        
+        #instruksi {
+            border-radius: 0 0 6px 6px; margin-top: 0; border-top: 1px solid #ccc;
+        }
+
+        /* List Tugas */
+        .task-item {
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px;
+            border-left: 5px solid #003366; display: flex; justify-content: space-between; align-items: center;
+        }
+        .task-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .task-info p { margin: 0; color: #666; font-size: 0.9rem; }
+        .badge-sem { background: #e3f2fd; color: #003366; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+
+        .hidden { display: none !important; }
+        
+        /* Loading */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;">
-            <i class="fa-solid fa-arrow-left"></i> Kembali
-        </a>
-        
-        <h2>Kelola Tugas</h2>
-        <div id="list-tugas">Memuat...</div>
+        <div class="page-header">
+            <h2><i class="fa-solid fa-pen-to-square"></i> Kelola Tugas</h2>
+            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
+        </div>
 
-        <hr style="margin:30px 0;">
-        
-        <h3>Buat / Edit Tugas</h3>
-        <form id="form-tugas" style="background:white; padding:20px; border-radius:10px; border:1px solid #ddd;">
-            <input type="hidden" id="edit-id">
-            <div class="form-group"><label>Judul</label><input type="text" id="judul" required></div>
-            <div class="form-group"><label>Mapel</label><input type="text" id="mapel" required></div>
-            <div class="form-group"><label>Tipe</label>
-                <select id="tipe" class="form-control">
-                    <option value="Esai">Esai (Teks)</option>
-                    <option value="Dokumen">Upload File</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Instruksi (HTML Support)</label>
-                <div class="toolbar">
-                    <button type="button" onclick="insert('<b>','</b>')"><b>B</b></button>
-                    <button type="button" onclick="insert('<i>','</i>')"><i>I</i></button>
-                    <button type="button" onclick="insertTable()">Tabel</button>
+        <div id="list-container">
+            <h3 style="color:#444;">Daftar Tugas Terbit</h3>
+            <div id="task-list">Memuat data...</div>
+        </div>
+
+        <hr style="margin: 40px 0;">
+
+        <div class="form-card">
+            <h3 id="form-title" style="margin-top: 0; color: #003366;"><i class="fa-solid fa-plus-circle"></i> Buat Tugas Baru</h3>
+            <form id="form-tugas">
+                <input type="hidden" id="edit-id">
+                
+                <div class="form-group">
+                    <label>Judul Tugas</label>
+                    <input type="text" id="judul" class="form-control" required placeholder="Contoh: Analisis Cerpen">
                 </div>
-                <textarea id="instruksi" rows="5" required></textarea>
-            </div>
-            <div class="form-group"><label>Deadline</label><input type="datetime-local" id="deadline" class="form-control" required></div>
-            <div class="form-group"><label>Semester</label><select id="semester" class="form-control"><option value="1">1</option><option value="2">2</option></select></div>
-            
-            <button type="submit" class="btn btn-success">Simpan Tugas</button>
-            <button type="button" id="cancel-edit" class="btn btn-secondary hidden">Batal</button>
-        </form>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Mata Pelajaran</label>
+                        <input type="text" id="mapel" class="form-control" required placeholder="Contoh: Seni Menulis">
+                    </div>
+                    <div class="form-group">
+                        <label>Semester</label>
+                        <select id="semester" class="form-control">
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                            <option value="3">Semester 3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipe Pengumpulan</label>
+                    <select id="tipe" class="form-control">
+                        <option value="Esai">Esai (Input Teks)</option>
+                        <option value="Dokumen">Upload File (PDF/Doc)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Instruksi / Soal</label>
+                    <div class="editor-toolbar">
+                        <button type="button" class="editor-btn" onclick="insertFormat('<b>','</b>')"><i class="fa-solid fa-bold"></i> Bold</button>
+                        <button type="button" class="editor-btn" onclick="insertFormat('<i>','</i>')"><i class="fa-solid fa-italic"></i> Italic</button>
+                        <button type="button" class="editor-btn" onclick="insertTable()"><i class="fa-solid fa-table"></i> Tabel</button>
+                    </div>
+                    <textarea id="instruksi" class="form-control" rows="5" required placeholder="Tulis soal atau instruksi di sini..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Deadline (Batas Waktu)</label>
+                    <input type="datetime-local" id="deadline" class="form-control" required>
+                </div>
+
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" id="btn-cancel" class="btn btn-secondary hidden" style="width: auto; margin-right: 10px;">Batal</button>
+                    <button type="submit" class="btn btn-success" style="width: auto;">Simpan Tugas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="hidden">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: #003366;"></i>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
-        window.insert = (s,e) => { const el=document.getElementById('instruksi'); const start=el.selectionStart; el.value=el.value.substring(0,start)+s+el.value.substring(start,el.selectionEnd)+e+el.value.substring(el.selectionEnd); };
-        window.insertTable = () => document.getElementById('instruksi').value += '\n<table border="1" style="width:100%"><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>';
 
+        // Utils Editor
+        window.insertFormat = (s, e) => {
+            const el = document.getElementById('instruksi');
+            const start = el.selectionStart;
+            el.value = el.value.substring(0, start) + s + el.value.substring(start, el.selectionEnd) + e + el.value.substring(el.selectionEnd);
+            el.focus();
+        };
+        window.insertTable = () => {
+            const el = document.getElementById('instruksi');
+            el.value += '\n<table border="1" style="width:100%">\n  <tr><th>Judul 1</th><th>Judul 2</th></tr>\n  <tr><td>Isi 1</td><td>Isi 2</td></tr>\n</table>\n';
+            el.focus();
+        };
+
+        // Loading Utils
+        const showLoad = () => document.getElementById('loading-overlay').classList.remove('hidden');
+        const hideLoad = () => document.getElementById('loading-overlay').classList.add('hidden');
+
+        // Init
         (async () => {
             currentUser = await checkAuth('pengajar');
             if(currentUser) loadTugas();
         })();
 
+        // Load Data
         async function loadTugas() {
-            const div = document.getElementById('list-tugas');
-            div.innerHTML = 'Loading...';
-            const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
-            const snap = await getDocs(q);
-            div.innerHTML = '';
-            snap.forEach(d => {
-                const t = d.data();
-                div.innerHTML += `
-                    <div style="background:white; padding:15px; border:1px solid #ddd; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <strong>${t.judul}</strong> <span style="font-size:0.8em; background:#eee; padding:2px 5px;">Sem ${t.semester||1}</span><br>
-                            <small>${t.mapel} | ${new Date(t.deadline).toLocaleString()}</small>
+            const listDiv = document.getElementById('task-list');
+            try {
+                const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                
+                listDiv.innerHTML = '';
+                if(snap.empty) {
+                    listDiv.innerHTML = '<p style="text-align:center; color:#999;">Belum ada tugas.</p>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const t = d.data();
+                    const date = new Date(t.deadline).toLocaleString('id-ID');
+                    
+                    listDiv.innerHTML += `
+                        <div class="task-item">
+                            <div class="task-info">
+                                <h4>${t.judul} <span class="badge-sem">Sem ${t.semester || 1}</span></h4>
+                                <p><i class="fa-solid fa-book"></i> ${t.mapel} &nbsp;|&nbsp; <i class="fa-solid fa-clock"></i> ${date}</p>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn btn-secondary btn-sm" style="padding:5px 10px;" onclick="window.editTugas('${d.id}')">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" style="padding:5px 10px;" onclick="window.hapusTugas('${d.id}')">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <button class="btn btn-sm btn-secondary" onclick="window.edit('${d.id}')"><i class="fa fa-edit"></i></button>
-                            <button class="btn btn-sm btn-danger" onclick="window.del('${d.id}')"><i class="fa fa-trash"></i></button>
-                        </div>
-                    </div>`;
-            });
+                    `;
+                });
+            } catch(e) {
+                console.error(e);
+                listDiv.innerHTML = '<p style="color:red">Gagal memuat data.</p>';
+            }
         }
 
-        window.del = async (id) => { if(confirm('Hapus?')) { await deleteDoc(doc(db,'assignments',id)); loadTugas(); }};
-        window.edit = (id) => { document.getElementById('edit-id').value=id; alert('Silakan edit di form bawah'); document.getElementById('cancel-edit').classList.remove('hidden'); };
-        
+        // Hapus
+        window.hapusTugas = async (id) => {
+            if(!confirm("Yakin ingin menghapus tugas ini? Data jawaban siswa juga akan hilang link-nya.")) return;
+            showLoad();
+            await deleteDoc(doc(db, 'assignments', id));
+            await loadTugas();
+            hideLoad();
+        };
+
+        // Edit (Load to Form)
+        window.editTugas = async (id) => {
+            showLoad();
+            const snap = await getDoc(doc(db, 'assignments', id));
+            const data = snap.data();
+            
+            document.getElementById('edit-id').value = id;
+            document.getElementById('judul').value = data.judul;
+            document.getElementById('mapel').value = data.mapel;
+            document.getElementById('semester').value = data.semester || 1;
+            document.getElementById('tipe').value = data.tipe;
+            document.getElementById('instruksi').value = data.instruksi;
+            document.getElementById('deadline').value = data.deadline;
+
+            // Ubah UI jadi Mode Edit
+            document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen"></i> Edit Tugas';
+            document.getElementById('btn-cancel').classList.remove('hidden');
+            document.querySelector('button[type="submit"]').innerText = 'Update Tugas';
+            
+            // Scroll ke form
+            document.querySelector('.form-card').scrollIntoView({behavior: 'smooth'});
+            hideLoad();
+        };
+
+        // Batal Edit
+        document.getElementById('btn-cancel').onclick = () => {
+            document.getElementById('form-tugas').reset();
+            document.getElementById('edit-id').value = '';
+            document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Buat Tugas Baru';
+            document.getElementById('btn-cancel').classList.add('hidden');
+            document.querySelector('button[type="submit"]').innerText = 'Simpan Tugas';
+        };
+
+        // Simpan / Update
         document.getElementById('form-tugas').onsubmit = async (e) => {
             e.preventDefault();
-            const id = document.getElementById('edit-id').value;
-            const data = {
-                judul: document.getElementById('judul').value, mapel: document.getElementById('mapel').value,
-                tipe: document.getElementById('tipe').value, instruksi: document.getElementById('instruksi').value,
-                deadline: document.getElementById('deadline').value, semester: parseInt(document.getElementById('semester').value),
+            showLoad();
+
+            const editId = document.getElementById('edit-id').value;
+            const payload = {
+                judul: document.getElementById('judul').value,
+                mapel: document.getElementById('mapel').value,
+                semester: parseInt(document.getElementById('semester').value),
+                tipe: document.getElementById('tipe').value,
+                instruksi: document.getElementById('instruksi').value,
+                deadline: document.getElementById('deadline').value,
                 namaPengajar: currentUser.name
             };
-            if(id) await updateDoc(doc(db,'assignments',id), data);
-            else { data.createdAt = serverTimestamp(); await addDoc(collection(db,'assignments'), data); }
-            alert('Tersimpan!'); location.reload();
+
+            try {
+                if(editId) {
+                    await updateDoc(doc(db, 'assignments', editId), payload);
+                    alert("Tugas berhasil diperbarui!");
+                } else {
+                    payload.createdAt = serverTimestamp();
+                    await addDoc(collection(db, 'assignments'), payload);
+                    alert("Tugas baru berhasil diterbitkan!");
+                }
+                
+                // Reset Form
+                document.getElementById('btn-cancel').click(); 
+                loadTugas();
+            } catch(e) {
+                alert("Gagal menyimpan: " + e.message);
+            } finally {
+                hideLoad();
+            }
         };
     </script>
 </body>
