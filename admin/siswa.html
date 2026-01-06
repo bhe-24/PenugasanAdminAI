@@ -2,29 +2,116 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Siswa - Admin</title>
+    
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
     <style>
         .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-        .student-card { background: white; border: 1px solid #ddd; padding: 20px; border-radius: 10px; margin-bottom: 15px; }
-        .nilai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 5px; margin-top: 10px; }
-        .nilai-grid input { text-align: center; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        .ujian { background: #e3f2fd; font-weight: bold; border-color: #90caf9 !important; }
+        
+        /* Header & Search */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 15px;
+        }
+        .page-header h2 { margin: 0; color: #003366; font-size: 1.5rem; }
+
+        .search-box {
+            display: flex; gap: 10px; margin-bottom: 20px;
+            background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #ddd;
+        }
+
+        /* --- STUDENT CARD RESPONSIF --- */
+        .student-card {
+            background: white; border: 1px solid #e0e0e0; 
+            padding: 20px; border-radius: 12px; margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        
+        /* Header Kartu (Nama & IPS) */
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee;
+        }
+        .student-name { font-size: 1.1rem; color: #333; margin: 0; font-weight: 700; }
+        .student-meta { color: #666; font-size: 0.9rem; }
+        .ips-badge { 
+            background: #e3f2fd; color: #003366; padding: 4px 8px; 
+            border-radius: 6px; font-weight: bold; font-size: 0.9em;
+        }
+
+        /* Grid Input Nilai */
+        .nilai-grid {
+            display: grid;
+            /* Responsif: Kolom akan menyesuaikan lebar, minimal 50px */
+            grid-template-columns: repeat(auto-fit, minmax(55px, 1fr));
+            gap: 8px;
+        }
+
+        .input-wrapper { display: flex; flex-direction: column; text-align: center; }
+        .input-wrapper label { font-size: 0.7rem; color: #888; margin-bottom: 2px; font-weight: bold; }
+        
+        .nilai-input {
+            text-align: center; padding: 8px 2px; 
+            border: 1px solid #ccc; border-radius: 6px; font-weight: 600;
+            width: 100%; box-sizing: border-box; /* Agar padding tidak melebarkan input */
+        }
+        
+        /* Warna khusus input Ujian */
+        .ujian { background-color: #f3e5f5; border-color: #ce93d8; color: #4a148c; }
+        .ujian:focus { border-color: #ab47bc; outline: none; background: white; }
+
+        /* Tombol Simpan */
+        .btn-save {
+            width: 100%; margin-top: 15px; padding: 10px;
+            background: #28a745; color: white; border: none; border-radius: 8px;
+            font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-save:hover { background: #218838; }
+
+        /* --- MODE MOBILE (< 600px) --- */
+        @media (max-width: 600px) {
+            .page-header h2 { font-size: 1.2rem; }
+            .btn-secondary span { display: none; } /* Sembunyikan teks 'Kembali' di HP, ikon saja */
+            
+            .card-header {
+                flex-direction: column; align-items: flex-start; gap: 8px;
+            }
+            .student-meta {
+                width: 100%; display: flex; justify-content: space-between; align-items: center;
+                background: #f9f9f9; padding: 8px; border-radius: 6px;
+            }
+            .nilai-grid {
+                grid-template-columns: repeat(5, 1fr); /* 5 kolom per baris agar rapi (T1-T5) */
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        <div class="page-header">
+            <h2><i class="fa-solid fa-users-gear"></i> Data Siswa</h2>
+            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
+                <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+            </a>
+        </div>
         
-        <h2>Data Siswa & Input Nilai</h2>
-        
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
-            <input type="text" id="search" class="form-control" placeholder="Cari nama siswa..." style="margin-bottom:0;">
-            <button onclick="window.searchSiswa()" class="btn btn-primary" style="width:auto;">Cari</button>
+        <div class="search-box">
+            <input type="text" id="search" class="form-control" placeholder="Cari nama atau email siswa..." style="margin-bottom:0;">
+            <button onclick="window.searchSiswa()" class="btn btn-primary" style="width:auto; padding: 0 20px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
         </div>
 
-        <div id="list-siswa">Silakan cari siswa...</div>
+        <div id="list-siswa">
+            <div style="text-align: center; color: #666; margin-top: 40px;">
+                <i class="fa-solid fa-user-group" style="font-size: 3rem; margin-bottom: 10px; color: #ddd;"></i>
+                <p>Ketik nama siswa di atas untuk mulai menginput nilai.</p>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -35,67 +122,116 @@
 
         (async () => {
             if(await checkAuth('pengajar')) {
-                // Pre-load semua siswa agar pencarian cepat
+                // Pre-load semua siswa agar pencarian instan
                 const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'siswa')));
                 snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
                 allStudents.sort((a,b) => a.name.localeCompare(b.name));
-                render(allStudents);
             }
         })();
 
+        // Fungsi Cari (Triggered by button or enter)
         window.searchSiswa = () => {
             const key = document.getElementById('search').value.toLowerCase();
+            if(!key) return;
+            
             const filtered = allStudents.filter(s => s.name.toLowerCase().includes(key) || s.email.includes(key));
             render(filtered);
         };
 
+        // Agar bisa enter saat ngetik
+        document.getElementById('search').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") window.searchSiswa();
+        });
+
         function render(list) {
             const div = document.getElementById('list-siswa');
             div.innerHTML = '';
-            if(list.length === 0) { div.innerHTML = 'Tidak ditemukan.'; return; }
+            if(list.length === 0) { div.innerHTML = '<p style="text-align:center;">Siswa tidak ditemukan.</p>'; return; }
 
             list.forEach(u => {
                 const n = u; 
                 const ips = parseFloat(u.ips||0).toFixed(2);
+                
                 div.innerHTML += `
                     <div class="student-card">
-                        <div style="display:flex; justify-content:space-between;">
-                            <strong>${u.name}</strong>
-                            <span>IPS: <b>${ips}</b> | Sem: <input type="number" id="sem-${u.id}" value="${u.semester||1}" style="width:40px;"></span>
+                        <div class="card-header">
+                            <h3 class="student-name">${u.name}</h3>
+                            <div class="student-meta">
+                                <span><span class="ips-badge">IPS: ${ips}</span></span>
+                                <span>Sem: <input type="number" id="sem-${u.id}" value="${u.semester||1}" style="width:40px; text-align:center; border:1px solid #ccc; border-radius:4px;"></span>
+                            </div>
                         </div>
+                        
                         <div class="nilai-grid">
-                            <input type="number" id="t1-${u.id}" value="${n.nilai_t1||''}" placeholder="T1">
-                            <input type="number" id="t2-${u.id}" value="${n.nilai_t2||''}" placeholder="T2">
-                            <input type="number" id="t3-${u.id}" value="${n.nilai_t3||''}" placeholder="T3">
-                            <input type="number" id="t4-${u.id}" value="${n.nilai_t4||''}" placeholder="T4">
-                            <input type="number" id="t5-${u.id}" value="${n.nilai_t5||''}" placeholder="T5">
-                            <input type="number" id="t6-${u.id}" value="${n.nilai_t6||''}" placeholder="T6">
-                            <input type="number" id="t7-${u.id}" value="${n.nilai_t7||''}" placeholder="T7">
-                            <input type="number" id="t8-${u.id}" value="${n.nilai_t8||''}" placeholder="T8">
-                            <input type="number" id="uts-${u.id}" value="${n.nilai_uts||''}" placeholder="UTS" class="ujian">
-                            <input type="number" id="uas-${u.id}" value="${n.nilai_uas||''}" placeholder="UAS" class="ujian">
+                            ${renderInput(u.id, 't1', 'T1', n.nilai_t1)}
+                            ${renderInput(u.id, 't2', 'T2', n.nilai_t2)}
+                            ${renderInput(u.id, 't3', 'T3', n.nilai_t3)}
+                            ${renderInput(u.id, 't4', 'T4', n.nilai_t4)}
+                            ${renderInput(u.id, 't5', 'T5', n.nilai_t5)}
+                            ${renderInput(u.id, 't6', 'T6', n.nilai_t6)}
+                            ${renderInput(u.id, 't7', 'T7', n.nilai_t7)}
+                            ${renderInput(u.id, 't8', 'T8', n.nilai_t8)}
+                            ${renderInput(u.id, 'uts', 'UTS', n.nilai_uts, true)}
+                            ${renderInput(u.id, 'uas', 'UAS', n.nilai_uas, true)}
                         </div>
-                        <button class="btn btn-success btn-sm" style="margin-top:10px; width:100%;" onclick="window.save('${u.id}')">Simpan & Hitung IPS</button>
+
+                        <button class="btn-save" onclick="window.save('${u.id}')">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan & Hitung IPS
+                        </button>
                     </div>
                 `;
             });
         }
 
+        // Helper render input kotak kecil
+        function renderInput(uid, key, label, val, isExam=false) {
+            const cls = isExam ? 'nilai-input ujian' : 'nilai-input';
+            return `
+                <div class="input-wrapper">
+                    <label>${label}</label>
+                    <input type="number" id="${key}-${uid}" value="${val||''}" class="${cls}" placeholder="-">
+                </div>
+            `;
+        }
+
+        // Logic Simpan & Hitung
         window.save = async (uid) => {
+            const btn = event.currentTarget;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+
             const keys = ['t1','t2','t3','t4','t5','t6','t7','t8','uts','uas'];
             let total=0, count=0, data={};
             
             keys.forEach(k => {
                 const val = document.getElementById(`${k}-${uid}`).value;
-                if(val) { const num=parseFloat(val); data[`nilai_${k}`]=num; total+=num; count++; }
-                else data[`nilai_${k}`]=null;
+                if(val && val.trim() !== '') { 
+                    const num = parseFloat(val); 
+                    data[`nilai_${k}`] = num; 
+                    total += num; count++; 
+                } else {
+                    data[`nilai_${k}`] = null;
+                }
             });
 
+            // Hitung Rata-rata lalu konversi ke IPS (Skala 4)
+            // Rumus: (TotalNilai / JumlahItem) / 25
+            // Contoh: Rata2 100 -> 4.00, Rata2 50 -> 2.00
             const sem = parseInt(document.getElementById(`sem-${uid}`).value);
-            const ips = count>0 ? ((total/count)/100)*4 : 0;
+            const ips = count > 0 ? ((total/count)/25) : 0; 
             
-            await updateDoc(doc(db,'users',uid), { ...data, semester: sem, ips: ips });
-            alert(`Tersimpan! IPS Baru: ${ips.toFixed(2)}`);
+            try {
+                await updateDoc(doc(db,'users',uid), { ...data, semester: sem, ips: ips });
+                alert(`Data Tersimpan! IPS Baru Siswa: ${ips.toFixed(2)}`);
+                
+                // Update tampilan IPS tanpa refresh
+                // (Optional: Bisa panggil window.searchSiswa() lagi, tapi ini cukup untuk UX cepat)
+            } catch(e) {
+                alert("Gagal: " + e.message);
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan & Hitung IPS';
+                btn.disabled = false;
+            }
         };
     </script>
 </body>
