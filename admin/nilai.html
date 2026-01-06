@@ -2,94 +2,337 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Penilaian - Admin</title>
+    
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
     <style>
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        .grading-card { background: white; padding: 20px; border: 1px solid #ddd; margin-bottom: 15px; border-radius: 8px; }
-        .btn-ai { width: 100%; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin: 10px 0; }
+        
+        /* Header */
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 15px;
+        }
+        .page-header h2 { margin: 0; color: #003366; font-size: 1.5rem; }
+
+        /* Dropdown Tugas */
+        .select-container {
+            background: #f8f9fa; padding: 20px; border-radius: 12px;
+            border: 1px solid #ddd; margin-bottom: 30px;
+        }
+
+        /* --- CARD PENILAIAN RESPONSIF --- */
+        .grading-card {
+            background: white; border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px; overflow: hidden;
+            border: 1px solid #e0e0e0;
+            display: flex; flex-direction: column;
+        }
+
+        .card-header {
+            background: #003366; color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .card-header h3 { margin: 0; font-size: 1.1rem; }
+        .badge-status { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 4px; }
+
+        .card-body { padding: 20px; }
+
+        /* Area Jawaban Siswa */
+        .student-answer-box {
+            background: #f9f9f9; border: 1px solid #eee;
+            padding: 15px; border-radius: 8px;
+            max-height: 250px; overflow-y: auto;
+            margin-bottom: 20px; line-height: 1.6; color: #333;
+            white-space: pre-wrap; /* Agar enter terbaca */
+        }
+
+        /* Tombol AI */
+        .btn-ai {
+            width: 100%; background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; border: none; padding: 12px; border-radius: 8px;
+            font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: filter 0.2s; margin-bottom: 20px;
+        }
+        .btn-ai:hover { filter: brightness(1.1); }
+        .btn-ai:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Form Input Nilai (Flexbox Responsif) */
+        .grading-form {
+            display: flex; gap: 15px; align-items: flex-start;
+            border-top: 1px dashed #ccc; padding-top: 20px;
+        }
+
+        .input-group { flex: 1; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
+        
+        .score-input { width: 80px; text-align: center; font-size: 1.1rem; font-weight: bold; padding: 10px; }
+        .feedback-input { width: 100%; padding: 10px; font-family: sans-serif; resize: vertical; }
+
+        /* Tombol Simpan */
+        .btn-save {
+            background: #28a745; color: white; border: none;
+            padding: 0 25px; border-radius: 8px; font-weight: bold; cursor: pointer;
+            height: 50px; /* Samakan tinggi dengan input */
+            align-self: flex-end; /* Taruh di bawah sejajar input */
+        }
+        .btn-save:hover { background: #218838; }
+
+        /* --- RESPONSIVE MOBILE (< 600px) --- */
+        @media (max-width: 600px) {
+            .grading-form { flex-direction: column; } /* Form turun ke bawah */
+            .input-group { width: 100%; }
+            .score-input { width: 100%; } /* Input nilai full width */
+            .btn-save { width: 100%; margin-top: 10px; }
+            .page-header h2 { font-size: 1.2rem; }
+        }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="btn btn-secondary" style="width:auto; margin-bottom:20px;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        <div class="page-header">
+            <h2><i class="fa-solid fa-marker"></i> Penilaian Tugas</h2>
+            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
+        </div>
+
+        <div class="select-container">
+            <label style="font-weight: bold; display: block; margin-bottom: 8px;">Pilih Tugas yang ingin dinilai:</label>
+            <select id="tugas-select" class="form-control">
+                <option value="">-- Memuat Daftar Tugas... --</option>
+            </select>
+        </div>
         
-        <h2>Beri Nilai Tugas</h2>
-        <select id="tugas-select" class="form-control" style="margin-bottom:20px;"></select>
-        
-        <div id="list-jawaban">Pilih tugas dulu...</div>
+        <div id="list-jawaban">
+            <div style="text-align: center; color: #666; padding: 40px;">
+                <i class="fa-solid fa-arrow-up" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Silakan pilih tugas di atas terlebih dahulu.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="hidden">
+        <i class="fa-solid fa-robot fa-bounce" style="font-size: 3rem; color: #667eea;"></i>
+        <p style="margin-top: 15px; font-weight: bold; color: #555;" id="loading-text">AI sedang berpikir...</p>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, query, orderBy, getDocs, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const API_KEY = "AIzaSyCTwRap6VyKlN9bhj7hWuyAxsdPp6DFc_Y"; // API Gemini kamu
-        const GEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        // --- KONFIGURASI AI ---
+        const API_KEY = "AIzaSyCTwRap6VyKlN9bhj7hWuyAxsdPp6DFc_Y"; // API Key Kamu
+        // Menggunakan model Flash (Lebih cepat untuk tugas sekolah)
+        const GEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
+        // Init
         (async () => {
             if(await checkAuth('pengajar')) loadDropdown();
         })();
 
+        // 1. Load Dropdown Tugas
         async function loadDropdown() {
             const sel = document.getElementById('tugas-select');
-            sel.innerHTML = '<option value="">-- Pilih Tugas --</option>';
-            const snap = await getDocs(query(collection(db, 'assignments'), orderBy('createdAt', 'desc')));
-            snap.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.id; opt.text = d.data().judul;
-                opt.dataset.instruksi = encodeURIComponent(d.data().instruksi);
-                sel.appendChild(opt);
-            });
+            try {
+                const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                
+                sel.innerHTML = '<option value="">-- Pilih Tugas --</option>';
+                snap.forEach(d => {
+                    const data = d.data();
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.text = `${data.judul} (Sem ${data.semester || 1})`;
+                    // Simpan instruksi di atribut data agar AI bisa baca soalnya
+                    opt.dataset.instruksi = encodeURIComponent(data.instruksi);
+                    sel.appendChild(opt);
+                });
+            } catch(e) { console.error(e); alert("Gagal memuat tugas."); }
         }
 
+        // 2. Load Jawaban Saat Tugas Dipilih
         document.getElementById('tugas-select').onchange = async (e) => {
             const tid = e.target.value;
-            const inst = decodeURIComponent(e.target.options[e.target.selectedIndex].dataset.instruksi);
-            const div = document.getElementById('list-jawaban');
+            const listDiv = document.getElementById('list-jawaban');
             
-            if(!tid) { div.innerHTML = ''; return; }
-            div.innerHTML = 'Memuat jawaban...';
+            if(!tid) { 
+                listDiv.innerHTML = '<p style="text-align:center;">Silakan pilih tugas.</p>'; 
+                return; 
+            }
+
+            // Ambil instruksi soal untuk AI
+            const instruksiSoal = decodeURIComponent(e.target.options[e.target.selectedIndex].dataset.instruksi);
+
+            listDiv.innerHTML = '<p style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat jawaban siswa...</p>';
             
-            const snap = await getDocs(query(collection(db, 'submissions'), where('assignmentId', '==', tid)));
-            div.innerHTML = '';
-            
-            if(snap.empty) div.innerHTML = 'Belum ada yang mengumpulkan.';
-
-            snap.forEach(d => {
-                const s = {id: d.id, ...d.data()};
-                const konten = s.fileUrl ? `<a href="${s.fileUrl}" target="_blank" class="btn btn-secondary">Download File</a>` : `<div style="background:#f9f9f9; padding:10px; max-height:200px; overflow-y:auto;">${s.jawabanTeks.replace(/\n/g,'<br>')}</div>`;
-                const btnAI = s.jawabanTeks ? `<button class="btn-ai" onclick="window.runAI('${s.id}', '${encodeURIComponent(s.jawabanTeks)}', '${encodeURIComponent(inst)}')"><i class="fa-solid fa-magic"></i> Grade with AI</button>` : '';
-
-                div.innerHTML += `
-                    <div class="grading-card">
-                        <h3>${s.studentName}</h3>
-                        ${konten} ${btnAI}
-                        <div style="margin-top:10px; display:flex; gap:10px;">
-                            <input type="number" id="n-${s.id}" value="${s.nilai||''}" placeholder="0-100" class="form-control" style="width:80px;">
-                            <textarea id="f-${s.id}" class="form-control" rows="1" placeholder="Feedback">${s.feedback||''}</textarea>
-                            <button class="btn btn-success" onclick="window.save('${s.id}')">Simpan</button>
-                        </div>
-                    </div>`;
-            });
-        };
-
-        window.save = async (id) => {
-            await updateDoc(doc(db,'submissions',id), { nilai: document.getElementById('n-'+id).value, feedback: document.getElementById('f-'+id).value });
-            alert('Disimpan!');
-        };
-
-        window.runAI = async (id, ans, inst) => {
-            if(!confirm("Gunakan AI untuk menilai?")) return;
             try {
-                const prompt = `Peran: Guru. Instruksi: "${decodeURIComponent(inst)}". Jawaban: "${decodeURIComponent(ans)}". Output JSON: { "score": 0-100, "feedback": "Singkat & Jelas" }`;
-                const res = await fetch(GEN_API_URL, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-                const d = await res.json();
-                const json = JSON.parse(d.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim());
-                document.getElementById('n-'+id).value = json.score;
-                document.getElementById('f-'+id).value = json.feedback;
-            } catch(e) { alert("AI Error: " + e.message); }
+                const q = query(collection(db, 'submissions'), where('assignmentId', '==', tid));
+                const snap = await getDocs(q);
+                
+                listDiv.innerHTML = '';
+                if(snap.empty) {
+                    listDiv.innerHTML = '<p style="text-align:center; padding:20px; background:#fff; border-radius:8px;">Belum ada siswa yang mengumpulkan tugas ini.</p>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const s = {id: d.id, ...d.data()};
+                    const isGraded = s.nilai !== null && s.nilai !== undefined && s.nilai !== "";
+                    
+                    // Tampilan Jawaban (File vs Teks)
+                    let kontenJawaban = '';
+                    let tombolAI = '';
+
+                    if(s.fileUrl) {
+                        kontenJawaban = `
+                            <div style="background:#f0f4f8; padding:20px; text-align:center; border-radius:8px;">
+                                <i class="fa-solid fa-file-pdf" style="font-size:2rem; color:#dc3545;"></i><br>
+                                <p style="margin:10px 0;">Siswa mengumpulkan file dokumen.</p>
+                                <a href="${s.fileUrl}" target="_blank" class="btn btn-secondary btn-sm">Download / Lihat File</a>
+                            </div>`;
+                        // AI tidak bisa baca file langsung di versi ini, jadi tombol AI disembunyikan utk file
+                    } else {
+                        kontenJawaban = `<div class="student-answer-box">${s.jawabanTeks}</div>`;
+                        // Tombol AI Aktif jika jawaban teks
+                        tombolAI = `
+                            <button class="btn-ai" onclick="window.gradeWithAI('${s.id}', '${encodeURIComponent(s.jawabanTeks)}', '${encodeURIComponent(instruksiSoal)}')">
+                                <i class="fa-solid fa-robot"></i> Analisis & Nilai dengan AI
+                            </button>`;
+                    }
+
+                    listDiv.innerHTML += `
+                        <div class="grading-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-user-graduate"></i> ${s.studentName}</h3>
+                                <span class="badge-status">${isGraded ? '✅ Dinilai' : '⏳ Menunggu'}</span>
+                            </div>
+                            <div class="card-body">
+                                ${kontenJawaban}
+                                ${tombolAI}
+                                
+                                <div class="grading-form">
+                                    <div class="input-group" style="flex:0 0 100px;">
+                                        <label>Nilai (0-100)</label>
+                                        <input type="number" id="n-${s.id}" value="${s.nilai||''}" class="form-control score-input" placeholder="0">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Feedback / Catatan</label>
+                                        <textarea id="f-${s.id}" class="form-control feedback-input" rows="2" placeholder="Berikan catatan untuk siswa...">${s.feedback||''}</textarea>
+                                    </div>
+                                    <button class="btn-save" onclick="window.saveGrade('${s.id}')">
+                                        <i class="fa-solid fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            } catch(e) { console.error(e); alert("Error memuat data."); }
+        };
+
+        // 3. LOGIKA AI (GEMINI)
+        window.gradeWithAI = async (subId, encodedAnswer, encodedInstruction) => {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.remove('hidden'); // Tampilkan loading
+
+            try {
+                const answer = decodeURIComponent(encodedAnswer);
+                const instruction = decodeURIComponent(encodedInstruction);
+
+                // Prompt Engineering yang lebih kuat
+                const prompt = `
+                    Bertindaklah sebagai Guru yang objektif.
+                    
+                    SOAL/INSTRUKSI: 
+                    "${instruction}"
+                    
+                    JAWABAN SISWA: 
+                    "${answer}"
+                    
+                    TUGAS ANDA:
+                    Berikan penilaian (0-100) dan feedback singkat (maksimal 2 kalimat) yang membangun.
+                    
+                    FORMAT RESPONS WAJIB JSON:
+                    {
+                        "score": 85,
+                        "feedback": "Penjelasan cukup baik, namun kurang detail pada bagian X."
+                    }
+                    JANGAN gunakan Markdown. Langsung JSON mentah.
+                `;
+
+                const response = await fetch(GEN_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Ambil teks dari AI
+                let aiText = data.candidates[0].content.parts[0].text;
+                
+                // PENTING: Bersihkan Markdown (```json ... ```) jika AI bandel
+                aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+                const result = JSON.parse(aiText);
+
+                // Masukkan ke Form
+                document.getElementById(`n-${subId}`).value = result.score;
+                document.getElementById(`f-${subId}`).value = result.feedback;
+
+                // Animasi kecil biar admin tau sudah selesai
+                document.getElementById(`f-${subId}`).style.borderColor = "#667eea";
+                setTimeout(() => document.getElementById(`f-${subId}`).style.borderColor = "#ccc", 2000);
+
+            } catch (error) {
+                console.error(error);
+                alert("Gagal terhubung ke AI. Coba lagi atau nilai manual.");
+            } finally {
+                overlay.classList.add('hidden'); // Sembunyikan loading
+            }
+        };
+
+        // 4. Simpan Manual
+        window.saveGrade = async (id) => {
+            const btn = event.currentTarget; // Tombol yang diklik
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            const val = document.getElementById(`n-${id}`).value;
+            const fb = document.getElementById(`f-${id}`).value;
+
+            try {
+                await updateDoc(doc(db, 'submissions', id), {
+                    nilai: val,
+                    feedback: fb
+                });
+                // Ubah jadi centang sebentar
+                btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                btn.style.background = "#28a745";
+                setTimeout(() => {
+                    btn.innerHTML = originalIcon;
+                    btn.disabled = false;
+                }, 1500);
+            } catch(e) {
+                alert("Gagal menyimpan: " + e.message);
+                btn.innerHTML = originalIcon;
+                btn.disabled = false;
+            }
         };
     </script>
 </body>
