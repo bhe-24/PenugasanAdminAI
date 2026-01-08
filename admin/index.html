@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Cendekia Aksara</title>
     
-    <!-- Link CSS (Sesuaikan path jika perlu) -->
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -134,7 +133,6 @@
         
         <div class="brand-header">
             <div class="header-logo-circle">
-                <!-- Ganti src logo sesuai kebutuhan -->
                 <i class="fa-solid fa-graduation-cap"></i>
             </div>
             <div class="header-info">
@@ -153,12 +151,10 @@
                 <i class="fa-solid fa-users-gear"></i> <h3>Data Siswa</h3>
             </a>
 
-            <!-- FITUR BARU: E-RAPOR -->
             <a href="/admin/e_rapor.html" class="dashboard-card card-rapor">
                 <i class="fa-solid fa-file-pdf"></i> <h3>E-Rapor Siswa</h3>
             </a>
 
-            <!-- FITUR BARU: BIODATA -->
             <a href="/admin/biodata_siswa.html" class="dashboard-card card-biodata">
                 <i class="fa-solid fa-id-card-clip"></i> <h3>Biodata & Kontrol</h3>
             </a>
@@ -167,7 +163,6 @@
                 <i class="fa-solid fa-pen-to-square"></i> <h3>Kelola Tugas</h3>
             </a>
             
-            <!-- Link Eksternal -->
             <a href="/admin/arsip.html" class="dashboard-card card-arsip">
                 <i class="fa-solid fa-clock-rotate-left"></i> <h3>Log Aktivitas</h3>
             </a>
@@ -191,7 +186,6 @@
         </div>
     </div>
 
-    <!-- CUSTOM LOGOUT MODAL -->
     <div id="logout-modal" class="modal-overlay">
         <div class="modal-content">
             <i class="fa-solid fa-right-from-bracket"></i>
@@ -206,7 +200,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase (Sesuaikan)
@@ -223,23 +217,25 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // --- CEK LOGIN (PENTING: Jangan Login Otomatis di Sini!) ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Ambil nama user jika ada di DB
+                // Jika user ada, ambil datanya
                 try {
                     const docSnap = await getDoc(doc(db, "users", user.uid));
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         document.getElementById('admin-greeting').innerText = "Selamat Datang, " + (data.name || "Admin");
                     } else {
-                        document.getElementById('admin-greeting').innerText = "Mode Tamu / Admin";
+                        document.getElementById('admin-greeting').innerText = "Admin Panel";
                     }
                 } catch(e) {
                     document.getElementById('admin-greeting').innerText = "Admin Panel";
                 }
             } else {
-                // Auto login anonim jika belum login (untuk demo)
-                signInAnonymously(auth).catch(console.error);
+                // PERBAIKAN: Jika tidak ada user (logout/belum login), TENDANG ke halaman login utama
+                // Kita asumsikan index.html utama ada di folder luar (satu level di atas folder admin)
+                window.location.href = "../index.html";
             }
         });
 
@@ -271,8 +267,9 @@
             btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; // Loading icon
             try {
                 await signOut(auth);
-                // Redirect ke index.html
-                window.location.href = 'index.html'; 
+                // Redirect dilakukan otomatis oleh onAuthStateChanged di atas (blok else)
+                // Tapi kita kasih backup manual ke root index.html
+                window.location.href = "../index.html"; 
             } catch(e) {
                 console.error(e);
                 alert("Gagal logout.");
