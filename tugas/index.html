@@ -157,40 +157,29 @@
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
-                // DATA MENTAH DARI DATABASE
+                // AMBIL DATA MENTAH (APA ADANYA)
                 let rawSem = currentUser.semester;
-                
-                // --- LOGIKA PEMBERSIH ANGKA (BARU) ---
-                // Mengubah "Semester 1" menjadi angka 1
-                // Mengubah "1" menjadi angka 1
-                let cleanSem = 1; // Default
-                
-                if (rawSem) {
-                    // Hapus semua karakter yang BUKAN angka
-                    let numberString = String(rawSem).replace(/\D/g, ''); 
-                    if (numberString !== '') {
-                        cleanSem = parseInt(numberString);
-                    }
-                }
 
-                document.getElementById('semester-info').innerText = `Anda berada di Semester ${cleanSem}`;
+                // TAMPILKAN APA ADANYA DI LAYAR (Supaya tidak terlihat 'berubah' jadi 1)
+                const semLabel = rawSem ? rawSem : "1 (Default)";
+                document.getElementById('semester-info').innerText = `Anda berada di Semester ${semLabel}`;
                 
-                console.log("========================================");
-                console.log(`[DATA ASLI] User Semester: "${rawSem}"`);
-                console.log(`[DATA BERSIH] User Semester: ${cleanSem}`);
-                console.log("========================================");
+                // Debugging di Console
+                console.log(`[LOGIN] User: ${currentUser.name}`);
+                console.log(`[LOGIN] Data Semester di Database: "${rawSem}"`);
                 
-                loadAssignments(cleanSem);
+                // Kirim data mentah ke fungsi load
+                loadAssignments(rawSem);
             }
         })();
 
-        // 2. Fungsi Load Tugas
-        async function loadAssignments(userSemester) {
+        // 2. Fungsi Load Tugas (LOGIKA LEBIH PINTAR)
+        async function loadAssignments(userSemesterRaw) {
             const grid = document.getElementById('task-grid');
             const spinner = document.getElementById('loading-spinner');
 
             try {
-                // A. Ambil Data Submission Siswa
+                // A. Ambil Data Submission
                 const subQuery = query(collection(db, 'submissions'), where('studentUid', '==', currentUser.uid));
                 const subSnap = await getDocs(subQuery);
                 const mySubmissions = {};
@@ -203,28 +192,41 @@
                 let htmlContent = '';
                 let count = 0;
 
-                // --- LOOPING TUGAS ---
+                // --- PERSIAPAN FILTER ---
+                // Kita coba bersihkan User Semester jadi angka (kalau bisa)
+                let userSemInt = 1;
+                let userSemClean = String(userSemesterRaw).trim().toLowerCase(); // Versi teks bersih
+                
+                // Coba ambil angkanya saja
+                let userNumStr = String(userSemesterRaw).replace(/\D/g, '');
+                if (userNumStr !== '') userSemInt = parseInt(userNumStr);
+
                 taskSnap.forEach(doc => {
                     const task = { id: doc.id, ...doc.data() };
                     
-                    // Ambil angka semester tugas (paksa jadi angka)
-                    // Hapus huruf jika admin tidak sengaja input "Sem 1"
-                    let taskSemRaw = task.semester;
-                    let taskSemInt = 1; // Default
-                    
-                    if(taskSemRaw) {
-                         let numStr = String(taskSemRaw).replace(/\D/g, '');
-                         if(numStr !== '') taskSemInt = parseInt(numStr);
+                    // --- LOGIKA PENCOCOKAN YANG LEBIH LUAS ---
+                    let isMatch = false;
+
+                    // 1. Cek Tipe Data Langsung (Misal database "2" == "2")
+                    if (task.semester == userSemesterRaw) isMatch = true;
+
+                    // 2. Cek Angka vs Angka (Misal "Semester 2" == 2)
+                    if (!isMatch) {
+                        let taskSemInt = 1;
+                        let taskNumStr = String(task.semester).replace(/\D/g, '');
+                        if (taskNumStr !== '') taskSemInt = parseInt(taskNumStr);
+                        
+                        if (taskSemInt === userSemInt && userNumStr !== '') isMatch = true;
                     }
 
-                    // Semester User yang sudah dibersihkan di atas
-                    let userSemInt = parseInt(userSemester);
+                    // 3. Cek Teks vs Teks (Misal "Genap" == "Genap")
+                    if (!isMatch) {
+                         let taskSemClean = String(task.semester).trim().toLowerCase();
+                         if (taskSemClean === userSemClean) isMatch = true;
+                    }
 
-                    // Debugging (Bisa dihapus nanti)
-                    // console.log(`Tugas: ${task.judul} (Sem ${taskSemInt}) vs User (Sem ${userSemInt})`);
-                    
-                    // CEK KECOCOKAN
-                    if (taskSemInt === userSemInt) {
+                    // --- JIKA COCOK, TAMPILKAN ---
+                    if (isMatch) {
                         count++;
                         
                         const submission = mySubmissions[task.id];
@@ -276,7 +278,7 @@
                     grid.innerHTML = `
                         <div style="grid-column: 1/-1; text-align: center; padding: 50px; background: white; border-radius: 12px; border: 1px dashed #ccc;">
                             <i class="fa-solid fa-mug-hot" style="font-size: 3rem; color: #ddd; margin-bottom: 10px;"></i>
-                            <p style="color: #666;">Hore! Belum ada tugas untuk Semester ${userSemester}.</p>
+                            <p style="color: #666;">Tidak ada tugas untuk Semester ${userSemesterRaw}.</p>
                         </div>
                     `;
                 } else {
