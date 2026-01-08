@@ -157,16 +157,30 @@
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
-                // Ambil semester, default ke 1 jika tidak ada
-                const sem = currentUser.semester || 1;
-                document.getElementById('semester-info').innerText = `Anda berada di Semester ${sem}`;
+                // DATA MENTAH DARI DATABASE
+                let rawSem = currentUser.semester;
+                
+                // --- LOGIKA PEMBERSIH ANGKA (BARU) ---
+                // Mengubah "Semester 1" menjadi angka 1
+                // Mengubah "1" menjadi angka 1
+                let cleanSem = 1; // Default
+                
+                if (rawSem) {
+                    // Hapus semua karakter yang BUKAN angka
+                    let numberString = String(rawSem).replace(/\D/g, ''); 
+                    if (numberString !== '') {
+                        cleanSem = parseInt(numberString);
+                    }
+                }
+
+                document.getElementById('semester-info').innerText = `Anda berada di Semester ${cleanSem}`;
                 
                 console.log("========================================");
-                console.log(`[CEK DATA] User Login: ${currentUser.name}`);
-                console.log(`[CEK DATA] User Semester: ${sem} (Tipe: ${typeof sem})`);
+                console.log(`[DATA ASLI] User Semester: "${rawSem}"`);
+                console.log(`[DATA BERSIH] User Semester: ${cleanSem}`);
                 console.log("========================================");
                 
-                loadAssignments(sem);
+                loadAssignments(cleanSem);
             }
         })();
 
@@ -186,37 +200,33 @@
                 const taskQuery = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
                 const taskSnap = await getDocs(taskQuery);
 
-                console.log(`[CEK DATA] Total tugas ditemukan di database: ${taskSnap.size}`);
-
                 let htmlContent = '';
                 let count = 0;
 
-                // --- LOOPING TUGAS & INVESTIGASI ---
+                // --- LOOPING TUGAS ---
                 taskSnap.forEach(doc => {
                     const task = { id: doc.id, ...doc.data() };
                     
-                    // Kita paksa konversi ke angka agar perbandingan valid
-                    // Jika di database tidak ada field 'semester', kita anggap 1
+                    // Ambil angka semester tugas (paksa jadi angka)
+                    // Hapus huruf jika admin tidak sengaja input "Sem 1"
                     let taskSemRaw = task.semester;
-                    let taskSemInt = parseInt(task.semester);
+                    let taskSemInt = 1; // Default
                     
-                    // Kalau hasilnya NaN (Not a Number), set ke 1
-                    if (isNaN(taskSemInt)) taskSemInt = 1;
+                    if(taskSemRaw) {
+                         let numStr = String(taskSemRaw).replace(/\D/g, '');
+                         if(numStr !== '') taskSemInt = parseInt(numStr);
+                    }
 
+                    // Semester User yang sudah dibersihkan di atas
                     let userSemInt = parseInt(userSemester);
 
-                    // --- INI LAPORAN CCTV-NYA ---
-                    console.log(`----------------------------------------`);
-                    console.log(`Judul Tugas: "${task.judul}"`);
-                    console.log(`-> Semester di Database: ${taskSemRaw} (Tipe: ${typeof taskSemRaw})`);
-                    console.log(`-> Semester yang dipakai sistem: ${taskSemInt}`);
-                    console.log(`-> Semester User: ${userSemInt}`);
+                    // Debugging (Bisa dihapus nanti)
+                    // console.log(`Tugas: ${task.judul} (Sem ${taskSemInt}) vs User (Sem ${userSemInt})`);
                     
+                    // CEK KECOCOKAN
                     if (taskSemInt === userSemInt) {
-                        console.log(`✅ HASIL: COCOK! (Harusnya muncul)`);
                         count++;
                         
-                        // --- RENDER LOGIC ---
                         const submission = mySubmissions[task.id];
                         const deadlineDate = new Date(task.deadline);
                         const isLate = new Date() > deadlineDate;
@@ -257,9 +267,6 @@
                                 <span class="btn-open">${btnText} <i class="fa-solid fa-arrow-right"></i></span>
                             </div>
                         </div>`;
-                        
-                    } else {
-                        console.log(`❌ HASIL: DIBUANG (Semester tidak sama)`);
                     }
                 });
 
@@ -268,8 +275,8 @@
                 if (count === 0) {
                     grid.innerHTML = `
                         <div style="grid-column: 1/-1; text-align: center; padding: 50px; background: white; border-radius: 12px; border: 1px dashed #ccc;">
-                            <p style="color: #666;">Tidak ada tugas untuk Semester ${userSemester}.</p>
-                            <p style="font-size: 0.8em; color: #999;">(Cek Console F12 untuk detail kenapa data tidak muncul)</p>
+                            <i class="fa-solid fa-mug-hot" style="font-size: 3rem; color: #ddd; margin-bottom: 10px;"></i>
+                            <p style="color: #666;">Hore! Belum ada tugas untuk Semester ${userSemester}.</p>
                         </div>
                     `;
                 } else {
@@ -277,7 +284,7 @@
                 }
 
             } catch (error) {
-                console.error("ERROR FATAL:", error);
+                console.error("ERROR:", error);
                 spinner.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             }
         }
