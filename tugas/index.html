@@ -157,8 +157,15 @@
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
+                // Ambil semester, default ke 1 jika tidak ada
                 const sem = currentUser.semester || 1;
                 document.getElementById('semester-info').innerText = `Anda berada di Semester ${sem}`;
+                
+                console.log("========================================");
+                console.log(`[CEK DATA] User Login: ${currentUser.name}`);
+                console.log(`[CEK DATA] User Semester: ${sem} (Tipe: ${typeof sem})`);
+                console.log("========================================");
+                
                 loadAssignments(sem);
             }
         })();
@@ -169,42 +176,57 @@
             const spinner = document.getElementById('loading-spinner');
 
             try {
-                // A. Ambil Data Submission Siswa (Untuk tahu status)
+                // A. Ambil Data Submission Siswa
                 const subQuery = query(collection(db, 'submissions'), where('studentUid', '==', currentUser.uid));
                 const subSnap = await getDocs(subQuery);
                 const mySubmissions = {};
-                
-                subSnap.forEach(doc => {
-                    const data = doc.data();
-                    mySubmissions[data.assignmentId] = data; // Simpan di map biar gampang dicek
-                });
+                subSnap.forEach(doc => { mySubmissions[doc.data().assignmentId] = doc.data(); });
 
-                // B. Ambil Semua Tugas (Urutkan dari yang terbaru)
+                // B. Ambil Semua Tugas
                 const taskQuery = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
                 const taskSnap = await getDocs(taskQuery);
+
+                console.log(`[CEK DATA] Total tugas ditemukan di database: ${taskSnap.size}`);
 
                 let htmlContent = '';
                 let count = 0;
 
+                // --- LOOPING TUGAS & INVESTIGASI ---
                 taskSnap.forEach(doc => {
                     const task = { id: doc.id, ...doc.data() };
-                    const taskSemester = parseInt(task.semester) || 1;
+                    
+                    // Kita paksa konversi ke angka agar perbandingan valid
+                    // Jika di database tidak ada field 'semester', kita anggap 1
+                    let taskSemRaw = task.semester;
+                    let taskSemInt = parseInt(task.semester);
+                    
+                    // Kalau hasilnya NaN (Not a Number), set ke 1
+                    if (isNaN(taskSemInt)) taskSemInt = 1;
 
-                    // Filter: Hanya tampilkan tugas semester user
-                    if (taskSemester === parseInt(userSemester)) {
+                    let userSemInt = parseInt(userSemester);
+
+                    // --- INI LAPORAN CCTV-NYA ---
+                    console.log(`----------------------------------------`);
+                    console.log(`Judul Tugas: "${task.judul}"`);
+                    console.log(`-> Semester di Database: ${taskSemRaw} (Tipe: ${typeof taskSemRaw})`);
+                    console.log(`-> Semester yang dipakai sistem: ${taskSemInt}`);
+                    console.log(`-> Semester User: ${userSemInt}`);
+                    
+                    if (taskSemInt === userSemInt) {
+                        console.log(`✅ HASIL: COCOK! (Harusnya muncul)`);
                         count++;
                         
+                        // --- RENDER LOGIC ---
                         const submission = mySubmissions[task.id];
                         const deadlineDate = new Date(task.deadline);
                         const isLate = new Date() > deadlineDate;
 
-                        // Cek Status
                         let statusClass = 'new';
                         let badgeHtml = '<span class="status-badge bg-blue">Baru</span>';
                         let btnText = 'Kerjakan';
 
                         if (submission) {
-                            if (submission.nilai !== null && submission.nilai !== undefined && submission.nilai !== "") {
+                            if (submission.nilai) {
                                 statusClass = 'graded';
                                 badgeHtml = `<span class="status-badge bg-purple">Nilai: ${submission.nilai}</span>`;
                                 btnText = 'Lihat Nilai';
@@ -219,8 +241,6 @@
                             btnText = 'Lihat';
                         }
 
-                        // Render Kartu
-                        // PERHATIKAN: onclick mengarah ke detail.html?id=...
                         htmlContent += `
                         <div class="task-card ${statusClass}" onclick="window.location.href='/tugas/detail.html?id=${task.id}'">
                             <div>
@@ -230,14 +250,16 @@
                                 </div>
                                 <div class="task-meta">
                                     <i class="fa-solid fa-book"></i> ${task.mapel} <br>
-                                    <i class="fa-solid fa-clock"></i> ${deadlineDate.toLocaleString('id-ID', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                                    <i class="fa-solid fa-clock"></i> ${deadlineDate.toLocaleString('id-ID')}
                                 </div>
                             </div>
                             <div class="card-footer">
                                 <span class="btn-open">${btnText} <i class="fa-solid fa-arrow-right"></i></span>
                             </div>
-                        </div>
-                        `;
+                        </div>`;
+                        
+                    } else {
+                        console.log(`❌ HASIL: DIBUANG (Semester tidak sama)`);
                     }
                 });
 
@@ -246,8 +268,8 @@
                 if (count === 0) {
                     grid.innerHTML = `
                         <div style="grid-column: 1/-1; text-align: center; padding: 50px; background: white; border-radius: 12px; border: 1px dashed #ccc;">
-                            <i class="fa-solid fa-mug-hot" style="font-size: 3rem; color: #ddd; margin-bottom: 10px;"></i>
-                            <p style="color: #666;">Hore! Belum ada tugas untuk Semester ${userSemester}.</p>
+                            <p style="color: #666;">Tidak ada tugas untuk Semester ${userSemester}.</p>
+                            <p style="font-size: 0.8em; color: #999;">(Cek Console F12 untuk detail kenapa data tidak muncul)</p>
                         </div>
                     `;
                 } else {
@@ -255,8 +277,8 @@
                 }
 
             } catch (error) {
-                console.error("Gagal load tugas:", error);
-                spinner.innerHTML = `<p style="color: red;">Gagal memuat data. Cek koneksi internet Anda.</p>`;
+                console.error("ERROR FATAL:", error);
+                spinner.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             }
         }
     </script>
