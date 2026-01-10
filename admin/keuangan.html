@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Keuangan - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .page-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #003366; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        
+        .btn-lunas { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-batal { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .bg-green { background: #d1e7dd; color: #0f5132; }
+        .bg-red { background: #f8d7da; color: #842029; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h2><i class="fa-solid fa-money-bill-wave"></i> Konfirmasi Pembayaran (Sem 3)</h2>
+            <a href="index.html" class="btn btn-secondary" style="width:auto; border-radius:50px;">Kembali</a>
+        </div>
+
+        <div id="loading" style="text-align:center;">Memuat data siswa semester 3...</div>
+        
+        <table id="table-keuangan" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Nama Siswa</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-siswa"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        (async () => {
+            if(await checkAuth('pengajar')) loadData();
+        })();
+
+        async function loadData() {
+            const tbody = document.getElementById('tbody-siswa');
+            tbody.innerHTML = '';
+            
+            try {
+                // Ambil semua siswa
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                
+                let count = 0;
+                
+                snap.forEach(d => {
+                    const u = {id: d.id, ...d.data()};
+                    // Filter Manual Semester >= 3
+                    const rawSem = u.semester || 1;
+                    const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
+
+                    if (sem >= 3) {
+                        count++;
+                        const isLunas = u.statusPembayaran === 'Lunas';
+                        
+                        const row = `
+                            <tr>
+                                <td>${u.name}</td>
+                                <td>${u.email}</td>
+                                <td>
+                                    <span class="status-badge ${isLunas ? 'bg-green' : 'bg-red'}">
+                                        ${isLunas ? 'LUNAS' : 'BELUM BAYAR'}
+                                    </span>
+                                </td>
+                                <td>
+                                    ${isLunas 
+                                        ? `<button class="btn-batal" onclick="window.setStatus('${u.id}', false)">Batalkan</button>` 
+                                        : `<button class="btn-lunas" onclick="window.setStatus('${u.id}', true)">Konfirmasi Lunas</button>`
+                                    }
+                                </td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    }
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('table-keuangan').style.display = 'table';
+                
+                if(count === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada siswa semester 3.</td></tr>';
+
+            } catch(e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        window.setStatus = async (uid, isLunas) => {
+            const status = isLunas ? 'Lunas' : 'Belum';
+            if(!confirm(`Ubah status siswa ini menjadi ${status}?`)) return;
+            
+            try {
+                await updateDoc(doc(db, 'users', uid), {
+                    statusPembayaran: status
+                });
+                loadData(); // Refresh table
+            } catch(e) {
+                alert("Gagal update.");
+            }
+        };
+    </script>
+</body>
+</html>
