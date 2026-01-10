@@ -6,65 +6,158 @@
     <title>Kelola Keuangan - Admin</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; color: #333; }
         .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-        .page-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #003366; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #003366; color: white; }
-        tr:nth-child(even) { background: #f9f9f9; }
         
-        .btn-lunas { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-        .btn-batal { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .page-header { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; border-bottom: 3px solid #003366; padding-bottom: 15px; 
+        }
+        .page-header h2 { margin: 0; color: #003366; }
+
+        /* Card Pengaturan Nominal */
+        .setting-card {
+            background: white; border-radius: 12px; padding: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 30px;
+            border-left: 5px solid #f2994a; display: flex; align-items: center; gap: 20px; justify-content: space-between;
+        }
+        .setting-input {
+            padding: 10px; border: 1px solid #ccc; border-radius: 6px; width: 200px; font-size: 1rem;
+        }
+
+        /* Tabel */
+        .table-responsive { overflow-x: auto; background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #003366; color: white; text-transform: uppercase; font-size: 0.85rem; }
+        tr:hover { background-color: #f9f9f9; }
+        
+        .btn-lunas { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 50px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition:0.2s; }
+        .btn-lunas:hover { background: #218838; transform: translateY(-2px); }
+        
+        .btn-batal { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 50px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition:0.2s; }
+        .btn-batal:hover { background: #c82333; transform: translateY(-2px); }
+
+        .btn-save { background: #003366; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-save:hover { background: #001f3f; }
+
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
         .bg-green { background: #d1e7dd; color: #0f5132; }
         .bg-red { background: #f8d7da; color: #842029; }
+
+        /* CUSTOM MODAL */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center; z-index: 2000;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .modal-box {
+            background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 400px;
+            text-align: center; transform: scale(0.8); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-btns { margin-top: 20px; display: flex; justify-content: center; gap: 10px; }
+        .btn-modal { padding: 10px 20px; border-radius: 50px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-yes { background: #003366; color: white; }
+        .btn-no { background: #eee; color: #333; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="page-header">
-            <h2><i class="fa-solid fa-money-bill-wave"></i> Konfirmasi Pembayaran (Sem 3)</h2>
-            <a href="index.html" class="btn btn-secondary" style="width:auto; border-radius:50px;">Kembali</a>
+            <h2><i class="fa-solid fa-money-bill-wave"></i> Keuangan Semester 3</h2>
+            <a href="../index.html" class="btn-batal" style="background:#6c757d; text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
         </div>
 
-        <div id="loading" style="text-align:center;">Memuat data siswa semester 3...</div>
+        <div class="setting-card">
+            <div>
+                <h4 style="margin:0 0 5px 0;">Nominal Tagihan (Rp)</h4>
+                <p style="margin:0; font-size:0.85rem; color:#666;">Atur jumlah yang harus dibayar siswa.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="nominal-input" class="setting-input" placeholder="Contoh: 150000">
+                <button onclick="saveNominal()" class="btn-save">Simpan</button>
+            </div>
+        </div>
+
+        <div id="loading" style="text-align:center; padding:20px;">
+            <i class="fa-solid fa-spinner fa-spin"></i> Memuat data siswa...
+        </div>
         
-        <table id="table-keuangan" style="display:none;">
-            <thead>
-                <tr>
-                    <th>Nama Siswa</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody id="tbody-siswa"></tbody>
-        </table>
+        <div class="table-responsive">
+            <table id="table-keuangan" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Nama Siswa</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-siswa"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-icon" style="font-size:3rem; margin-bottom:15px;"></div>
+            <h3 id="modal-title" style="margin:0 0 10px 0;"></h3>
+            <p id="modal-msg" style="color:#666; margin:0;"></p>
+            <div id="modal-actions" class="modal-btns"></div>
+        </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, getDocs, query, where, doc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         (async () => {
-            if(await checkAuth('pengajar')) loadData();
+            if(await checkAuth('pengajar')) {
+                loadNominal();
+                loadData();
+            }
         })();
 
+        // 1. Load & Save Nominal
+        async function loadNominal() {
+            try {
+                // Simpan di koleksi 'settings', dokumen 'payment_config'
+                const snap = await getDoc(doc(db, 'settings', 'payment_config'));
+                if(snap.exists()) {
+                    document.getElementById('nominal-input').value = snap.data().amount || 0;
+                }
+            } catch(e) { console.error("Gagal load nominal", e); }
+        }
+
+        window.saveNominal = async () => {
+            const val = document.getElementById('nominal-input').value;
+            if(!val) return showModal('error', 'Gagal', 'Masukkan angka nominal!');
+            
+            try {
+                await setDoc(doc(db, 'settings', 'payment_config'), { amount: parseInt(val) }, { merge: true });
+                showModal('success', 'Berhasil', 'Nominal tagihan diperbarui!');
+            } catch(e) { showModal('error', 'Gagal', e.message); }
+        };
+
+        // 2. Load Data Siswa
         async function loadData() {
             const tbody = document.getElementById('tbody-siswa');
             tbody.innerHTML = '';
             
             try {
-                // Ambil semua siswa
                 const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
                 const snap = await getDocs(q);
-                
                 let count = 0;
                 
                 snap.forEach(d => {
                     const u = {id: d.id, ...d.data()};
-                    // Filter Manual Semester >= 3
+                    // Filter Semester 3
                     const rawSem = u.semester || 1;
                     const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
 
@@ -74,7 +167,7 @@
                         
                         const row = `
                             <tr>
-                                <td>${u.name}</td>
+                                <td><strong>${u.name}</strong></td>
                                 <td>${u.email}</td>
                                 <td>
                                     <span class="status-badge ${isLunas ? 'bg-green' : 'bg-red'}">
@@ -83,8 +176,8 @@
                                 </td>
                                 <td>
                                     ${isLunas 
-                                        ? `<button class="btn-batal" onclick="window.setStatus('${u.id}', false)">Batalkan</button>` 
-                                        : `<button class="btn-lunas" onclick="window.setStatus('${u.id}', true)">Konfirmasi Lunas</button>`
+                                        ? `<button class="btn-batal" onclick="askAction('${u.id}', false, '${u.name}')"><i class="fa-solid fa-xmark"></i> Batalkan</button>` 
+                                        : `<button class="btn-lunas" onclick="askAction('${u.id}', true, '${u.name}')"><i class="fa-solid fa-check"></i> Konfirmasi</button>`
                                     }
                                 </td>
                             </tr>
@@ -95,27 +188,50 @@
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('table-keuangan').style.display = 'table';
-                
-                if(count === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Tidak ada siswa semester 3.</td></tr>';
+                if(count === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Tidak ada siswa semester 3.</td></tr>';
 
-            } catch(e) {
-                alert("Error: " + e.message);
-            }
+            } catch(e) { showModal('error', 'Error', e.message); }
         }
 
-        window.setStatus = async (uid, isLunas) => {
-            const status = isLunas ? 'Lunas' : 'Belum';
-            if(!confirm(`Ubah status siswa ini menjadi ${status}?`)) return;
-            
-            try {
-                await updateDoc(doc(db, 'users', uid), {
-                    statusPembayaran: status
-                });
-                loadData(); // Refresh table
-            } catch(e) {
-                alert("Gagal update.");
-            }
+        // 3. Modal Logic
+        window.askAction = (uid, isLunas, name) => {
+            const statusText = isLunas ? "LUNAS" : "BELUM BAYAR";
+            showModal('confirm', 'Konfirmasi Status', `Ubah status <b>${name}</b> menjadi <b>${statusText}</b>?`, async () => {
+                try {
+                    await updateDoc(doc(db, 'users', uid), { statusPembayaran: isLunas ? 'Lunas' : 'Belum' });
+                    loadData();
+                    showModal('success', 'Tersimpan', 'Status berhasil diubah.');
+                } catch(e) { showModal('error', 'Gagal', 'Terjadi kesalahan.'); }
+            });
         };
+
+        function showModal(type, title, msg, onConfirm = null) {
+            const overlay = document.getElementById('custom-modal');
+            const icon = document.getElementById('modal-icon');
+            const actions = document.getElementById('modal-actions');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerHTML = msg;
+            
+            actions.innerHTML = ''; // Reset tombol
+
+            if(type === 'confirm') {
+                icon.innerHTML = '🤔';
+                const btnYes = document.createElement('button'); btnYes.className = 'btn-modal btn-yes'; btnYes.innerText = 'Ya, Simpan';
+                const btnNo = document.createElement('button'); btnNo.className = 'btn-modal btn-no'; btnNo.innerText = 'Batal';
+                
+                btnYes.onclick = () => { overlay.classList.remove('active'); if(onConfirm) onConfirm(); };
+                btnNo.onclick = () => overlay.classList.remove('active');
+                
+                actions.append(btnNo, btnYes);
+            } else {
+                icon.innerHTML = type === 'success' ? '🎉' : '⚠️';
+                const btnOk = document.createElement('button'); btnOk.className = 'btn-modal btn-yes'; btnOk.innerText = 'Tutup';
+                btnOk.onclick = () => overlay.classList.remove('active');
+                actions.appendChild(btnOk);
+            }
+            overlay.classList.add('active');
+        }
     </script>
 </body>
 </html>
