@@ -8,20 +8,22 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700;900&family=Noto+Serif:wght@400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         /* Reset Dasar */
         body { margin: 0; padding: 0; background: #525659; font-family: 'Noto Serif', serif; }
         
-        /* Toolbar Navigasi */
+        /* Toolbar (Menu Atas) */
         .toolbar {
             position: fixed; top: 0; left: 0; width: 100%; height: 60px;
             background: #222; display: flex; align-items: center; justify-content: center; gap: 20px;
             z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
         .btn {
-            padding: 10px 20px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; color: white; text-decoration: none; font-family: sans-serif; font-size: 14px;
+            padding: 10px 20px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; color: white; 
+            font-family: sans-serif; font-size: 14px; display: flex; align-items: center; gap: 8px;
         }
         .btn-back { background: #dc3545; }
         .btn-print { background: #28a745; }
@@ -43,42 +45,82 @@
             color: #000;
         }
 
-        /* --- DESAIN KWITANSI --- */
+        /* --- DESAIN TATA LETAK (LAYOUT FIX) --- */
         
-        /* 1. Header */
-        .header { text-align: center; border-bottom: 4px double #003366; padding-bottom: 20px; margin-bottom: 30px; }
-        .logo { height: 75px; width: auto; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
+        /* 1. Header Tengah */
+        .header { 
+            text-align: center; 
+            border-bottom: 3px double #003366; 
+            padding-bottom: 15px; 
+            margin-bottom: 30px; 
+        }
+        .logo { 
+            height: 80px; 
+            width: auto; 
+            margin-bottom: 10px; 
+            display: block; 
+            margin-left: auto; 
+            margin-right: auto; 
+        }
         .title { 
-            font-family: 'Merriweather', serif; font-size: 24pt; font-weight: 900; 
-            margin: 0; color: #003366; text-transform: uppercase; letter-spacing: 1px; 
+            font-family: 'Merriweather', serif; 
+            font-size: 24pt; 
+            font-weight: 900; 
+            margin: 0; 
+            color: #003366; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
         }
         .subtitle { 
-            font-family: 'Merriweather', serif; font-size: 10pt; margin-top: 5px; 
-            text-transform: uppercase; letter-spacing: 3px; color: #333; 
+            font-family: 'Merriweather', serif; 
+            font-size: 12pt; 
+            margin-top: 5px; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            color: #333; 
+            font-weight: bold;
         }
 
-        /* 2. Informasi (2 Kolom) */
+        /* 2. Informasi (Teknik Float agar Aman di PDF) */
         .info-section {
-            display: flex; /* Flexbox untuk Kiri-Kanan */
-            justify-content: space-between;
+            width: 100%;
             margin-bottom: 30px;
-            gap: 20px;
+            overflow: hidden; /* Clear float */
         }
-        .info-col { width: 48%; } /* Kunci agar tidak turun */
+        
+        /* Kolom Kiri (Siswa) */
+        .info-left { 
+            width: 48%; 
+            float: left; 
+        }
+        
+        /* Kolom Kanan (Dokumen) */
+        .info-right { 
+            width: 48%; 
+            float: right; 
+        }
         
         .col-header { 
             font-family: sans-serif; font-weight: bold; text-transform: uppercase; 
-            color: #003366; border-bottom: 1px solid #003366; margin-bottom: 10px; padding-bottom: 5px; font-size: 10pt;
+            color: #003366; border-bottom: 2px solid #003366; margin-bottom: 10px; 
+            padding-bottom: 5px; font-size: 10pt;
         }
 
-        .info-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+        .info-table { width: 100%; font-size: 10pt; }
         .info-table td { padding: 4px 0; vertical-align: top; }
-        .label { width: 90px; font-weight: bold; color: #555; }
-        .sep { width: 15px; text-align: center; }
+        .label { width: 100px; font-weight: bold; color: #555; }
+        .sep { width: 15px; text-align: center; font-weight: bold; }
         .val { font-weight: bold; color: black; }
 
         /* 3. Tabel Rincian */
-        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10pt; }
+        .invoice-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 25px; 
+            font-size: 10pt; 
+            clear: both; /* Penting agar tidak nabrak float diatasnya */
+            margin-top: 20px;
+        }
         .invoice-table th { 
             background: #003366; color: white; padding: 10px; text-align: left; 
             text-transform: uppercase; font-family: sans-serif; font-size: 9pt; border: 1px solid #003366;
@@ -86,10 +128,12 @@
         .invoice-table td { border: 1px solid #ccc; padding: 10px; }
         .invoice-table tr:nth-child(even) { background-color: #f9f9f9; }
         .col-num { width: 40px; text-align: center; }
-        .col-price { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; width: 120px;}
+        .col-price { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; width: 130px;}
 
         /* 4. Total & Status */
-        .total-container { display: flex; justify-content: flex-end; margin-bottom: 40px; }
+        .total-container { 
+            display: flex; justify-content: flex-end; margin-bottom: 40px; 
+        }
         .total-box { width: 250px; }
         .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 10pt; }
         .grand-total { 
@@ -99,7 +143,10 @@
         }
 
         /* 5. Footer & TTD */
-        .footer { display: flex; justify-content: space-between; align-items: flex-end; }
+        .footer { 
+            display: flex; justify-content: space-between; align-items: flex-end; 
+            margin-top: 50px;
+        }
         .note-box { 
             width: 55%; font-size: 9pt; color: #666; font-style: italic; 
             border: 1px dashed #aaa; padding: 10px; border-radius: 5px; line-height: 1.4;
@@ -107,7 +154,7 @@
         .ttd-box { width: 200px; text-align: center; position: relative; }
         
         .stamp-img { 
-            position: absolute; top: -20px; left: 35px; width: 130px; 
+            position: absolute; top: -30px; left: 35px; width: 130px; 
             opacity: 0.85; transform: rotate(-8deg); mix-blend-mode: multiply; 
         }
         .ttd-line { 
@@ -116,7 +163,7 @@
 
         /* Status Stamp Lunas/Cicil */
         .status-watermark {
-            position: absolute; top: 190px; right: 40px;
+            position: absolute; top: 180px; right: 40px;
             font-size: 30pt; font-weight: 900; text-transform: uppercase;
             padding: 10px 20px; border: 5px solid; border-radius: 10px;
             transform: rotate(-15deg); opacity: 0.7; pointer-events: none;
@@ -143,13 +190,13 @@
             <div id="status-mark" class="status-watermark">LUNAS</div>
 
             <div class="header">
-                <img src="https://i.imgur.com/5Srjyo4.png?t=1" class="logo img-cross" alt="Logo">
-                <div class="title">KUITANSI RESMI</div>
+                <img src="https://i.imgur.com/5Srjyo4.png?t=1" class="logo img-cross" alt="Logo" crossorigin="anonymous">
+                <div class="title">KWITANSI RESMI</div>
                 <div class="subtitle">KOMUNITAS LITERASI CENDEKIA AKSARA</div>
             </div>
 
             <div class="info-section">
-                <div class="info-col">
+                <div class="info-left">
                     <div class="col-header">DATA SISWA</div>
                     <table class="info-table">
                         <tr><td class="label">Nama</td><td class="sep">:</td><td class="val" id="k-nama">-</td></tr>
@@ -159,7 +206,7 @@
                     </table>
                 </div>
 
-                <div class="info-col">
+                <div class="info-right">
                     <div class="col-header">DOKUMEN</div>
                     <table class="info-table">
                         <tr><td class="label">No. Ref</td><td class="sep">:</td><td class="val" id="k-ref">-</td></tr>
@@ -200,13 +247,13 @@
             <div class="footer">
                 <div class="note-box">
                     <strong>Catatan Penting:</strong><br>
-                    Dokumen ini adalah bukti sah pembayaran yang diterbitkan oleh sistem. Mohon disimpan untuk pengambilan rapor.
+                    Dokumen ini adalah bukti sah pembayaran yang diterbitkan oleh sistem Cendekia Aksara. Harap simpan sebagai syarat pengambilan rapor.
                 </div>
                 <div class="ttd-box">
                     <p style="margin:0; font-size:10pt;">Temanggung, <span id="k-ttd-date"></span></p>
                     <p style="margin:0; font-size:10pt; font-weight:bold; margin-bottom:5px;">Admin Keuangan</p>
                     
-                    <img src="https://i.imgur.com/YvrNYRw.png?t=1" class="stamp-img img-cross" alt="Cap">
+                    <img src="https://i.imgur.com/YvrNYRw.png?t=1" class="stamp-img img-cross" alt="Cap" crossorigin="anonymous">
                     
                     <div class="ttd-line">Bendahara Sekolah</div>
                 </div>
@@ -219,7 +266,6 @@
         import { db, checkAuth } from "./js/firebase-config.js";
 
         // URL GAMBAR (Backup Proxy)
-        // Fungsi ini akan mengubah gambar menjadi Base64 di memori browser
         async function convertImgToBase64(url) {
             try {
                 const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
@@ -239,7 +285,7 @@
         (async () => {
             const user = await checkAuth('siswa');
             if(user) {
-                // Terapkan Gambar
+                // Terapkan Gambar (Logo & Cap)
                 const logoUrl = await convertImgToBase64("https://i.imgur.com/5Srjyo4.png");
                 const stampUrl = await convertImgToBase64("https://i.imgur.com/YvrNYRw.png");
                 
@@ -265,7 +311,7 @@
             document.getElementById('k-sem').innerText = user.semester || 3;
             document.getElementById('k-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
 
-            document.getElementById('k-ref').innerText = `INV/CA/${now.getFullYear()}/${user.uid.substring(0,4).toUpperCase()}`;
+            document.getElementById('k-ref').innerText = `INV/CA/${new Date().getFullYear()}/${user.uid.substring(0,4).toUpperCase()}`;
             document.getElementById('k-date').innerText = dateStr;
             document.getElementById('k-ttd-date').innerText = dateStr;
 
