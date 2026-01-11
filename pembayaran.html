@@ -14,7 +14,7 @@
     <style>
         /* CSS LAYAR UTAMA */
         body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; overflow-x: hidden; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; position: relative; z-index: 10; background: #f4f6f9; min-height: 100vh; }
 
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 3px solid #f2994a; padding-bottom: 15px; }
         .page-header h2 { margin: 0; color: #003366; }
@@ -73,14 +73,14 @@
         .back-btn { text-decoration: none; color: #333; background: #eee; padding: 8px 20px; border-radius: 50px; font-weight: 600; }
 
         /* ----------------------------------------------------------- */
-        /* --- AREA PDF (DISEMBUNYIKAN DI KIRI JAUH) --- */
+        /* --- AREA PDF (DI BELAKANG LAYAR - Z-INDEX NEGATIF) --- */
         /* ----------------------------------------------------------- */
         #pdf-generator-container {
             position: fixed;
-            left: -5000px; /* Lempar jauh ke kiri agar tidak bocor */
+            left: 0; 
             top: 0;
-            width: 210mm; /* Lebar A4 Pas */
-            z-index: 9999; /* Pastikan di atas layer lain saat diproses */
+            width: 210mm; /* Lebar A4 */
+            z-index: -9999; /* Sembunyi di belakang */
             background: white;
         }
 
@@ -94,7 +94,6 @@
             background: white;
             color: black;
             page-break-after: always;
-            border: 1px solid transparent; 
         }
 
         /* Halaman 1: Kwitansi Resmi */
@@ -182,7 +181,7 @@
                 </p>
                 <div style="margin-top:15px;">
                     <button onclick="downloadPDF()" class="btn-print" id="btn-download-pdf">
-                        <i class="fa-solid fa-file-pdf"></i> Unduh Kuitansi & Rincian (PDF)
+                        <i class="fa-solid fa-file-pdf"></i> Unduh Kuitansi (PDF)
                     </button>
                 </div>
             </div>
@@ -267,9 +266,18 @@
         import { db, checkAuth } from "./js/firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // GAMBAR BASE64 (Agar pasti muncul di PDF tanpa CORS Error)
-        const LOGO_BASE64 = "https://imgur.com/5Srjyo4.png"; // Browser modern akan handle ini, jika masih gagal harus di-encode base64 manual.
-        const STAMP_BASE64 = "https://imgur.com/YvrNYRw.png";
+        // ==========================================
+        //  BAGIAN PENTING: PASTE KODE BASE64 DI SINI
+        // ==========================================
+        
+        // 1. Buka https://www.base64-image.de/
+        // 2. Upload Logo -> Copy Image -> Paste di dalam kutipan di bawah
+        const LOGO_BASE64 = "PASTE_KODE_LOGO_DISINI"; 
+
+        // 3. Upload Cap Basah -> Copy Image -> Paste di dalam kutipan di bawah
+        const STAMP_BASE64 = "PASTE_KODE_CAP_DISINI"; 
+
+        // ==========================================
 
         let currentNominal = 75450;
         let selectedMode = 'lunas';
@@ -277,12 +285,19 @@
         (async () => {
             const user = await checkAuth('siswa');
             if (user) {
-                // Set Gambar PDF
-                document.getElementById('logo-img').src = LOGO_BASE64;
-                document.getElementById('stamp-img').src = STAMP_BASE64;
-                document.querySelectorAll('.logo-img-class').forEach(el => el.src = LOGO_BASE64);
-                // Penting: Tambahkan crossorigin
-                document.querySelectorAll('img').forEach(img => img.setAttribute('crossorigin', 'anonymous'));
+                // Set Gambar Base64 (Otomatis)
+                if(LOGO_BASE64.startsWith('data:')) {
+                    document.getElementById('logo-img').src = LOGO_BASE64;
+                    document.querySelectorAll('.logo-img-class').forEach(el => el.src = LOGO_BASE64);
+                } else {
+                    console.warn("Logo Base64 belum diisi!");
+                }
+
+                if(STAMP_BASE64.startsWith('data:')) {
+                    document.getElementById('stamp-img').src = STAMP_BASE64;
+                } else {
+                    console.warn("Stamp Base64 belum diisi!");
+                }
 
                 let rawSem = user.semester || 1;
                 let sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
@@ -292,7 +307,6 @@
                     window.location.href = 'index.html';
                     return;
                 }
-                
                 renderPage(user, sem);
             }
         })();
@@ -366,27 +380,24 @@
 
             const element = document.getElementById('pdf-generator-container');
             
-            // Konfigurasi Penting agar gambar muncul
+            // Konfigurasi PDF
             const opt = {
                 margin:       0,
                 filename:     'Kwitansi_Cendekia_Aksara.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 }, 
+                html2canvas:  { scale: 2 }, // Tidak perlu useCORS karena kita pakai Base64
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Tunggu sebentar agar gambar ter-load sempurna (hack)
-            setTimeout(() => {
-                html2pdf().set(opt).from(element).save().then(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                }).catch(err => {
-                    console.error(err);
-                    alert("Gagal membuat PDF. Coba refresh halaman.");
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                });
-            }, 500);
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }).catch(err => {
+                console.error(err);
+                alert("Gagal membuat PDF. Silakan coba lagi.");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
         };
 
     </script>
