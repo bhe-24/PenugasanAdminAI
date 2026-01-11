@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Kwitansi - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Noto+Serif:wght@400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { background: #525659; font-family: sans-serif; margin: 0; padding: 20px; }
+        
+        /* HEADER TOMBOL */
+        .toolbar {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: #333; padding: 15px; text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 1000;
+            display: flex; justify-content: center; gap: 15px;
+        }
+        .btn-tool {
+            background: white; border: none; padding: 10px 20px; border-radius: 5px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: 0.2s;
+        }
+        .btn-tool:hover { transform: scale(1.05); }
+        .btn-back { background: #dc3545; color: white; }
+        .btn-png { background: #28a745; color: white; }
+        .btn-pdf { background: #ffc107; color: #333; }
+
+        /* AREA KERTAS A4 (PREVIEW NYATA) */
+        .paper-container {
+            margin-top: 80px; /* Jarak dari toolbar */
+            display: flex; justify-content: center; padding-bottom: 50px;
+        }
+        
+        .paper {
+            background: white; width: 210mm; min-height: 297mm;
+            padding: 20mm; box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            font-family: 'Noto Serif', serif; color: black;
+            position: relative;
+        }
+
+        /* Desain dalam Kwitansi */
+        .header { text-align: center; border-bottom: 3px double #000; padding-bottom: 20px; margin-bottom: 30px; }
+        .logo { height: 80px; margin-bottom: 10px; }
+        .title { font-family: 'Merriweather', serif; font-size: 24pt; font-weight: bold; margin: 0; color: #1a365d; text-transform: uppercase; }
+        
+        .content-table { width: 100%; border-collapse: collapse; margin-top: 30px; font-size: 12pt; }
+        .content-table td { padding: 8px 5px; vertical-align: top; }
+        .label { width: 180px; font-weight: bold; }
+        .val { border-bottom: 1px dotted #999; width: 100%; display: block; min-height: 25px; }
+
+        .total-box { 
+            margin-top: 40px; background: #eee; padding: 15px; border: 2px solid #1a365d; 
+            font-family: 'Courier Prime', monospace; font-weight: bold; font-size: 14pt; 
+        }
+
+        .footer { margin-top: 60px; display: flex; justify-content: flex-end; }
+        .ttd-area { width: 250px; text-align: center; position: relative; }
+        .stamp { position: absolute; top: -10px; left: 20px; width: 130px; opacity: 0.85; transform: rotate(-10deg); mix-blend-mode: multiply; }
+        
+        /* Status Cap */
+        .status-stamp {
+            position: absolute; top: 150px; right: 50px;
+            border: 4px solid #0f5132; color: #0f5132;
+            font-size: 30pt; font-weight: 900; text-transform: uppercase;
+            padding: 10px 30px; transform: rotate(-15deg); border-radius: 10px; opacity: 0.8;
+        }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 2000; display: flex; 
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:#1a365d;"></i>
+        <p style="margin-top:15px;">Menyiapkan Dokumen...</p>
+    </div>
+
+    <div class="toolbar">
+        <a href="pembayaran.html" class="btn-tool btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        <button onclick="downloadPNG()" class="btn-tool btn-png"><i class="fa-solid fa-image"></i> Simpan Gambar (PNG)</button>
+        <button onclick="downloadPDF()" class="btn-tool btn-pdf"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
+    </div>
+
+    <div class="paper-container">
+        <div id="receipt-paper" class="paper">
+            
+            <div class="status-stamp" id="stamp-status">LUNAS</div>
+
+            <div class="header">
+                <img src="https://i.imgur.com/5Srjyo4.png?t=1" class="logo" crossorigin="anonymous">
+                <h1 class="title">KWITANSI RESMI</h1>
+                <p style="margin:0; font-family: 'Courier Prime'; letter-spacing: 2px;">CENDEKIA AKSARA SCHOOL</p>
+            </div>
+
+            <table class="content-table">
+                <tr>
+                    <td class="label">No. Referensi</td>
+                    <td>:</td>
+                    <td><span class="val" id="k-ref">INV/LOADING...</span></td>
+                </tr>
+                <tr>
+                    <td class="label">Telah Terima Dari</td>
+                    <td>:</td>
+                    <td><span class="val" id="k-nama">Loading...</span></td>
+                </tr>
+                <tr>
+                    <td class="label">Untuk Pembayaran</td>
+                    <td>:</td>
+                    <td><span class="val">Administrasi Semester 3 (Paket Lengkap)</span></td>
+                </tr>
+                <tr>
+                    <td class="label">Metode Bayar</td>
+                    <td>:</td>
+                    <td><span class="val" id="k-metode">LUNAS</span></td>
+                </tr>
+                <tr>
+                    <td class="label">Tanggal Cetak</td>
+                    <td>:</td>
+                    <td><span class="val" id="k-tgl">-</span></td>
+                </tr>
+            </table>
+
+            <div class="total-box">
+                TERBILANG: <span id="k-nominal">Rp 75.450,-</span>
+            </div>
+
+            <div class="footer">
+                <div class="ttd-area">
+                    <p>Jakarta, <span id="k-tgl-ttd">-</span><br>Admin Keuangan</p>
+                    <img src="https://i.imgur.com/YvrNYRw.png?t=1" class="stamp" crossorigin="anonymous">
+                    <br><br><br>
+                    <p style="text-decoration: underline; font-weight: bold;">Bendahara Sekolah</p>
+                </div>
+            </div>
+
+            <div style="position: absolute; bottom: 20mm; left: 20mm; font-size: 10px; color: #666;">
+                Dokumen ini sah dan diterbitkan secara elektronik oleh sistem.
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "./js/firebase-config.js";
+
+        (async () => {
+            const user = await checkAuth('siswa');
+            if(user) {
+                renderData(user);
+            } else {
+                window.location.href = 'index.html';
+            }
+        })();
+
+        function renderData(user) {
+            document.getElementById('loading-overlay').classList.add('hidden'); // Sembunyikan loading jika data siap
+
+            // Isi Data
+            document.getElementById('k-nama').innerText = user.name;
+            document.getElementById('k-ref').innerText = `INV/CA/${new Date().getFullYear()}/${user.uid.substring(0,5).toUpperCase()}`;
+            const tgl = new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+            document.getElementById('k-tgl').innerText = tgl;
+            document.getElementById('k-tgl-ttd').innerText = tgl;
+
+            const status = user.statusPembayaran;
+            const statusEl = document.getElementById('stamp-status');
+
+            if (status === 'Lunas') {
+                statusEl.innerText = "LUNAS";
+                statusEl.style.color = "#0f5132";
+                statusEl.style.borderColor = "#0f5132";
+                document.getElementById('k-metode').innerText = "LUNAS (FULL PAYMENT)";
+                document.getElementById('k-nominal').innerText = "Rp 75.450,-";
+            } else {
+                statusEl.innerText = "CICILAN";
+                statusEl.style.color = "#d63384";
+                statusEl.style.borderColor = "#d63384";
+                document.getElementById('k-metode').innerText = "CICILAN KE-1 (DP 50%)";
+                document.getElementById('k-nominal').innerText = "Rp 37.725,-";
+            }
+        }
+
+        // --- FUNGSI DOWNLOAD PNG (PALING STABIL) ---
+        window.downloadPNG = function() {
+            const btn = document.querySelector('.btn-png');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+            
+            const element = document.getElementById('receipt-paper');
+
+            html2canvas(element, {
+                scale: 2, // Biar tajam
+                useCORS: true, // Wajib untuk Imgur
+                allowTaint: true,
+                backgroundColor: "#ffffff"
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Kwitansi_Saya.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.innerHTML = '<i class="fa-solid fa-image"></i> Simpan Gambar (PNG)';
+            }).catch(err => {
+                alert("Gagal. Coba refresh halaman.");
+                console.error(err);
+                btn.innerHTML = '<i class="fa-solid fa-image"></i> Simpan Gambar (PNG)';
+            });
+        }
+
+        // --- FUNGSI DOWNLOAD PDF ---
+        window.downloadPDF = function() {
+            const btn = document.querySelector('.btn-pdf');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+
+            const element = document.getElementById('receipt-paper');
+            const opt = {
+                margin: 0,
+                filename: 'Kwitansi_Saya.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Simpan PDF';
+            });
+        }
+    </script>
+</body>
+</html>
