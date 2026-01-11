@@ -2,96 +2,134 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kwitansi Resmi - Cendekia Aksara</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bukti Pembayaran - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Noto+Serif:wght@400;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        body { background: #333; font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        body { background: #333; font-family: sans-serif; margin: 0; padding: 0; min-height: 100vh; padding-bottom: 80px; /* Space for toolbar */ }
         
-        /* HEADER NAVIGASI */
+        /* TOOLBAR (NAVIGASI) - Sticky di Bawah untuk Mobile */
         .toolbar {
-            position: fixed; top: 0; left: 0; width: 100%;
-            background: #222; padding: 15px; text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 1000;
-            display: flex; justify-content: center; gap: 15px;
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: #222; padding: 15px; box-sizing: border-box;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5); z-index: 1000;
+            display: flex; justify-content: space-around; gap: 10px;
         }
         .btn-tool {
-            background: #444; color: white; border: none; padding: 10px 20px; border-radius: 5px;
-            font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.9rem; transition: 0.2s;
+            flex: 1; padding: 12px; border-radius: 8px; border: none;
+            font-weight: bold; cursor: pointer; color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 5px; font-size: 0.8rem; text-decoration: none; transition: 0.2s;
         }
-        .btn-tool:hover { background: #555; transform: translateY(-2px); }
-        .btn-save { background: #28a745; }
-        .btn-save:hover { background: #218838; }
+        .btn-tool i { font-size: 1.2rem; }
+        .btn-tool:active { transform: scale(0.95); }
 
-        /* KERTAS A4 (PREVIEW) */
-        .paper-container { margin-top: 90px; padding-bottom: 50px; }
+        .btn-back { background: #dc3545; max-width: 80px; }
+        .btn-png { background: #28a745; }
+        .btn-pdf { background: #ffc107; color: #333; }
+
+        /* AREA KERTAS (RESPONSIF) */
+        .paper-container {
+            display: flex; justify-content: center; padding: 20px 10px;
+        }
         .paper {
-            background: white; width: 210mm; min-height: 297mm;
-            padding: 20mm; box-sizing: border-box;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            background: white; 
+            width: 100%; max-width: 210mm; /* A4 Width Limit */
+            min-height: 297mm;
+            padding: 15mm; 
+            box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
             font-family: 'Noto Serif', serif; color: black;
             position: relative;
         }
 
-        /* --- DESAIN DALAM KWITANSI --- */
-        .header { border-bottom: 3px double #003366; padding-bottom: 20px; margin-bottom: 30px; display: flex; align-items: center; gap: 20px; }
-        .logo { height: 80px; width: auto; }
-        .header-text h1 { font-family: 'Merriweather', serif; font-size: 22pt; margin: 0; color: #003366; text-transform: uppercase; }
-        .header-text p { margin: 5px 0 0; font-size: 10pt; letter-spacing: 2px; text-transform: uppercase; color: #555; }
-
-        /* INFO GRID */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; font-size: 11pt; }
-        .info-box { border: 1px solid #ddd; padding: 15px; border-radius: 8px; background: #f9f9f9; }
-        .info-label { font-weight: bold; font-size: 0.85rem; color: #666; text-transform: uppercase; margin-bottom: 5px; display: block; }
-        .info-val { font-weight: bold; color: #000; display: block; }
-
-        /* TABEL RINCIAN (YANG KAMU MINTA) */
-        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11pt; }
-        .invoice-table th { background: #003366; color: white; padding: 12px; text-align: left; text-transform: uppercase; font-size: 0.9rem; }
-        .invoice-table td { border-bottom: 1px solid #eee; padding: 12px; }
-        .invoice-table tr:nth-child(even) { background: #fdfdfd; }
-        .num-col { width: 40px; text-align: center; }
-        .price-col { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; }
-
-        /* FOOTER TOTAL */
-        .total-section { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-        .total-box { width: 300px; }
-        .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 11pt; }
-        .grand-total { border-top: 2px solid #003366; border-bottom: none; font-weight: 900; font-size: 14pt; padding-top: 15px; color: #003366; }
-
-        /* TANDA TANGAN */
-        .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; }
-        .note { font-size: 9pt; color: #666; width: 60%; font-style: italic; line-height: 1.5; }
-        .ttd-area { text-align: center; width: 200px; position: relative; }
-        .stamp { position: absolute; top: -20px; left: 10px; width: 140px; opacity: 0.85; transform: rotate(-10deg); mix-blend-mode: multiply; }
-        
-        /* STATUS STAMP */
-        .status-stamp {
-            position: absolute; top: 180px; right: 50px;
-            border: 4px solid #0f5132; color: #0f5132;
-            font-size: 24pt; font-weight: 900; text-transform: uppercase;
-            padding: 10px 30px; transform: rotate(-15deg); border-radius: 10px; opacity: 0.8; pointer-events: none;
+        /* Responsive Tweak untuk HP */
+        @media (max-width: 600px) {
+            .paper { 
+                padding: 10mm; 
+                min-height: auto; /* Biar gak kepanjangan di HP */
+            }
+            .header-text h1 { font-size: 18pt !important; }
+            .info-grid { grid-template-columns: 1fr !important; }
+            .invoice-table th, .invoice-table td { font-size: 9pt !important; padding: 8px 5px !important; }
+            .status-stamp { font-size: 18pt !important; top: 120px !important; right: 20px !important; }
         }
 
-        #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:2000; display:flex; justify-content:center; align-items:center; flex-direction:column; }
+        /* DESAIN KWITANSI */
+        .header { border-bottom: 3px double #003366; padding-bottom: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
+        .logo { height: 60px; width: auto; }
+        .header-text h1 { font-family: 'Merriweather', serif; font-size: 22pt; margin: 0; color: #003366; text-transform: uppercase; }
+        .header-text p { margin: 2px 0 0; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; color: #555; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; font-size: 10pt; }
+        .info-box { border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #f9f9f9; }
+        .info-label { font-weight: bold; font-size: 0.75rem; color: #666; text-transform: uppercase; display: block; margin-bottom: 3px; }
+        
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 10pt; }
+        .invoice-table th { background: #003366; color: white; padding: 10px; text-align: left; font-size: 0.85rem; }
+        .invoice-table td { border-bottom: 1px solid #eee; padding: 10px; }
+        .price-col { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; }
+
+        .total-section { display: flex; justify-content: flex-end; margin-bottom: 30px; }
+        .total-box { width: 100%; max-width: 300px; }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #ccc; font-size: 10pt; }
+        .grand-total { border-top: 2px solid #003366; border-bottom: none; font-weight: 900; font-size: 13pt; padding-top: 10px; color: #003366; }
+
+        .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; flex-wrap: wrap; gap: 20px; }
+        .note { font-size: 8pt; color: #666; width: 100%; max-width: 60%; font-style: italic; line-height: 1.4; }
+        .ttd-area { text-align: center; width: 150px; position: relative; }
+        .stamp { position: absolute; top: -15px; left: 10px; width: 100px; opacity: 0.85; transform: rotate(-10deg); mix-blend-mode: multiply; }
+        
+        .status-stamp {
+            position: absolute; top: 160px; right: 40px;
+            border: 3px solid #0f5132; color: #0f5132;
+            font-size: 24pt; font-weight: 900; text-transform: uppercase;
+            padding: 8px 20px; transform: rotate(-15deg); border-radius: 8px; opacity: 0.8; pointer-events: none;
+        }
+
+        /* MODAL KONFIRMASI KELUAR */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 320px; text-align: center; }
+        .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-confirm { padding: 10px 20px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; flex: 1; }
+        .btn-stay { background: #eee; color: #333; }
+        .btn-leave { background: #dc3545; color: white; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="loading-overlay">
-        <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:#003366;"></i>
-        <p style="margin-top:15px;">Menyiapkan Kwitansi...</p>
+    <div id="exit-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <i class="fa-solid fa-circle-exclamation" style="font-size:3rem; color:#f7a04a; margin-bottom:15px;"></i>
+            <h3 style="margin:0 0 10px 0;">Sudah Disimpan?</h3>
+            <p style="color:#666; font-size:0.9rem; margin:0;">
+                Pastikan Anda sudah mengunduh bukti kwitansi ini. Dokumen ini wajib untuk pengambilan rapor.
+            </p>
+            <div class="modal-btns">
+                <button onclick="closeExitModal()" class="btn-confirm btn-stay">Belum</button>
+                <button onclick="window.location.href='pembayaran.html'" class="btn-confirm btn-leave">Sudah, Keluar</button>
+            </div>
+        </div>
     </div>
 
     <div class="toolbar">
-        <a href="pembayaran.html" class="btn-tool" style="background:#555;"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
-        <button onclick="downloadPNG()" class="btn-tool btn-save"><i class="fa-solid fa-download"></i> Simpan Gambar (HD)</button>
+        <button onclick="confirmExit()" class="btn-tool btn-back">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </button>
+        <button onclick="downloadPNG()" class="btn-tool btn-png">
+            <i class="fa-solid fa-image"></i> Simpan Gambar
+        </button>
+        <button onclick="downloadPDF()" class="btn-tool btn-pdf">
+            <i class="fa-solid fa-file-pdf"></i> Unduh PDF
+        </button>
     </div>
 
     <div class="paper-container">
@@ -102,69 +140,65 @@
             <div class="header">
                 <img src="https://i.imgur.com/5Srjyo4.png?t=1" class="logo" crossorigin="anonymous">
                 <div class="header-text">
-                    <h1>INVOICE / KWITANSI</h1>
-                    <p>Cendekia Aksara School - Official Document</p>
+                    <h1>KWITANSI RESMI</h1>
+                    <p>Cendekia Aksara School</p>
                 </div>
             </div>
 
             <div class="info-grid">
                 <div class="info-box">
-                    <span class="info-label">Diterbitkan Untuk:</span>
-                    <span class="info-val" id="k-nama">Nama Siswa</span>
-                    <span style="font-size:0.9rem; display:block; margin-top:5px;">ID: <span id="k-uid">12345</span></span>
-                    <span style="font-size:0.9rem; display:block;">Semester: <span id="k-sem">3</span></span>
+                    <span class="info-label">Siswa:</span>
+                    <span id="k-nama" style="font-weight:bold;">Loading...</span>
+                    <br><span style="font-size:0.8rem;">ID: <span id="k-uid">-</span></span>
                 </div>
                 <div class="info-box">
-                    <span class="info-label">Detail Transaksi:</span>
-                    <span style="font-size:0.9rem; display:block;">No. Ref: <span id="k-ref" style="font-weight:bold;">INV/2024/001</span></span>
-                    <span style="font-size:0.9rem; display:block; margin-top:5px;">Tanggal: <span id="k-date">-</span></span>
-                    <span style="font-size:0.9rem; display:block; margin-top:5px;">Metode: <span id="k-method">Transfer QRIS</span></span>
+                    <span class="info-label">Referensi:</span>
+                    <span id="k-ref" style="font-weight:bold;">INV/...</span>
+                    <br><span style="font-size:0.8rem;">Tgl: <span id="k-date">-</span></span>
                 </div>
             </div>
 
             <table class="invoice-table">
                 <thead>
                     <tr>
-                        <th class="num-col">No</th>
-                        <th>Deskripsi Item</th>
-                        <th class="price-col">Harga</th>
+                        <th width="30">No</th>
+                        <th>Keterangan</th>
+                        <th style="text-align:right;">Jumlah</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td class="num-col">1</td><td>Buku Rapor Akademik (Cetak)</td><td class="price-col">Rp 20.450</td></tr>
-                    <tr><td class="num-col">2</td><td>Special Book (Komunitas Random)</td><td class="price-col">Rp 25.000</td></tr>
-                    <tr><td class="num-col">3</td><td>Biaya Administrasi Semester</td><td class="price-col">Rp 5.000</td></tr>
-                    <tr><td class="num-col">4</td><td>Biaya Bimbingan Akademik</td><td class="price-col">Rp 25.000</td></tr>
+                    <tr><td>1</td><td>Buku Rapor Akademik</td><td class="price-col">Rp 20.450</td></tr>
+                    <tr><td>2</td><td>Special Book (Komunitas)</td><td class="price-col">Rp 25.000</td></tr>
+                    <tr><td>3</td><td>Biaya Administrasi</td><td class="price-col">Rp 5.000</td></tr>
+                    <tr><td>4</td><td>Biaya Bimbingan</td><td class="price-col">Rp 25.000</td></tr>
                 </tbody>
             </table>
 
             <div class="total-section">
                 <div class="total-box">
                     <div class="total-row">
-                        <span>Subtotal Tagihan</span>
+                        <span>Tagihan</span>
                         <span>Rp 75.450</span>
                     </div>
-                    <div class="total-row" id="row-status">
-                        <span>Status Pembayaran</span>
-                        <span style="color:#28a745; font-weight:bold;">LUNAS</span>
-                    </div>
                     <div class="total-row grand-total">
-                        <span>TOTAL DIBAYAR</span>
+                        <span>DIBAYAR</span>
                         <span id="k-total">Rp 75.450</span>
+                    </div>
+                    <div style="text-align:right; font-size:0.8rem; color:#666; margin-top:5px;" id="k-status-text">
+                        Lunas Penuh
                     </div>
                 </div>
             </div>
 
             <div class="footer">
                 <div class="note">
-                    <strong>Catatan:</strong><br>
-                    Dokumen ini adalah bukti pembayaran yang sah dan diterbitkan secara elektronik oleh sistem Cendekia Aksara. Tanda tangan basah tidak diperlukan. Harap simpan dokumen ini untuk pengambilan buku rapor.
+                    Dokumen sah diterbitkan secara elektronik.<br>Simpan sebagai syarat pengambilan rapor.
                 </div>
                 <div class="ttd-area">
-                    <p>Jakarta, <span id="k-ttd-date">-</span><br>Finance Dept.</p>
+                    <p>Jakarta, <span id="k-ttd-date">-</span><br>Admin Keuangan</p>
                     <img src="https://i.imgur.com/YvrNYRw.png?t=1" class="stamp" crossorigin="anonymous">
-                    <br><br><br>
-                    <p style="text-decoration: underline; font-weight: bold;">Bendahara Sekolah</p>
+                    <br><br>
+                    <p style="text-decoration: underline; font-weight: bold; font-size:0.9rem;">Bendahara Sekolah</p>
                 </div>
             </div>
 
@@ -175,27 +209,17 @@
         import { db, checkAuth } from "./js/firebase-config.js";
 
         (async () => {
-            // Safety Timer agar loading hilang
-            setTimeout(() => document.getElementById('loading-overlay').classList.add('hidden'), 2000);
-
             const user = await checkAuth('siswa');
-            if(user) {
-                renderKwitansi(user);
-            } else {
-                window.location.href = 'index.html';
-            }
+            if(user) renderKwitansi(user);
+            else window.location.href = 'index.html';
         })();
 
         function renderKwitansi(user) {
-            document.getElementById('loading-overlay').classList.add('hidden');
-
             const now = new Date();
-            const dateStr = now.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+            const dateStr = now.toLocaleDateString('id-ID');
 
-            // Isi Data
             document.getElementById('k-nama').innerText = user.name;
             document.getElementById('k-uid').innerText = user.uid.substring(0,6).toUpperCase();
-            document.getElementById('k-sem').innerText = user.semester || 3;
             document.getElementById('k-ref').innerText = `INV/CA/${now.getFullYear()}/${user.uid.substring(0,4).toUpperCase()}`;
             document.getElementById('k-date').innerText = dateStr;
             document.getElementById('k-ttd-date').innerText = dateStr;
@@ -203,52 +227,69 @@
             const status = user.statusPembayaran;
             const stamp = document.getElementById('stamp-overlay');
             const totalEl = document.getElementById('k-total');
-            const statusRow = document.getElementById('row-status').lastElementChild;
+            const statusTxt = document.getElementById('k-status-text');
 
             if (status === 'Cicilan') {
-                stamp.innerText = "CICILAN (DP)";
+                stamp.innerText = "CICILAN";
                 stamp.style.color = "#d63384";
                 stamp.style.borderColor = "#d63384";
-                
                 totalEl.innerText = "Rp 37.725";
-                statusRow.innerText = "CICILAN 50%";
-                statusRow.style.color = "#d63384";
+                statusTxt.innerText = "Pembayaran Tahap 1 (50%)";
             } else {
-                // Default Lunas
                 stamp.innerText = "LUNAS";
                 stamp.style.color = "#0f5132";
                 stamp.style.borderColor = "#0f5132";
-                
                 totalEl.innerText = "Rp 75.450";
-                statusRow.innerText = "LUNAS (FULL)";
-                statusRow.style.color = "#0f5132";
+                statusTxt.innerText = "Lunas Penuh (100%)";
             }
         }
 
-        // FUNGSI DOWNLOAD GAMBAR (LEBIH AMAN DARI PDF UNTUK LOGO)
+        // --- FUNGSI DOWNLOAD ---
         window.downloadPNG = function() {
-            const btn = document.querySelector('.btn-save');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+            processDownload('png');
+        }
+
+        window.downloadPDF = function() {
+            processDownload('pdf');
+        }
+
+        function processDownload(type) {
+            const btn = document.querySelector(`.btn-${type}`);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             
             const element = document.getElementById('receipt-paper');
+            const filename = `Kwitansi_${new Date().getTime()}`;
 
-            html2canvas(element, {
-                scale: 2, // Kualitas HD
-                useCORS: true, // Wajib untuk Imgur
-                allowTaint: true,
-                backgroundColor: "#ffffff"
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Kwitansi_Cendekia_${new Date().getTime()}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Berhasil!';
-                setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-download"></i> Simpan Gambar (HD)', 2000);
-            }).catch(err => {
-                alert("Gagal menyimpan. Coba refresh halaman.");
-                btn.innerHTML = '<i class="fa-solid fa-download"></i> Simpan Gambar (HD)';
-            });
+            if(type === 'png') {
+                html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = filename + '.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    resetBtn(btn, originalText);
+                });
+            } else {
+                const opt = {
+                    margin: 0,
+                    filename: filename + '.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                html2pdf().set(opt).from(element).save().then(() => resetBtn(btn, originalText));
+            }
         }
+
+        function resetBtn(btn, text) {
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => btn.innerHTML = text, 2000);
+        }
+
+        // --- KONFIRMASI KELUAR ---
+        window.confirmExit = () => document.getElementById('exit-modal').classList.remove('hidden');
+        window.closeExitModal = () => document.getElementById('exit-modal').classList.add('hidden');
+
     </script>
 </body>
 </html>
