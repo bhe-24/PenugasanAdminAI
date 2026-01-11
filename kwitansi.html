@@ -45,7 +45,7 @@
             color: #000;
         }
 
-        /* --- DESAIN TATA LETAK (LAYOUT FIX) --- */
+        /* --- DESAIN TATA LETAK (LAYOUT ANTI-BERANTAKAN) --- */
         
         /* 1. Header Tengah */
         .header { 
@@ -190,7 +190,7 @@
             <div id="status-mark" class="status-watermark">LUNAS</div>
 
             <div class="header">
-                <img src="https://i.imgur.com/5Srjyo4.png?t=1" class="logo img-cross" alt="Logo" crossorigin="anonymous">
+                <img src="https://i.imgur.com/5Srjyo4.png" class="logo" alt="Logo" crossorigin="anonymous">
                 <div class="title">KWITANSI RESMI</div>
                 <div class="subtitle">KOMUNITAS LITERASI CENDEKIA AKSARA</div>
             </div>
@@ -253,7 +253,7 @@
                     <p style="margin:0; font-size:10pt;">Temanggung, <span id="k-ttd-date"></span></p>
                     <p style="margin:0; font-size:10pt; font-weight:bold; margin-bottom:5px;">Admin Keuangan</p>
                     
-                    <img src="https://i.imgur.com/YvrNYRw.png?t=1" class="stamp-img img-cross" alt="Cap" crossorigin="anonymous">
+                    <img src="https://i.imgur.com/YvrNYRw.png" class="stamp-img" alt="Cap" crossorigin="anonymous">
                     
                     <div class="ttd-line">Bendahara Sekolah</div>
                 </div>
@@ -265,44 +265,18 @@
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
 
-        // URL GAMBAR (Backup Proxy)
-        async function convertImgToBase64(url) {
-            try {
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-                const response = await fetch(proxyUrl);
-                const blob = await response.blob();
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch(e) {
-                console.warn("Gagal konversi gambar, menggunakan URL langsung.");
-                return url; // Fallback
-            }
-        }
-
         (async () => {
+            // Timer loading agar gambar sempat ter-download
+            setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 1500);
+            
             const user = await checkAuth('siswa');
-            if(user) {
-                // Terapkan Gambar (Logo & Cap)
-                const logoUrl = await convertImgToBase64("https://i.imgur.com/5Srjyo4.png");
-                const stampUrl = await convertImgToBase64("https://i.imgur.com/YvrNYRw.png");
-                
-                const imgs = document.querySelectorAll('.img-cross');
-                imgs[0].src = logoUrl;
-                imgs[1].src = stampUrl;
-
-                renderData(user);
-                document.getElementById('loading-overlay').style.display = 'none';
-            } else {
-                window.location.href = 'index.html';
-            }
+            if(user) renderKwitansi(user);
+            else window.location.href = 'index.html';
         })();
 
-        function renderData(user) {
+        function renderKwitansi(user) {
             const now = new Date();
-            // Format Tanggal: 11 Januari 2026
+            // Format Tanggal: 10 Januari 2026
             const options = { day: 'numeric', month: 'long', year: 'numeric' };
             const dateStr = now.toLocaleDateString('id-ID', options);
 
@@ -311,7 +285,7 @@
             document.getElementById('k-sem').innerText = user.semester || 3;
             document.getElementById('k-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
 
-            document.getElementById('k-ref').innerText = `INV/CA/${new Date().getFullYear()}/${user.uid.substring(0,4).toUpperCase()}`;
+            document.getElementById('k-ref').innerText = `INV/CA/${now.getFullYear()}/${user.uid.substring(0,4).toUpperCase()}`;
             document.getElementById('k-date').innerText = dateStr;
             document.getElementById('k-ttd-date').innerText = dateStr;
 
@@ -327,7 +301,6 @@
                 stamp.style.borderColor = "#d63384";
                 total.innerText = "Rp 37.725";
                 method.innerText = "Cicilan Tahap 1 (50%)";
-                // Update Ref jadi unik
                 document.getElementById('k-ref').innerText += "-DP";
             } else {
                 stamp.innerText = "LUNAS";
@@ -349,7 +322,12 @@
                 margin: 0,
                 filename: `Kwitansi_${new Date().getTime()}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
+                
+                // --- KONFIGURASI KUNCI UNTUK GAMBAR ---
+                // useCORS: true -> Mengizinkan gambar dari domain lain (Imgur)
+                // scale: 2 -> Kualitas HD
                 html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
@@ -357,7 +335,8 @@
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }).catch(err => {
-                alert("Gagal membuat PDF. Coba refresh.");
+                console.error(err);
+                alert("Gagal membuat PDF. Pastikan internet lancar untuk memuat logo.");
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             });
