@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Ujian - Admin</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+        /* HEADER */
+        .page-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 30px; background: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .btn-add { background: #003366; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; cursor: pointer; border: none; font-weight: bold; }
+        
+        /* CARD UJIAN */
+        .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .exam-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid #ccc; position: relative; }
+        .exam-card.active { border-top-color: #28a745; } /* Hijau kalau aktif */
+        .exam-card.inactive { border-top-color: #dc3545; } /* Merah kalau nonaktif */
+
+        .exam-actions { margin-top: 15px; display: flex; gap: 10px; }
+        .btn-act { flex: 1; padding: 8px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; color: white; }
+        .btn-soal { background: #f7a04a; }
+        .btn-toggle { background: #6c757d; }
+        .btn-del { background: #dc3545; width: 40px; flex: none; }
+
+        /* MODAL */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        
+        /* SOAL MANAGER */
+        .q-list { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+        .q-item { background: #f8f9fa; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #eee; position: relative; }
+        .q-badge { background: #003366; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px; }
+        .correct-ans { color: #28a745; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h2 style="margin:0; color:#003366;">Manajemen Ujian</h2>
+                <p style="margin:5px 0 0; color:#666;">Buat dan atur soal ujian siswa.</p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <a href="../index.html" class="btn-add" style="background:#eee; color:#333;">Kembali</a>
+                <button onclick="openCreateModal()" class="btn-add"><i class="fa-solid fa-plus"></i> Ujian Baru</button>
+            </div>
+        </div>
+
+        <div id="loading" style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
+        <div id="exam-list" class="exam-grid"></div>
+    </div>
+
+    <div id="modal-create" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h3>Buat Jadwal Ujian</h3>
+            <div class="form-group">
+                <label>Judul Ujian</label>
+                <input type="text" id="new-judul" class="form-control" placeholder="Contoh: UTS Bahasa Indonesia">
+            </div>
+            <div class="form-group">
+                <label>Mata Pelajaran</label>
+                <input type="text" id="new-mapel" class="form-control" placeholder="Contoh: B. Indonesia">
+            </div>
+            <div class="form-group">
+                <label>Durasi (Menit)</label>
+                <input type="number" id="new-durasi" class="form-control" placeholder="90">
+            </div>
+            <div style="text-align:right; margin-top:20px;">
+                <button onclick="closeModal('modal-create')" style="padding:10px; border:none; background:#eee; cursor:pointer; border-radius:5px;">Batal</button>
+                <button onclick="createExam()" class="btn-add">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-soal" class="modal">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
+                <h3 style="margin:0;" id="soal-title">Kelola Soal</h3>
+                <button onclick="closeModal('modal-soal')" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="background:#eef6ff; padding:15px; border-radius:10px; border:1px solid #cce5ff;">
+                <h4 style="margin:0 0 10px 0;">Tambah Soal Baru</h4>
+                <div class="form-group">
+                    <textarea id="q-text" class="form-control" rows="2" placeholder="Tulis pertanyaan..."></textarea>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input type="text" id="opt-0" class="form-control" placeholder="Opsi A">
+                    <input type="text" id="opt-1" class="form-control" placeholder="Opsi B">
+                    <input type="text" id="opt-2" class="form-control" placeholder="Opsi C">
+                    <input type="text" id="opt-3" class="form-control" placeholder="Opsi D">
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <label>Kunci Jawaban</label>
+                    <select id="q-key" class="form-control">
+                        <option value="0">A</option>
+                        <option value="1">B</option>
+                        <option value="2">C</option>
+                        <option value="3">D</option>
+                    </select>
+                </div>
+                <button onclick="addQuestion()" class="btn-add" style="width:100%;"><i class="fa-solid fa-plus-circle"></i> Tambahkan ke Bank Soal</button>
+            </div>
+
+            <div id="questions-container" class="q-list">
+                </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let currentExamId = null;
+
+        (async () => {
+            const user = await checkAuth('pengajar'); // Hanya Pengajar/Admin
+            if(user) loadExams();
+            else window.location.href = '../index.html';
+        })();
+
+        // --- 1. LOAD DAFTAR UJIAN ---
+        async function loadExams() {
+            const container = document.getElementById('exam-list');
+            container.innerHTML = '';
+            
+            try {
+                const snap = await getDocs(collection(db, 'exams'));
+                document.getElementById('loading').style.display = 'none';
+
+                if(snap.empty) {
+                    container.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Belum ada ujian.</p>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const statusClass = data.status === 'active' ? 'active' : 'inactive';
+                    const statusLabel = data.status === 'active' ? 'Aktif (Muncul)' : 'Non-Aktif (Sembunyi)';
+                    const count = data.questions ? data.questions.length : 0;
+
+                    const card = document.createElement('div');
+                    card.className = `exam-card ${statusClass}`;
+                    card.innerHTML = `
+                        <h3 style="margin:0 0 5px 0;">${data.judul}</h3>
+                        <p style="margin:0; color:#666; font-size:0.9rem;">${data.mapel} | ${data.durasi} Menit</p>
+                        <div style="margin-top:10px; font-size:0.85rem;">
+                            <span style="background:#eee; padding:3px 8px; border-radius:4px;">${count} Soal</span>
+                            <span style="margin-left:5px; font-weight:bold; color:${data.status==='active'?'green':'red'}">${statusLabel}</span>
+                        </div>
+                        <div class="exam-actions">
+                            <button onclick="manageQuestions('${d.id}', '${data.judul}')" class="btn-act btn-soal"><i class="fa-solid fa-list-check"></i> Edit Soal</button>
+                            <button onclick="toggleStatus('${d.id}', '${data.status}')" class="btn-act btn-toggle"><i class="fa-solid fa-power-off"></i></button>
+                            <button onclick="deleteExam('${d.id}')" class="btn-act btn-del"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        // --- 2. CREATE UJIAN ---
+        window.openCreateModal = () => document.getElementById('modal-create').classList.add('show');
+        window.closeModal = (id) => document.getElementById(id).classList.remove('show');
+
+        window.createExam = async () => {
+            const judul = document.getElementById('new-judul').value;
+            const mapel = document.getElementById('new-mapel').value;
+            const durasi = document.getElementById('new-durasi').value;
+
+            if(!judul || !mapel || !durasi) return alert("Isi semua data!");
+
+            try {
+                await addDoc(collection(db, 'exams'), {
+                    judul, mapel, durasi: parseInt(durasi),
+                    status: 'inactive', // Default mati
+                    questions: [],
+                    createdAt: new Date()
+                });
+                closeModal('modal-create');
+                loadExams();
+            } catch(e) { alert("Gagal membuat ujian"); }
+        }
+
+        // --- 3. MANAGE QUESTIONS ---
+        window.manageQuestions = async (id, judul) => {
+            currentExamId = id;
+            document.getElementById('soal-title').innerText = "Edit Soal: " + judul;
+            document.getElementById('modal-soal').classList.add('show');
+            loadQuestionsUI(id);
+        }
+
+        async function loadQuestionsUI(id) {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = 'Loading...';
+            
+            const snap = await getDoc(doc(db, 'exams', id));
+            const data = snap.data();
+            const qList = data.questions || [];
+
+            container.innerHTML = '';
+            qList.forEach((q, idx) => {
+                const div = document.createElement('div');
+                div.className = 'q-item';
+                div.innerHTML = `
+                    <div style="font-weight:bold; margin-bottom:5px;">
+                        <span class="q-badge">No ${idx+1}</span> ${q.text}
+                    </div>
+                    <div style="font-size:0.85rem; color:#555; display:grid; grid-template-columns:1fr 1fr;">
+                        <div class="${q.correctIndex==0?'correct-ans':''}">A. ${q.options[0]}</div>
+                        <div class="${q.correctIndex==1?'correct-ans':''}">B. ${q.options[1]}</div>
+                        <div class="${q.correctIndex==2?'correct-ans':''}">C. ${q.options[2]}</div>
+                        <div class="${q.correctIndex==3?'correct-ans':''}">D. ${q.options[3]}</div>
+                    </div>
+                    <button onclick="deleteQuestion(${idx})" style="position:absolute; top:10px; right:10px; border:none; background:none; color:red; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.addQuestion = async () => {
+            const text = document.getElementById('q-text').value;
+            const opts = [
+                document.getElementById('opt-0').value,
+                document.getElementById('opt-1').value,
+                document.getElementById('opt-2').value,
+                document.getElementById('opt-3').value
+            ];
+            const key = parseInt(document.getElementById('q-key').value);
+
+            if(!text || opts.some(o => !o)) return alert("Lengkapi soal & opsi!");
+
+            try {
+                const newQ = { text, options: opts, correctIndex: key };
+                await updateDoc(doc(db, 'exams', currentExamId), {
+                    questions: arrayUnion(newQ)
+                });
+                
+                // Reset Form
+                document.getElementById('q-text').value = '';
+                [0,1,2,3].forEach(i => document.getElementById('opt-'+i).value = '');
+                
+                loadQuestionsUI(currentExamId); // Refresh list
+                loadExams(); // Refresh jumlah soal di luar
+            } catch(e) { alert("Gagal tambah soal"); console.error(e); }
+        }
+
+        // FUNGSI HAPUS SOAL (Agak tricky di Firestore Array, kita perlu baca-tulis ulang)
+        window.deleteQuestion = async (idx) => {
+            if(!confirm("Hapus soal ini?")) return;
+            
+            const ref = doc(db, 'exams', currentExamId);
+            const snap = await getDoc(ref);
+            let questions = snap.data().questions;
+            
+            questions.splice(idx, 1); // Hapus dari array lokal
+            
+            await updateDoc(ref, { questions: questions });
+            loadQuestionsUI(currentExamId);
+            loadExams();
+        }
+
+        // --- 4. TOGGLE STATUS & DELETE EXAM ---
+        window.toggleStatus = async (id, currentStatus) => {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            await updateDoc(doc(db, 'exams', id), { status: newStatus });
+            loadExams();
+        }
+
+        window.deleteExam = async (id) => {
+            if(confirm("Yakin hapus ujian ini? Data soal akan hilang permanen.")) {
+                await deleteDoc(doc(db, 'exams', id));
+                loadExams();
+            }
+        }
+
+        // Expose functions to window
+        window.openCreateModal = openCreateModal;
+        window.closeModal = closeModal;
+        window.createExam = createExam;
+        window.manageQuestions = manageQuestions;
+        window.addQuestion = addQuestion;
+        window.deleteQuestion = deleteQuestion;
+        window.toggleStatus = toggleStatus;
+        window.deleteExam = deleteExam;
+
+    </script>
+</body>
+</html>
