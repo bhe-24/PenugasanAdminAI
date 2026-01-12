@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sedang Ujian - Cendekia Aksara</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; user-select: none; } /* Anti-copy paste */
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; padding-bottom: 80px; }
+
+        /* HEADER TIMER STICKY */
+        .test-header {
+            position: fixed; top: 0; left: 0; width: 100%;
+            background: #003366; color: white; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .timer-box { 
+            background: #dc3545; padding: 5px 15px; border-radius: 5px; 
+            font-weight: bold; font-family: monospace; font-size: 1.2rem; 
+        }
+
+        /* AREA SOAL */
+        .question-card {
+            background: white; padding: 25px; border-radius: 12px;
+            margin-top: 80px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .q-text { font-size: 1.1rem; font-weight: 500; margin-bottom: 20px; line-height: 1.6; }
+        
+        .option-group { display: flex; flex-direction: column; gap: 10px; }
+        .option-label {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 15px; border: 2px solid #eee; border-radius: 8px;
+            cursor: pointer; transition: 0.2s;
+        }
+        .option-label:hover { background: #f8f9fa; border-color: #ccc; }
+        .option-label input:checked + span { font-weight: bold; color: #003366; }
+        /* Style saat dipilih */
+        .option-label:has(input:checked) { border-color: #003366; background: #eef6ff; }
+
+        /* NAVIGASI BAWAH */
+        .nav-footer {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; padding: 15px; border-top: 1px solid #ddd;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .btn-nav {
+            padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        .btn-prev { background: #6c757d; color: white; }
+        .btn-next { background: #003366; color: white; }
+        .btn-finish { background: #28a745; color: white; display: none; }
+
+    </style>
+</head>
+<body>
+
+    <div class="test-header">
+        <div id="exam-title">Memuat Ujian...</div>
+        <div class="timer-box" id="timer">00:00:00</div>
+    </div>
+
+    <div class="container">
+        <div id="question-area">
+            <div class="question-card" style="text-align:center;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:#003366;"></i>
+                <p>Menyiapkan lembar soal...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-footer">
+        <button id="btn-prev" class="btn-nav btn-prev" onclick="prevQ()" disabled>Sebelumnya</button>
+        <div id="q-indicator">Soal 1 / -</div>
+        <button id="btn-next" class="btn-nav btn-next" onclick="nextQ()">Selanjutnya</button>
+        <button id="btn-finish" class="btn-nav btn-finish" onclick="submitExam()">Selesai & Kumpulkan</button>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('id');
+        let currentUser = null;
+        let questions = []; // Array soal
+        let userAnswers = {}; // Jawaban siswa
+        let currentIdx = 0;
+        let timerInterval;
+
+        (async () => {
+            currentUser = await checkAuth('siswa');
+            if(!examId || !currentUser) {
+                alert("Akses Ujian Tidak Valid");
+                window.location.href = 'index.html';
+                return;
+            }
+            loadExamData();
+        })();
+
+        async function loadExamData() {
+            try {
+                const docRef = doc(db, 'exams', examId);
+                const snap = await getDoc(docRef);
+
+                if (!snap.exists()) { alert("Ujian tidak ditemukan!"); window.location.href='index.html'; return; }
+
+                const data = snap.data();
+                document.getElementById('exam-title').innerText = data.judul;
+                
+                // Load Soal (Asumsi struktur soal ada di array 'questions')
+                // Format DB: questions: [{text: "...", options: ["A","B"], key: 0}, ...]
+                questions = data.questions || [];
+                
+                if(questions.length === 0) {
+                    document.getElementById('question-area').innerHTML = "<p style='text-align:center'>Soal belum tersedia.</p>";
+                    return;
+                }
+
+                // Start Timer
+                startTimer(data.durasi); // Durasi dalam menit
+                renderQuestion(0);
+
+            } catch(e) {
+                console.error(e);
+                alert("Error memuat ujian.");
+            }
+        }
+
+        function startTimer(minutes) {
+            let time = minutes * 60;
+            const display = document.getElementById('timer');
+            
+            timerInterval = setInterval(() => {
+                const h = Math.floor(time / 3600);
+                const m = Math.floor((time % 3600) / 60);
+                const s = time % 60;
+                
+                display.innerText = `${h}:${m<10?'0':''}${m}:${s<10?'0':''}${s}`;
+                
+                if (--time < 0) {
+                    clearInterval(timerInterval);
+                    alert("Waktu Habis! Jawaban akan dikumpulkan otomatis.");
+                    submitExam(true);
+                }
+            }, 1000);
+        }
+
+        function renderQuestion(idx) {
+            currentIdx = idx;
+            const q = questions[idx];
+            const area = document.getElementById('question-area');
+            
+            // Render Pilihan Ganda
+            let optionsHtml = '';
+            q.options.forEach((opt, i) => {
+                const isChecked = userAnswers[idx] === i ? 'checked' : '';
+                optionsHtml += `
+                    <label class="option-label">
+                        <input type="radio" name="ans" value="${i}" onclick="saveAnswer(${idx}, ${i})" ${isChecked}>
+                        <span>${opt}</span>
+                    </label>
+                `;
+            });
+
+            area.innerHTML = `
+                <div class="question-card">
+                    <div class="q-text"><b>No. ${idx + 1}</b><br>${q.text}</div>
+                    <div class="option-group">${optionsHtml}</div>
+                </div>
+            `;
+
+            // Update Tombol Navigasi
+            document.getElementById('q-indicator').innerText = `Soal ${idx + 1} / ${questions.length}`;
+            document.getElementById('btn-prev').disabled = idx === 0;
+            
+            if (idx === questions.length - 1) {
+                document.getElementById('btn-next').style.display = 'none';
+                document.getElementById('btn-finish').style.display = 'block';
+            } else {
+                document.getElementById('btn-next').style.display = 'block';
+                document.getElementById('btn-finish').style.display = 'none';
+            }
+        }
+
+        // Simpan jawaban ke variabel lokal
+        window.saveAnswer = (qIdx, ansIdx) => {
+            userAnswers[qIdx] = ansIdx;
+        }
+
+        window.nextQ = () => {
+            if(currentIdx < questions.length - 1) renderQuestion(currentIdx + 1);
+        }
+
+        window.prevQ = () => {
+            if(currentIdx > 0) renderQuestion(currentIdx - 1);
+        }
+
+        window.submitExam = async (force = false) => {
+            if(!force && !confirm("Yakin ingin mengumpulkan ujian?")) return;
+
+            clearInterval(timerInterval);
+            document.body.innerHTML = '<div style="text-align:center; padding:50px;"><h1>Mengirim Jawaban...</h1><i class="fa-solid fa-spinner fa-spin fa-3x"></i></div>';
+
+            // Hitung Nilai (Sederhana)
+            let correctCount = 0;
+            questions.forEach((q, i) => {
+                if(userAnswers[i] === q.correctIndex) correctCount++; // Asumsi di DB ada field correctIndex (0,1,2,3)
+            });
+            const score = (correctCount / questions.length) * 100;
+
+            try {
+                await addDoc(collection(db, 'exam_results'), {
+                    examId: examId,
+                    studentId: currentUser.uid,
+                    studentName: currentUser.name,
+                    answers: userAnswers,
+                    score: score,
+                    submittedAt: serverTimestamp()
+                });
+                
+                alert(`Ujian Selesai!\nNilai Kamu: ${score.toFixed(2)}`);
+                window.location.href = 'index.html'; // Kembali ke daftar
+            } catch(e) {
+                alert("Gagal kirim jawaban. Hubungi admin.");
+                console.error(e);
+            }
+        };
+    </script>
+</body>
+</html>
