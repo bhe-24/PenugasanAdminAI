@@ -9,38 +9,44 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
     <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; color: #333; }
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
         
-        /* Header */
+        /* HEADER */
         .page-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 30px; border-bottom: 2px solid #003366; padding-bottom: 15px;
         }
         .page-header h2 { margin: 0; color: #003366; }
 
-        /* Form Style */
+        /* FORM STYLE */
         .form-card {
             background: white; padding: 25px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px;
             border: 1px solid #ddd;
         }
         
-        /* Toolbar Editor */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-family: inherit; }
+
+        /* TOOLBAR EDITOR (RICH TEXT) */
         .editor-toolbar {
             background: #f1f1f1; padding: 8px; border-radius: 6px 6px 0 0;
             border: 1px solid #ccc; border-bottom: none; display: flex; gap: 5px;
         }
         .editor-btn {
             background: white; border: 1px solid #bbb; padding: 4px 10px;
-            cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 0.85em;
+            cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 0.85em; color: #333;
         }
         .editor-btn:hover { background: #e6e6e6; }
         
+        /* Textarea menyatu dengan toolbar */
         #instruksi {
-            border-radius: 0 0 6px 6px; margin-top: 0; border-top: 1px solid #ccc;
+            border-radius: 0 0 6px 6px; margin-top: 0; border-top: 1px solid #ccc; min-height: 150px; resize: vertical;
         }
 
-        /* List Tugas */
+        /* LIST TUGAS */
         .task-item {
             background: white; padding: 20px; border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px;
@@ -50,9 +56,14 @@
         .task-info p { margin: 0; color: #666; font-size: 0.9rem; }
         .badge-sem { background: #e3f2fd; color: #003366; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
 
+        .btn { padding: 8px 15px; border-radius: 5px; border: none; cursor: pointer; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        
         .hidden { display: none !important; }
         
-        /* Loading */
+        /* LOADING OVERLAY */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center;
@@ -64,17 +75,17 @@
     <div class="container">
         <div class="page-header">
             <h2><i class="fa-solid fa-pen-to-square"></i> Kelola Tugas</h2>
-            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
+            <a href="../index.html" class="btn btn-secondary" style="border-radius: 50px;">
                 <i class="fa-solid fa-arrow-left"></i> Dashboard
             </a>
         </div>
 
         <div id="list-container">
-            <h3 style="color:#444;">Daftar Tugas Terbit</h3>
+            <h3 style="color:#444; margin-bottom: 15px;">Daftar Tugas Terbit</h3>
             <div id="task-list">Memuat data...</div>
         </div>
 
-        <hr style="margin: 40px 0;">
+        <hr style="margin: 40px 0; border: 0; border-top: 1px dashed #ccc;">
 
         <div class="form-card">
             <h3 id="form-title" style="margin-top: 0; color: #003366;"><i class="fa-solid fa-plus-circle"></i> Buat Tugas Baru</h3>
@@ -97,6 +108,9 @@
                             <option value="1">Semester 1</option>
                             <option value="2">Semester 2</option>
                             <option value="3">Semester 3</option>
+                            <option value="4">Semester 4</option>
+                            <option value="5">Semester 5</option>
+                            <option value="6">Semester 6</option>
                         </select>
                     </div>
                 </div>
@@ -112,11 +126,14 @@
                 <div class="form-group">
                     <label>Instruksi / Soal</label>
                     <div class="editor-toolbar">
-                        <button type="button" class="editor-btn" onclick="insertFormat('<b>','</b>')"><i class="fa-solid fa-bold"></i> Bold</button>
-                        <button type="button" class="editor-btn" onclick="insertFormat('<i>','</i>')"><i class="fa-solid fa-italic"></i> Italic</button>
-                        <button type="button" class="editor-btn" onclick="insertTable()"><i class="fa-solid fa-table"></i> Tabel</button>
+                        <button type="button" class="editor-btn" onclick="insertFormat('<b>','</b>')" title="Bold"><i class="fa-solid fa-bold"></i> B</button>
+                        <button type="button" class="editor-btn" onclick="insertFormat('<i>','</i>')" title="Italic"><i class="fa-solid fa-italic"></i> I</button>
+                        <button type="button" class="editor-btn" onclick="insertFormat('<u>','</u>')" title="Underline"><i class="fa-solid fa-underline"></i> U</button>
+                        <button type="button" class="editor-btn" onclick="insertFormat('<br>','')" title="Baris Baru (Enter)">Enter</button>
+                        <button type="button" class="editor-btn" onclick="insertTable()" title="Sisipkan Tabel"><i class="fa-solid fa-table"></i> Tabel</button>
                     </div>
-                    <textarea id="instruksi" class="form-control" rows="5" required placeholder="Tulis soal atau instruksi di sini..."></textarea>
+                    <textarea id="instruksi" class="form-control" rows="8" required placeholder="Tulis soal atau instruksi di sini... (HTML Enabled)"></textarea>
+                    <small style="color:#666;">*Gunakan tombol toolbar untuk format teks.</small>
                 </div>
 
                 <div class="form-group">
@@ -125,8 +142,8 @@
                 </div>
 
                 <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" id="btn-cancel" class="btn btn-secondary hidden" style="width: auto; margin-right: 10px;">Batal</button>
-                    <button type="submit" class="btn btn-success" style="width: auto;">Simpan Tugas</button>
+                    <button type="button" id="btn-cancel" class="btn btn-secondary hidden" style="margin-right: 10px;">Batal</button>
+                    <button type="submit" class="btn btn-success">Simpan Tugas</button>
                 </div>
             </form>
         </div>
@@ -142,30 +159,37 @@
 
         let currentUser = null;
 
-        // Utils Editor
-        window.insertFormat = (s, e) => {
+        // --- EDITOR FUNCTIONS ---
+        window.insertFormat = (startTag, endTag) => {
             const el = document.getElementById('instruksi');
             const start = el.selectionStart;
-            el.value = el.value.substring(0, start) + s + el.value.substring(start, el.selectionEnd) + e + el.value.substring(el.selectionEnd);
+            const end = el.selectionEnd;
+            const text = el.value;
+            const before = text.substring(0, start);
+            const selected = text.substring(start, end);
+            const after = text.substring(end);
+            
+            el.value = before + startTag + selected + endTag + after;
             el.focus();
-        };
-        window.insertTable = () => {
-            const el = document.getElementById('instruksi');
-            el.value += '\n<table border="1" style="width:100%">\n  <tr><th>Judul 1</th><th>Judul 2</th></tr>\n  <tr><td>Isi 1</td><td>Isi 2</td></tr>\n</table>\n';
-            el.focus();
+            el.selectionStart = start + startTag.length;
+            el.selectionEnd = end + startTag.length;
         };
 
-        // Loading Utils
+        window.insertTable = () => {
+            const tableHTML = '\n<table border="1" style="width:100%; border-collapse:collapse;">\n  <tr>\n    <th style="padding:8px; background:#eee;">Header 1</th>\n    <th style="padding:8px; background:#eee;">Header 2</th>\n  </tr>\n  <tr>\n    <td style="padding:8px;">Data 1</td>\n    <td style="padding:8px;">Data 2</td>\n  </tr>\n</table>\n';
+            window.insertFormat(tableHTML, '');
+        };
+
+        // --- CORE LOGIC ---
         const showLoad = () => document.getElementById('loading-overlay').classList.remove('hidden');
         const hideLoad = () => document.getElementById('loading-overlay').classList.add('hidden');
 
-        // Init
         (async () => {
             currentUser = await checkAuth('pengajar');
             if(currentUser) loadTugas();
+            else window.location.href = '../index.html';
         })();
 
-        // Load Data
         async function loadTugas() {
             const listDiv = document.getElementById('task-list');
             try {
@@ -174,25 +198,25 @@
                 
                 listDiv.innerHTML = '';
                 if(snap.empty) {
-                    listDiv.innerHTML = '<p style="text-align:center; color:#999;">Belum ada tugas.</p>';
+                    listDiv.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">Belum ada tugas yang dibuat.</p>';
                     return;
                 }
 
                 snap.forEach(d => {
                     const t = d.data();
-                    const date = new Date(t.deadline).toLocaleString('id-ID');
+                    const date = new Date(t.deadline).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
                     
                     listDiv.innerHTML += `
                         <div class="task-item">
                             <div class="task-info">
                                 <h4>${t.judul} <span class="badge-sem">Sem ${t.semester || 1}</span></h4>
-                                <p><i class="fa-solid fa-book"></i> ${t.mapel} &nbsp;|&nbsp; <i class="fa-solid fa-clock"></i> ${date}</p>
+                                <p><i class="fa-solid fa-book"></i> ${t.mapel} &nbsp;|&nbsp; <i class="fa-solid fa-clock"></i> Deadline: ${date}</p>
                             </div>
                             <div style="display:flex; gap:5px;">
-                                <button class="btn btn-secondary btn-sm" style="padding:5px 10px;" onclick="window.editTugas('${d.id}')">
+                                <button class="btn btn-secondary" style="padding:5px 10px;" onclick="window.editTugas('${d.id}')" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
-                                <button class="btn btn-danger btn-sm" style="padding:5px 10px;" onclick="window.hapusTugas('${d.id}')">
+                                <button class="btn btn-danger" style="padding:5px 10px;" onclick="window.hapusTugas('${d.id}')" title="Hapus">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
@@ -201,20 +225,18 @@
                 });
             } catch(e) {
                 console.error(e);
-                listDiv.innerHTML = '<p style="color:red">Gagal memuat data.</p>';
+                listDiv.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat data.</p>';
             }
         }
 
-        // Hapus
         window.hapusTugas = async (id) => {
-            if(!confirm("Yakin ingin menghapus tugas ini? Data jawaban siswa juga akan hilang link-nya.")) return;
+            if(!confirm("Hapus tugas ini permanen?")) return;
             showLoad();
             await deleteDoc(doc(db, 'assignments', id));
             await loadTugas();
             hideLoad();
         };
 
-        // Edit (Load to Form)
         window.editTugas = async (id) => {
             showLoad();
             const snap = await getDoc(doc(db, 'assignments', id));
@@ -228,17 +250,15 @@
             document.getElementById('instruksi').value = data.instruksi;
             document.getElementById('deadline').value = data.deadline;
 
-            // Ubah UI jadi Mode Edit
+            // UI Edit Mode
             document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen"></i> Edit Tugas';
             document.getElementById('btn-cancel').classList.remove('hidden');
             document.querySelector('button[type="submit"]').innerText = 'Update Tugas';
-            
-            // Scroll ke form
             document.querySelector('.form-card').scrollIntoView({behavior: 'smooth'});
+            
             hideLoad();
         };
 
-        // Batal Edit
         document.getElementById('btn-cancel').onclick = () => {
             document.getElementById('form-tugas').reset();
             document.getElementById('edit-id').value = '';
@@ -247,7 +267,6 @@
             document.querySelector('button[type="submit"]').innerText = 'Simpan Tugas';
         };
 
-        // Simpan / Update
         document.getElementById('form-tugas').onsubmit = async (e) => {
             e.preventDefault();
             showLoad();
@@ -258,23 +277,23 @@
                 mapel: document.getElementById('mapel').value,
                 semester: parseInt(document.getElementById('semester').value),
                 tipe: document.getElementById('tipe').value,
-                instruksi: document.getElementById('instruksi').value,
+                instruksi: document.getElementById('instruksi').value, // Menyimpan HTML (Rich Text)
                 deadline: document.getElementById('deadline').value,
-                namaPengajar: currentUser.name
+                updatedAt: serverTimestamp()
             };
 
             try {
                 if(editId) {
                     await updateDoc(doc(db, 'assignments', editId), payload);
-                    alert("Tugas berhasil diperbarui!");
+                    alert("Tugas diperbarui!");
                 } else {
                     payload.createdAt = serverTimestamp();
+                    payload.namaPengajar = currentUser.name;
                     await addDoc(collection(db, 'assignments'), payload);
-                    alert("Tugas baru berhasil diterbitkan!");
+                    alert("Tugas diterbitkan!");
                 }
                 
-                // Reset Form
-                document.getElementById('btn-cancel').click(); 
+                document.getElementById('btn-cancel').click(); // Reset
                 loadTugas();
             } catch(e) {
                 alert("Gagal menyimpan: " + e.message);
