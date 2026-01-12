@@ -3,50 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Ujian - Admin</title>
+    <title>Kelola Ujian - Admin Modern</title>
     
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        :root { --primary: #4361ee; --secondary: #3f37c9; --success: #4cc9f0; --danger: #f72585; --bg: #f8f9fa; --card: #ffffff; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg); color: #2b2d42; margin: 0; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
 
-        /* HEADER */
+        /* HEADER & TOMBOL */
         .page-header { 
             display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 30px; background: white; padding: 20px; border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px; background: white; padding: 25px; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
         }
-        .btn-add { background: #003366; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; cursor: pointer; border: none; font-weight: bold; }
-        
-        /* CARD UJIAN */
-        .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .exam-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid #ccc; position: relative; }
-        .exam-card.active { border-top-color: #28a745; } /* Hijau kalau aktif */
-        .exam-card.inactive { border-top-color: #dc3545; } /* Merah kalau nonaktif */
+        .page-header h2 { margin: 0; font-weight: 700; color: #1a1a2e; font-size: 1.5rem; }
+        .btn-modern {
+            padding: 12px 24px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem;
+        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4); }
+        .btn-ghost { background: #f1f3f5; color: #495057; }
+        .btn-ghost:hover { background: #e9ecef; }
 
-        .exam-actions { margin-top: 15px; display: flex; gap: 10px; }
-        .btn-act { flex: 1; padding: 8px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; color: white; }
-        .btn-soal { background: #f7a04a; }
-        .btn-toggle { background: #6c757d; }
-        .btn-del { background: #dc3545; width: 40px; flex: none; }
+        /* GRID UJIAN */
+        .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
+        .exam-card {
+            background: white; padding: 25px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.02); border: 1px solid #f0f0f0;
+            transition: 0.3s; position: relative; overflow: hidden;
+        }
+        .exam-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.05); border-color: var(--primary); }
+        
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .st-active { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .st-inactive { background: #e74c3c; }
 
-        /* MODAL */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal.show { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .exam-meta { display: flex; gap: 15px; margin: 15px 0; font-size: 0.85rem; color: #6c757d; }
+        .exam-meta div { display: flex; align-items: center; gap: 5px; background: #f8f9fa; padding: 6px 12px; border-radius: 8px; }
+
+        .action-bar { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-top: 20px; }
+        .btn-icon { width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 10px; border: none; cursor: pointer; transition: 0.2s; color: white; }
+        .act-edit { background: var(--primary); }
+        .act-toggle { background: #6c757d; }
+        .act-del { background: #ff4d4d; }
+
+        /* --- MODAL MODERN (GLASSMORPHISM) --- */
+        .modal { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        .modal.show { display: flex; opacity: 1; pointer-events: all; }
         
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .modal-content {
+            background: white; width: 90%; max-width: 650px; border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column;
+        }
+        .modal.show .modal-content { transform: scale(1); }
+
+        /* Modal Header Sticky */
+        .modal-header {
+            padding: 20px 30px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(5px); z-index: 10;
+        }
+        .modal-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; }
+        .btn-close { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; color: #64748b; font-size: 1.2rem; }
+        .btn-close:hover { background: #e2e8f0; color: #0f172a; }
+
+        .modal-body { padding: 30px; }
+
+        /* INPUT STYLING */
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-input {
+            width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px;
+            font-size: 1rem; font-family: inherit; transition: 0.2s; box-sizing: border-box;
+        }
+        .form-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1); }
+        .input-group { margin-bottom: 20px; }
+
+        /* SOAL CARD */
+        .q-card {
+            background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px;
+            margin-bottom: 15px; position: relative; transition: 0.2s;
+        }
+        .q-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         
-        /* SOAL MANAGER */
-        .q-list { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
-        .q-item { background: #f8f9fa; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #eee; position: relative; }
-        .q-badge { background: #003366; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 5px; }
-        .correct-ans { color: #28a745; font-weight: bold; }
+        .q-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .q-num { background: #eff6ff; color: var(--primary); padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+        .q-text { font-weight: 500; color: #334155; line-height: 1.5; margin-bottom: 15px; font-size: 1rem; }
+        
+        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .opt-item {
+            padding: 8px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #f1f5f9;
+            font-size: 0.9rem; display: flex; align-items: center; gap: 8px; color: #64748b;
+        }
+        .opt-correct { background: #ecfdf5; border-color: #10b981; color: #047857; font-weight: 600; }
+        .opt-correct::before { content: '\f00c'; font-family: "Font Awesome 6 Free"; font-weight: 900; }
+
+        .btn-trash { position: absolute; top: 15px; right: 15px; color: #94a3b8; cursor: pointer; transition: 0.2s; }
+        .btn-trash:hover { color: #ef4444; }
+
+        /* ADD QUESTION AREA */
+        .add-box { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 25px; margin-bottom: 25px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        
+        /* SELECT CUSTOM */
+        select.form-input { appearance: none; background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-position: right .7em top 50%; background-size: .65em auto; }
     </style>
 </head>
 <body>
@@ -54,73 +124,91 @@
     <div class="container">
         <div class="page-header">
             <div>
-                <h2 style="margin:0; color:#003366;">Manajemen Ujian</h2>
-                <p style="margin:5px 0 0; color:#666;">Buat dan atur soal ujian siswa.</p>
+                <h2 style="display:flex; align-items:center; gap:10px;">
+                    <i class="fa-solid fa-shapes" style="color:var(--primary);"></i> Bank Ujian
+                </h2>
+                <p style="margin:5px 0 0; color:#94a3b8; font-size:0.9rem;">Kelola soal dan jadwal ujian siswa.</p>
             </div>
             <div style="display:flex; gap:10px;">
-                <a href="../index.html" class="btn-add" style="background:#eee; color:#333;">Kembali</a>
-                <button onclick="openCreateModal()" class="btn-add"><i class="fa-solid fa-plus"></i> Ujian Baru</button>
+                <a href="../index.html" class="btn-modern btn-ghost">Dashboard</a>
+                <button onclick="openCreateModal()" class="btn-modern btn-primary"><i class="fa-solid fa-plus"></i> Buat Baru</button>
             </div>
         </div>
 
-        <div id="loading" style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
+        <div id="loading" style="text-align:center; padding:50px;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2.5rem; color:var(--primary);"></i>
+        </div>
+
         <div id="exam-list" class="exam-grid"></div>
     </div>
 
     <div id="modal-create" class="modal">
-        <div class="modal-content" style="max-width:400px;">
-            <h3>Buat Jadwal Ujian</h3>
-            <div class="form-group">
-                <label>Judul Ujian</label>
-                <input type="text" id="new-judul" class="form-control" placeholder="Contoh: UTS Bahasa Indonesia">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <span class="modal-title">Buat Ujian Baru</span>
+                <button onclick="closeModal('modal-create')" class="btn-close">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Mata Pelajaran</label>
-                <input type="text" id="new-mapel" class="form-control" placeholder="Contoh: B. Indonesia">
-            </div>
-            <div class="form-group">
-                <label>Durasi (Menit)</label>
-                <input type="number" id="new-durasi" class="form-control" placeholder="90">
-            </div>
-            <div style="text-align:right; margin-top:20px;">
-                <button onclick="closeModal('modal-create')" style="padding:10px; border:none; background:#eee; cursor:pointer; border-radius:5px;">Batal</button>
-                <button onclick="createExam()" class="btn-add">Simpan</button>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="form-label">Judul Ujian</label>
+                    <input type="text" id="new-judul" class="form-input" placeholder="Misal: UTS Matematika Sem 3">
+                </div>
+                <div class="input-group">
+                    <label class="form-label">Mata Pelajaran</label>
+                    <input type="text" id="new-mapel" class="form-input" placeholder="Nama Mapel">
+                </div>
+                <div class="input-group">
+                    <label class="form-label">Durasi (Menit)</label>
+                    <input type="number" id="new-durasi" class="form-input" placeholder="90">
+                </div>
+                <button onclick="createExam()" class="btn-modern btn-primary" style="width:100%; justify-content:center; margin-top:10px;">
+                    Simpan & Lanjut
+                </button>
             </div>
         </div>
     </div>
 
     <div id="modal-soal" class="modal">
         <div class="modal-content">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
-                <h3 style="margin:0;" id="soal-title">Kelola Soal</h3>
-                <button onclick="closeModal('modal-soal')" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            <div class="modal-header">
+                <span class="modal-title" id="soal-title">Editor Soal</span>
+                <button onclick="closeModal('modal-soal')" class="btn-close">&times;</button>
             </div>
+            <div class="modal-body">
+                
+                <div class="add-box">
+                    <h4 style="margin:0 0 15px 0; color:#334155;">Buat Pertanyaan Baru</h4>
+                    
+                    <div class="input-group">
+                        <textarea id="q-text" class="form-input" rows="3" placeholder="Tulis soal di sini..."></textarea>
+                    </div>
+                    
+                    <div class="grid-2">
+                        <input type="text" id="opt-0" class="form-input" placeholder="Pilihan A">
+                        <input type="text" id="opt-1" class="form-input" placeholder="Pilihan B">
+                        <input type="text" id="opt-2" class="form-input" placeholder="Pilihan C">
+                        <input type="text" id="opt-3" class="form-input" placeholder="Pilihan D">
+                    </div>
 
-            <div style="background:#eef6ff; padding:15px; border-radius:10px; border:1px solid #cce5ff;">
-                <h4 style="margin:0 0 10px 0;">Tambah Soal Baru</h4>
-                <div class="form-group">
-                    <textarea id="q-text" class="form-control" rows="2" placeholder="Tulis pertanyaan..."></textarea>
+                    <div class="input-group" style="margin-top:15px;">
+                        <label class="form-label">Kunci Jawaban Benar</label>
+                        <select id="q-key" class="form-input" style="font-weight:bold; color:var(--primary);">
+                            <option value="0">A. (Pilihan Pertama)</option>
+                            <option value="1">B. (Pilihan Kedua)</option>
+                            <option value="2">C. (Pilihan Ketiga)</option>
+                            <option value="3">D. (Pilihan Keempat)</option>
+                        </select>
+                    </div>
+
+                    <button onclick="addQuestion()" class="btn-modern btn-primary" style="width:100%; justify-content:center;">
+                        <i class="fa-solid fa-plus-circle"></i> Tambahkan Soal
+                    </button>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <input type="text" id="opt-0" class="form-control" placeholder="Opsi A">
-                    <input type="text" id="opt-1" class="form-control" placeholder="Opsi B">
-                    <input type="text" id="opt-2" class="form-control" placeholder="Opsi C">
-                    <input type="text" id="opt-3" class="form-control" placeholder="Opsi D">
-                </div>
-                <div class="form-group" style="margin-top:10px;">
-                    <label>Kunci Jawaban</label>
-                    <select id="q-key" class="form-control">
-                        <option value="0">A</option>
-                        <option value="1">B</option>
-                        <option value="2">C</option>
-                        <option value="3">D</option>
-                    </select>
-                </div>
-                <button onclick="addQuestion()" class="btn-add" style="width:100%;"><i class="fa-solid fa-plus-circle"></i> Tambahkan ke Bank Soal</button>
+
+                <h4 style="margin-bottom:15px; color:#64748b; border-bottom:1px solid #eee; padding-bottom:10px;">Daftar Soal Tersimpan</h4>
+                <div id="questions-container"></div>
+
             </div>
-
-            <div id="questions-container" class="q-list">
-                </div>
         </div>
     </div>
 
@@ -131,12 +219,12 @@
         let currentExamId = null;
 
         (async () => {
-            const user = await checkAuth('pengajar'); // Hanya Pengajar/Admin
+            const user = await checkAuth('pengajar');
             if(user) loadExams();
             else window.location.href = '../index.html';
         })();
 
-        // --- 1. LOAD DAFTAR UJIAN ---
+        // --- 1. LOAD UJIAN (CARD) ---
         async function loadExams() {
             const container = document.getElementById('exam-list');
             container.innerHTML = '';
@@ -146,95 +234,113 @@
                 document.getElementById('loading').style.display = 'none';
 
                 if(snap.empty) {
-                    container.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Belum ada ujian.</p>';
+                    container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">
+                        <i class="fa-regular fa-folder-open" style="font-size:3rem; margin-bottom:10px;"></i>
+                        <p>Belum ada ujian dibuat.</p>
+                    </div>`;
                     return;
                 }
 
                 snap.forEach(d => {
                     const data = d.data();
-                    const statusClass = data.status === 'active' ? 'active' : 'inactive';
-                    const statusLabel = data.status === 'active' ? 'Aktif (Muncul)' : 'Non-Aktif (Sembunyi)';
-                    const count = data.questions ? data.questions.length : 0;
+                    const statusClass = data.status === 'active' ? 'st-active' : 'st-inactive';
+                    const qCount = data.questions ? data.questions.length : 0;
 
-                    const card = document.createElement('div');
-                    card.className = `exam-card ${statusClass}`;
-                    card.innerHTML = `
-                        <h3 style="margin:0 0 5px 0;">${data.judul}</h3>
-                        <p style="margin:0; color:#666; font-size:0.9rem;">${data.mapel} | ${data.durasi} Menit</p>
-                        <div style="margin-top:10px; font-size:0.85rem;">
-                            <span style="background:#eee; padding:3px 8px; border-radius:4px;">${count} Soal</span>
-                            <span style="margin-left:5px; font-weight:bold; color:${data.status==='active'?'green':'red'}">${statusLabel}</span>
+                    const div = document.createElement('div');
+                    div.className = 'exam-card';
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">${data.judul}</h3>
+                            <span class="status-dot ${statusClass}" title="${data.status}"></span>
                         </div>
-                        <div class="exam-actions">
-                            <button onclick="manageQuestions('${d.id}', '${data.judul}')" class="btn-act btn-soal"><i class="fa-solid fa-list-check"></i> Edit Soal</button>
-                            <button onclick="toggleStatus('${d.id}', '${data.status}')" class="btn-act btn-toggle"><i class="fa-solid fa-power-off"></i></button>
-                            <button onclick="deleteExam('${d.id}')" class="btn-act btn-del"><i class="fa-solid fa-trash"></i></button>
+                        <p style="margin:5px 0 0; color:#64748b; font-size:0.9rem;">${data.mapel}</p>
+                        
+                        <div class="exam-meta">
+                            <div><i class="fa-regular fa-clock"></i> ${data.durasi}m</div>
+                            <div><i class="fa-solid fa-list-ol"></i> ${qCount} Soal</div>
+                        </div>
+
+                        <div class="action-bar">
+                            <button onclick="manageQuestions('${d.id}', '${data.judul}')" class="btn-modern btn-primary" style="justify-content:center;">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit Soal
+                            </button>
+                            <button onclick="toggleStatus('${d.id}', '${data.status}')" class="btn-icon act-toggle" title="On/Off">
+                                <i class="fa-solid fa-power-off"></i>
+                            </button>
+                            <button onclick="deleteExam('${d.id}')" class="btn-icon act-del" title="Hapus">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
                         </div>
                     `;
-                    container.appendChild(card);
+                    container.appendChild(div);
                 });
             } catch(e) { console.error(e); }
         }
 
-        // --- 2. CREATE UJIAN ---
+        // --- 2. MODAL LOGIC ---
         window.openCreateModal = () => document.getElementById('modal-create').classList.add('show');
         window.closeModal = (id) => document.getElementById(id).classList.remove('show');
 
+        // --- 3. CREATE EXAM ---
         window.createExam = async () => {
             const judul = document.getElementById('new-judul').value;
             const mapel = document.getElementById('new-mapel').value;
             const durasi = document.getElementById('new-durasi').value;
 
-            if(!judul || !mapel || !durasi) return alert("Isi semua data!");
+            if(!judul || !mapel || !durasi) return alert("Mohon lengkapi semua data.");
 
             try {
                 await addDoc(collection(db, 'exams'), {
                     judul, mapel, durasi: parseInt(durasi),
-                    status: 'inactive', // Default mati
+                    status: 'inactive',
                     questions: [],
                     createdAt: new Date()
                 });
                 closeModal('modal-create');
                 loadExams();
-            } catch(e) { alert("Gagal membuat ujian"); }
+            } catch(e) { alert("Error sistem."); }
         }
 
-        // --- 3. MANAGE QUESTIONS ---
+        // --- 4. MANAGE QUESTIONS ---
         window.manageQuestions = async (id, judul) => {
             currentExamId = id;
-            document.getElementById('soal-title').innerText = "Edit Soal: " + judul;
+            document.getElementById('soal-title').innerText = judul;
             document.getElementById('modal-soal').classList.add('show');
             loadQuestionsUI(id);
         }
 
         async function loadQuestionsUI(id) {
             const container = document.getElementById('questions-container');
-            container.innerHTML = 'Loading...';
+            container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Memuat soal...</p>';
             
             const snap = await getDoc(doc(db, 'exams', id));
             const data = snap.data();
             const qList = data.questions || [];
 
             container.innerHTML = '';
+            if(qList.length === 0) container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Belum ada soal ditambahkan.</p>';
+
             qList.forEach((q, idx) => {
                 const div = document.createElement('div');
-                div.className = 'q-item';
+                div.className = 'q-card';
                 div.innerHTML = `
-                    <div style="font-weight:bold; margin-bottom:5px;">
-                        <span class="q-badge">No ${idx+1}</span> ${q.text}
+                    <div class="btn-trash" onclick="deleteQuestion(${idx})"><i class="fa-solid fa-trash"></i></div>
+                    <div class="q-header">
+                        <span class="q-num">Soal ${idx+1}</span>
                     </div>
-                    <div style="font-size:0.85rem; color:#555; display:grid; grid-template-columns:1fr 1fr;">
-                        <div class="${q.correctIndex==0?'correct-ans':''}">A. ${q.options[0]}</div>
-                        <div class="${q.correctIndex==1?'correct-ans':''}">B. ${q.options[1]}</div>
-                        <div class="${q.correctIndex==2?'correct-ans':''}">C. ${q.options[2]}</div>
-                        <div class="${q.correctIndex==3?'correct-ans':''}">D. ${q.options[3]}</div>
+                    <div class="q-text">${q.text}</div>
+                    <div class="opt-grid">
+                        <div class="opt-item ${q.correctIndex==0?'opt-correct':''}">A. ${q.options[0]}</div>
+                        <div class="opt-item ${q.correctIndex==1?'opt-correct':''}">B. ${q.options[1]}</div>
+                        <div class="opt-item ${q.correctIndex==2?'opt-correct':''}">C. ${q.options[2]}</div>
+                        <div class="opt-item ${q.correctIndex==3?'opt-correct':''}">D. ${q.options[3]}</div>
                     </div>
-                    <button onclick="deleteQuestion(${idx})" style="position:absolute; top:10px; right:10px; border:none; background:none; color:red; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
                 `;
                 container.appendChild(div);
             });
         }
 
+        // --- 5. ADD & DELETE QUESTION ---
         window.addQuestion = async () => {
             const text = document.getElementById('q-text').value;
             const opts = [
@@ -245,7 +351,7 @@
             ];
             const key = parseInt(document.getElementById('q-key').value);
 
-            if(!text || opts.some(o => !o)) return alert("Lengkapi soal & opsi!");
+            if(!text || opts.some(o => !o)) return alert("Lengkapi soal dan semua pilihan!");
 
             try {
                 const newQ = { text, options: opts, correctIndex: key };
@@ -253,31 +359,27 @@
                     questions: arrayUnion(newQ)
                 });
                 
-                // Reset Form
+                // Clear Input
                 document.getElementById('q-text').value = '';
                 [0,1,2,3].forEach(i => document.getElementById('opt-'+i).value = '');
                 
-                loadQuestionsUI(currentExamId); // Refresh list
-                loadExams(); // Refresh jumlah soal di luar
-            } catch(e) { alert("Gagal tambah soal"); console.error(e); }
+                loadQuestionsUI(currentExamId);
+                loadExams(); // Update count di luar
+            } catch(e) { alert("Gagal menambah soal."); }
         }
 
-        // FUNGSI HAPUS SOAL (Agak tricky di Firestore Array, kita perlu baca-tulis ulang)
         window.deleteQuestion = async (idx) => {
             if(!confirm("Hapus soal ini?")) return;
-            
             const ref = doc(db, 'exams', currentExamId);
             const snap = await getDoc(ref);
             let questions = snap.data().questions;
-            
-            questions.splice(idx, 1); // Hapus dari array lokal
-            
+            questions.splice(idx, 1);
             await updateDoc(ref, { questions: questions });
             loadQuestionsUI(currentExamId);
             loadExams();
         }
 
-        // --- 4. TOGGLE STATUS & DELETE EXAM ---
+        // --- 6. UTILS ---
         window.toggleStatus = async (id, currentStatus) => {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             await updateDoc(doc(db, 'exams', id), { status: newStatus });
@@ -285,13 +387,13 @@
         }
 
         window.deleteExam = async (id) => {
-            if(confirm("Yakin hapus ujian ini? Data soal akan hilang permanen.")) {
+            if(confirm("Hapus seluruh ujian ini?")) {
                 await deleteDoc(doc(db, 'exams', id));
                 loadExams();
             }
         }
 
-        // Expose functions to window
+        // Expose
         window.openCreateModal = openCreateModal;
         window.closeModal = closeModal;
         window.createExam = createExam;
@@ -300,7 +402,6 @@
         window.deleteQuestion = deleteQuestion;
         window.toggleStatus = toggleStatus;
         window.deleteExam = deleteExam;
-
     </script>
 </body>
 </html>
