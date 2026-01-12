@@ -14,8 +14,15 @@
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 3px solid #003366; padding-bottom: 15px; }
         .page-header h2 { margin: 0; color: #003366; }
 
+        /* SECTION TITLE */
+        .section-title { 
+            background: #e9ecef; padding: 10px 15px; border-radius: 8px; 
+            margin: 30px 0 15px 0; font-weight: 700; color: #495057; border-left: 5px solid #003366;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
         /* TABEL MODERN */
-        .card-table { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-table { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: #003366; color: white; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
@@ -49,27 +56,45 @@
 <body>
     <div class="container">
         <div class="page-header">
-            <h2><i class="fa-solid fa-money-check-dollar"></i> Verifikasi Keuangan</h2>
-            <a href="../index.html" class="btn-act act-reset" style="text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            <h2><i class="fa-solid fa-money-bill-wave"></i> Laporan Keuangan</h2>
+            <a href="../index.html" class="btn-act act-reset" style="text-decoration:none; padding:10px 20px;">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
         </div>
 
         <div id="loading" style="text-align:center; padding:30px;">
             <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem; color:#003366;"></i>
-            <p>Mengambil data siswa Semester 3+...</p>
+            <p>Memuat data keuangan...</p>
         </div>
 
-        <div class="card-table hidden" id="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Siswa</th>
-                        <th>Semester</th>
-                        <th>Status Saat Ini</th>
-                        <th>Aksi Konfirmasi</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-siswa"></tbody>
-            </table>
+        <div id="main-content" class="hidden">
+            
+            <div class="section-title">
+                <span><i class="fa-solid fa-pen-to-square"></i> TAGIHAN UJIAN (Sem 1-2)</span>
+                <small style="background:#ddd; padding:2px 8px; border-radius:4px;">Tarif: Rp 1.000</small>
+            </div>
+            <div class="card-table">
+                <table>
+                    <thead>
+                        <tr><th>Siswa</th><th>Semester</th><th>Status</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody id="tbody-ujian"></tbody>
+                </table>
+            </div>
+
+            <div class="section-title">
+                <span><i class="fa-solid fa-file-invoice-dollar"></i> TAGIHAN ADMINISTRASI (Sem 3+)</span>
+                <small style="background:#ddd; padding:2px 8px; border-radius:4px;">Tarif: Rp 75.450</small>
+            </div>
+            <div class="card-table">
+                <table>
+                    <thead>
+                        <tr><th>Siswa</th><th>Semester</th><th>Status</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody id="tbody-admin"></tbody>
+                </table>
+            </div>
+
         </div>
     </div>
 
@@ -77,7 +102,7 @@
         <div class="modal-box">
             <i class="fa-solid fa-circle-question" style="font-size:3rem; color:#003366; margin-bottom:15px;"></i>
             <h3 id="modal-title" style="margin:0 0 10px 0;">Konfirmasi</h3>
-            <p id="modal-msg" style="color:#666; font-size:0.95rem; line-height:1.5;">Pesan...</p>
+            <p id="modal-msg" style="color:#666; font-size:0.95rem; line-height:1.5;">-</p>
             <div id="modal-actions" class="modal-btns"></div>
         </div>
     </div>
@@ -91,97 +116,113 @@
         })();
 
         async function loadData() {
-            const tbody = document.getElementById('tbody-siswa');
-            tbody.innerHTML = '';
+            const tbodyUjian = document.getElementById('tbody-ujian');
+            const tbodyAdmin = document.getElementById('tbody-admin');
+            tbodyUjian.innerHTML = '';
+            tbodyAdmin.innerHTML = '';
             
             try {
-                // Ambil semua siswa
                 const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
                 const snap = await getDocs(q);
-                let count = 0;
                 
-                // Sort by Name
+                let countUjian = 0;
+                let countAdmin = 0;
+                
                 let users = [];
                 snap.forEach(d => users.push({id: d.id, ...d.data()}));
                 users.sort((a,b) => a.name.localeCompare(b.name));
 
                 users.forEach(u => {
-                    // Filter Semester 3+
                     const rawSem = u.semester || 1;
                     const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
+                    const status = u.statusPembayaran || 'Belum';
 
-                    if (sem >= 3) {
-                        count++;
-                        let status = u.statusPembayaran || 'Belum';
+                    // --- GENERATE BADGE & BUTTONS ---
+                    let badge = '';
+                    let buttons = '';
+
+                    if (sem < 3) {
+                        // === LOGIKA SEMESTER 1-2 (UJIAN) ===
+                        countUjian++;
                         
-                        let badge = '';
-                        let buttons = '';
-
-                        // Logic Tombol & Badge
                         if(status === 'Lunas') {
-                            badge = '<span class="badge bg-lunas">LUNAS (75rb)</span>';
-                            buttons = `<button class="btn-act act-reset" onclick="askAction('${u.id}', 'Belum', '${u.name}')"><i class="fa-solid fa-undo"></i> Batal</button>`;
+                            badge = '<span class="badge bg-lunas">LUNAS</span>';
+                            buttons = `<button class="btn-act act-reset" onclick="askAction('${u.id}', 'Belum', '${u.name}', 1000, 'Ujian')"><i class="fa-solid fa-undo"></i> Batal</button>`;
+                        } else {
+                            badge = '<span class="badge bg-belum">BELUM BAYAR</span>';
+                            buttons = `<button class="btn-act act-lunas" onclick="askAction('${u.id}', 'Lunas', '${u.name}', 1000, 'Ujian')"><i class="fa-solid fa-check"></i> Konfirmasi Rp 1.000</button>`;
+                        }
+
+                        tbodyUjian.innerHTML += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td>Sem ${sem}</td><td>${badge}</td><td>${buttons}</td></tr>`;
+
+                    } else {
+                        // === LOGIKA SEMESTER 3+ (ADMINISTRASI) ===
+                        countAdmin++;
+
+                        if(status === 'Lunas') {
+                            badge = '<span class="badge bg-lunas">FULL (75rb)</span>';
+                            buttons = `<button class="btn-act act-reset" onclick="askAction('${u.id}', 'Belum', '${u.name}', 75450, 'Admin')"><i class="fa-solid fa-undo"></i> Batal</button>`;
                         } 
                         else if(status === 'Cicilan') {
                             badge = '<span class="badge bg-cicil">CICILAN (37rb)</span>';
                             buttons = `
-                                <button class="btn-act act-lunas" onclick="askAction('${u.id}', 'Lunas', '${u.name}')"><i class="fa-solid fa-check-double"></i> Lunas Full</button>
-                                <button class="btn-act act-reset" onclick="askAction('${u.id}', 'Belum', '${u.name}')"><i class="fa-solid fa-undo"></i> Batal</button>
+                                <button class="btn-act act-lunas" onclick="askAction('${u.id}', 'Lunas', '${u.name}', 37725, 'Pelunasan')"><i class="fa-solid fa-check-double"></i> Lunasi Sisa</button>
+                                <button class="btn-act act-reset" onclick="askAction('${u.id}', 'Belum', '${u.name}', 37725, 'Admin')"><i class="fa-solid fa-undo"></i> Batal</button>
                             `;
                         } 
                         else {
-                            badge = '<span class="badge bg-belum">BELUM BAYAR</span>';
+                            badge = '<span class="badge bg-belum">TAGIHAN 75rb</span>';
                             buttons = `
-                                <button class="btn-act act-cicil" onclick="askAction('${u.id}', 'Cicilan', '${u.name}')"><i class="fa-solid fa-hourglass-half"></i> Set Cicilan</button>
-                                <button class="btn-act act-lunas" onclick="askAction('${u.id}', 'Lunas', '${u.name}')"><i class="fa-solid fa-check"></i> Set Lunas</button>
+                                <button class="btn-act act-cicil" onclick="askAction('${u.id}', 'Cicilan', '${u.name}', 37725, 'Cicilan')"><i class="fa-solid fa-hourglass-half"></i> Cicil</button>
+                                <button class="btn-act act-lunas" onclick="askAction('${u.id}', 'Lunas', '${u.name}', 75450, 'Full')"><i class="fa-solid fa-check"></i> Lunas</button>
                             `;
                         }
 
-                        tbody.innerHTML += `
-                            <tr>
-                                <td><strong>${u.name}</strong><br><small style="color:#666;">${u.email}</small></td>
-                                <td>Sem ${sem}</td>
-                                <td>${badge}</td>
-                                <td>${buttons}</td>
-                            </tr>
-                        `;
+                        tbodyAdmin.innerHTML += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td>Sem ${sem}</td><td>${badge}</td><td>${buttons}</td></tr>`;
                     }
                 });
 
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('table-container').classList.remove('hidden');
-                
-                if(count === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">Tidak ada siswa semester 3+.</td></tr>';
+                if(countUjian === 0) tbodyUjian.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#999;">Tidak ada siswa semester 1-2.</td></tr>';
+                if(countAdmin === 0) tbodyAdmin.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#999;">Tidak ada siswa semester 3+.</td></tr>';
 
-            } catch(e) { 
-                alert("Error: " + e.message); 
-            }
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+
+            } catch(e) { alert("Error: " + e.message); }
         }
 
-        window.askAction = (uid, newStatus, name) => {
+        // --- KONFIRMASI DINAMIS ---
+        window.askAction = (uid, newStatus, name, amount, type) => {
             let msg = "";
-            let title = "Konfirmasi Status";
+            let title = "Konfirmasi Pembayaran";
 
-            if(newStatus === 'Cicilan') {
-                msg = `Konfirmasi pembayaran <b>CICILAN</b> untuk siswa <b>${name}</b>?<br><br>Siswa telah membayar <b>Rp 37.725</b>.`;
-            } else if(newStatus === 'Lunas') {
-                msg = `Konfirmasi pembayaran <b>LUNAS (FULL)</b> untuk siswa <b>${name}</b>?<br><br>Total bayar: <b>Rp 75.450</b>.`;
-            } else {
+            const rp = "Rp " + amount.toLocaleString('id-ID');
+
+            if (newStatus === 'Belum') {
+                title = "Batalkan Status";
                 msg = `Batalkan status pembayaran untuk <b>${name}</b>?<br>Status akan kembali ke <b>BELUM BAYAR</b>.`;
-                title = "Batalkan Pembayaran";
+            } 
+            else if (type === 'Ujian') {
+                msg = `Terima pembayaran <b>Uang Ujian</b> sebesar <b>${rp}</b> dari siswa <b>${name}</b>?`;
+            }
+            else if (type === 'Cicilan') {
+                msg = `Terima pembayaran <b>Cicilan Pertama</b> sebesar <b>${rp}</b> dari siswa <b>${name}</b>?`;
+            }
+            else if (type === 'Pelunasan') {
+                msg = `Terima <b>Pelunasan Sisa</b> sebesar <b>${rp}</b> dari siswa <b>${name}</b>?<br>Status akan menjadi LUNAS.`;
+            }
+            else {
+                msg = `Terima pembayaran <b>LUNAS FULL</b> sebesar <b>${rp}</b> dari siswa <b>${name}</b>?`;
             }
 
-            // Show Modal
             const overlay = document.getElementById('custom-modal');
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-msg').innerHTML = msg;
             
-            const actions = document.getElementById('modal-actions');
-            actions.innerHTML = `
+            document.getElementById('modal-actions').innerHTML = `
                 <button class="btn-modal btn-no" onclick="document.getElementById('custom-modal').classList.remove('active')">Batal</button>
-                <button class="btn-modal btn-yes" onclick="execUpdate('${uid}', '${newStatus}')">Ya, Konfirmasi</button>
+                <button class="btn-modal btn-yes" onclick="execUpdate('${uid}', '${newStatus}')">Ya, Proses</button>
             `;
-            
             overlay.classList.add('active');
         };
 
@@ -189,7 +230,7 @@
             document.getElementById('custom-modal').classList.remove('active');
             try {
                 await updateDoc(doc(db, 'users', uid), { statusPembayaran: status });
-                loadData(); // Refresh table
+                loadData();
             } catch(e) { alert("Gagal update database."); }
         };
     </script>
