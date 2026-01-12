@@ -10,14 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { background-color: #f0f2f5; font-family: 'Poppins', sans-serif; color: #333; margin: 0; padding-bottom: 100px; /* Space untuk tombol sticky */ }
+        body { background-color: #f0f2f5; font-family: 'Poppins', sans-serif; color: #333; margin: 0; padding-bottom: 100px; }
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
 
         /* HEADER */
         .page-header { margin-bottom: 20px; }
         .btn-back { text-decoration: none; color: #666; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; background: white; padding: 10px 20px; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-        /* LAYOUT GRID (Desktop: Kiri-Kanan, HP: Atas-Bawah) */
+        /* LAYOUT GRID */
         .grid-layout { display: grid; grid-template-columns: 300px 1fr; gap: 25px; }
         
         /* CARD STYLE */
@@ -47,10 +47,8 @@
         .rules-list { margin: 0; padding-left: 20px; font-size: 0.9rem; color: #4b5563; line-height: 1.6; }
         .rules-list li { margin-bottom: 8px; }
 
-        /* CHECKBOX & TOMBOL MULAI (STICKY DI HP) */
-        .footer-action {
-            margin-top: 25px; padding-top: 20px; border-top: 1px dashed #e2e8f0;
-        }
+        /* CHECKBOX & TOMBOL MULAI */
+        .footer-action { margin-top: 25px; padding-top: 20px; border-top: 1px dashed #e2e8f0; }
         
         .checkbox-wrapper { 
             display: flex; align-items: flex-start; gap: 12px; cursor: pointer; 
@@ -84,7 +82,6 @@
         .modal-box { background: white; padding: 30px; border-radius: 24px; width: 85%; max-width: 380px; text-align: center; transform: scale(0.8); transition: 0.3s; }
         .modal-overlay.active .modal-box { transform: scale(1); }
 
-        /* Modal Tombol */
         .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 25px; }
         .btn-modal { padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-size: 1rem; }
         .btn-cancel { background: #f1f5f9; color: #475569; }
@@ -95,7 +92,7 @@
             .grid-layout { grid-template-columns: 1fr; gap: 20px; }
             .card-profile { display: flex; align-items: center; text-align: left; padding: 20px; gap: 15px; }
             .avatar-box { margin: 0; width: 60px; height: 60px; font-size: 1.8rem; }
-            .divider, .st-row { display: none; } /* Sembunyikan detail di profil HP biar ringkas */
+            .divider, .st-row { display: none; }
             .exam-title { font-size: 1.4rem; }
             .sticky-btn-container { padding: 15px; }
         }
@@ -121,7 +118,7 @@
                 <div class="avatar-box"><i class="fa-solid fa-user-graduate"></i></div>
                 <div>
                     <h3 class="st-name" id="st-name">Nama Siswa</h3>
-                    <p class="st-id" id="st-uid">ID: 123456</p>
+                    <p class="st-id" id="st-uid">ID: -</p>
                     <div style="margin-top:5px;">
                         <span style="background:#dcfce7; color:#166534; font-size:0.75rem; font-weight:700; padding:3px 8px; border-radius:6px;">TERVERIFIKASI</span>
                     </div>
@@ -172,19 +169,6 @@
         </button>
     </div>
 
-    <div id="modal-block" class="modal-overlay" style="z-index: 3000;">
-        <div class="modal-box">
-            <i class="fa-solid fa-ban" style="font-size:4rem; color:#ef4444; margin-bottom:15px;"></i>
-            <h2 style="margin:0 0 10px 0; color:#1e293b;">Akses Ditolak</h2>
-            <p id="block-msg" style="color:#64748b; font-size:0.95rem; line-height:1.5;">
-                Maaf, ujian ini hanya untuk siswa Semester 3 ke atas.
-            </p>
-            <button onclick="window.location.href='../index.html'" style="margin-top:20px; background:#ef4444; color:white; width:100%; padding:12px; border:none; border-radius:12px; font-weight:bold; cursor:pointer;">
-                Kembali ke Dashboard
-            </button>
-        </div>
-    </div>
-
     <div id="modal-confirm" class="modal-overlay">
         <div class="modal-box">
             <i class="fa-solid fa-rocket" style="font-size:3.5rem; color:#0284c7; margin-bottom:15px;"></i>
@@ -210,25 +194,16 @@
             const user = await checkAuth('siswa');
             
             if(user) {
-                // 1. CEK SEMESTER (PROTEKSI UTAMA)
-                const rawSem = user.semester || 1;
-                const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
-
-                if (sem < 3) {
-                    // Blokir Semester 1-2
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('block-msg').innerText = `Hai ${user.name}, portal ujian ini khusus untuk Semester 3 ke atas. Anda saat ini Semester ${sem}.`;
-                    document.getElementById('modal-block').classList.add('active');
-                    return;
-                }
-
-                // 2. CEK PEMBAYARAN (PROTEKSI KEDUA)
+                // 1. CEK PEMBAYARAN SAJA (Tanpa blokir semester)
+                // Siswa harus Lunas (75rb) atau Cicilan (37rb) atau Lunas Ujian (1rb)
+                // Di database semuanya tercatat sebagai 'Lunas' atau 'Cicilan'
                 if(user.statusPembayaran !== 'Lunas' && user.statusPembayaran !== 'Cicilan') {
-                    alert("Akses ditolak. Mohon selesaikan administrasi.");
+                    alert("Akses ditolak. Mohon selesaikan administrasi pembayaran.");
                     window.location.href = '../pembayaran.html';
                     return;
                 }
 
+                // Jika lolos pembayaran, load data
                 loadPageData(user);
             }
         })();
@@ -238,7 +213,7 @@
                 // Render Profil
                 document.getElementById('st-name').innerText = user.name;
                 document.getElementById('st-uid').innerText = "ID: " + user.uid.substring(0,6).toUpperCase();
-                document.getElementById('st-sem').innerText = user.semester || 3;
+                document.getElementById('st-sem').innerText = user.semester || 1;
 
                 // Ambil Data Ujian
                 if(!examId) throw new Error("ID hilang");
@@ -260,7 +235,7 @@
                 // Tampilkan UI
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'grid';
-                document.getElementById('sticky-footer').style.display = 'flex'; // Munculkan tombol sticky
+                document.getElementById('sticky-footer').style.display = 'flex';
 
             } catch(e) {
                 console.error(e);
