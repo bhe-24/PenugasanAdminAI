@@ -11,54 +11,51 @@
     
     <style>
         body { font-family: 'Outfit', sans-serif; background: #f0f2f5; margin: 0; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-        .container { width: 90%; max-width: 600px; text-align: center; }
+        .container { width: 90%; max-width: 500px; text-align: center; }
 
-        /* LOADING ANIMATION */
+        /* LOADING */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #4361ee; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* RESULT CARD */
-        .result-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); display: none; animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        /* CARD */
+        .result-card { background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); display: none; animation: popUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes popUp { from{transform: scale(0.8); opacity: 0;} to{transform: scale(1); opacity: 1;} }
 
         .score-circle {
-            width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(135deg, #4361ee, #3f37c9);
+            width: 160px; height: 160px; border-radius: 50%; background: linear-gradient(135deg, #4361ee, #3f37c9);
             color: white; display: flex; flex-direction: column; justify-content: center; align-items: center;
-            margin: 0 auto 25px; box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
+            margin: 0 auto 30px; box-shadow: 0 15px 30px rgba(67, 97, 238, 0.3); border: 5px solid #e0e7ff;
         }
-        .score-val { font-size: 3rem; font-weight: 800; line-height: 1; }
-        .score-label { font-size: 0.9rem; opacity: 0.8; }
+        .score-val { font-size: 3.5rem; font-weight: 800; line-height: 1; }
+        .score-label { font-size: 0.85rem; opacity: 0.9; letter-spacing: 1px; margin-top: 5px; }
 
-        .detail-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; }
-        .stat-box { background: #f8f9fa; padding: 10px 20px; border-radius: 10px; font-size: 0.9rem; }
+        .detail-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        .stat-box { background: #f8f9fa; padding: 15px; border-radius: 12px; font-size: 0.95rem; border: 1px solid #eee; }
         
-        .btn-home { 
-            display: block; width: 100%; padding: 15px; border-radius: 12px; 
-            background: #28a745; color: white; text-decoration: none; font-weight: 700; 
-            transition: 0.2s; box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
-        }
-        .btn-home:hover { transform: translateY(-3px); }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; }
+        .btn { display: block; width: 100%; padding: 14px; border-radius: 12px; text-decoration: none; font-weight: 700; transition: 0.2s; border: none; cursor: pointer; }
+        
+        .btn-review { background: #e0f2fe; color: #0284c7; }
+        .btn-review:hover { background: #bae6fd; }
+        
+        .btn-home { background: #0f172a; color: white; }
+        .btn-home:hover { background: #1e293b; }
 
-        /* PEMBAHASAN (Accordions) */
-        .review-section { margin-top: 30px; text-align: left; max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; padding: 10px; }
-        .review-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-        .review-item:last-child { border: none; }
-        .r-correct { color: #166534; font-weight: 600; }
-        .r-wrong { color: #dc2626; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <div id="loading-screen">
         <div class="loader"></div>
-        <h2 id="loading-text">Menghitung Nilai...</h2>
+        <h2 id="loading-text">Mengkoreksi Jawaban...</h2>
         <p>Mohon tunggu sebentar.</p>
     </div>
 
     <div class="container">
         <div class="result-card" id="result-card">
-            <h2 style="margin:0 0 20px 0; color:#1e293b;">Hasil Ujian Kamu</h2>
+            <h2 style="margin:0 0 10px 0; color:#1e293b;">Ujian Selesai!</h2>
+            <p id="feedback-msg" style="color:#64748b; margin: 0 0 30px 0; font-size:0.95rem;">-</p>
             
             <div class="score-circle">
                 <span class="score-val" id="score-display">0</span>
@@ -67,20 +64,24 @@
 
             <div class="detail-row">
                 <div class="stat-box">
-                    <i class="fa-solid fa-check" style="color:green;"></i> Benar: <b id="true-count">-</b>
+                    <i class="fa-solid fa-circle-check" style="color:#22c55e; margin-bottom:5px; font-size:1.2rem;"></i><br>
+                    Benar: <b id="true-count">-</b>
                 </div>
                 <div class="stat-box">
-                    <i class="fa-solid fa-xmark" style="color:red;"></i> Salah: <b id="false-count">-</b>
+                    <i class="fa-solid fa-circle-xmark" style="color:#ef4444; margin-bottom:5px; font-size:1.2rem;"></i><br>
+                    Salah: <b id="false-count">-</b>
                 </div>
             </div>
 
-            <p id="feedback-msg" style="color:#64748b; margin-bottom:20px;">-</p>
-
-            <a href="index.html" class="btn-home">
-                <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Ujian
-            </a>
-
+            <div class="btn-group">
+                <button onclick="goToDetail()" class="btn btn-review">
+                    <i class="fa-solid fa-list-check"></i> Lihat Pembahasan
+                </button>
+                <a href="index.html" class="btn btn-home">
+                    <i class="fa-solid fa-house"></i> Kembali ke Dashboard
+                </a>
             </div>
+        </div>
     </div>
 
     <script type="module">
@@ -90,11 +91,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const resultId = urlParams.get('rid');
 
-        // --- ANIMASI LOADING 5 DETIK ---
         setTimeout(() => {
             if(resultId) loadResult();
             else window.location.href = 'index.html';
-        }, 5000); // 5000ms = 5 detik
+        }, 3000); // 3 Detik Loading
 
         async function loadResult() {
             try {
@@ -107,18 +107,15 @@
                 const total = res.totalQuestions;
                 const wrong = total - correct;
 
-                // Tampilkan Data
                 document.getElementById('score-display').innerText = score;
                 document.getElementById('true-count').innerText = correct;
                 document.getElementById('false-count').innerText = wrong;
 
-                // Feedback Message
                 const msg = document.getElementById('feedback-msg');
-                if(score >= 80) msg.innerText = "Luar biasa! Pertahankan prestasimu.";
-                else if(score >= 60) msg.innerText = "Cukup baik, tingkatkan lagi belajarnya.";
-                else msg.innerText = "Jangan menyerah, coba lagi lebih giat!";
+                if(score >= 85) msg.innerText = "Luar biasa! Hasil yang sangat memuaskan.";
+                else if(score >= 70) msg.innerText = "Kerja bagus! Tingkatkan lagi belajarnya.";
+                else msg.innerText = "Jangan patah semangat, coba lagi lain waktu.";
 
-                // Transisi Tampilan
                 document.getElementById('loading-screen').style.display = 'none';
                 document.getElementById('result-card').style.display = 'block';
 
@@ -126,6 +123,10 @@
                 alert("Gagal memuat hasil.");
                 window.location.href = 'index.html';
             }
+        }
+
+        window.goToDetail = () => {
+            window.location.href = `detail.html?rid=${resultId}`;
         }
     </script>
 </body>
