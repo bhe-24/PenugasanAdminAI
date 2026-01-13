@@ -20,17 +20,32 @@
         .b2 { width: 300px; height: 300px; background: #ddd6fe; bottom: -10%; right: -10%; animation-delay: -5s; }
         @keyframes float { from { transform: translate(0,0); } to { transform: translate(30px, 50px); } }
 
+        /* LOADING OVERLAY CUSTOM (POP UP) */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.95); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .loading-overlay.hide { opacity: 0; pointer-events: none; }
+        
+        .spinner-box { width: 60px; height: 60px; border: 5px solid #e2e8f0; border-top: 5px solid #003366; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .loading-text { font-size: 1.2rem; font-weight: 600; color: #1e293b; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
         /* CONTAINER UTAMA */
-        .container { width: 100%; max-width: 480px; padding: 20px; position: relative; z-index: 1; }
+        .container { width: 100%; max-width: 480px; padding: 20px; position: relative; z-index: 1; display: none; /* Sembunyi dulu */ }
+        .container.show { display: block; animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* KARTU HASIL (GLASS EFFECT) */
         .result-card {
             background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
             border-radius: 24px; padding: 40px 30px; text-align: center;
             box-shadow: 0 20px 50px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.6);
-            animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        @keyframes popUp { from{transform: scale(0.8); opacity: 0;} to{transform: scale(1); opacity: 1;} }
 
         /* SKOR */
         .score-circle {
@@ -64,60 +79,56 @@
         .btn-home { background: white; color: #333; border: 2px solid #e2e8f0; }
         .btn-home:hover { background: #f1f5f9; border-color: #cbd5e1; }
 
-        /* PDF TEMPLATE (SEMBUNYI DI LAYAR, MUNCUL DI PDF) */
-        #pdf-template { 
-            display: none; width: 100%; background: white; color: black; padding: 30px; 
-            font-family: 'Times New Roman', serif; box-sizing: border-box;
-        }
+        /* PDF TEMPLATE (HIDDEN) */
+        #pdf-template { display: none; width: 100%; background: white; color: black; padding: 30px; font-family: 'Times New Roman', serif; box-sizing: border-box; }
         .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 15px; margin-bottom: 20px; }
         .pdf-logo { height: 60px; margin-bottom: 10px; }
         .pdf-title { font-weight: bold; font-size: 16pt; margin: 5px 0; text-transform: uppercase; }
         .pdf-meta { margin-bottom: 20px; font-family: sans-serif; font-size: 10pt; line-height: 1.6; border: 1px solid #000; padding: 10px; }
-        
         .pdf-q-item { margin-bottom: 15px; page-break-inside: avoid; border-bottom: 1px dashed #ccc; padding-bottom: 10px; }
         .pdf-q-text { font-weight: bold; margin-bottom: 5px; display: block; font-family: sans-serif; font-size: 11pt; }
         .pdf-ans-row { display: flex; justify-content: space-between; font-size: 10pt; }
-        .pdf-ans-label { font-weight: bold; width: 80px; }
         .pdf-correct { color: #006400; font-weight: bold; }
         .pdf-wrong { color: #8b0000; text-decoration: line-through; }
-        
-        .score-stamp { 
-            position: absolute; top: 150px; right: 40px; border: 3px solid #003366; color: #003366; 
-            padding: 5px 15px; font-weight: bold; font-size: 20pt; transform: rotate(-15deg); border-radius: 10px; opacity: 0.5;
-        }
+        .score-stamp { position: absolute; top: 150px; right: 40px; border: 3px solid #003366; color: #003366; padding: 5px 15px; font-weight: bold; font-size: 20pt; transform: rotate(-15deg); border-radius: 10px; opacity: 0.5; }
     </style>
 </head>
 <body>
+
+    <div id="custom-loader" class="loading-overlay">
+        <div class="spinner-box"></div>
+        <div id="loader-text" class="loading-text">Memuat hasil ujian kamu...</div>
+    </div>
 
     <div class="bg-blobs">
         <div class="blob b1"></div>
         <div class="blob b2"></div>
     </div>
 
-    <div class="container">
+    <div class="container" id="main-content">
         <div class="result-card">
             <div class="score-circle">
-                <span class="score-val" id="score">0</span>
+                <span class="score-val" id="score">-</span>
                 <span class="score-lbl">NILAI AKHIR</span>
             </div>
 
-            <h2 class="result-title" id="lbl-status">Luar Biasa!</h2>
-            <p class="result-sub">Kamu telah menyelesaikan kuis ini.</p>
+            <h2 class="result-title" id="lbl-status">...</h2>
+            <p class="result-sub">Kuis telah diselesaikan.</p>
 
             <div class="stats-grid">
                 <div class="stat-box">
                     <div class="stat-val text-green" id="val-correct">0</div>
-                    <div class="stat-lbl">Jawaban Benar</div>
+                    <div class="stat-lbl">Benar</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-val text-red" id="val-wrong">0</div>
-                    <div class="stat-lbl">Jawaban Salah</div>
+                    <div class="stat-lbl">Salah</div>
                 </div>
             </div>
 
             <div class="btn-group">
                 <button onclick="downloadPDF()" class="btn btn-pdf" id="btn-pdf">
-                    <i class="fa-solid fa-file-pdf"></i> Unduh Pembahasan & Soal
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Hasil & Pembahasan
                 </button>
                 <a href="index.html" class="btn btn-home">
                     Kembali ke Daftar Kuis
@@ -132,9 +143,7 @@
             <div class="pdf-title">HASIL KUIS HARIAN</div>
             <div style="font-size:10pt;">CENDEKIA AKSARA - PEMBELAJARAN DIGITAL</div>
         </div>
-
         <div class="score-stamp" id="pdf-stamp">NILAI: 0</div>
-
         <div class="pdf-meta">
             <table width="100%">
                 <tr><td width="100">Nama Siswa</td><td>: <strong id="pdf-name">-</strong></td></tr>
@@ -143,17 +152,11 @@
                 <tr><td>Skor Akhir</td><td>: <strong id="pdf-score">-</strong></td></tr>
             </table>
         </div>
-
         <div style="background:#eee; padding:5px 10px; font-weight:bold; margin-bottom:15px; font-family:sans-serif; font-size:10pt;">
             DETAIL PEMBAHASAN SOAL
         </div>
-
-        <div id="pdf-content">
-            </div>
-        
-        <div style="margin-top:30px; text-align:center; font-size:9pt; color:#666;">
-            Dokumen ini digenerate otomatis oleh sistem Cendekia Aksara.
-        </div>
+        <div id="pdf-content"></div>
+        <div style="margin-top:30px; text-align:center; font-size:9pt; color:#666;">Dokumen ini digenerate otomatis oleh sistem Cendekia Aksara.</div>
     </div>
 
     <script type="module">
@@ -163,7 +166,7 @@
         const rid = new URLSearchParams(window.location.search).get('rid');
         let quizData, resultData, studentName;
 
-        // --- FUNGSI BASE64 UNTUK GAMBAR (Supaya muncul di PDF) ---
+        // FUNGSI LOAD GAMBAR BASE64
         async function convertImgToBase64(url) {
             try {
                 const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
@@ -173,34 +176,68 @@
             } catch(e) { return url; }
         }
 
+        // --- SISTEM LOADING CUSTOM ---
+        const loader = document.getElementById('custom-loader');
+        const loaderText = document.getElementById('loader-text');
+        const mainContent = document.getElementById('main-content');
+
+        function showLoading(msg) {
+            loaderText.innerText = msg;
+            loader.classList.remove('hide');
+        }
+
+        function hideLoading() {
+            loader.classList.add('hide');
+        }
+
+        // --- INIT ---
         (async () => {
+            // 1. Tampilkan Loading Awal (Wajib 6 Detik)
+            showLoading("Memuat nilai kamu...");
+            
+            const loadStartTime = Date.now(); // Catat waktu mulai
+
             const user = await checkAuth('siswa');
             if(user) {
                 studentName = user.name;
                 
-                // 1. Ambil Hasil
-                const rSnap = await getDoc(doc(db, 'quiz_results', rid));
-                if(!rSnap.exists()) return alert("Data tidak ditemukan");
-                resultData = rSnap.data();
-                
-                // 2. Ambil Data Kuis Asli (Untuk teks soal)
-                const qSnap = await getDoc(doc(db, 'quizzes', resultData.quizId));
-                quizData = qSnap.data();
+                try {
+                    // Fetch Data (Background)
+                    const rSnap = await getDoc(doc(db, 'quiz_results', rid));
+                    if(!rSnap.exists()) throw new Error("Data tidak ditemukan");
+                    resultData = rSnap.data();
+                    
+                    const qSnap = await getDoc(doc(db, 'quizzes', resultData.quizId));
+                    quizData = qSnap.data();
 
-                // 3. Render Tampilan Layar
-                renderScreen();
+                    // Render Data ke Layar (Tapi belum ditampilkan)
+                    renderScreen();
 
-                // 4. Siapkan Logo untuk PDF (Pre-load)
-                const logoBase64 = await convertImgToBase64("https://i.imgur.com/5Srjyo4.png");
-                document.getElementById('pdf-logo').src = logoBase64;
+                    // Siapkan Logo PDF
+                    const logoBase64 = await convertImgToBase64("https://i.imgur.com/5Srjyo4.png");
+                    document.getElementById('pdf-logo').src = logoBase64;
+
+                } catch(e) {
+                    alert("Gagal: " + e.message);
+                    window.location.href = 'index.html';
+                }
             }
+
+            // 2. Hitung Sisa Waktu agar pas 6 Detik
+            const elapsedTime = Date.now() - loadStartTime;
+            const remainingTime = Math.max(0, 6000 - elapsedTime);
+
+            setTimeout(() => {
+                hideLoading();
+                mainContent.classList.add('show'); // Munculkan konten dengan animasi
+            }, remainingTime);
+
         })();
 
         function renderScreen() {
             const score = resultData.score;
             document.getElementById('score').innerText = score;
             
-            // Hitung Benar/Salah
             let correct = 0;
             quizData.questions.forEach((q, i) => {
                 if(resultData.answers[i] === q.correctIndex) correct++;
@@ -210,77 +247,67 @@
             document.getElementById('val-correct').innerText = correct;
             document.getElementById('val-wrong').innerText = wrong;
 
-            // Status Teks
             const lbl = document.getElementById('lbl-status');
             if(score >= 80) lbl.innerText = "Luar Biasa! 🎉";
             else if(score >= 60) lbl.innerText = "Cukup Baik 👍";
-            else lbl.innerText = "Jangan Menyerah 💪";
+            else lbl.innerText = "Tetap Semangat 💪";
         }
 
+        // --- SISTEM DOWNLOAD DENGAN POPUP ---
         window.downloadPDF = () => {
-            const btn = document.getElementById('btn-pdf');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan PDF...';
-            btn.disabled = true;
+            // 1. Tampilkan Popup Loading
+            showLoading("Menyiapkan dokumen PDF...");
 
-            // 1. ISI DATA TEMPLATE PDF
-            document.getElementById('pdf-name').innerText = studentName;
-            document.getElementById('pdf-quiz').innerText = quizData.judul;
-            document.getElementById('pdf-score').innerText = resultData.score;
-            document.getElementById('pdf-stamp').innerText = "NILAI: " + resultData.score;
-            document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+            // Jeda sebentar agar UI render, baru generate PDF
+            setTimeout(() => {
+                // Isi Data Template
+                document.getElementById('pdf-name').innerText = studentName;
+                document.getElementById('pdf-quiz').innerText = quizData.judul;
+                document.getElementById('pdf-score').innerText = resultData.score;
+                document.getElementById('pdf-stamp').innerText = "NILAI: " + resultData.score;
+                document.getElementById('pdf-date').innerText = new Date().toLocaleDateString('id-ID');
 
-            const contentDiv = document.getElementById('pdf-content');
-            contentDiv.innerHTML = '';
+                const contentDiv = document.getElementById('pdf-content');
+                contentDiv.innerHTML = '';
 
-            // 2. RENDER SOAL KE PDF
-            quizData.questions.forEach((q, idx) => {
-                const userAnsIdx = resultData.answers[idx];
-                const keyIdx = q.correctIndex;
-                const isCorrect = userAnsIdx === keyIdx;
-                
-                const userText = (userAnsIdx !== undefined) ? q.options[userAnsIdx] : "(Tidak Dijawab)";
-                const keyText = q.options[keyIdx];
+                quizData.questions.forEach((q, idx) => {
+                    const userAnsIdx = resultData.answers[idx];
+                    const keyIdx = q.correctIndex;
+                    const isCorrect = userAnsIdx === keyIdx;
+                    const userText = (userAnsIdx !== undefined) ? q.options[userAnsIdx] : "(Tidak Dijawab)";
+                    const keyText = q.options[keyIdx];
 
-                const html = `
-                    <div class="pdf-q-item">
-                        <span class="pdf-q-text">${idx+1}. ${q.text}</span>
-                        <div class="pdf-ans-row">
-                            <span class="pdf-ans-label">Jawabanmu:</span>
-                            <span class="${isCorrect ? 'pdf-correct' : 'pdf-wrong'}">${userText}</span>
+                    const html = `
+                        <div class="pdf-q-item">
+                            <span class="pdf-q-text">${idx+1}. ${q.text}</span>
+                            <div class="pdf-ans-row">
+                                <span>Jawabanmu: <span class="${isCorrect ? 'pdf-correct' : 'pdf-wrong'}">${userText}</span></span>
+                            </div>
+                            ${!isCorrect ? `<div class="pdf-ans-row"><span class="pdf-correct">Kunci: ${keyText}</span></div>` : ''}
                         </div>
-                        ${!isCorrect ? `
-                        <div class="pdf-ans-row">
-                            <span class="pdf-ans-label">Kunci:</span>
-                            <span class="pdf-correct">${keyText}</span>
-                        </div>` : ''}
-                    </div>
-                `;
-                contentDiv.insertAdjacentHTML('beforeend', html);
-            });
+                    `;
+                    contentDiv.insertAdjacentHTML('beforeend', html);
+                });
 
-            // 3. PROSES GENERATE
-            const element = document.getElementById('pdf-template');
-            element.style.display = 'block'; // Tampilkan sebentar agar terbaca oleh html2pdf
+                const element = document.getElementById('pdf-template');
+                element.style.display = 'block';
 
-            const opt = {
-                margin: 10,
-                filename: `HasilKuis_${studentName}_${quizData.judul}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+                const opt = {
+                    margin: 10,
+                    filename: `HasilKuis_${studentName}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
 
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.style.display = 'none'; // Sembunyikan lagi
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }).catch(err => {
-                alert("Gagal membuat PDF: " + err.message);
-                element.style.display = 'none';
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            });
+                html2pdf().set(opt).from(element).save().then(() => {
+                    element.style.display = 'none';
+                    hideLoading(); // Sembunyikan Popup setelah selesai
+                }).catch(err => {
+                    hideLoading();
+                    alert("Gagal PDF: " + err.message);
+                });
+            }, 1000); // Delay 1 detik untuk efek loading
         }
     </script>
 </body>
