@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Nilai Kuis - Admin</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --bg: #f4f7fe; }
+        body { background-color: var(--bg); font-family: 'Outfit', sans-serif; color: #333; margin: 0; padding-bottom: 50px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 25px; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: white; padding: 20px 30px; border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px;
+        }
+        .btn-back { background: #eee; color: #333; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+
+        /* ACCORDION CARD */
+        .rekap-item { margin-bottom: 15px; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eef2f6; background: white; }
+        
+        .rekap-head {
+            padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            background: white; transition: 0.2s;
+        }
+        .rekap-head:hover { background: #f8fbff; }
+        .rekap-head.active { background: #f0f7ff; border-bottom: 1px solid #e0e7ff; }
+        
+        .rh-info h4 { margin: 0; font-size: 1.1rem; color: var(--primary); }
+        .rh-info p { margin: 3px 0 0; font-size: 0.85rem; color: #666; }
+        
+        /* CONTENT (TABLE) */
+        .rekap-body { display: none; padding: 20px; background: #fafbfc; animation: slideDown 0.3s ease; }
+        .rekap-body.show { display: block; }
+        
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: white; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: var(--primary); color: white; font-weight: 500; }
+        tr:last-child td { border-bottom: none; }
+        
+        .score-good { color: #166534; font-weight: bold; }
+        .score-bad { color: #991b1b; font-weight: bold; }
+        .empty-msg { text-align: center; padding: 20px; color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <h2 style="margin:0; color:var(--primary);"><i class="fa-solid fa-clipboard-list"></i> Rekap Nilai Kuis</h2>
+            <div style="display:flex; gap:10px;">
+                <a href="kuis.html" class="btn-back">Kelola Kuis</a>
+                <a href="../index.html" class="btn-back" style="background:var(--primary); color:white;">Dashboard</a>
+            </div>
+        </div>
+
+        <div id="loading" style="text-align:center; padding:40px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
+        <div id="rekap-list"></div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        (async () => {
+            const user = await checkAuth('pengajar');
+            if(user) loadQuizzes();
+            else window.location.href = '../index.html';
+        })();
+
+        async function loadQuizzes() {
+            const container = document.getElementById('rekap-list');
+            try {
+                // Ambil daftar kuis dulu
+                const snap = await getDocs(collection(db, 'quizzes'));
+                document.getElementById('loading').style.display = 'none';
+
+                if(snap.empty) {
+                    container.innerHTML = '<p style="text-align:center;">Belum ada kuis.</p>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const html = `
+                        <div class="rekap-item">
+                            <div class="rekap-head" onclick="toggleDetail('${d.id}', this)">
+                                <div class="rh-info">
+                                    <h4>${data.judul}</h4>
+                                    <p>${data.mapel} | ${data.questions ? data.questions.length : 0} Soal</p>
+                                </div>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                            <div class="rekap-body" id="body-${d.id}">
+                                <p style="text-align:center;">Memuat data siswa...</p>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        // FUNGSI LOAD DETAIL (Hanya dipanggil saat diklik)
+        window.toggleDetail = async (quizId, headerEl) => {
+            const body = document.getElementById(`body-${quizId}`);
+            const icon = headerEl.querySelector('.fa-chevron-down');
+            
+            // Toggle UI
+            const isClosed = body.style.display !== 'block';
+            document.querySelectorAll('.rekap-body').forEach(el => el.classList.remove('show')); // Tutup yang lain
+            document.querySelectorAll('.rekap-head').forEach(el => el.classList.remove('active'));
+            
+            if(isClosed) {
+                body.classList.add('show');
+                headerEl.classList.add('active');
+                
+                // Fetch Data (Jika belum di-load)
+                if(!body.getAttribute('data-loaded')) {
+                    try {
+                        const q = query(collection(db, 'quiz_results'), where('quizId', '==', quizId));
+                        const snap = await getDocs(q);
+                        
+                        if(snap.empty) {
+                            body.innerHTML = '<div class="empty-msg">Belum ada siswa yang mengerjakan.</div>';
+                        } else {
+                            let rows = '';
+                            let total = 0;
+                            let count = 0;
+
+                            snap.forEach(d => {
+                                const res = d.data();
+                                const scoreClass = res.score >= 70 ? 'score-good' : 'score-bad';
+                                const date = res.timestamp ? new Date(res.timestamp.seconds * 1000).toLocaleString('id-ID') : '-';
+                                
+                                rows += `
+                                    <tr>
+                                        <td>${res.studentName || 'Tanpa Nama'}</td>
+                                        <td>${date}</td>
+                                        <td class="${scoreClass}">${res.score}</td>
+                                    </tr>
+                                `;
+                                total += parseInt(res.score);
+                                count++;
+                            });
+
+                            const avg = Math.round(total / count);
+                            
+                            body.innerHTML = `
+                                <div style="margin-bottom:15px; display:flex; gap:15px;">
+                                    <span style="background:#e0f2fe; color:#0284c7; padding:5px 10px; border-radius:5px; font-size:0.85rem; font-weight:bold;">
+                                        Total Siswa: ${count}
+                                    </span>
+                                    <span style="background:#f3e8ff; color:#7e22ce; padding:5px 10px; border-radius:5px; font-size:0.85rem; font-weight:bold;">
+                                        Rata-rata: ${avg}
+                                    </span>
+                                </div>
+                                <table>
+                                    <thead><tr><th>Nama Siswa</th><th>Waktu Kumpul</th><th>Nilai</th></tr></thead>
+                                    <tbody>${rows}</tbody>
+                                </table>
+                            `;
+                        }
+                        body.setAttribute('data-loaded', 'true'); // Mark as loaded
+                    } catch(e) {
+                        body.innerHTML = '<p style="color:red; text-align:center;">Gagal memuat data.</p>';
+                        console.error(e);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
