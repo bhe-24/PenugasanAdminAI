@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Kuis - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; color: white; }
+        .btn-primary { background: #003366; }
+        .btn-add { background: #28a745; width: 100%; margin-top: 10px; }
+        .q-item { background: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eee; position: relative; }
+        .del-q { position: absolute; top: 10px; right: 10px; color: red; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="color:#003366;">Buat Kuis Harian</h2>
+            <a href="../index.html" class="btn btn-primary" style="text-decoration:none;">Dashboard</a>
+        </div>
+
+        <div class="card">
+            <div class="form-group"><label>Judul Kuis</label><input type="text" id="judul" class="form-control" placeholder="Contoh: Kuis Harian Matematika #1"></div>
+            <div class="form-group"><label>Mata Pelajaran</label><input type="text" id="mapel" class="form-control" placeholder="Matematika"></div>
+            <div class="form-group"><label>Durasi (Menit)</label><input type="number" id="durasi" class="form-control" value="10"></div>
+        </div>
+
+        <div class="card">
+            <h3>Daftar Soal</h3>
+            <div id="q-container"></div>
+            <button onclick="addQuestionUI()" class="btn btn-add"><i class="fa-solid fa-plus"></i> Tambah Soal</button>
+        </div>
+
+        <button onclick="saveQuiz()" class="btn btn-primary" style="width:100%; padding:15px; font-size:1.1rem;">Simpan Kuis</button>
+    </div>
+
+    <script type="module">
+        import { db } from "../js/firebase-config.js";
+        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let questions = [];
+
+        window.addQuestionUI = () => {
+            const id = Date.now();
+            const html = `
+                <div class="q-item" id="q-${id}">
+                    <i class="fa-solid fa-trash del-q" onclick="removeQ(${id})"></i>
+                    <textarea class="form-control q-text" rows="2" placeholder="Pertanyaan..."></textarea>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                        <input type="text" class="form-control opt-a" placeholder="Opsi A">
+                        <input type="text" class="form-control opt-b" placeholder="Opsi B">
+                        <input type="text" class="form-control opt-c" placeholder="Opsi C">
+                        <input type="text" class="form-control opt-d" placeholder="Opsi D">
+                    </div>
+                    <select class="form-control key-ans" style="margin-top:10px;">
+                        <option value="0">Kunci: A</option>
+                        <option value="1">Kunci: B</option>
+                        <option value="2">Kunci: C</option>
+                        <option value="3">Kunci: D</option>
+                    </select>
+                </div>
+            `;
+            document.getElementById('q-container').insertAdjacentHTML('beforeend', html);
+        }
+
+        window.removeQ = (id) => document.getElementById(`q-${id}`).remove();
+
+        window.saveQuiz = async () => {
+            const judul = document.getElementById('judul').value;
+            const mapel = document.getElementById('mapel').value;
+            const durasi = document.getElementById('durasi').value;
+            
+            const qElements = document.querySelectorAll('.q-item');
+            const qData = [];
+
+            qElements.forEach(el => {
+                qData.push({
+                    text: el.querySelector('.q-text').value,
+                    options: [
+                        el.querySelector('.opt-a').value,
+                        el.querySelector('.opt-b').value,
+                        el.querySelector('.opt-c').value,
+                        el.querySelector('.opt-d').value
+                    ],
+                    correctIndex: parseInt(el.querySelector('.key-ans').value)
+                });
+            });
+
+            if(!judul || qData.length === 0) return alert("Data belum lengkap!");
+
+            try {
+                await addDoc(collection(db, 'quizzes'), {
+                    judul, mapel, durasi: parseInt(durasi),
+                    questions: qData,
+                    createdAt: serverTimestamp(),
+                    status: 'active'
+                });
+                alert("Kuis Berhasil Disimpan!");
+                location.reload();
+            } catch(e) { alert("Error: " + e.message); }
+        }
+    </script>
+</body>
+</html>
