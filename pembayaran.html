@@ -113,7 +113,7 @@
         .modal-overlay.active { display: flex; opacity: 1; }
         
         .modal-box {
-            background: white; padding: 25px; border-radius: 24px; width: 90%; max-width: 380px;
+            background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 380px;
             text-align: center; transform: scale(0.8); transition: transform 0.3s; position: relative;
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
         }
@@ -197,7 +197,7 @@
             <p class="modal-p" style="font-size:0.8rem; margin-bottom: 15px;">Sudah transfer? Silakan upload bukti.</p>
             
             <button onclick="triggerUploadFlow()" class="btn-action btn-receipt">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Bukti
+                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Bukti Pembayaran
             </button>
         </div>
     </div>
@@ -218,7 +218,7 @@
         <div class="modal-box">
             <div class="modal-icon-lg">⏳</div>
             <h3 class="modal-h3">Menunggu Verifikasi</h3>
-            <p class="modal-p">Admin sedang mengecek pembayaran Anda. Mohon tunggu maksimal 1x24 Jam.</p>
+            <p class="modal-p">Data Anda sudah terkirim ke Admin. Mohon tunggu maksimal 1x24 Jam.</p>
             <div id="countdown" class="timer-display">23:59:59</div>
             <button class="btn-action btn-receipt" onclick="closeAllModals()" style="background:#f1f5f9; color:#333; margin-top:15px;">
                 Tutup & Tunggu
@@ -226,9 +226,17 @@
         </div>
     </div>
 
+    <div id="modal-loading" class="modal-overlay">
+        <div class="modal-box" style="width:auto; padding:30px;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:#003366;"></i>
+            <p style="margin-top:15px; font-weight:600;">Mengirim data ke Admin...</p>
+        </div>
+    </div>
+
     <script type="module">
+        // PENTING: IMPORT HARUS LENGKAP
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         let currentUser = null;
 
@@ -236,55 +244,57 @@
         const GOOGLE_FORM_URL = "https://forms.gle/LHpkuvLxLH4DjpK9A";
 
         window.triggerUploadFlow = () => {
-            // 1. Simpan State "Sedang Bayar"
             localStorage.setItem('payment_status', 'uploading');
-            
-            // 2. Buka Tab Baru (Google Form)
             window.open(GOOGLE_FORM_URL, '_blank');
-            
-            // 3. Tutup Modal QRIS (Persiapan jika user balik)
             document.getElementById('modal-qris').classList.remove('active');
         };
 
-        // EVENT LISTENER: Saat User Kembali ke Tab Ini
+        // EVENT LISTENER: Deteksi kembali ke tab
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'visible') {
                 const status = localStorage.getItem('payment_status');
                 if (status === 'uploading') {
-                    // Munculkan Modal Konfirmasi
                     document.getElementById('modal-confirm').classList.add('active');
-                    localStorage.removeItem('payment_status'); // Reset flag
+                    localStorage.removeItem('payment_status');
                 }
             }
         });
 
-       // Di dalam file pembayaran.html (Siswa)
-// Ganti bagian window.handleConfirm dengan ini:
+        // HANDLER KONFIRMASI (BAGIAN PALING PENTING UNTUK ADMIN)
+        window.handleConfirm = async (isDone) => {
+            document.getElementById('modal-confirm').classList.remove('active');
+            
+            if (isDone) {
+                // Tampilkan Loading
+                document.getElementById('modal-loading').classList.add('active');
 
-window.handleConfirm = async (isDone) => {
-    document.getElementById('modal-confirm').classList.remove('active');
-    
-    if (isDone) {
-        // 1. Simpan Timer Local (Agar HP siswa tetap hitung mundur)
-        const targetTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-        localStorage.setItem('payment_timer_target', targetTime);
-        
-        // 2. KIRIM SINYAL KE FIREBASE (Agar Admin Tahu) <--- INI BARU
-        // Pastikan import updateDoc & doc ada di bagian atas script
-        try {
-            await updateDoc(doc(db, 'users', currentUser.uid), {
-                paymentStatus: 'waiting', // Sinyal untuk Admin
-                paymentTimestamp: serverTimestamp()
-            });
-        } catch(e) { console.log("Gagal update status server", e); }
+                try {
+                    // 1. KIRIM DATA KE DATABASE AGAR MUNCUL DI ADMIN
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        paymentStatus: 'waiting', 
+                        paymentDate: serverTimestamp()
+                    });
 
-        // 3. Tampilkan UI
-        showTimerModal();
-        setTimeout(() => location.reload(), 1500); 
-    } else {
-        document.getElementById('modal-qris').classList.add('active');
-    }
-};
+                    // 2. Set Timer Lokal
+                    const targetTime = new Date().getTime() + (24 * 60 * 60 * 1000);
+                    localStorage.setItem('payment_timer_target', targetTime);
+                    
+                    document.getElementById('modal-loading').classList.remove('active');
+                    
+                    // 3. Tampilkan Timer & Reload
+                    showTimerModal();
+                    setTimeout(() => location.reload(), 1500); 
+
+                } catch(e) {
+                    console.error("Gagal kirim status", e);
+                    document.getElementById('modal-loading').classList.remove('active');
+                    alert("Gagal mengirim data. Periksa koneksi internet.");
+                }
+            } else {
+                document.getElementById('modal-qris').classList.add('active');
+            }
+        };
+
         // Fungsi Timer
         function showTimerModal() {
             document.getElementById('modal-timer').classList.add('active');
@@ -313,8 +323,7 @@ window.handleConfirm = async (isDone) => {
                 (h<10?'0':'')+h + ":" + (m<10?'0':'')+m + ":" + (s<10?'0':'')+s;
         }
 
-        // --- END FLOW SYSTEM ---
-
+        // --- LOAD DATA AWAL ---
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
@@ -322,18 +331,29 @@ window.handleConfirm = async (isDone) => {
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
-                // Cek apakah timer masih aktif saat halaman dimuat
+                // Cek apakah timer masih aktif (status waiting di local)
                 const savedTarget = localStorage.getItem('payment_timer_target');
                 if(savedTarget && savedTarget > new Date().getTime()) {
-                    // Update UI jadi "Menunggu Konfirmasi"
-                    const badge = document.getElementById('status-badge');
-                    if(badge) {
-                        badge.className = 'status-badge st-waiting';
-                        badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU KONFIRMASI';
-                    }
+                    setWaitingUI();
+                } else if (currentUser.paymentStatus === 'waiting') {
+                    // Jika di database waiting tapi timer local hilang, tetap tampilkan waiting
+                    setWaitingUI();
                 }
             }
         })();
+
+        function setWaitingUI() {
+            const badge = document.getElementById('status-badge');
+            const actionArea = document.getElementById('action-area');
+            
+            if(badge) {
+                badge.className = 'status-badge st-waiting';
+                badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI';
+            }
+            if(actionArea) {
+                actionArea.innerHTML = `<button onclick="showTimerModal()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Sedang Diproses Admin</button>`;
+            }
+        }
 
         async function renderData(user, sem) {
             document.getElementById('header-sem').innerText = "Semester " + sem;
@@ -342,14 +362,18 @@ window.handleConfirm = async (isDone) => {
             document.getElementById('st-ips').innerText = parseFloat(user.ips||0).toFixed(2);
 
             const status = user.statusPembayaran; 
+            const paymentStatus = user.paymentStatus; // Cek status payment khusus
             const badge = document.getElementById('status-badge');
             const amountEl = document.getElementById('amount-display');
             const detailsEl = document.getElementById('rincian-list');
             const actionArea = document.getElementById('action-area');
             const labelTagihan = document.getElementById('label-tagihan');
 
-            // Cek Timer Aktif (Pending)
-            const isPending = localStorage.getItem('payment_timer_target') && localStorage.getItem('payment_timer_target') > new Date().getTime();
+            // Jika sedang waiting, stop render tombol bayar, langsung return (UI sudah dihandle setWaitingUI)
+            if (paymentStatus === 'waiting') {
+                setWaitingUI();
+                // Tapi tetap perlu render info tagihan di bawah ini
+            }
 
             if (sem < 3) {
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
@@ -369,10 +393,7 @@ window.handleConfirm = async (isDone) => {
                 if (status === 'Lunas') {
                     badge.className = 'status-badge st-paid'; badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
                     actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Lihat Kwitansi</a>`;
-                } else if (isPending) {
-                    badge.className = 'status-badge st-waiting'; badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI';
-                    actionArea.innerHTML = `<button onclick="showTimerModal()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Sedang Diproses Admin</button>`;
-                } else {
+                } else if (paymentStatus !== 'waiting') { // Hanya render tombol jika TIDAK waiting
                     badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
                     if(totalBayar > 0) actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian (${count} Mapel)')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
                 }
@@ -385,10 +406,7 @@ window.handleConfirm = async (isDone) => {
                 if (status === 'Lunas') {
                     badge.className = 'status-badge st-paid'; badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
                     actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Download Kwitansi</a>`;
-                } else if (isPending) {
-                    badge.className = 'status-badge st-waiting'; badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI';
-                    actionArea.innerHTML = `<button onclick="showTimerModal()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Sedang Diproses Admin</button>`;
-                } else {
+                } else if (paymentStatus !== 'waiting') {
                     badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
                     actionArea.innerHTML = `
                         <div class="action-grid">
@@ -406,8 +424,7 @@ window.handleConfirm = async (isDone) => {
             document.getElementById('modal-qris').classList.add('active');
         }
         window.closeAllModals = () => document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
-        
-        window.showTimerModal = showTimerModal; // Expose to global
+        window.showTimerModal = showTimerModal; 
     </script>
 </body>
 </html>
