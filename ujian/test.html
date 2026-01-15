@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ujian Berlangsung - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="../css/style.css">
@@ -10,374 +10,317 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        :root { --primary: #4361ee; --secondary: #3f37c9; --warning: #f7b731; --bg: #f8f9fa; }
-        body { font-family: 'Outfit', sans-serif; background-color: var(--bg); margin: 0; user-select: none; padding-top: 70px; padding-bottom: 80px; }
-
-        /* HEADER FIXED */
+        :root { --primary: #003366; --accent: #4361ee; --bg: #f4f7fe; }
+        
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-top: 80px; padding-bottom: 40px; color: #333; user-select: none; -webkit-user-select: none; }
+        
+        /* TOP BAR */
         .top-bar {
-            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
-            background: #003366; color: white; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; box-sizing: border-box; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 5%; z-index: 100; box-sizing: border-box;
         }
-        .timer-badge { background: #ef4444; padding: 5px 12px; border-radius: 6px; font-family: monospace; font-size: 1.1rem; font-weight: 700; }
-        .exam-info h4 { margin: 0; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .exam-info { font-weight: 700; color: var(--primary); font-size: 1.1rem; display: flex; flex-direction: column; }
+        .exam-sub { font-size: 0.8rem; color: #64748b; font-weight: 400; }
+        
+        .timer-box {
+            background: #fee2e2; color: #b91c1c; padding: 8px 16px; border-radius: 50px;
+            font-weight: 700; font-family: monospace; font-size: 1.2rem; border: 1px solid #fecaca;
+            display: flex; align-items: center; gap: 8px;
+        }
 
-        /* LAYOUT UTAMA */
-        .container { max-width: 1200px; margin: 0 auto; display: flex; gap: 20px; padding: 20px; }
+        /* CONTAINER SOAL */
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
         
-        /* AREA SOAL (KIRI) */
-        .question-area { flex: 1; }
-        .q-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); min-height: 300px; }
-        
-        .q-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .q-badge { background: #e0f2fe; color: #0284c7; padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; }
-        
-        .q-text { font-size: 1.1rem; line-height: 1.6; color: #1e293b; margin-bottom: 25px; }
-        
-        .options-list { display: flex; flex-direction: column; gap: 12px; }
-        .opt-label {
-            display: flex; align-items: center; gap: 12px; padding: 15px;
-            border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: 0.2s;
+        .q-card {
+            background: white; padding: 40px; border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.03); border: 1px solid #eef2f6;
+            margin-bottom: 30px; animation: fadeIn 0.4s ease;
         }
-        .opt-label:hover { background: #f8fafc; border-color: #cbd5e1; }
-        .opt-label.selected { border-color: var(--primary); background: #eff6ff; }
-        .opt-circle {
-            width: 24px; height: 24px; border: 2px solid #cbd5e1; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center; font-size: 0.8rem; color: transparent;
-        }
-        .opt-label.selected .opt-circle { background: var(--primary); border-color: var(--primary); color: white; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-        /* NAVIGASI NOMOR (KANAN - DESKTOP) */
-        .nav-panel { width: 300px; background: white; border-radius: 16px; padding: 20px; height: fit-content; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-        .nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 15px; }
-        .nav-item {
-            aspect-ratio: 1; border: 1px solid #e2e8f0; border-radius: 8px;
-            display: flex; justify-content: center; align-items: center; font-weight: 600; cursor: pointer;
-            transition: 0.2s; background: white; color: #64748b; font-size: 0.9rem; position: relative;
-        }
-        .nav-item.active { border-color: var(--primary); color: var(--primary); border-width: 2px; }
-        .nav-item.answered { background: var(--primary); color: white; border-color: var(--primary); }
-        .nav-item.flagged { background: var(--warning); color: #fff; border-color: var(--warning); }
-        /* Badge Ragu kecil di pojok */
-        .nav-item.flagged::after { content:''; position:absolute; top:-2px; right:-2px; width:8px; height:8px; background:red; border-radius:50%; }
+        .q-num { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .q-text { font-size: 1.25rem; font-weight: 600; line-height: 1.6; margin-bottom: 30px; color: #1e293b; }
 
-        /* FOOTER CONTROLS */
-        .footer-bar {
-            position: fixed; bottom: 0; left: 0; width: 100%; background: white;
-            padding: 15px 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 900;
-            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+        /* OPSI JAWABAN */
+        .option-item {
+            display: flex; align-items: center; gap: 15px;
+            padding: 18px 25px; border: 2px solid #f1f5f9; border-radius: 12px;
+            margin-bottom: 15px; cursor: pointer; transition: 0.2s;
+            background: #fff; position: relative;
         }
-        .btn-act { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-prev { background: #f1f5f9; color: #475569; }
+        .option-item:hover { border-color: #cbd5e1; background: #f8fafc; }
+        
+        .option-item.selected { border-color: var(--accent); background: #e0f2fe; color: #0369a1; }
+        
+        .option-circle {
+            width: 28px; height: 28px; border-radius: 50%; border: 2px solid #cbd5e1;
+            flex-shrink: 0; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; font-weight: 700;
+        }
+        .option-item.selected .option-circle { background: var(--accent); border-color: var(--accent); color: white; }
+
+        /* NAVIGASI */
+        .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; }
+        
+        .btn { padding: 14px 28px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 1rem; transition: 0.2s; }
+        .btn-prev { background: #e2e8f0; color: #475569; visibility: hidden; }
+        .btn-prev:hover { background: #cbd5e1; }
+        
         .btn-next { background: var(--primary); color: white; }
-        .btn-ragu { background: #fff7ed; color: #d97706; border: 1px solid #fdba74; }
-        .btn-ragu.active { background: #f7b731; color: white; }
-        .btn-finish { background: #10b981; color: white; display: none; }
-
-        /* MODAL LIST SOAL (MOBILE) */
-        .mobile-nav-trigger { display: none; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .modal-overlay.show { display: flex; animation: fadeIn 0.2s; }
-        .modal-box { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; text-align: center; }
+        .btn-next:hover { background: #1e3a8a; }
         
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .btn-finish { background: #16a34a; color: white; display: none; }
+        .btn-finish:hover { background: #15803d; }
 
-        /* RESPONSIVE */
-        @media (max-width: 900px) {
-            .nav-panel { display: none; } /* Hide sidebar desktop */
-            .mobile-nav-trigger { display: block; } /* Show hamburger menu */
-            .container { padding: 15px; }
-            .q-card { padding: 20px; }
-            
-            /* Logic Mobile Nav: Muncul sebagai Modal */
-            .nav-panel.mobile-active {
-                display: block; position: fixed; top: 60px; right: 0; width: 80%; height: 100%;
-                background: white; z-index: 999; box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-                animation: slideIn 0.3s;
-            }
-        }
-        @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
+        .modal-icon { font-size: 3rem; margin-bottom: 15px; color: #f59e0b; }
+        .btn-modal { padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; margin: 0 5px; }
+        .btn-yes { background: var(--primary); color: white; }
+        .btn-no { background: #eee; color: #333; }
+        
+        #loading-overlay { z-index: 3000; background: white; }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
         <div class="exam-info">
-            <h4 id="exam-title">Memuat Ujian...</h4>
+            <span id="exam-title">Memuat Ujian...</span>
+            <span class="exam-sub" id="q-indicator">Soal - / -</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div class="timer-badge" id="timer">--:--</div>
-            <button class="mobile-nav-trigger" onclick="toggleMobileNav()"><i class="fa-solid fa-grid-2"></i></button>
+        <div class="timer-box">
+            <i class="fa-regular fa-clock"></i> <span id="timer">--:--</span>
         </div>
     </div>
 
     <div class="container">
-        <div class="question-area">
-            <div class="q-card" id="q-card">
-                <div style="text-align:center; padding:50px;">
-                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--primary);"></i>
-                    <p>Menyiapkan lembar soal...</p>
-                </div>
-            </div>
+        <div id="q-content"></div>
+
+        <div class="nav-buttons">
+            <button class="btn btn-prev" id="btn-prev" onclick="navStep(-1)">
+                <i class="fa-solid fa-arrow-left"></i> Sebelumnya
+            </button>
+            <button class="btn btn-next" id="btn-next" onclick="navStep(1)">
+                Selanjutnya <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-finish" id="btn-finish" onclick="confirmFinish()">
+                Selesai Ujian <i class="fa-solid fa-check-circle"></i>
+            </button>
         </div>
-
-        <div class="nav-panel" id="nav-panel">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h4 style="margin:0;">Daftar Soal</h4>
-                <button onclick="toggleMobileNav()" style="background:none; border:none; font-size:1.2rem; cursor:pointer; display:none;" id="close-nav">&times;</button>
-            </div>
-            
-            <div class="nav-grid" id="nav-grid">
-                </div>
-
-            <div style="margin-top:20px; font-size:0.8rem; color:#64748b;">
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                    <span style="width:12px; height:12px; background:#4361ee; border-radius:2px;"></span> Dijawab
-                </div>
-                <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px;">
-                    <span style="width:12px; height:12px; background:#f7b731; border-radius:2px;"></span> Ragu-ragu
-                </div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <span style="width:12px; height:12px; border:1px solid #ccc; border-radius:2px;"></span> Belum dijawab
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="footer-bar">
-        <button class="btn-act btn-prev" id="btn-prev" onclick="moveQ(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-        
-        <button class="btn-act btn-ragu" id="btn-ragu" onclick="toggleFlag()">
-            <i class="fa-solid fa-flag"></i> <span id="ragu-text">Ragu</span>
-        </button>
-        
-        <button class="btn-act btn-next" id="btn-next" onclick="moveQ(1)"><i class="fa-solid fa-chevron-right"></i></button>
-        <button class="btn-act btn-finish" id="btn-finish" onclick="confirmFinish()">Selesai <i class="fa-solid fa-check"></i></button>
     </div>
 
     <div id="modal-confirm" class="modal-overlay">
         <div class="modal-box">
-            <i class="fa-solid fa-clipboard-check" style="font-size:3rem; color:var(--primary); margin-bottom:15px;"></i>
-            <h3>Kumpulkan Ujian?</h3>
-            <p style="color:#64748b; font-size:0.9rem;">
-                Pastikan seluruh soal telah dijawab. Waktu tersisa: <span id="modal-time" style="font-weight:bold;">--:--</span>
-            </p>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px;">
-                <button onclick="document.getElementById('modal-confirm').classList.remove('show')" class="btn-act btn-prev" style="justify-content:center;">Batal</button>
-                <button onclick="submitExam()" class="btn-act btn-next" style="justify-content:center;">Ya, Kumpulkan</button>
-            </div>
+            <div class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>
+            <h3>Kumpulkan Jawaban?</h3>
+            <p style="color:#666; margin-bottom:20px;">Pastikan semua soal terjawab. Anda tidak bisa mengulangi ujian ini setelah dikumpulkan.</p>
+            <button class="btn-modal btn-no" onclick="closeModal()">Cek Lagi</button>
+            <button class="btn-modal btn-yes" onclick="processSubmit()">Ya, Kumpulkan</button>
+        </div>
+    </div>
+
+    <div id="loading-overlay" class="modal-overlay active">
+        <div style="text-align:center;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--primary);"></i>
+            <p style="margin-top:15px; font-weight:600;">Menyiapkan Ujian...</p>
         </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
+        // PENTING: Import fungsi yang benar
         import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Ambil ID Ujian dari URL
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('id');
         
         let currentUser = null;
         let questions = [];
-        let answers = {}; // { 0: 1, 1: 3 } (Index soal : Index jawaban)
-        let flags = {};   // { 0: true } (Index soal : isRagu)
-        let currentIdx = 0;
+        let userAnswers = {}; // Menyimpan jawaban siswa { indexSoal: indexJawaban }
+        let currentIndex = 0;
         let timerInterval;
 
+        // --- 1. INISIALISASI ---
         (async () => {
             currentUser = await checkAuth('siswa');
-            if(!examId || !currentUser) { alert("Akses Error"); window.location.href='index.html'; return; }
-            loadExam();
-        })();
+            if(!currentUser) return window.location.href = '../login.html';
+            if(!examId) { alert("ID Ujian tidak ditemukan!"); return window.location.href = 'index.html'; }
 
-        async function loadExam() {
             try {
-                const snap = await getDoc(doc(db, 'exams', examId));
-                if(!snap.exists()) throw new Error("Ujian tidak ditemukan");
-                
-                const data = snap.data();
-                document.getElementById('exam-title').innerText = data.judul;
+                // Ambil Data Ujian
+                const docRef = doc(db, 'exams', examId);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) {
+                    alert("Ujian tidak ditemukan atau sudah dihapus.");
+                    return window.location.href = 'index.html';
+                }
+
+                const data = docSnap.data();
                 questions = data.questions || [];
                 
-                if(questions.length === 0) throw new Error("Soal kosong");
+                // Setup UI
+                document.getElementById('exam-title').innerText = data.judul;
+                document.getElementById('loading-overlay').classList.remove('active');
 
-                initNavGrid();
-                startTimer(data.durasi);
+                // Start
                 renderQuestion(0);
+                startTimer(data.durasi);
 
             } catch(e) {
-                alert(e.message);
+                alert("Gagal memuat ujian: " + e.message);
                 window.location.href = 'index.html';
             }
-        }
+        })();
 
-        // --- RENDER SOAL ---
-        function renderQuestion(idx) {
-            currentIdx = idx;
+        // --- 2. RENDER SOAL ---
+        window.renderQuestion = (idx) => {
+            if(idx < 0 || idx >= questions.length) return;
+            currentIndex = idx;
+
             const q = questions[idx];
-            
-            // Update Tampilan Kartu
-            const html = `
-                <div class="q-header">
-                    <span class="q-badge">Soal No. ${idx + 1}</span>
-                    <span style="font-size:0.9rem; color:#64748b;">Pilihan Ganda</span>
-                </div>
-                <div class="q-text">${q.text}</div>
-                <div class="options-list">
-                    ${q.options.map((opt, i) => `
-                        <div class="opt-label ${answers[idx] === i ? 'selected' : ''}" onclick="selectAnswer(${idx}, ${i})">
-                            <div class="opt-circle"><i class="fa-solid fa-check"></i></div>
-                            <span>${opt}</span>
-                        </div>
-                    `).join('')}
+            const savedAns = userAnswers[idx]; // Jawaban yang sudah dipilih sebelumnya
+
+            // Update Indicator
+            document.getElementById('q-indicator').innerText = `Soal ${idx + 1} dari ${questions.length}`;
+
+            // Render HTML
+            let optionsHtml = '';
+            q.options.forEach((opt, i) => {
+                const isSelected = savedAns === i ? 'selected' : '';
+                const letter = String.fromCharCode(65 + i); // A, B, C, D
+                
+                optionsHtml += `
+                    <div class="option-item ${isSelected}" onclick="selectAnswer(${idx}, ${i})">
+                        <div class="option-circle">${letter}</div>
+                        <div>${opt}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('q-content').innerHTML = `
+                <div class="q-card">
+                    <div class="q-num">Pertanyaan No. ${idx + 1}</div>
+                    <div class="q-text">${q.text}</div>
+                    <div class="options-grid">${optionsHtml}</div>
                 </div>
             `;
-            document.getElementById('q-card').innerHTML = html;
 
-            // Update Navigasi Grid & Tombol Bawah
-            updateNavState();
-            
-            // Atur tombol Next/Finish
-            document.getElementById('btn-prev').disabled = (idx === 0);
-            if (idx === questions.length - 1) {
-                document.getElementById('btn-next').style.display = 'none';
-                document.getElementById('btn-finish').style.display = 'flex';
-            } else {
-                document.getElementById('btn-next').style.display = 'flex';
-                document.getElementById('btn-finish').style.display = 'none';
-            }
-
-            // Update tombol Ragu
-            const btnRagu = document.getElementById('btn-ragu');
-            if(flags[idx]) {
-                btnRagu.classList.add('active');
-                document.getElementById('ragu-text').innerText = "Ditandai Ragu";
-            } else {
-                btnRagu.classList.remove('active');
-                document.getElementById('ragu-text').innerText = "Ragu-ragu";
-            }
+            updateNavButtons();
         }
 
-        function initNavGrid() {
-            const grid = document.getElementById('nav-grid');
-            grid.innerHTML = '';
-            questions.forEach((_, i) => {
-                const item = document.createElement('div');
-                item.className = 'nav-item';
-                item.id = `nav-${i}`;
-                item.innerText = i + 1;
-                item.onclick = () => { renderQuestion(i); toggleMobileNav(false); };
-                grid.appendChild(item);
-            });
-        }
-
-        function updateNavState() {
-            // Update Active State
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            document.getElementById(`nav-${currentIdx}`).classList.add('active');
-
-            // Update Colors (Answered/Flagged)
-            questions.forEach((_, i) => {
-                const el = document.getElementById(`nav-${i}`);
-                el.classList.remove('answered', 'flagged');
-                
-                if(flags[i]) el.classList.add('flagged');
-                else if(answers[i] !== undefined) el.classList.add('answered');
-            });
-        }
-
-        // --- INTERAKSI USER ---
+        // --- 3. LOGIC JAWABAN & NAVIGASI ---
         window.selectAnswer = (qIdx, optIdx) => {
-            answers[qIdx] = optIdx;
-            // Re-render hanya opsi biar smooth (atau panggil full renderQuestion)
-            renderQuestion(qIdx); 
+            userAnswers[qIdx] = optIdx; // Simpan jawaban
+            renderQuestion(qIdx); // Re-render untuk update UI (warna biru)
         }
 
-        window.toggleFlag = () => {
-            flags[currentIdx] = !flags[currentIdx];
-            renderQuestion(currentIdx);
+        window.navStep = (step) => {
+            renderQuestion(currentIndex + step);
         }
 
-        window.moveQ = (step) => {
-            const next = currentIdx + step;
-            if(next >= 0 && next < questions.length) renderQuestion(next);
-        }
+        function updateNavButtons() {
+            const prevBtn = document.getElementById('btn-prev');
+            const nextBtn = document.getElementById('btn-next');
+            const finishBtn = document.getElementById('btn-finish');
 
-        window.toggleMobileNav = (forceState) => {
-            const panel = document.getElementById('nav-panel');
-            const closeBtn = document.getElementById('close-nav');
-            
-            if (forceState === false || panel.classList.contains('mobile-active')) {
-                panel.classList.remove('mobile-active');
-                closeBtn.style.display = 'none';
+            // Tombol Prev
+            prevBtn.style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
+
+            // Tombol Next & Finish
+            if (currentIndex === questions.length - 1) {
+                nextBtn.style.display = 'none';
+                finishBtn.style.display = 'flex';
             } else {
-                panel.classList.add('mobile-active');
-                closeBtn.style.display = 'block';
+                nextBtn.style.display = 'flex';
+                finishBtn.style.display = 'none';
             }
         }
 
-        window.confirmFinish = () => {
-            document.getElementById('modal-time').innerText = document.getElementById('timer').innerText;
-            document.getElementById('modal-confirm').classList.add('show');
-        }
-
-        // --- TIMER & SUBMIT ---
+        // --- 4. TIMER ---
         function startTimer(minutes) {
             let time = minutes * 60;
-            const display = document.getElementById('timer');
+            const timerEl = document.getElementById('timer');
             
             timerInterval = setInterval(() => {
-                const h = Math.floor(time / 3600);
-                const m = Math.floor((time % 3600) / 60);
+                const m = Math.floor(time / 60);
                 const s = time % 60;
-                display.innerText = `${h}:${m<10?'0':''}${m}:${s<10?'0':''}${s}`;
+                timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
                 
-                if (--time < 0) {
+                if (time <= 0) {
                     clearInterval(timerInterval);
-                    alert("Waktu Habis!");
-                    submitExam(true);
+                    alert("Waktu Habis! Jawaban Anda akan dikirim otomatis.");
+                    processSubmit();
                 }
+                time--;
             }, 1000);
         }
 
-        window.submitExam = async (force = false) => {
-            clearInterval(timerInterval);
-            document.getElementById('modal-confirm').classList.remove('show');
-            
-            // Full Screen Loading
-            const loadingHtml = `<div style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                <i class="fa-solid fa-cloud-arrow-up fa-bounce" style="font-size:4rem; color:var(--primary);"></i>
-                <h2 style="margin-top:20px;">Mengirim Jawaban...</h2>
-            </div>`;
-            document.body.innerHTML = loadingHtml;
+        // --- 5. SUBMIT & NILAI (INI KUNCINYA) ---
+        window.confirmFinish = () => {
+            // Cek apakah semua soal dijawab (Opsional, tapi bagus buat UX)
+            const answeredCount = Object.keys(userAnswers).length;
+            if(answeredCount < questions.length) {
+                if(!confirm(`Anda baru menjawab ${answeredCount} dari ${questions.length} soal. Yakin mau kumpul?`)) return;
+            }
+            document.getElementById('modal-confirm').classList.add('active');
+        }
 
-            // Hitung Skor
+        window.closeModal = () => document.getElementById('modal-confirm').classList.remove('active');
+
+        window.processSubmit = async () => {
+            clearInterval(timerInterval);
+            document.getElementById('modal-confirm').classList.remove('active');
+            document.getElementById('loading-overlay').innerHTML = `
+                <div style="text-align:center">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:var(--primary);"></i>
+                    <p style="font-weight:bold; margin-top:15px;">Menghitung Nilai...</p>
+                </div>
+            `;
+            document.getElementById('loading-overlay').classList.add('active');
+
+            // HITUNG NILAI
             let correctCount = 0;
             questions.forEach((q, i) => {
-                if (answers[i] === q.correctIndex) correctCount++;
+                // Bandingkan jawaban user dengan kunci jawaban database
+                if (userAnswers[i] === q.correctIndex) {
+                    correctCount++;
+                }
             });
-            const score = (correctCount / questions.length) * 100;
+
+            // Rumus Nilai (Skala 100)
+            const finalScore = Math.round((correctCount / questions.length) * 100);
 
             try {
-                // Simpan Hasil
-                const resRef = await addDoc(collection(db, 'exam_results'), {
-                    examId: examId,
+                // SIMPAN KE DATABASE 'quiz_results'
+                // PENTING: Nama field 'quizId' harus sama persis dengan yang dicari di index.html
+                await addDoc(collection(db, 'quiz_results'), {
+                    quizId: examId,       // <--- INI KUNCI PENGHUBUNGNYA (ID UJIAN)
                     studentId: currentUser.uid,
                     studentName: currentUser.name,
-                    answers: answers,
-                    score: score,
-                    totalQuestions: questions.length,
+                    score: finalScore,
+                    answers: userAnswers, // Simpan detail jawaban buat pembahasan nanti
                     correctCount: correctCount,
-                    timestamp: serverTimestamp()
+                    totalQuestions: questions.length,
+                    submittedAt: serverTimestamp()
                 });
 
-                // Redirect ke Halaman Hasil (Bawa ID Dokumen Hasil)
-                setTimeout(() => {
-                    window.location.href = `hasil.html?rid=${resRef.id}`;
-                }, 1500);
+                // Redirect ke Halaman Hasil
+                // Kita akan arahkan ke halaman detail hasil (pembahasan)
+                // Tapi karena ID Dokumen hasil baru didapat setelah save, kita redirect ke index dulu
+                // Nanti di index, tombolnya otomatis berubah jadi "Lihat Pembahasan"
+                
+                alert(`Ujian Selesai! Nilai Anda: ${finalScore}`);
+                window.location.href = 'index.html'; // Kembali ke daftar, nanti otomatis jadi Hijau
 
             } catch(e) {
-                alert("Gagal menyimpan: " + e.message);
-                location.reload();
+                alert("Gagal menyimpan nilai: " + e.message);
+                document.getElementById('loading-overlay').classList.remove('active');
             }
         }
     </script>
