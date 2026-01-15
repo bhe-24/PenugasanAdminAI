@@ -59,44 +59,68 @@
 
         /* GRID UJIAN */
         .section-title { font-size: 1.25rem; font-weight: 700; color: #334155; margin-bottom: 20px; border-left: 5px solid var(--accent); padding-left: 15px; }
-        
         .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; }
         
+        /* CARD DESIGN BASIC */
         .exam-card {
             background: white; border-radius: 18px; padding: 25px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.03); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative; border: 1px solid #f1f5f9; display: flex; flex-direction: column; justify-content: space-between; height: 100%;
         }
-        .exam-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(67, 97, 238, 0.1); border-color: #e0e7ff; }
+        .exam-card:hover { transform: translateY(-8px); box-shadow: 0 15px 35px rgba(67, 97, 238, 0.1); }
+
+        /* --- STATE: LOCKED (BELUM BAYAR) --- */
+        .exam-card.locked {
+            border-color: #e2e8f0; background: #f8fafc; opacity: 0.9;
+        }
+        .exam-card.locked::after {
+            content: '\f023'; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: #cbd5e1;
+        }
+
+        /* --- STATE: DONE (SUDAH DIKERJAKAN) --- */
+        .exam-card.done {
+            border: 2px solid #bbf7d0; background: #f0fdf4;
+        }
+        .exam-card.done::after {
+            content: '\f058'; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: #16a34a;
+        }
 
         .ec-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
         .mapel-badge { background: #e0f2fe; color: #0284c7; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; }
-        .sem-badge { background: #f1f5f9; color: #64748b; padding: 6px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+        .score-badge { background: #16a34a; color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 700; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3); }
 
         .exam-title { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin: 0 0 10px 0; line-height: 1.4; }
         .exam-meta { display: flex; gap: 15px; font-size: 0.85rem; color: #64748b; margin-bottom: 20px; }
         
-        .btn-start { 
+        /* BUTTONS */
+        .btn-exam { 
             display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; 
             padding: 14px; border-radius: 12px; text-align: center; text-decoration: none; 
-            font-weight: 600; font-size: 0.95rem; transition: 0.2s; border: none; cursor: pointer; 
-            background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(0, 51, 102, 0.2); 
-            margin-top: auto;
+            font-weight: 600; font-size: 0.95rem; transition: 0.2s; border: none; cursor: pointer; margin-top: auto;
         }
+        
+        /* Btn Start (Normal) */
+        .btn-start { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(0, 51, 102, 0.2); }
         .btn-start:hover { background: #1e3a8a; transform: translateY(-2px); }
-        .btn-done { background: #dcfce7; color: #166534; pointer-events: none; box-shadow: none; }
+        
+        /* Btn Locked (Bayar Dulu) */
+        .btn-locked { background: #e2e8f0; color: #64748b; border: 1px solid #cbd5e1; }
+        .btn-locked:hover { background: #cbd5e1; color: #334155; }
 
-        /* LOADING & EMPTY */
+        /* Btn Done (Lihat Hasil) */
+        .btn-result { background: white; border: 2px solid #16a34a; color: #16a34a; }
+        .btn-result:hover { background: #16a34a; color: white; }
+
         #loading { text-align: center; padding: 80px; grid-column: 1 / -1; }
         .hidden { display: none !important; }
 
-        /* RESPONSIVE */
         @media (max-width: 768px) {
             .container { padding: 15px; }
             .modern-header { flex-direction: column; align-items: stretch; text-align: left; padding: 25px; }
             .btn-back { justify-content: center; margin-top: 10px; }
             .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-            .stat-card { padding: 15px; flex-direction: column; text-align: center; }
             .exam-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -134,7 +158,7 @@
                 <div class="stat-icon icon-purple"><i class="fa-solid fa-check-double"></i></div>
                 <div class="stat-info">
                     <h3 id="stat-done">-</h3>
-                    <p>Sudah Dikerjakan</p>
+                    <p>Selesai</p>
                 </div>
             </div>
         </div>
@@ -143,7 +167,7 @@
         
         <div id="loading">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--primary);"></i>
-            <p style="margin-top:15px; color:#64748b;">Mencari ujian yang sesuai...</p>
+            <p style="margin-top:15px; color:#64748b;">Memeriksa status pembayaran & ujian...</p>
         </div>
 
         <div id="exam-list" class="exam-grid hidden"></div>
@@ -163,40 +187,45 @@
         (async () => {
             const user = await checkAuth('siswa');
             if(user) {
-                // Ambil Semester Siswa (Hanya Angka)
                 const rawSem = user.semester || "1";
                 const studentSem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 
-                // Tampilkan di Header
                 document.getElementById('user-sem-label').innerText = "Semester " + studentSem;
                 
-                loadExams(user.uid, studentSem);
+                // Ambil Status Pembayaran User
+                const paymentStatus = user.statusPembayaran; // 'Lunas', 'Belum', 'Cicilan'
+                
+                loadExams(user.uid, studentSem, paymentStatus);
             }
         })();
 
-        async function loadExams(uid, semester) {
+        async function loadExams(uid, semester, paymentStatus) {
             const container = document.getElementById('exam-list');
             const emptyMsg = document.getElementById('empty-msg');
             const loading = document.getElementById('loading');
             
             try {
-                // 1. Ambil SEMUA Ujian Aktif
+                // 1. Ambil Ujian Aktif
                 const qExam = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snapExam = await getDocs(qExam);
                 
-                // 2. Ambil Riwayat Ujian Siswa (Untuk cek sudah dikerjakan/belum)
+                // 2. Ambil Hasil Ujian (Untuk cek done & nilai)
                 const qResult = query(collection(db, 'quiz_results'), where('studentId', '==', uid));
                 const snapResult = await getDocs(qResult);
                 
-                const doneExamIds = new Set();
-                snapResult.forEach(d => doneExamIds.add(d.data().quizId));
+                // Mapping Hasil: ID Ujian -> { id_hasil, nilai }
+                const resultMap = {};
+                snapResult.forEach(d => {
+                    const r = d.data();
+                    resultMap[r.quizId] = { resultId: d.id, score: r.score };
+                });
 
-                // 3. FILTERING & RENDERING
+                // 3. Render
                 loading.classList.add('hidden');
                 container.innerHTML = '';
                 
                 let countAvailable = 0;
-                let countDone = doneExamIds.size; // Ini hitung semua, nanti bisa difilter lagi jika perlu
+                let countDone = Object.keys(resultMap).length;
 
                 if(snapExam.empty) {
                     emptyMsg.classList.remove('hidden');
@@ -207,35 +236,58 @@
 
                 snapExam.forEach(doc => {
                     const data = doc.data();
-                    
-                    // --- LOGIKA FILTER UTAMA ---
-                    // Pastikan Ujian ini untuk Semester Siswa
                     const examSem = parseInt(data.semester || 1); 
 
+                    // Filter Semester
                     if (examSem === semester) {
                         hasExam = true;
                         countAvailable++;
                         
-                        const isDone = doneExamIds.has(doc.id);
-                        
+                        const result = resultMap[doc.id];
+                        let cardClass = '';
+                        let badgeHtml = `<div class="mapel-badge"><i class="fa-solid fa-book"></i> ${data.mapel}</div>`;
                         let btnHtml = '';
-                        if (isDone) {
-                            btnHtml = `<button class="btn-start btn-done"><i class="fa-solid fa-check"></i> Selesai Dikerjakan</button>`;
-                        } else {
-                            // LINK SUDAH DIPERBAIKI KE start.html LOKAL
+
+                        // LOGIKA STATUS KARTU
+                        if (result) {
+                            // --- KASUS 1: SUDAH DIKERJAKAN (HIJAU) ---
+                            cardClass = 'done';
+                            badgeHtml = `<div class="score-badge"><i class="fa-solid fa-star"></i> Nilai: ${result.score}</div>`;
+                            
+                            // Tombol ke Pembahasan (LINK SUDAH DIPERBAIKI)
                             btnHtml = `
-                                <a href="start.html?id=${doc.id}" class="btn-start">
-                                    <i class="fa-solid fa-pen-nib"></i> Kerjakan Ujian
+                                <a href="detail.html?rid=${result.resultId}" class="btn-exam btn-result">
+                                    <i class="fa-solid fa-list-check"></i> Lihat Pembahasan
                                 </a>
                             `;
+
+                        } else {
+                            // --- KASUS 2: BELUM DIKERJAKAN ---
+                            
+                            // Cek Pembayaran (Lunas = Buka, Belum = Kunci)
+                            if (paymentStatus === 'Lunas') {
+                                // SUDAH BAYAR -> BISA UJIAN
+                                btnHtml = `
+                                    <a href="start.html?id=${doc.id}" class="btn-exam btn-start">
+                                        <i class="fa-solid fa-pen-nib"></i> Kerjakan Ujian
+                                    </a>
+                                `;
+                            } else {
+                                // BELUM BAYAR -> TERKUNCI
+                                cardClass = 'locked';
+                                btnHtml = `
+                                    <a href="../pembayaran.html" class="btn-exam btn-locked">
+                                        <i class="fa-solid fa-lock"></i> Bayar untuk Membuka
+                                    </a>
+                                `;
+                            }
                         }
 
                         const card = `
-                            <div class="exam-card">
+                            <div class="exam-card ${cardClass}">
                                 <div>
                                     <div class="ec-header">
-                                        <div class="mapel-badge"><i class="fa-solid fa-book"></i> ${data.mapel}</div>
-                                        <div class="sem-badge">Sem ${examSem}</div>
+                                        ${badgeHtml}
                                     </div>
                                     <h3 class="exam-title">${data.judul}</h3>
                                     <div class="exam-meta">
@@ -250,20 +302,17 @@
                     }
                 });
 
-                if (!hasExam) {
-                    emptyMsg.classList.remove('hidden');
-                } else {
-                    container.classList.remove('hidden');
-                }
+                if (!hasExam) emptyMsg.classList.remove('hidden');
+                else container.classList.remove('hidden');
 
-                // Update Stats
+                // Update Stats Header
                 document.getElementById('stat-total').innerText = countAvailable;
                 document.getElementById('stat-done').innerText = countDone;
 
             } catch(e) {
                 console.error(e);
                 loading.classList.add('hidden');
-                alert("Gagal memuat daftar ujian.");
+                alert("Gagal memuat ujian.");
             }
         }
     </script>
