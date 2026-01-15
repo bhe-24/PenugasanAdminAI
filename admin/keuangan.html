@@ -13,7 +13,9 @@
     <style>
         :root { --primary: #003366; --accent: #4361ee; --bg: #f4f7fe; }
         body { background-color: var(--bg); font-family: 'Outfit', sans-serif; color: #333; margin: 0; padding-bottom: 50px; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 25px; }
+        
+        /* PERBAIKAN LEBAR LAPTOP */
+        .container { max-width: 1400px; width: 95%; margin: 0 auto; padding: 25px; }
 
         /* HEADER */
         .page-header {
@@ -27,6 +29,24 @@
         .btn { padding: 12px 20px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; transition: 0.2s; font-size: 0.9rem; }
         .btn-dash { background: #f1f5f9; color: #334155; }
         .btn-dash:hover { background: #e2e8f0; }
+
+        /* PANEL SIKLUS PEMBAYARAN (BARU) */
+        .cycle-panel {
+            background: #fff; padding: 20px; border-radius: 16px; margin-bottom: 25px;
+            border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;
+        }
+        .cycle-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; }
+        .cycle-status { font-weight: bold; padding: 5px 12px; border-radius: 50px; font-size: 0.85rem; }
+        .st-open { background: #dcfce7; color: #166534; }
+        .st-closed { background: #fee2e2; color: #991b1b; }
+
+        /* TOGGLE BUTTON */
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(26px); }
 
         /* TAB MENU */
         .tab-menu { display: flex; gap: 15px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
@@ -60,8 +80,8 @@
         .req-desc { font-size: 0.9rem; color: #64748b; margin-bottom: 20px; display: flex; align-items: center; gap: 5px; }
 
         .btn-group { display: flex; gap: 10px; }
-        .btn-accept { flex: 1; background: #10b981; color: white; justify-content: center; }
-        .btn-reject { flex: 1; background: #ef4444; color: white; justify-content: center; }
+        .btn-accept { flex: 1; background: #10b981; color: white; justify-content: center; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-reject { flex: 1; background: #ef4444; color: white; justify-content: center; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
 
         /* TABEL ARSIP */
         .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -70,6 +90,25 @@
         .archive-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #334155; }
         .type-ujian { color: #0284c7; font-weight: 600; }
         .type-spp { color: #7c3aed; font-weight: 600; }
+
+        /* CUSTOM MODAL */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 2000;
+            display: none; justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box { 
+            background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2); animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .modal-icon { font-size: 3rem; margin-bottom: 15px; }
+        .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-mod { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-yes { background: var(--primary); color: white; }
+        .btn-no { background: #f1f5f9; color: #475569; }
 
         /* PDF TEMPLATE (HIDDEN) */
         #pdf-template { display: none; padding: 40px; font-family: sans-serif; background: white; }
@@ -82,9 +121,23 @@
         <div class="page-header">
             <div class="ph-left">
                 <h2><i class="fa-solid fa-wallet"></i> Keuangan Pusat</h2>
-                <p>Verifikasi pembayaran siswa & laporan keuangan.</p>
+                <p>Verifikasi pembayaran & laporan keuangan.</p>
             </div>
             <a href="../index.html" class="btn btn-dash"><i class="fa-solid fa-house"></i> Dashboard</a>
+        </div>
+
+        <div class="cycle-panel">
+            <div class="cycle-info">
+                <h4><i class="fa-solid fa-rotate"></i> Siklus Pembayaran</h4>
+                <div id="cycle-badge" class="cycle-status st-closed">Sistem Tertutup</div>
+                <p style="font-size:0.85rem; color:#666; margin-top:5px;">Jika <b>Ditutup</b>, semua status siswa akan di-reset (Belum Bayar).</p>
+            </div>
+            <div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="cycle-toggle" onchange="toggleCycle(this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
 
         <div class="tab-menu">
@@ -138,6 +191,15 @@
         </div>
     </div>
 
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-icon" class="modal-icon"></div>
+            <h3 id="modal-title" style="margin:0 0 10px 0;"></h3>
+            <p id="modal-text" style="color:#666; font-size:0.9rem; margin-bottom:20px;"></p>
+            <div id="modal-actions" class="modal-btns"></div>
+        </div>
+    </div>
+
     <div id="pdf-template">
         <h2 class="pdf-h1" id="pdf-title">LAPORAN KEUANGAN</h2>
         <p>Tanggal Cetak: <span id="pdf-date">-</span></p>
@@ -154,7 +216,7 @@
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, where, getDocs, updateDoc, doc, addDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, updateDoc, doc, addDoc, serverTimestamp, orderBy, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentAdmin = null;
         let activeExamsCount = 0;
@@ -164,13 +226,91 @@
             currentAdmin = await checkAuth('pengajar');
             if(!currentAdmin) window.location.href = '../index.html';
 
-            // Hitung Jumlah Ujian Aktif (Untuk kalkulasi nominal otomatis)
+            // Hitung Ujian Aktif
             const examSnap = await getDocs(query(collection(db, 'exams'), where('status', '==', 'active')));
             activeExamsCount = examSnap.size;
 
+            loadCycleStatus();
             loadRequests();
             loadArchive();
         })();
+
+        // --- SIKLUS PEMBAYARAN (OPEN/CLOSE) ---
+        async function loadCycleStatus() {
+            try {
+                // Cek setting di collection 'settings' doc 'finance'
+                const docRef = doc(db, 'settings', 'finance');
+                const snap = await getDoc(docRef);
+                const isOpen = snap.exists() ? snap.data().isOpen : false;
+
+                const toggle = document.getElementById('cycle-toggle');
+                toggle.checked = isOpen;
+                updateCycleUI(isOpen);
+            } catch(e) { console.log("Init settings...", e); }
+        }
+
+        window.toggleCycle = async (el) => {
+            const isOpen = el.checked;
+            
+            if (!isOpen) {
+                // KONFIRMASI RESET
+                showModal('warning', 'Tutup & Reset Pembayaran?', 
+                    'PERHATIAN: Ini akan me-reset status semua siswa menjadi BELUM BAYAR. Lakukan ini hanya jika periode tagihan baru dimulai.', 
+                    async () => {
+                        await setCycle(false);
+                        await resetAllStudents(); // RESET MASSAL
+                    }, 
+                    () => { el.checked = true; } // Cancel
+                );
+            } else {
+                await setCycle(true);
+            }
+        };
+
+        async function setCycle(isOpen) {
+            await setDoc(doc(db, 'settings', 'finance'), { isOpen: isOpen }, { merge: true });
+            updateCycleUI(isOpen);
+        }
+
+        function updateCycleUI(isOpen) {
+            const badge = document.getElementById('cycle-badge');
+            if(isOpen) {
+                badge.className = 'cycle-status st-open';
+                badge.innerText = "Pembayaran DIBUKA";
+            } else {
+                badge.className = 'cycle-status st-closed';
+                badge.innerText = "Pembayaran DITUTUP";
+            }
+        }
+
+        // --- FITUR RESET MASSAL (DANGEROUS) ---
+        async function resetAllStudents() {
+            showModal('loading', 'Sedang Mereset...', 'Mohon tunggu, sedang mereset status siswa...');
+            
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                
+                // Gunakan Batch (Max 500 ops per batch)
+                const batch = writeBatch(db);
+                snap.forEach(d => {
+                    const ref = doc(db, 'users', d.id);
+                    batch.update(ref, {
+                        statusPembayaran: 'Belum', // Reset ke Awal
+                        paymentStatus: null // Hapus status waiting
+                    });
+                });
+                
+                await batch.commit();
+                document.getElementById('custom-modal').classList.remove('active');
+                alert("Selesai! Semua siswa telah di-reset ke status Belum Bayar.");
+                loadRequests(); // Refresh list
+
+            } catch(e) {
+                alert("Gagal reset: " + e.message);
+                document.getElementById('custom-modal').classList.remove('active');
+            }
+        }
 
         // --- TAB 1: LOAD REQUEST ---
         async function loadRequests() {
@@ -180,14 +320,12 @@
             const badge = document.getElementById('badge-waiting');
 
             try {
-                // Cari User dengan status 'waiting'
                 const q = query(collection(db, 'users'), where('paymentStatus', '==', 'waiting'));
                 const snap = await getDocs(q);
 
                 loading.classList.add('hidden');
                 badge.innerText = snap.size;
-                if(snap.size > 0) badge.classList.remove('hidden');
-                else badge.classList.add('hidden');
+                badge.classList.toggle('hidden', snap.size === 0);
 
                 if(snap.empty) {
                     container.innerHTML = '';
@@ -200,9 +338,8 @@
 
                 snap.forEach(d => {
                     const u = d.data();
-                    const sem = parseInt(u.semester?.replace(/\D/g, '') || 1);
+                    const sem = parseInt(String(u.semester).replace(/\D/g, '') || 1);
                     
-                    // KALKULASI CERDAS (AUTO COUNT)
                     let nominal = 0;
                     let type = '';
                     let label = '';
@@ -213,82 +350,72 @@
                         label = `Biaya Ujian (${activeExamsCount} Mapel)`;
                     } else {
                         type = 'SPP';
-                        // Cek apakah dia minta lunas atau cicil (berdasarkan status saat ini)
                         if(u.statusPembayaran === 'Belum') {
-                            // Asumsi request pertama bisa jadi cicil atau lunas (Default Lunas dulu untuk display)
-                            nominal = 75450; 
-                            label = "Administrasi & SPP (Full)";
+                            nominal = 75450; label = "Administrasi & SPP (Full)";
                         } else if (u.statusPembayaran === 'Cicilan') {
-                            nominal = 37725;
-                            label = "Pelunasan Sisa Cicilan";
+                            nominal = 37725; label = "Pelunasan Sisa Cicilan";
                         }
                     }
 
-                    const html = `
+                    container.innerHTML += `
                         <div class="req-card">
                             <div class="req-head">
-                                <div>
-                                    <div class="req-name">${u.name}</div>
-                                    <div class="req-id">ID: ${u.uid.substring(0,6)} | Sem ${sem}</div>
-                                </div>
+                                <div><div class="req-name">${u.name}</div><div class="req-id">ID: ${u.uid.substring(0,6)}</div></div>
                                 <div class="req-tag">Menunggu</div>
                             </div>
                             <div class="req-desc"><i class="fa-solid fa-receipt"></i> ${label}</div>
                             <div class="req-amount">Rp ${nominal.toLocaleString('id-ID')}</div>
-                            
                             <div class="btn-group">
-                                <button onclick="rejectPay('${d.id}')" class="btn btn-reject">Tolak</button>
-                                <button onclick="approvePay('${d.id}', '${u.name}', ${nominal}, '${type}', ${sem})" class="btn btn-accept">Terima (Lunas)</button>
+                                <button onclick="rejectPay('${d.id}')" class="btn-reject">Tolak</button>
+                                <button onclick="confirmApprove('${d.id}', '${u.name}', ${nominal}, '${type}', ${sem})" class="btn-accept">Terima</button>
                             </div>
                         </div>
                     `;
-                    container.insertAdjacentHTML('beforeend', html);
                 });
-
             } catch(e) { console.error(e); }
         }
 
-        // --- ACTION: APPROVE ---
-        window.approvePay = async (uid, name, amount, type, sem) => {
-            if(!confirm(`Konfirmasi pembayaran Rp ${amount} untuk ${name}?`)) return;
+        // --- ACTION HANDLERS ---
+        window.confirmApprove = (uid, name, amount, type, sem) => {
+            showModal('confirm', 'Terima Pembayaran?', `Konfirmasi ${name} sebesar Rp ${amount.toLocaleString('id-ID')}?`, async () => {
+                await processApprove(uid, name, amount, type, sem);
+            });
+        }
 
+        async function processApprove(uid, name, amount, type, sem) {
             try {
-                // 1. Update Status Siswa -> Lunas / Clear Waiting
                 await updateDoc(doc(db, 'users', uid), {
-                    statusPembayaran: 'Lunas', // Set langsung Lunas (atau sesuaikan jika cicilan)
-                    paymentStatus: 'verified'  // Clear flag waiting
+                    statusPembayaran: 'Lunas',
+                    paymentStatus: 'verified'
                 });
 
-                // 2. Masukkan ke Arsip (Log Keuangan)
+                // Masuk Arsip (FIXED)
                 await addDoc(collection(db, 'finance_logs'), {
                     studentName: name,
                     studentUid: uid,
-                    type: type, // 'Ujian' atau 'SPP'
+                    type: type,
                     amount: amount,
                     semester: sem,
                     adminName: currentAdmin.name,
                     timestamp: serverTimestamp()
                 });
 
-                alert("Pembayaran Berhasil Diverifikasi!");
-                loadRequests(); // Refresh
-                loadArchive();  // Refresh Archive
-
-            } catch(e) { alert("Error: " + e.message); }
-        }
-
-        // --- ACTION: REJECT ---
-        window.rejectPay = async (uid) => {
-            if(!confirm("Tolak pembayaran ini? Status akan kembali ke Belum Bayar.")) return;
-            try {
-                await updateDoc(doc(db, 'users', uid), {
-                    paymentStatus: 'rejected' // Kembalikan status
-                });
+                document.getElementById('custom-modal').classList.remove('active');
                 loadRequests();
+                loadArchive();
+                
             } catch(e) { alert("Error: " + e.message); }
         }
 
-        // --- TAB 2: LOAD ARCHIVE ---
+        window.rejectPay = (uid) => {
+            showModal('confirm', 'Tolak Pembayaran?', 'Status siswa akan kembali ke Belum Bayar.', async () => {
+                await updateDoc(doc(db, 'users', uid), { paymentStatus: 'rejected' });
+                document.getElementById('custom-modal').classList.remove('active');
+                loadRequests();
+            });
+        }
+
+        // --- TAB 2: ARCHIVE ---
         async function loadArchive() {
             const tbody = document.getElementById('archive-body');
             try {
@@ -296,7 +423,7 @@
                 const snap = await getDocs(q);
 
                 if(snap.empty) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada riwayat pemasukan.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada riwayat.</td></tr>';
                     return;
                 }
 
@@ -304,33 +431,31 @@
                 snap.forEach(d => {
                     const data = d.data();
                     const date = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleDateString('id-ID') : '-';
-                    const typeClass = data.type === 'Ujian' ? 'type-ujian' : 'type-spp';
+                    const cls = data.type === 'Ujian' ? 'type-ujian' : 'type-spp';
                     
                     tbody.innerHTML += `
                         <tr>
                             <td>${date}</td>
-                            <td>${data.studentName}<br><small style="color:#999;">Sem ${data.semester}</small></td>
-                            <td class="${typeClass}">${data.type}</td>
-                            <td style="font-weight:bold;">Rp ${data.amount.toLocaleString('id-ID')}</td>
-                            <td><small>${data.adminName || 'Admin'}</small></td>
+                            <td>${data.studentName}</td>
+                            <td class="${cls}">${data.type}</td>
+                            <td>Rp ${data.amount.toLocaleString('id-ID')}</td>
+                            <td>${data.adminName || '-'}</td>
                         </tr>
                     `;
                 });
             } catch(e) { console.error(e); }
         }
 
-        // --- REPORT GENERATOR ---
+        // --- REPORT PDF ---
         window.downloadReport = async (filterType) => {
             const title = filterType === 'ujian' ? 'LAPORAN PENDAPATAN UJIAN' : 'LAPORAN PENDAPATAN SPP';
             const typeKey = filterType === 'ujian' ? 'Ujian' : 'SPP';
             
-            // Fetch Data Filtered
             const q = query(collection(db, 'finance_logs'), where('type', '==', typeKey));
             const snap = await getDocs(q);
 
-            if(snap.empty) return alert("Tidak ada data untuk laporan ini.");
+            if(snap.empty) return showModal('info', 'Data Kosong', 'Tidak ada data untuk laporan ini.');
 
-            // Build Table HTML
             let rows = '';
             let total = 0;
             let no = 1;
@@ -338,15 +463,7 @@
             snap.forEach(d => {
                 const data = d.data();
                 const date = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleDateString('id-ID') : '-';
-                rows += `
-                    <tr>
-                        <td>${no++}</td>
-                        <td>${date}</td>
-                        <td>${data.studentName} (Sem ${data.semester})</td>
-                        <td>${data.type}</td>
-                        <td align="right">Rp ${data.amount.toLocaleString('id-ID')}</td>
-                    </tr>
-                `;
+                rows += `<tr><td>${no++}</td><td>${date}</td><td>${data.studentName}</td><td>${data.type}</td><td align="right">Rp ${data.amount.toLocaleString('id-ID')}</td></tr>`;
                 total += data.amount;
             });
 
@@ -355,16 +472,43 @@
             document.getElementById('pdf-body').innerHTML = rows;
             document.getElementById('pdf-total').innerText = "Rp " + total.toLocaleString('id-ID');
 
-            // Generate PDF
             const element = document.getElementById('pdf-template');
             element.style.display = 'block';
-            
-            html2pdf().from(element).save(`${title}.pdf`).then(() => {
-                element.style.display = 'none';
-            });
+            html2pdf().from(element).save(`${title}.pdf`).then(() => element.style.display = 'none');
         }
 
-        // --- UI UTILS ---
+        // --- MODAL SYSTEM ---
+        function showModal(type, title, text, onYes, onNo) {
+            const overlay = document.getElementById('custom-modal');
+            const icon = document.getElementById('modal-icon');
+            const actions = document.getElementById('modal-actions');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-text').innerText = text;
+            icon.innerHTML = type === 'loading' ? '⏳' : type === 'warning' ? '⚠️' : '❓';
+            
+            actions.innerHTML = '';
+            if(type === 'loading') return overlay.classList.add('active');
+
+            if(onYes) {
+                const btnYes = document.createElement('button');
+                btnYes.className = 'btn-mod btn-yes'; btnYes.innerText = 'Ya'; 
+                btnYes.onclick = onYes;
+                
+                const btnNo = document.createElement('button');
+                btnNo.className = 'btn-mod btn-no'; btnNo.innerText = 'Batal'; 
+                btnNo.onclick = () => { overlay.classList.remove('active'); if(onNo) onNo(); };
+                
+                actions.append(btnNo, btnYes);
+            } else {
+                const btnOk = document.createElement('button');
+                btnOk.className = 'btn-mod btn-yes'; btnOk.innerText = 'Tutup'; 
+                btnOk.onclick = () => overlay.classList.remove('active');
+                actions.appendChild(btnOk);
+            }
+            overlay.classList.add('active');
+        }
+
         window.switchTab = (tabName) => {
             document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.content-card').forEach(el => el.classList.add('hidden'));
