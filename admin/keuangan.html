@@ -217,9 +217,8 @@
             actions.innerHTML = '';
 
             if (type === 'loading') {
-                // Modal tanpa tombol (loading)
+                // Modal tanpa tombol
             } else if (onYes) {
-                // Modal Konfirmasi
                 const btnYes = document.createElement('button');
                 btnYes.className = 'btn-mod mod-yes'; btnYes.innerText = 'Ya, Lanjutkan';
                 btnYes.onclick = () => { if(type !== 'loading') overlay.classList.remove('active'); onYes(); };
@@ -230,7 +229,6 @@
                 
                 actions.append(btnNo, btnYes);
             } else {
-                // Modal Info/Success
                 const btnOk = document.createElement('button');
                 btnOk.className = 'btn-mod mod-yes'; btnOk.innerText = 'Tutup';
                 btnOk.onclick = () => overlay.classList.remove('active');
@@ -239,16 +237,15 @@
             overlay.classList.add('active');
         }
 
-        // --- FITUR 1: VERIFIKASI ---
+        // --- FITUR 1: VERIFIKASI (ANTI CRASH) ---
         window.loadRequests = async () => {
             const container = document.getElementById('list-request');
             const loading = document.getElementById('loading-verif');
             
-            loading.classList.remove('hidden'); // Show loading
+            loading.classList.remove('hidden');
             container.innerHTML = ''; 
 
             try {
-                // PENTING: Query ini harus cocok dengan data yang dikirim siswa
                 const q = query(collection(db, 'users'), where('paymentStatus', '==', 'waiting'));
                 const snap = await getDocs(q);
 
@@ -265,36 +262,47 @@
                 document.getElementById('empty-verif').classList.add('hidden');
 
                 snap.forEach(d => {
-                    const u = d.data();
-                    const sem = parseInt(String(u.semester).replace(/\D/g, '') || 1);
-                    
-                    // Logic Nominal
-                    let nominal = 0;
-                    let type = '';
-                    let label = '';
+                    try {
+                        const u = d.data();
+                        // SAFE DATA (Anti Crash)
+                        const safeName = u.name || "Tanpa Nama";
+                        const safeUid = u.uid || "UID_ERROR";
+                        const shortUid = safeUid.length > 5 ? safeUid.substring(0,5) : safeUid;
+                        
+                        const rawSem = u.semester ? String(u.semester) : "1";
+                        const sem = parseInt(rawSem.replace(/\D/g, '') || 1);
+                        
+                        // Logic Nominal
+                        let nominal = 0;
+                        let type = '';
+                        let label = '';
 
-                    if(sem < 3) {
-                        type = 'Ujian'; nominal = activeExamsCount * 1000; label = `Biaya Ujian (${activeExamsCount} Mapel)`;
-                    } else {
-                        type = 'SPP';
-                        if(u.statusPembayaran === 'Belum') { nominal = 75450; label = "SPP Full"; }
-                        else if(u.statusPembayaran === 'Cicilan') { nominal = 37725; label = "Sisa Cicilan"; }
-                    }
+                        if(sem < 3) {
+                            type = 'Ujian'; 
+                            nominal = (activeExamsCount || 0) * 1000; 
+                            label = `Biaya Ujian (${activeExamsCount} Mapel)`;
+                        } else {
+                            type = 'SPP';
+                            if(u.statusPembayaran === 'Belum') { nominal = 75450; label = "SPP Full"; }
+                            else if(u.statusPembayaran === 'Cicilan') { nominal = 37725; label = "Sisa Cicilan"; }
+                            else { nominal = 0; label = "Cek Manual"; }
+                        }
 
-                    container.innerHTML += `
-                        <div class="req-card">
-                            <div class="req-head">
-                                <div><div class="req-name">${u.name}</div><div class="req-id">Sem ${sem} | ID: ${u.uid.substring(0,4)}</div></div>
-                                <div class="req-tag">Menunggu</div>
+                        container.innerHTML += `
+                            <div class="req-card">
+                                <div class="req-head">
+                                    <div><div class="req-name">${safeName}</div><div class="req-id">Sem ${sem} | ID: ${shortUid}</div></div>
+                                    <div class="req-tag">Menunggu</div>
+                                </div>
+                                <div class="req-desc"><i class="fa-solid fa-receipt"></i> ${label}</div>
+                                <div class="req-amount">Rp ${nominal.toLocaleString('id-ID')}</div>
+                                <div class="btn-group">
+                                    <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
+                                    <button onclick="actApprove('${d.id}', '${safeName}', ${nominal}, '${type}', ${sem})" class="btn-act bg-green">Terima</button>
+                                </div>
                             </div>
-                            <div class="req-desc"><i class="fa-solid fa-receipt"></i> ${label}</div>
-                            <div class="req-amount">Rp ${nominal.toLocaleString('id-ID')}</div>
-                            <div class="btn-group">
-                                <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
-                                <button onclick="actApprove('${d.id}', '${u.name}', ${nominal}, '${type}', ${sem})" class="btn-act bg-green">Terima</button>
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    } catch (err) { console.error("Skip Error User:", err); }
                 });
             } catch(e) { console.error(e); }
         }
@@ -369,7 +377,6 @@
             if (!el.checked) {
                 showModal('warning', 'Tutup & Reset?', 'PERHATIAN: Semua status siswa akan diubah menjadi BELUM BAYAR. Lanjutkan?', 
                     async () => {
-                        // Proses Reset
                         showModal('loading', 'Resetting...', 'Sedang mereset data siswa...');
                         await setDoc(doc(db, 'settings', 'finance'), { isOpen: false }, { merge: true });
                         
@@ -386,7 +393,7 @@
                         loadRequests();
                         showModal('success', 'Selesai', 'Periode pembayaran ditutup & data di-reset.');
                     },
-                    () => { el.checked = true; } // Jika batal
+                    () => { el.checked = true; } 
                 );
             } else {
                 setDoc(doc(db, 'settings', 'finance'), { isOpen: true }, { merge: true });
