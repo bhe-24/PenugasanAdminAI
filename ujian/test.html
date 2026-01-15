@@ -51,9 +51,7 @@
             background: #fff; position: relative;
         }
         .option-item:hover { border-color: #cbd5e1; background: #f8fafc; }
-        
         .option-item.selected { border-color: var(--accent); background: #e0f2fe; color: #0369a1; }
-        
         .option-circle {
             width: 28px; height: 28px; border-radius: 50%; border: 2px solid #cbd5e1;
             flex-shrink: 0; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; font-weight: 700;
@@ -62,16 +60,10 @@
 
         /* NAVIGASI */
         .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; }
-        
         .btn { padding: 14px 28px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 1rem; transition: 0.2s; }
         .btn-prev { background: #e2e8f0; color: #475569; visibility: hidden; }
-        .btn-prev:hover { background: #cbd5e1; }
-        
         .btn-next { background: var(--primary); color: white; }
-        .btn-next:hover { background: #1e3a8a; }
-        
         .btn-finish { background: #16a34a; color: white; display: none; }
-        .btn-finish:hover { background: #15803d; }
 
         /* MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; }
@@ -82,6 +74,7 @@
         .btn-yes { background: var(--primary); color: white; }
         .btn-no { background: #eee; color: #333; }
         
+        /* LOADING */
         #loading-overlay { z-index: 3000; background: white; }
     </style>
 </head>
@@ -89,8 +82,8 @@
 
     <div class="top-bar">
         <div class="exam-info">
-            <span id="exam-title">Memuat Ujian...</span>
-            <span class="exam-sub" id="q-indicator">Soal - / -</span>
+            <span id="exam-title">Memuat...</span>
+            <span class="exam-sub" id="q-indicator">-</span>
         </div>
         <div class="timer-box">
             <i class="fa-regular fa-clock"></i> <span id="timer">--:--</span>
@@ -98,9 +91,15 @@
     </div>
 
     <div class="container">
+        <div id="error-box" style="display:none; text-align:center; padding:50px; background:#fee2e2; border-radius:20px; color:#991b1b;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:3rem; margin-bottom:15px;"></i>
+            <h3 id="error-msg">Terjadi Kesalahan</h3>
+            <a href="index.html" class="btn btn-next" style="display:inline-flex; margin-top:20px; background:#b91c1c;">Kembali</a>
+        </div>
+
         <div id="q-content"></div>
 
-        <div class="nav-buttons">
+        <div class="nav-buttons" id="nav-area">
             <button class="btn btn-prev" id="btn-prev" onclick="navStep(-1)">
                 <i class="fa-solid fa-arrow-left"></i> Sebelumnya
             </button>
@@ -108,7 +107,7 @@
                 Selanjutnya <i class="fa-solid fa-arrow-right"></i>
             </button>
             <button class="btn btn-finish" id="btn-finish" onclick="confirmFinish()">
-                Selesai Ujian <i class="fa-solid fa-check-circle"></i>
+                Selesai <i class="fa-solid fa-check-circle"></i>
             </button>
         </div>
     </div>
@@ -117,7 +116,7 @@
         <div class="modal-box">
             <div class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>
             <h3>Kumpulkan Jawaban?</h3>
-            <p style="color:#666; margin-bottom:20px;">Pastikan semua soal terjawab. Anda tidak bisa mengulangi ujian ini setelah dikumpulkan.</p>
+            <p style="color:#666; margin-bottom:20px;">Anda tidak bisa mengubah jawaban setelah ini.</p>
             <button class="btn-modal btn-no" onclick="closeModal()">Cek Lagi</button>
             <button class="btn-modal btn-yes" onclick="processSubmit()">Ya, Kumpulkan</button>
         </div>
@@ -126,43 +125,49 @@
     <div id="loading-overlay" class="modal-overlay active">
         <div style="text-align:center;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--primary);"></i>
-            <p style="margin-top:15px; font-weight:600;">Menyiapkan Ujian...</p>
+            <p id="loading-text" style="font-weight:600; margin-top:15px;">Menyiapkan Ujian...</p>
         </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        // PENTING: Import fungsi yang benar
         import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Ambil ID Ujian dari URL
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('id');
         
         let currentUser = null;
         let questions = [];
-        let userAnswers = {}; // Menyimpan jawaban siswa { indexSoal: indexJawaban }
+        let userAnswers = {}; 
         let currentIndex = 0;
         let timerInterval;
 
         // --- 1. INISIALISASI ---
         (async () => {
-            currentUser = await checkAuth('siswa');
-            if(!currentUser) return window.location.href = '../login.html';
-            if(!examId) { alert("ID Ujian tidak ditemukan!"); return window.location.href = 'index.html'; }
-
             try {
-                // Ambil Data Ujian
+                // Cek ID dulu
+                if(!examId) throw new Error("ID Ujian tidak ditemukan di URL.");
+
+                // Cek Login
+                currentUser = await checkAuth('siswa');
+                if(!currentUser) {
+                    alert("Sesi habis. Silakan login ulang.");
+                    window.location.href = '../login.html';
+                    return;
+                }
+
+                // Ambil Data
                 const docRef = doc(db, 'exams', examId);
                 const docSnap = await getDoc(docRef);
 
-                if (!docSnap.exists()) {
-                    alert("Ujian tidak ditemukan atau sudah dihapus.");
-                    return window.location.href = 'index.html';
-                }
+                if (!docSnap.exists()) throw new Error("Data ujian tidak ditemukan di database.");
 
                 const data = docSnap.data();
-                questions = data.questions || [];
+                
+                // Validasi Isi Soal
+                if (!data.questions || data.questions.length === 0) throw new Error("Ujian ini belum memiliki soal.");
+
+                questions = data.questions;
                 
                 // Setup UI
                 document.getElementById('exam-title').innerText = data.judul;
@@ -170,11 +175,17 @@
 
                 // Start
                 renderQuestion(0);
-                startTimer(data.durasi);
+                startTimer(data.durasi || 60); // Default 60 menit jika null
 
             } catch(e) {
-                alert("Gagal memuat ujian: " + e.message);
-                window.location.href = 'index.html';
+                console.error(e);
+                document.getElementById('loading-overlay').classList.remove('active');
+                document.getElementById('q-content').style.display = 'none';
+                document.getElementById('nav-area').style.display = 'none';
+                
+                // Tampilkan Error di Layar
+                document.getElementById('error-box').style.display = 'block';
+                document.getElementById('error-msg').innerText = e.message;
             }
         })();
 
@@ -184,17 +195,14 @@
             currentIndex = idx;
 
             const q = questions[idx];
-            const savedAns = userAnswers[idx]; // Jawaban yang sudah dipilih sebelumnya
+            const savedAns = userAnswers[idx];
 
-            // Update Indicator
             document.getElementById('q-indicator').innerText = `Soal ${idx + 1} dari ${questions.length}`;
 
-            // Render HTML
             let optionsHtml = '';
             q.options.forEach((opt, i) => {
                 const isSelected = savedAns === i ? 'selected' : '';
-                const letter = String.fromCharCode(65 + i); // A, B, C, D
-                
+                const letter = String.fromCharCode(65 + i); 
                 optionsHtml += `
                     <div class="option-item ${isSelected}" onclick="selectAnswer(${idx}, ${i})">
                         <div class="option-circle">${letter}</div>
@@ -210,14 +218,13 @@
                     <div class="options-grid">${optionsHtml}</div>
                 </div>
             `;
-
             updateNavButtons();
         }
 
-        // --- 3. LOGIC JAWABAN & NAVIGASI ---
+        // --- 3. LOGIC ---
         window.selectAnswer = (qIdx, optIdx) => {
-            userAnswers[qIdx] = optIdx; // Simpan jawaban
-            renderQuestion(qIdx); // Re-render untuk update UI (warna biru)
+            userAnswers[qIdx] = optIdx;
+            renderQuestion(qIdx);
         }
 
         window.navStep = (step) => {
@@ -229,10 +236,8 @@
             const nextBtn = document.getElementById('btn-next');
             const finishBtn = document.getElementById('btn-finish');
 
-            // Tombol Prev
             prevBtn.style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
 
-            // Tombol Next & Finish
             if (currentIndex === questions.length - 1) {
                 nextBtn.style.display = 'none';
                 finishBtn.style.display = 'flex';
@@ -242,85 +247,59 @@
             }
         }
 
-        // --- 4. TIMER ---
         function startTimer(minutes) {
             let time = minutes * 60;
             const timerEl = document.getElementById('timer');
-            
             timerInterval = setInterval(() => {
                 const m = Math.floor(time / 60);
                 const s = time % 60;
                 timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                
                 if (time <= 0) {
                     clearInterval(timerInterval);
-                    alert("Waktu Habis! Jawaban Anda akan dikirim otomatis.");
                     processSubmit();
                 }
                 time--;
             }, 1000);
         }
 
-        // --- 5. SUBMIT & NILAI (INI KUNCINYA) ---
-        window.confirmFinish = () => {
-            // Cek apakah semua soal dijawab (Opsional, tapi bagus buat UX)
-            const answeredCount = Object.keys(userAnswers).length;
-            if(answeredCount < questions.length) {
-                if(!confirm(`Anda baru menjawab ${answeredCount} dari ${questions.length} soal. Yakin mau kumpul?`)) return;
-            }
-            document.getElementById('modal-confirm').classList.add('active');
-        }
-
+        // --- 4. SUBMIT ---
+        window.confirmFinish = () => document.getElementById('modal-confirm').classList.add('active');
         window.closeModal = () => document.getElementById('modal-confirm').classList.remove('active');
 
         window.processSubmit = async () => {
             clearInterval(timerInterval);
             document.getElementById('modal-confirm').classList.remove('active');
-            document.getElementById('loading-overlay').innerHTML = `
-                <div style="text-align:center">
-                    <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:var(--primary);"></i>
-                    <p style="font-weight:bold; margin-top:15px;">Menghitung Nilai...</p>
-                </div>
-            `;
-            document.getElementById('loading-overlay').classList.add('active');
+            
+            // Show Loading
+            const loadOv = document.getElementById('loading-overlay');
+            loadOv.classList.add('active');
+            document.getElementById('loading-text').innerText = "Menghitung Nilai...";
 
-            // HITUNG NILAI
+            // Hitung Nilai
             let correctCount = 0;
             questions.forEach((q, i) => {
-                // Bandingkan jawaban user dengan kunci jawaban database
-                if (userAnswers[i] === q.correctIndex) {
-                    correctCount++;
-                }
+                if (userAnswers[i] === q.correctIndex) correctCount++;
             });
 
-            // Rumus Nilai (Skala 100)
             const finalScore = Math.round((correctCount / questions.length) * 100);
 
             try {
-                // SIMPAN KE DATABASE 'quiz_results'
-                // PENTING: Nama field 'quizId' harus sama persis dengan yang dicari di index.html
+                // SIMPAN ID UJIAN (examId) DENGAN BENAR
                 await addDoc(collection(db, 'quiz_results'), {
-                    quizId: examId,       // <--- INI KUNCI PENGHUBUNGNYA (ID UJIAN)
+                    quizId: examId, // INI KUNCINYA
                     studentId: currentUser.uid,
                     studentName: currentUser.name,
                     score: finalScore,
-                    answers: userAnswers, // Simpan detail jawaban buat pembahasan nanti
-                    correctCount: correctCount,
-                    totalQuestions: questions.length,
+                    answers: userAnswers,
                     submittedAt: serverTimestamp()
                 });
 
-                // Redirect ke Halaman Hasil
-                // Kita akan arahkan ke halaman detail hasil (pembahasan)
-                // Tapi karena ID Dokumen hasil baru didapat setelah save, kita redirect ke index dulu
-                // Nanti di index, tombolnya otomatis berubah jadi "Lihat Pembahasan"
-                
                 alert(`Ujian Selesai! Nilai Anda: ${finalScore}`);
-                window.location.href = 'index.html'; // Kembali ke daftar, nanti otomatis jadi Hijau
+                window.location.href = 'index.html'; // Balik ke halaman utama
 
             } catch(e) {
-                alert("Gagal menyimpan nilai: " + e.message);
-                document.getElementById('loading-overlay').classList.remove('active');
+                alert("Gagal simpan: " + e.message);
+                loadOv.classList.remove('active');
             }
         }
     </script>
