@@ -258,26 +258,33 @@
             }
         });
 
-        // Handler Konfirmasi (Sudah/Belum)
-        window.handleConfirm = (isDone) => {
-            document.getElementById('modal-confirm').classList.remove('active');
-            
-            if (isDone) {
-                // Set Timer 24 Jam dari SEKARANG
-                const targetTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-                localStorage.setItem('payment_timer_target', targetTime);
-                
-                // Tampilkan Modal Timer
-                showTimerModal();
-                
-                // Refresh Halaman (Opsional, untuk update status tombol)
-                setTimeout(() => location.reload(), 1500); 
-            } else {
-                // Kembali ke QRIS
-                document.getElementById('modal-qris').classList.add('active');
-            }
-        };
+       // Di dalam file pembayaran.html (Siswa)
+// Ganti bagian window.handleConfirm dengan ini:
 
+window.handleConfirm = async (isDone) => {
+    document.getElementById('modal-confirm').classList.remove('active');
+    
+    if (isDone) {
+        // 1. Simpan Timer Local (Agar HP siswa tetap hitung mundur)
+        const targetTime = new Date().getTime() + (24 * 60 * 60 * 1000);
+        localStorage.setItem('payment_timer_target', targetTime);
+        
+        // 2. KIRIM SINYAL KE FIREBASE (Agar Admin Tahu) <--- INI BARU
+        // Pastikan import updateDoc & doc ada di bagian atas script
+        try {
+            await updateDoc(doc(db, 'users', currentUser.uid), {
+                paymentStatus: 'waiting', // Sinyal untuk Admin
+                paymentTimestamp: serverTimestamp()
+            });
+        } catch(e) { console.log("Gagal update status server", e); }
+
+        // 3. Tampilkan UI
+        showTimerModal();
+        setTimeout(() => location.reload(), 1500); 
+    } else {
+        document.getElementById('modal-qris').classList.add('active');
+    }
+};
         // Fungsi Timer
         function showTimerModal() {
             document.getElementById('modal-timer').classList.add('active');
