@@ -12,7 +12,7 @@
     <style>
         :root { --primary: #003366; --accent: #4361ee; --bg: #f4f7fe; }
         
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-top: 80px; padding-bottom: 40px; color: #333; user-select: none; -webkit-user-select: none; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); margin: 0; padding-top: 80px; padding-bottom: 40px; color: #333; user-select: none; }
         
         /* TOP BAR */
         .top-bar {
@@ -30,15 +30,14 @@
             display: flex; align-items: center; gap: 8px;
         }
 
-        /* CONTAINER SOAL */
+        /* CONTAINER */
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
         
         .q-card {
             background: white; padding: 40px; border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.03); border: 1px solid #eef2f6;
-            margin-bottom: 30px; animation: fadeIn 0.4s ease;
+            margin-bottom: 30px;
         }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
         .q-num { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
         .q-text { font-size: 1.25rem; font-weight: 600; line-height: 1.6; margin-bottom: 30px; color: #1e293b; }
@@ -65,17 +64,13 @@
         .btn-next { background: var(--primary); color: white; }
         .btn-finish { background: #16a34a; color: white; display: none; }
 
-        /* MODAL */
+        /* LOADING & MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
         .modal-box { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
-        .modal-icon { font-size: 3rem; margin-bottom: 15px; color: #f59e0b; }
-        .btn-modal { padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; margin: 0 5px; }
-        .btn-yes { background: var(--primary); color: white; }
-        .btn-no { background: #eee; color: #333; }
         
-        /* LOADING */
         #loading-overlay { z-index: 3000; background: white; }
+        #error-view { display: none; text-align: center; padding: 50px; color: red; }
     </style>
 </head>
 <body>
@@ -91,41 +86,43 @@
     </div>
 
     <div class="container">
-        <div id="error-box" style="display:none; text-align:center; padding:50px; background:#fee2e2; border-radius:20px; color:#991b1b;">
-            <i class="fa-solid fa-triangle-exclamation" style="font-size:3rem; margin-bottom:15px;"></i>
-            <h3 id="error-msg">Terjadi Kesalahan</h3>
+        <div id="error-view">
+            <h2 id="error-text"></h2>
             <a href="index.html" class="btn btn-next" style="display:inline-flex; margin-top:20px; background:#b91c1c;">Kembali</a>
         </div>
 
-        <div id="q-content"></div>
+        <div id="main-interface">
+            <div id="q-content"></div>
 
-        <div class="nav-buttons" id="nav-area">
-            <button class="btn btn-prev" id="btn-prev" onclick="navStep(-1)">
-                <i class="fa-solid fa-arrow-left"></i> Sebelumnya
-            </button>
-            <button class="btn btn-next" id="btn-next" onclick="navStep(1)">
-                Selanjutnya <i class="fa-solid fa-arrow-right"></i>
-            </button>
-            <button class="btn btn-finish" id="btn-finish" onclick="confirmFinish()">
-                Selesai <i class="fa-solid fa-check-circle"></i>
-            </button>
+            <div class="nav-buttons">
+                <button class="btn btn-prev" id="btn-prev" onclick="navStep(-1)">
+                    <i class="fa-solid fa-arrow-left"></i> Sebelumnya
+                </button>
+                <button class="btn btn-next" id="btn-next" onclick="navStep(1)">
+                    Selanjutnya <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="btn btn-finish" id="btn-finish" onclick="confirmFinish()">
+                    Selesai <i class="fa-solid fa-check-circle"></i>
+                </button>
+            </div>
         </div>
     </div>
 
     <div id="modal-confirm" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>
             <h3>Kumpulkan Jawaban?</h3>
             <p style="color:#666; margin-bottom:20px;">Anda tidak bisa mengubah jawaban setelah ini.</p>
-            <button class="btn-modal btn-no" onclick="closeModal()">Cek Lagi</button>
-            <button class="btn-modal btn-yes" onclick="processSubmit()">Ya, Kumpulkan</button>
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn" style="background:#eee; color:#333;" onclick="closeModal()">Batal</button>
+                <button class="btn" style="background:var(--primary); color:white;" onclick="processSubmit()">Ya, Kumpulkan</button>
+            </div>
         </div>
     </div>
 
     <div id="loading-overlay" class="modal-overlay active">
         <div style="text-align:center;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--primary);"></i>
-            <p id="loading-text" style="font-weight:600; margin-top:15px;">Menyiapkan Ujian...</p>
+            <p id="loading-text" style="font-weight:600; margin-top:15px;">Menyiapkan Soal...</p>
         </div>
     </div>
 
@@ -142,16 +139,14 @@
         let currentIndex = 0;
         let timerInterval;
 
-        // --- 1. INISIALISASI ---
+        // --- SAFE INIT ---
         (async () => {
             try {
-                // Cek ID dulu
-                if(!examId) throw new Error("ID Ujian tidak ditemukan di URL.");
+                if(!examId) throw new Error("ID Ujian tidak ditemukan. Silakan kembali.");
 
-                // Cek Login
                 currentUser = await checkAuth('siswa');
                 if(!currentUser) {
-                    alert("Sesi habis. Silakan login ulang.");
+                    alert("Silakan login ulang.");
                     window.location.href = '../login.html';
                     return;
                 }
@@ -160,36 +155,31 @@
                 const docRef = doc(db, 'exams', examId);
                 const docSnap = await getDoc(docRef);
 
-                if (!docSnap.exists()) throw new Error("Data ujian tidak ditemukan di database.");
+                if (!docSnap.exists()) throw new Error("Soal ujian tidak ditemukan di database.");
 
                 const data = docSnap.data();
-                
-                // Validasi Isi Soal
                 if (!data.questions || data.questions.length === 0) throw new Error("Ujian ini belum memiliki soal.");
 
                 questions = data.questions;
                 
-                // Setup UI
+                // UI SETUP
                 document.getElementById('exam-title').innerText = data.judul;
-                document.getElementById('loading-overlay').classList.remove('active');
-
-                // Start
-                renderQuestion(0);
-                startTimer(data.durasi || 60); // Default 60 menit jika null
-
-            } catch(e) {
-                console.error(e);
-                document.getElementById('loading-overlay').classList.remove('active');
-                document.getElementById('q-content').style.display = 'none';
-                document.getElementById('nav-area').style.display = 'none';
                 
-                // Tampilkan Error di Layar
-                document.getElementById('error-box').style.display = 'block';
-                document.getElementById('error-msg').innerText = e.message;
+                renderQuestion(0);
+                startTimer(data.durasi || 60);
+            
+            } catch(e) {
+                // TAMPILKAN ERROR JIKA GAGAL
+                document.getElementById('main-interface').style.display = 'none';
+                document.getElementById('error-view').style.display = 'block';
+                document.getElementById('error-text').innerText = e.message;
+            } finally {
+                // WAJIB: MATIKAN LOADING APAPUN YANG TERJADI
+                document.getElementById('loading-overlay').classList.remove('active');
             }
         })();
 
-        // --- 2. RENDER SOAL ---
+        // --- RENDER ---
         window.renderQuestion = (idx) => {
             if(idx < 0 || idx >= questions.length) return;
             currentIndex = idx;
@@ -197,7 +187,7 @@
             const q = questions[idx];
             const savedAns = userAnswers[idx];
 
-            document.getElementById('q-indicator').innerText = `Soal ${idx + 1} dari ${questions.length}`;
+            document.getElementById('q-indicator').innerText = `Soal ${idx + 1} / ${questions.length}`;
 
             let optionsHtml = '';
             q.options.forEach((opt, i) => {
@@ -218,42 +208,33 @@
                     <div class="options-grid">${optionsHtml}</div>
                 </div>
             `;
-            updateNavButtons();
+            updateButtons();
         }
 
-        // --- 3. LOGIC ---
         window.selectAnswer = (qIdx, optIdx) => {
             userAnswers[qIdx] = optIdx;
             renderQuestion(qIdx);
         }
 
-        window.navStep = (step) => {
-            renderQuestion(currentIndex + step);
-        }
+        window.navStep = (step) => renderQuestion(currentIndex + step);
 
-        function updateNavButtons() {
-            const prevBtn = document.getElementById('btn-prev');
-            const nextBtn = document.getElementById('btn-next');
-            const finishBtn = document.getElementById('btn-finish');
-
-            prevBtn.style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
-
+        function updateButtons() {
+            document.getElementById('btn-prev').style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
             if (currentIndex === questions.length - 1) {
-                nextBtn.style.display = 'none';
-                finishBtn.style.display = 'flex';
+                document.getElementById('btn-next').style.display = 'none';
+                document.getElementById('btn-finish').style.display = 'flex';
             } else {
-                nextBtn.style.display = 'flex';
-                finishBtn.style.display = 'none';
+                document.getElementById('btn-next').style.display = 'flex';
+                document.getElementById('btn-finish').style.display = 'none';
             }
         }
 
         function startTimer(minutes) {
             let time = minutes * 60;
-            const timerEl = document.getElementById('timer');
             timerInterval = setInterval(() => {
                 const m = Math.floor(time / 60);
                 const s = time % 60;
-                timerEl.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
                 if (time <= 0) {
                     clearInterval(timerInterval);
                     processSubmit();
@@ -262,7 +243,7 @@
             }, 1000);
         }
 
-        // --- 4. SUBMIT ---
+        // --- SUBMIT ---
         window.confirmFinish = () => document.getElementById('modal-confirm').classList.add('active');
         window.closeModal = () => document.getElementById('modal-confirm').classList.remove('active');
 
@@ -270,23 +251,21 @@
             clearInterval(timerInterval);
             document.getElementById('modal-confirm').classList.remove('active');
             
-            // Show Loading
+            // Show Spinner
             const loadOv = document.getElementById('loading-overlay');
             loadOv.classList.add('active');
             document.getElementById('loading-text').innerText = "Menghitung Nilai...";
 
-            // Hitung Nilai
             let correctCount = 0;
             questions.forEach((q, i) => {
                 if (userAnswers[i] === q.correctIndex) correctCount++;
             });
-
             const finalScore = Math.round((correctCount / questions.length) * 100);
 
             try {
-                // SIMPAN ID UJIAN (examId) DENGAN BENAR
+                // SIMPAN HASIL KE DB
                 await addDoc(collection(db, 'quiz_results'), {
-                    quizId: examId, // INI KUNCINYA
+                    quizId: examId, // Menyimpan ID Ujian
                     studentId: currentUser.uid,
                     studentName: currentUser.name,
                     score: finalScore,
@@ -294,11 +273,11 @@
                     submittedAt: serverTimestamp()
                 });
 
-                alert(`Ujian Selesai! Nilai Anda: ${finalScore}`);
-                window.location.href = 'index.html'; // Balik ke halaman utama
+                alert(`Selesai! Nilai: ${finalScore}`);
+                window.location.href = 'index.html'; // Balik ke halaman daftar
 
             } catch(e) {
-                alert("Gagal simpan: " + e.message);
+                alert("Gagal upload nilai: " + e.message);
                 loadOv.classList.remove('active');
             }
         }
