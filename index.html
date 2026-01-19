@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Cendekia Aksara</title>
     
-    <!-- CSS Utama -->
     <link rel="stylesheet" href="css/style.css">
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <style>
@@ -31,13 +29,12 @@
         .form-group label { display: block; margin-bottom: 5px; color: #333; font-weight: 600; font-size: 0.9rem; }
         
         .form-group input {
-            width: 100%; padding: 12px 40px 12px 12px; /* Padding kanan lebih besar untuk ikon mata */
+            width: 100%; padding: 12px 40px 12px 12px;
             border: 1px solid #ccc; border-radius: 8px;
             box-sizing: border-box; transition: border-color 0.3s;
         }
         .form-group input:focus { border-color: var(--primary-color); outline: none; }
 
-        /* Icon Show/Hide Password */
         .toggle-password {
             position: absolute; right: 15px; top: 38px;
             cursor: pointer; color: #888; transition: color 0.2s;
@@ -64,7 +61,6 @@
         }
         .forgot-link:hover { color: var(--primary-color); text-decoration: underline; }
 
-        /* Loading Overlay */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(255, 255, 255, 0.95);
@@ -78,7 +74,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Custom Modal Popup Styles */
         #success-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
@@ -120,7 +115,6 @@
 
         <div id="auth-view">
             
-            <!-- 1. FORM LOGIN -->
             <div id="login-form-container">
                 <h3 style="margin-bottom: 20px; color: #333;">Masuk ke Portal</h3>
                 <form id="login-form">
@@ -133,15 +127,12 @@
                         <input type="password" id="password" placeholder="******" required>
                         <i class="fa-solid fa-eye toggle-password" onclick="togglePass('password', this)"></i>
                     </div>
-                    
                     <a class="forgot-link" id="to-forgot">Lupa Password?</a>
-
                     <button type="submit" class="btn">Masuk</button>
                 </form>
                 <p class="toggle-auth" id="to-register">Belum punya akun? Daftar Sekarang.</p>
             </div>
             
-            <!-- 2. FORM REGISTER -->
             <div id="register-form-container" class="hidden">
                  <h3 style="margin-bottom: 20px; color: #333;">Daftar Akun Baru</h3>
                  <form id="register-form">
@@ -163,7 +154,6 @@
                  <p class="toggle-auth" id="to-login">Sudah punya akun? Login di sini.</p>
             </div>
 
-            <!-- 3. FORM LUPA PASSWORD -->
             <div id="forgot-form-container" class="hidden">
                 <h3 style="margin-bottom: 10px; color: #333;">Reset Password</h3>
                 <p style="font-size: 0.9rem; margin-bottom: 20px;">Masukkan email Anda. Kami akan mengirimkan link untuk membuat password baru.</p>
@@ -180,20 +170,16 @@
         </div>
     </div>
 
-    <!-- LOADING SCREEN -->
     <div id="loading-overlay" class="hidden">
         <div class="spinner"></div>
         <p id="loading-text" style="margin-top:20px; font-weight:bold; color:#005a9c;">Memuat...</p>
     </div>
 
-    <!-- POP-UP SUKSES MODAL -->
     <div id="success-modal" class="hidden">
         <div class="modal-content">
-            <div class="modal-icon">
-                <i class="fa-solid fa-paper-plane"></i>
-            </div>
+            <div class="modal-icon"><i class="fa-solid fa-paper-plane"></i></div>
             <h3>Email Terkirim!</h3>
-            <p id="modal-message">Link reset password telah dikirim. Silakan cek kotak masuk atau folder spam email Anda.</p>
+            <p id="modal-message">Link reset password telah dikirim.</p>
             <button id="modal-ok-btn" class="btn" style="background: #28a745; margin-top: 10px;">OK</button>
         </div>
     </div>
@@ -201,9 +187,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Konfigurasi Firebase
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
             authDomain: "mading-cf676.firebaseapp.com", 
@@ -217,50 +202,43 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- UTILS UI ---
+        // --- UTILS ---
         const showLoading = (msg) => {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.remove('hidden');
         };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
 
-        // Fungsi Show/Hide Password Global
         window.togglePass = (inputId, icon) => {
             const input = document.getElementById(inputId);
             if (input.type === "password") {
-                input.type = "text";
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
+                input.type = "text"; icon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                input.type = "password";
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+                input.type = "password"; icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
         };
 
-        // --- AUTH STATE LISTENER ---
-        showLoading('Mengecek sesi...');
+        // --- AUTH LISTENER (LOGIN CHECKER) ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                // Jangan show loading jika baru register (karena ada alert)
+                if(!localStorage.getItem('justRegistered')) {
+                    showLoading('Memeriksa data akun...');
+                }
+                
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
                     if (snap.exists()) {
                         const data = snap.data();
-                        if (data.status === 'suspended') {
-                            alert("Akun dibekukan. Hubungi admin.");
-                            hideLoading(); return;
-                        }
                         
-                        const role = data.role;
-                        // Redirect Logic Sesuai Permintaan
-                        if(role === 'pengajar') {
-                            console.log("Login: Pengajar -> Admin");
-                            window.location.href = '/admin'; 
+                        // *** LOGIKA PENGALIHAN UTAMA DI SINI ***
+                        if (data.role === 'admin' || data.role === 'pengajar') {
+                            window.location.href = 'admin/index.html'; // Masuk Folder Admin
                         } else {
-                            console.log("Login: Siswa -> Dashboard Siswa");
-                            window.location.href = '/dashboard/index.html';
+                            window.location.href = 'siswa/index.html'; // Masuk Folder Siswa
                         }
                     } else {
+                        // Jika data tidak ada di Firestore (Kasus langka)
                         hideLoading();
                     }
                 } catch (e) {
@@ -271,31 +249,17 @@
             }
         });
 
-        // --- NAVIGASI FORM ---
+        // --- NAVIGASI ---
         const loginForm = document.getElementById('login-form-container');
         const regForm = document.getElementById('register-form-container');
         const forgotForm = document.getElementById('forgot-form-container');
         const successModal = document.getElementById('success-modal');
 
-        document.getElementById('to-register').onclick = () => {
-            loginForm.classList.add('hidden'); regForm.classList.remove('hidden');
-        };
-        document.getElementById('to-login').onclick = () => {
-            regForm.classList.add('hidden'); loginForm.classList.remove('hidden');
-        };
-        document.getElementById('to-forgot').onclick = () => {
-            loginForm.classList.add('hidden'); forgotForm.classList.remove('hidden');
-        };
-        document.getElementById('back-to-login-from-forgot').onclick = () => {
-            forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden');
-        };
-        
-        // --- MODAL CONTROLLER ---
-        document.getElementById('modal-ok-btn').onclick = () => {
-            successModal.classList.add('hidden'); // Tutup modal
-            forgotForm.classList.add('hidden');   // Tutup form lupa password
-            loginForm.classList.remove('hidden'); // Kembali ke login
-        };
+        document.getElementById('to-register').onclick = () => { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); };
+        document.getElementById('to-login').onclick = () => { regForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
+        document.getElementById('to-forgot').onclick = () => { loginForm.classList.add('hidden'); forgotForm.classList.remove('hidden'); };
+        document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
+        document.getElementById('modal-ok-btn').onclick = () => { successModal.classList.add('hidden'); forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
 
         // --- 1. LOGIN ---
         document.getElementById('login-form').onsubmit = async (e) => {
@@ -303,65 +267,67 @@
             showLoading('Memverifikasi...');
             const email = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
-            
-            try {
-                await signInWithEmailAndPassword(auth, email, pass);
-            } catch (error) {
-                hideLoading();
-                let msg = "Email atau password salah.";
-                if(error.code === 'auth/user-not-found') msg = "Akun tidak ditemukan. Silakan daftar.";
-                if(error.code === 'auth/wrong-password') msg = "Password salah.";
-                if(error.code === 'auth/too-many-requests') msg = "Terlalu banyak percobaan. Tunggu sebentar.";
-                alert(msg);
-            }
+            try { await signInWithEmailAndPassword(auth, email, pass); } 
+            catch (error) { hideLoading(); alert("Login Gagal: " + error.message); }
         };
 
-        // --- 2. REGISTER ---
+        // --- 2. REGISTER (Logika Admin Otomatis) ---
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Mendaftarkan akun...');
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
-            const role = email.endsWith('@ac.id') ? 'pengajar' : 'siswa';
+            
+            // >>> LOGIKA KUNCI: Cek akhiran email <<<
+            const role = email.endsWith('@ac.id') ? 'admin' : 'siswa'; 
 
             try {
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
                 await setDoc(doc(db, 'users', cred.user.uid), { 
-                    name, email, role, semester: 1, ips: 0, status: 'active',
+                    name, email, role, // Role tersimpan otomatis di sini
+                    semester: 1, ips: 0, status: 'active',
                     createdAt: new Date().toISOString()
                 });
+                
+                localStorage.setItem('justRegistered', 'true');
                 alert("Pendaftaran Berhasil! Anda akan dialihkan...");
+                // Reload halaman agar Auth Listener menangkap dan mengalihkan
+                window.location.reload(); 
+
             } catch (err) { 
-                hideLoading();
-                let msg = err.message;
-                if(err.code === 'auth/email-already-in-use') msg = "Email sudah terdaftar.";
-                if(err.code === 'auth/weak-password') msg = "Password terlalu lemah (min 6 karakter).";
-                alert("Gagal Daftar: " + msg); 
+                hideLoading(); alert("Gagal Daftar: " + err.message); 
             }
         };
 
         // --- 3. FORGOT PASSWORD ---
         document.getElementById('forgot-form').onsubmit = async (e) => {
             e.preventDefault();
-            const email = document.getElementById('forgot-email').value;
-            
-            showLoading('Mengirim link reset...');
+            showLoading('Mengirim...');
             try {
-                await sendPasswordResetEmail(auth, email);
+                await sendPasswordResetEmail(auth, document.getElementById('forgot-email').value);
                 hideLoading();
-                
-                // TAMPILKAN MODAL SUKSES
-                document.getElementById('modal-message').innerHTML = `Link reset password telah dikirim ke <b>${email}</b>.<br>Silakan cek kotak masuk atau folder spam email Anda.`;
                 successModal.classList.remove('hidden');
-                
             } catch (error) {
-                hideLoading();
-                let msg = error.message;
-                if(error.code === 'auth/user-not-found') msg = "Email tidak terdaftar di sistem kami.";
-                alert("Gagal: " + msg);
+                hideLoading(); alert("Gagal: " + error.message);
             }
         };
+        
+        // --- 4. SCRIPT PERBAIKAN AKUN (JALANKAN SEKALI SAJA JIKA PERLU) ---
+        // Jika akunmu yang sekarang masih nyangkut, buka Console browser (F12)
+        // Ketik: fixMyAccount() lalu tekan Enter.
+        window.fixMyAccount = async () => {
+            const user = auth.currentUser;
+            if(user) {
+                if(confirm("Ubah akun ini menjadi ADMIN?")) {
+                    await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
+                    alert("Sukses! Akun jadi ADMIN. Halaman akan dimuat ulang.");
+                    window.location.reload();
+                }
+            } else {
+                alert("Login dulu baru jalankan ini.");
+            }
+        }
     </script>
 </body>
 </html>
