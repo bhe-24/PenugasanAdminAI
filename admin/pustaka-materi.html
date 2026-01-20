@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pustaka Materi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-900 to-gray-900 p-4 flex items-center gap-3 shadow-md">
+            <img src="https://imgur.com/5Srjyo4.png" alt="Logo" class="w-10 h-10 rounded-full border-2 border-yellow-400">
+            <h1 class="text-yellow-400 font-bold text-lg tracking-wide">ADMIN PANEL</h1>
+        </div>
+
+        <div class="p-5">
+            <form id="uploadForm" class="space-y-4">
+                
+                <!-- Judul -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Judul Buku/Materi</label>
+                    <input type="text" id="judul" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-800 outline-none" placeholder="Masukkan judul...">
+                </div>
+
+                <!-- Kategori -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Kategori</label>
+                    <select id="kategori" class="w-full p-3 border rounded-lg bg-white">
+                        <option value="karya">Karya (Novel/Cerpen)</option>
+                        <option value="materi">Materi Pelajaran</option>
+                    </select>
+                </div>
+
+                <!-- Cover Image (ImgBB) -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Cover Buku</label>
+                    <input type="file" id="fileCover" accept="image/*" required class="w-full p-2 border rounded-lg bg-gray-50 text-sm">
+                    <p class="text-xs text-gray-500 mt-1">*Otomatis upload ke ImgBB</p>
+                </div>
+
+                <!-- Link Drive -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Link Google Drive</label>
+                    <input type="text" id="linkDrive" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-800 outline-none" placeholder="Paste link 'Anyone with the link'...">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="btnSubmit" class="w-full bg-blue-900 text-yellow-400 font-bold py-3 rounded-lg hover:bg-blue-800 transition flex justify-center items-center gap-2">
+                    <span id="btnText">UPLOAD DATA</span>
+                    <i id="loadingIcon" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+            </form>
+            
+            <div id="statusMsg" class="mt-4 text-center text-sm font-semibold"></div>
+            
+            <hr class="my-6">
+            <a href="index.html" class="block text-center text-blue-900 font-bold underline">Buka Halaman Utama</a>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; // API Key Kamu
+
+        // Fungsi Convert Link Drive
+        function getDirectLink(url) {
+            const regex = /\/d\/([a-zA-Z0-9_-]+)/;
+            const match = url.match(regex);
+            return (match && match[1]) ? `https://drive.google.com/uc?export=download&id=${match[1]}` : null;
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btnSubmit = document.getElementById('btnSubmit');
+            const btnText = document.getElementById('btnText');
+            const loadingIcon = document.getElementById('loadingIcon');
+            const msg = document.getElementById('statusMsg');
+
+            // UI Loading
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add('opacity-75');
+            btnText.innerText = "Mengupload Gambar...";
+            loadingIcon.classList.remove('hidden');
+
+            try {
+                // 1. Upload Gambar ke ImgBB
+                const fileInput = document.getElementById('fileCover').files[0];
+                const formData = new FormData();
+                formData.append('image', fileInput);
+
+                const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const imgData = await imgRes.json();
+
+                if (!imgData.success) throw new Error('Gagal upload gambar ke ImgBB');
+
+                const imageUrl = imgData.data.url;
+
+                // 2. Siapkan Data
+                const judul = document.getElementById('judul').value;
+                const kategori = document.getElementById('kategori').value;
+                const rawLink = document.getElementById('linkDrive').value;
+                const dlLink = getDirectLink(rawLink);
+
+                if (!dlLink) throw new Error('Link Google Drive tidak valid!');
+
+                const newData = {
+                    id: Date.now(),
+                    judul,
+                    kategori,
+                    cover: imageUrl,
+                    link: dlLink,
+                    tanggal: new Date().toISOString()
+                };
+
+                // 3. Simpan ke LocalStorage
+                const db = JSON.parse(localStorage.getItem('pustaka_db')) || [];
+                db.unshift(newData); // Tambah ke paling depan
+                localStorage.setItem('pustaka_db', JSON.stringify(db));
+
+                // Sukses
+                msg.innerHTML = `<span class="text-green-600">Berhasil! ${judul} tersimpan.</span>`;
+                document.getElementById('uploadForm').reset();
+
+            } catch (err) {
+                msg.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+            } finally {
+                // Reset UI
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('opacity-75');
+                btnText.innerText = "UPLOAD DATA";
+                loadingIcon.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
