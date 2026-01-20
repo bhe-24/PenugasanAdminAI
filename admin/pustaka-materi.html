@@ -118,6 +118,19 @@
                         <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full" id="totalCount">Loading...</span>
                     </div>
 
+                    <!-- Error Container (Ditingkatkan) -->
+                    <div id="error-container" class="hidden bg-red-50 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-sm" role="alert">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-circle mt-1"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="font-bold text-lg">Akses Ditolak (Permission Error)</p>
+                                <div id="error-message" class="text-sm mt-1 whitespace-pre-line">Something went wrong.</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-container overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
@@ -147,161 +160,211 @@
 
     <!-- LOGIKA UTAMA (MODULE) -->
     <script type="module">
-        // Import Firebase dari CDN
+        // Import Firebase & Auth
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================
-        // 1. KONFIGURASI FIREBASE (PASTE DI SINI!)
+        // 1. KONFIGURASI FIREBASE
         // ==========================================
-        // Ganti object di bawah ini dengan copas dari Firebase Console:
-        // Project Settings > General > Your apps > SDK setup and configuration > Config
         const firebaseConfig = {
-  apiKey: "AIzaSyDooErB7K4vFtmC6-PcI30v82Vh6b85fPI",
-  authDomain: "berbasis-ai.firebaseapp.com",
-  projectId: "berbasis-ai",
-  storageBucket: "berbasis-ai.firebasestorage.app",
-  messagingSenderId: "962437652324",
-  appId: "1:962437652324:web:4426a5efcabf72caebe471"
-};
+            apiKey: "AIzaSyDooErB7K4vFtmC6-PcI30v82Vh6b85fPI",
+            authDomain: "berbasis-ai.firebaseapp.com",
+            projectId: "berbasis-ai",
+            storageBucket: "berbasis-ai.firebasestorage.app",
+            messagingSenderId: "962437652324",
+            appId: "1:962437652324:web:4426a5efcabf72caebe471"
+        };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
-        const COLLECTION_NAME = 'pustaka_materi'; // Nama tabel di database
+        const COLLECTION_NAME = 'pustaka_materi';
 
         const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; 
         
-        // Simpan data materi di memory untuk keperluan Edit
         let materialsData = [];
 
         // ==========================================
-        // 2. LOGIKA UTAMA (DATABASE REALTIME)
+        // 2. LOGIKA UTAMA (AUTH + DATABASE)
         // ==========================================
 
-        // Fungsi Membaca Data (Real-time listener)
-        // Setiap kali ada perubahan di database, tabel akan update otomatis
-        const q = query(collection(db, COLLECTION_NAME), orderBy("tanggal", "desc"));
-        
-        onSnapshot(q, (snapshot) => {
-            materialsData = []; // Reset data lokal
-            const tbody = document.getElementById('tableBody');
-            const emptyState = document.getElementById('emptyState');
-            
-            tbody.innerHTML = '';
+        async function initApp() {
+            try {
+                // Login Anonim sebelum akses database
+                await signInAnonymously(auth);
+                console.log("Berhasil login anonim");
 
-            if (snapshot.empty) {
-                emptyState.classList.remove('hidden');
-                document.getElementById('totalCount').innerText = `0 Item`;
-                return;
+                // Mulai Listener Database setelah login sukses
+                startDatabaseListener();
+            } catch (error) {
+                console.error("Gagal login: ", error);
+                
+                // Cek jika error karena Anonymous Auth belum aktif
+                if (error.code === 'auth/admin-restricted-operation' || error.message.includes('enable')) {
+                    showError(`Login Anonim belum diaktifkan! 
+                    
+                    Solusi:
+                    1. Buka Firebase Console > Build > Authentication.
+                    2. Klik tab "Sign-in method".
+                    3. Aktifkan "Anonymous" (Enable).`);
+                } else {
+                    showError("Gagal inisialisasi Login. Periksa koneksi internet Anda.");
+                }
             }
+        }
 
-            emptyState.classList.add('hidden');
-            document.getElementById('totalCount').innerText = `${snapshot.size} Item`;
+        function startDatabaseListener() {
+            const q = query(collection(db, COLLECTION_NAME));
+            
+            onSnapshot(q, (snapshot) => {
+                materialsData = []; // Reset data lokal
+                const tbody = document.getElementById('tableBody');
+                const emptyState = document.getElementById('emptyState');
+                const errorContainer = document.getElementById('error-container');
+                
+                errorContainer.classList.add('hidden'); // Sembunyikan error jika berhasil
+                tbody.innerHTML = '';
 
-            snapshot.forEach((doc) => {
-                const item = doc.data();
-                item.id = doc.id; // Simpan ID dokumen Firestore
-                materialsData.push(item);
+                if (snapshot.empty) {
+                    emptyState.classList.remove('hidden');
+                    document.getElementById('totalCount').innerText = `0 Item`;
+                    return;
+                }
 
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition";
-                tr.innerHTML = `
-                    <td class="p-4 align-middle w-20">
-                        <img src="${item.cover}" alt="cover" class="w-12 h-16 object-cover rounded shadow-sm bg-gray-200" onerror="this.src='https://via.placeholder.com/50'">
-                    </td>
-                    <td class="p-4 align-middle">
-                        <p class="font-bold text-gray-900 line-clamp-1">${item.judul}</p>
-                        <a href="${item.link}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block max-w-[200px]">
-                            <i class="fas fa-link mr-1"></i>Link Download
-                        </a>
-                        <span class="text-[10px] text-gray-400">ID: ...${item.id.slice(-5)}</span>
-                    </td>
-                    <td class="p-4 align-middle">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${item.kategori === 'karya' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}">
-                            ${(item.kategori || '-').toUpperCase()}
-                        </span>
-                    </td>
-                    <td class="p-4 align-middle text-center w-32">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="startEdit('${item.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="deleteItem('${item.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                emptyState.classList.add('hidden');
+                document.getElementById('totalCount').innerText = `${snapshot.size} Item`;
+
+                // Proses data snapshot
+                snapshot.forEach((doc) => {
+                    const item = doc.data();
+                    item.id = doc.id;
+                    materialsData.push(item);
+                });
+
+                // Sorting Client-side (Terbaru di atas)
+                materialsData.sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
+
+                // Render Tabel
+                materialsData.forEach((item) => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 transition";
+                    tr.innerHTML = `
+                        <td class="p-4 align-middle w-20">
+                            <img src="${item.cover}" alt="cover" class="w-12 h-16 object-cover rounded shadow-sm bg-gray-200" onerror="this.src='https://via.placeholder.com/50'">
+                        </td>
+                        <td class="p-4 align-middle">
+                            <p class="font-bold text-gray-900 line-clamp-1">${item.judul}</p>
+                            <a href="${item.link}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block max-w-[200px]">
+                                <i class="fas fa-link mr-1"></i>Link Download
+                            </a>
+                            <span class="text-[10px] text-gray-400">ID: ...${item.id.slice(-5)}</span>
+                        </td>
+                        <td class="p-4 align-middle">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${item.kategori === 'karya' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}">
+                                ${(item.kategori || '-').toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="p-4 align-middle text-center w-32">
+                            <div class="flex justify-center gap-2">
+                                <button onclick="startEdit('${item.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteItem('${item.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }, (error) => {
+                console.error("Error Database: ", error);
+                let msg = error.message;
+
+                // DETEKSI ERROR SPESIFIK UNTUK MEMBERIKAN SOLUSI
+                if(msg.includes("Missing or insufficient permissions")) {
+                    msg = `Firebase memblokir akses karena "Rules" masih terkunci.
+                    
+                    SOLUSI WAJIB (Di Firebase Console):
+                    1. Buka Project ${firebaseConfig.projectId} > Build > Firestore Database.
+                    2. Klik tab "Rules".
+                    3. Ganti kodenya menjadi:
+                       allow read, write: if true;
+                    4. Klik "Publish".`;
+                } 
+                else if(msg.includes("Cloud Firestore API has not been used")) {
+                    msg = "Database belum dibuat. Buka Firebase Console > Firestore Database > Klik 'Create Database' > Pilih Test Mode.";
+                }
+                
+                showError(msg);
             });
-        }, (error) => {
-            console.error("Error mengambil data: ", error);
-            document.getElementById('statusMsg').innerHTML = `<span class="text-red-600">Gagal koneksi ke Database. Cek Config!</span>`;
-        });
+        }
+
+        function showError(msg) {
+            const errorContainer = document.getElementById('error-container');
+            const errorMsg = document.getElementById('error-message');
+            errorContainer.classList.remove('hidden');
+            errorMsg.innerText = msg;
+        }
 
 
         // ==========================================
-        // 3. FUNGSI-FUNGSI GLOBAL (DI EXPOSE KE WINDOW)
+        // 3. FUNGSI GLOBAL & HELPER
         // ==========================================
-        // Karena kita pakai type="module", fungsi harus ditempel ke window agar bisa dipanggil HTML onclick=""
 
-        // Fungsi Convert Link Drive
         window.getDirectLink = (url) => {
             const regex = /\/d\/([a-zA-Z0-9_-]+)/;
             const match = url.match(regex);
             return (match && match[1]) ? `https://drive.google.com/uc?export=download&id=${match[1]}` : null;
         }
 
-        // Hapus Data
         window.deleteItem = async (id) => {
-            if(confirm("Yakin ingin menghapus materi ini dari Database?")) {
+            if(confirm("Yakin ingin menghapus materi ini?")) {
                 try {
                     await deleteDoc(doc(db, COLLECTION_NAME, id));
-                    // Jika sedang mengedit item yang dihapus, reset form
                     if(document.getElementById('editId').value == id) window.resetForm();
-                    alert("Data berhasil dihapus!");
                 } catch (e) {
-                    alert("Gagal menghapus: " + e.message);
+                    // Cek error permission saat delete juga
+                    if(e.message.includes("Missing or insufficient permissions")) {
+                        alert("Gagal Hapus! Atur Firestore Rules menjadi 'true' dulu di Console.");
+                    } else {
+                        alert("Gagal menghapus: " + e.message);
+                    }
                 }
             }
         }
 
-        // Mulai Edit
         window.startEdit = (id) => {
             const item = materialsData.find(x => x.id === id);
             if(!item) return;
 
-            // Isi Form
             document.getElementById('editId').value = item.id;
             document.getElementById('existingCoverUrl').value = item.cover;
             document.getElementById('judul').value = item.judul;
             document.getElementById('kategori').value = item.kategori;
             document.getElementById('linkDrive').value = item.link; 
 
-            // Ubah UI Form
             document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit text-orange-500 mr-2"></i>Edit Materi';
             document.getElementById('btnText').innerText = "UPDATE DATA";
             document.getElementById('btnSubmit').classList.replace('bg-blue-900', 'bg-orange-600');
             document.getElementById('btnCancel').classList.remove('hidden');
             
-            // Preview Cover
             const preview = document.getElementById('coverPreview');
             preview.classList.remove('hidden');
             preview.querySelector('img').src = item.cover;
             
-            // Scroll ke form di mobile
             document.querySelector('.lg:col-span-1').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Reset Form
         window.resetForm = () => {
             document.getElementById('uploadForm').reset();
             document.getElementById('editId').value = "";
             document.getElementById('existingCoverUrl').value = "";
             
-            // Reset UI
             document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle text-blue-600 mr-2"></i>Tambah Materi Baru';
             document.getElementById('btnText').innerText = "SIMPAN";
             document.getElementById('btnSubmit').classList.replace('bg-orange-600', 'bg-blue-900');
@@ -311,7 +374,7 @@
         }
 
         // ==========================================
-        // 4. SUBMIT HANDLER (UPLOAD & UPDATE)
+        // 4. SUBMIT HANDLER
         // ==========================================
 
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
@@ -323,7 +386,6 @@
             const msg = document.getElementById('statusMsg');
             const editId = document.getElementById('editId').value; 
 
-            // UI Loading
             btnSubmit.disabled = true;
             btnSubmit.classList.add('opacity-75');
             btnText.innerText = editId ? "Mengupdate..." : "Mengupload...";
@@ -334,7 +396,6 @@
                 const kategori = document.getElementById('kategori').value;
                 const rawLink = document.getElementById('linkDrive').value;
                 
-                // Cek Link Valid
                 let finalLink = rawLink;
                 if(rawLink.includes('drive.google.com/file') || rawLink.includes('drive.google.com/open')) {
                     const dlLink = window.getDirectLink(rawLink);
@@ -342,7 +403,6 @@
                     finalLink = dlLink;
                 }
 
-                // Handle Image Upload ke ImgBB
                 let imageUrl = document.getElementById('existingCoverUrl').value;
                 const fileInput = document.getElementById('fileCover');
 
@@ -361,23 +421,19 @@
                     throw new Error('Wajib upload cover buku!');
                 }
 
-                // Data Object
                 const dataToSave = {
                     judul: judul,
                     kategori: kategori,
                     cover: imageUrl,
                     link: finalLink,
-                    tanggal: new Date().toISOString() // Untuk sorting
+                    tanggal: new Date().toISOString()
                 };
 
-                // SIMPAN KE FIREBASE
                 if (editId) {
-                    // Update Document
                     const docRef = doc(db, COLLECTION_NAME, editId);
                     await updateDoc(docRef, dataToSave);
                     msg.innerHTML = `<span class="text-green-600">Berhasil diupdate!</span>`;
                 } else {
-                    // Add New Document
                     await addDoc(collection(db, COLLECTION_NAME), dataToSave);
                     msg.innerHTML = `<span class="text-green-600">Berhasil disimpan!</span>`;
                 }
@@ -386,15 +442,21 @@
 
             } catch (err) {
                 console.error(err);
-                msg.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+                if(err.message.includes("Missing or insufficient permissions")) {
+                    msg.innerHTML = `<span class="text-red-600 font-bold">GAGAL: Firestore Rules terkunci. Cek kotak error merah di kanan.</span>`;
+                } else {
+                    msg.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+                }
             } finally {
-                // Reset UI Loading
                 btnSubmit.disabled = false;
                 btnSubmit.classList.remove('opacity-75');
                 btnText.innerText = editId ? "UPDATE DATA" : "SIMPAN";
                 loadingIcon.classList.add('hidden');
             }
         });
+
+        // Jalankan Aplikasi
+        initApp();
 
     </script>
 </body>
