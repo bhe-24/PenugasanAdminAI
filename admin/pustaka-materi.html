@@ -3,73 +3,276 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Pustaka Materi</title>
+    <title>Admin Dashboard - Pustaka Materi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom scrollbar untuk tabel */
+        .table-container::-webkit-scrollbar { height: 8px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f5f9; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-100 font-sans text-gray-800">
 
-    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-blue-900 to-gray-900 p-4 flex items-center gap-3 shadow-md">
-            <img src="https://imgur.com/5Srjyo4.png" alt="Logo" class="w-10 h-10 rounded-full border-2 border-yellow-400">
-            <h1 class="text-yellow-400 font-bold text-lg tracking-wide">ADMIN PANEL</h1>
+    <!-- NAVBAR -->
+    <nav class="bg-gradient-to-r from-blue-900 to-gray-900 shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <img src="https://imgur.com/5Srjyo4.png" alt="Logo" class="w-10 h-10 rounded-full border-2 border-yellow-400">
+                    <span class="text-yellow-400 font-bold text-xl tracking-wide">ADMIN PANEL</span>
+                </div>
+                <div>
+                    <a href="index.html" class="text-blue-200 hover:text-white text-sm font-semibold transition">
+                        <i class="fas fa-external-link-alt mr-1"></i> Lihat Website
+                    </a>
+                </div>
+            </div>
         </div>
+    </nav>
 
-        <div class="p-5">
-            <form id="uploadForm" class="space-y-4">
-                
-                <!-- Judul -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Judul Buku/Materi</label>
-                    <input type="text" id="judul" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-800 outline-none" placeholder="Masukkan judul...">
-                </div>
-
-                <!-- Kategori -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Kategori</label>
-                    <select id="kategori" class="w-full p-3 border rounded-lg bg-white">
-                        <option value="karya">Karya (Novel/Cerpen)</option>
-                        <option value="materi">Materi Pelajaran</option>
-                    </select>
-                </div>
-
-                <!-- Cover Image (ImgBB) -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Cover Buku</label>
-                    <input type="file" id="fileCover" accept="image/*" required class="w-full p-2 border rounded-lg bg-gray-50 text-sm">
-                    <p class="text-xs text-gray-500 mt-1">*Otomatis upload ke ImgBB</p>
-                </div>
-
-                <!-- Link Drive -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Link Google Drive</label>
-                    <input type="text" id="linkDrive" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-800 outline-none" placeholder="Paste link 'Anyone with the link'...">
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit" id="btnSubmit" class="w-full bg-blue-900 text-yellow-400 font-bold py-3 rounded-lg hover:bg-blue-800 transition flex justify-center items-center gap-2">
-                    <span id="btnText">UPLOAD DATA</span>
-                    <i id="loadingIcon" class="fas fa-spinner fa-spin hidden"></i>
-                </button>
-            </form>
+    <!-- MAIN CONTENT (GRID LAYOUT) -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <div id="statusMsg" class="mt-4 text-center text-sm font-semibold"></div>
-            
-            <hr class="my-6">
-            <a href="index.html" class="block text-center text-blue-900 font-bold underline">Buka Halaman Utama</a>
+            <!-- KOLOM KIRI: FORM INPUT -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden sticky top-24">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-bold text-gray-800" id="formTitle">
+                            <i class="fas fa-plus-circle text-blue-600 mr-2"></i>Tambah Materi Baru
+                        </h2>
+                    </div>
+                    
+                    <div class="p-6">
+                        <form id="uploadForm" class="space-y-4">
+                            <!-- Hidden Input untuk Mode Edit -->
+                            <input type="hidden" id="editId">
+                            <input type="hidden" id="existingCoverUrl">
+
+                            <!-- Judul -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Judul Buku/Materi</label>
+                                <input type="text" id="judul" required 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" 
+                                    placeholder="Contoh: Modul Fisika X">
+                            </div>
+
+                            <!-- Kategori -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Kategori</label>
+                                <select id="kategori" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                    <option value="karya">Karya (Novel/Cerpen)</option>
+                                    <option value="materi">Materi Pelajaran</option>
+                                </select>
+                            </div>
+
+                            <!-- Cover Image -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Cover Buku</label>
+                                <input type="file" id="fileCover" accept="image/*" 
+                                    class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <p class="text-xs text-gray-500 mt-1" id="coverHelp">*Upload baru untuk mengganti.</p>
+                                <!-- Preview kecil saat edit -->
+                                <div id="coverPreview" class="hidden mt-2">
+                                    <img src="" class="h-16 w-auto rounded border border-gray-300">
+                                </div>
+                            </div>
+
+                            <!-- Link Drive -->
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Link Google Drive</label>
+                                <input type="text" id="linkDrive" required 
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" 
+                                    placeholder="Paste link 'Anyone with the link'...">
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="pt-2 flex gap-2">
+                                <button type="submit" id="btnSubmit" 
+                                    class="flex-1 bg-blue-900 text-yellow-400 font-bold py-2.5 rounded-lg hover:bg-blue-800 transition shadow flex justify-center items-center gap-2">
+                                    <span id="btnText">SIMPAN</span>
+                                    <i id="loadingIcon" class="fas fa-spinner fa-spin hidden"></i>
+                                </button>
+                                
+                                <button type="button" id="btnCancel" onclick="resetForm()" 
+                                    class="hidden px-4 py-2.5 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition">
+                                    Batal
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div id="statusMsg" class="mt-4 text-center text-sm font-semibold"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KOLOM KANAN: TABEL DATA -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-gray-800">
+                            <i class="fas fa-list-ul text-blue-600 mr-2"></i>Daftar Materi
+                        </h2>
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full" id="totalCount">0 Item</span>
+                    </div>
+
+                    <div class="table-container overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider">
+                                    <th class="p-4 border-b">Cover</th>
+                                    <th class="p-4 border-b">Info Materi</th>
+                                    <th class="p-4 border-b">Kategori</th>
+                                    <th class="p-4 border-b text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-sm text-gray-700 divide-y divide-gray-100">
+                                <!-- Data akan di-render di sini -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pesan Kosong -->
+                    <div id="emptyState" class="hidden p-8 text-center text-gray-500">
+                        <i class="fas fa-box-open text-4xl mb-2 text-gray-300"></i>
+                        <p>Belum ada data materi.</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; // API Key Kamu
+        const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; 
+        const DB_KEY = 'pustaka_db';
 
-        // Fungsi Convert Link Drive
+        // --- HELPER FUNCTIONS ---
+
         function getDirectLink(url) {
             const regex = /\/d\/([a-zA-Z0-9_-]+)/;
             const match = url.match(regex);
             return (match && match[1]) ? `https://drive.google.com/uc?export=download&id=${match[1]}` : null;
         }
+
+        function getData() {
+            return JSON.parse(localStorage.getItem(DB_KEY)) || [];
+        }
+
+        function saveData(data) {
+            localStorage.setItem(DB_KEY, JSON.stringify(data));
+            renderTable();
+        }
+
+        // --- CORE FUNCTIONS (RENDER, ADD, EDIT, DELETE) ---
+
+        function renderTable() {
+            const data = getData();
+            const tbody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            document.getElementById('totalCount').innerText = `${data.length} Item`;
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="p-4 align-middle w-20">
+                        <img src="${item.cover}" alt="cover" class="w-12 h-16 object-cover rounded shadow-sm bg-gray-200">
+                    </td>
+                    <td class="p-4 align-middle">
+                        <p class="font-bold text-gray-900 line-clamp-1">${item.judul}</p>
+                        <a href="${item.link}" target="_blank" class="text-xs text-blue-500 hover:underline truncate block max-w-[200px]">
+                            <i class="fas fa-link mr-1"></i>Test Link
+                        </a>
+                        <span class="text-[10px] text-gray-400">ID: ${item.id}</span>
+                    </td>
+                    <td class="p-4 align-middle">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${item.kategori === 'karya' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}">
+                            ${item.kategori.toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="p-4 align-middle text-center w-32">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="startEdit(${item.id})" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteItem(${item.id})" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Hapus">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteItem(id) {
+            if(confirm("Yakin ingin menghapus materi ini?")) {
+                let data = getData();
+                data = data.filter(item => item.id !== id);
+                saveData(data);
+                // Jika sedang mengedit item yang dihapus, reset form
+                if(document.getElementById('editId').value == id) resetForm();
+            }
+        }
+
+        function startEdit(id) {
+            const data = getData();
+            const item = data.find(x => x.id === id);
+            
+            if(!item) return;
+
+            // Isi Form
+            document.getElementById('editId').value = item.id;
+            document.getElementById('existingCoverUrl').value = item.cover;
+            document.getElementById('judul').value = item.judul;
+            document.getElementById('kategori').value = item.kategori;
+            // Kita tampilkan link aslinya di input form mungkin susah karena sudah diconvert, 
+            // tapi untuk kemudahan user, biarkan dia paste link baru jika ingin ubah, 
+            // atau kosongkan. Di sini kita isi link downloadnya saja sebagai placeholder.
+            document.getElementById('linkDrive').value = item.link; 
+
+            // Ubah UI Form
+            document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit text-orange-500 mr-2"></i>Edit Materi';
+            document.getElementById('btnText').innerText = "UPDATE DATA";
+            document.getElementById('btnSubmit').classList.replace('bg-blue-900', 'bg-orange-600');
+            document.getElementById('btnCancel').classList.remove('hidden');
+            
+            // Preview Cover
+            const preview = document.getElementById('coverPreview');
+            preview.classList.remove('hidden');
+            preview.querySelector('img').src = item.cover;
+            
+            // Scroll ke form di mobile
+            document.querySelector('.lg:col-span-1').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('uploadForm').reset();
+            document.getElementById('editId').value = "";
+            document.getElementById('existingCoverUrl').value = "";
+            
+            // Reset UI
+            document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus-circle text-blue-600 mr-2"></i>Tambah Materi Baru';
+            document.getElementById('btnText').innerText = "SIMPAN";
+            document.getElementById('btnSubmit').classList.replace('bg-orange-600', 'bg-blue-900');
+            document.getElementById('btnCancel').classList.add('hidden');
+            document.getElementById('coverPreview').classList.add('hidden');
+            document.getElementById('statusMsg').innerHTML = '';
+        }
+
+        // --- MAIN SUBMIT HANDLER ---
 
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -78,65 +281,92 @@
             const btnText = document.getElementById('btnText');
             const loadingIcon = document.getElementById('loadingIcon');
             const msg = document.getElementById('statusMsg');
+            const editId = document.getElementById('editId').value; // Cek apakah mode edit
 
             // UI Loading
+            const originalBtnClass = btnSubmit.className;
             btnSubmit.disabled = true;
             btnSubmit.classList.add('opacity-75');
-            btnText.innerText = "Mengupload Gambar...";
+            btnText.innerText = editId ? "Mengupdate..." : "Mengupload...";
             loadingIcon.classList.remove('hidden');
 
             try {
-                // 1. Upload Gambar ke ImgBB
-                const fileInput = document.getElementById('fileCover').files[0];
-                const formData = new FormData();
-                formData.append('image', fileInput);
-
-                const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const imgData = await imgRes.json();
-
-                if (!imgData.success) throw new Error('Gagal upload gambar ke ImgBB');
-
-                const imageUrl = imgData.data.url;
-
-                // 2. Siapkan Data
                 const judul = document.getElementById('judul').value;
                 const kategori = document.getElementById('kategori').value;
                 const rawLink = document.getElementById('linkDrive').value;
-                const dlLink = getDirectLink(rawLink);
+                
+                // Cek Link Valid
+                // Note: Jika edit dan link tidak diubah (masih format direct download), kita terima saja.
+                // Jika user paste link drive baru, kita convert.
+                let finalLink = rawLink;
+                if(rawLink.includes('drive.google.com/file') || rawLink.includes('drive.google.com/open')) {
+                    const dlLink = getDirectLink(rawLink);
+                    if (!dlLink) throw new Error('Link Google Drive tidak valid!');
+                    finalLink = dlLink;
+                }
 
-                if (!dlLink) throw new Error('Link Google Drive tidak valid!');
+                // Handle Image
+                let imageUrl = document.getElementById('existingCoverUrl').value;
+                const fileInput = document.getElementById('fileCover');
 
+                // Jika ada file baru diupload, atau ini mode tambah baru (wajib upload)
+                if (fileInput.files.length > 0) {
+                     const formData = new FormData();
+                    formData.append('image', fileInput.files[0]);
+
+                    const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const imgData = await imgRes.json();
+                    if (!imgData.success) throw new Error('Gagal upload gambar ke ImgBB');
+                    imageUrl = imgData.data.url;
+                } else if (!editId) {
+                    // Kalau tambah baru tapi gak ada file
+                    throw new Error('Wajib upload cover buku!');
+                }
+
+                // Siapkan Data Object
                 const newData = {
-                    id: Date.now(),
+                    id: editId ? parseInt(editId) : Date.now(),
                     judul,
                     kategori,
                     cover: imageUrl,
-                    link: dlLink,
+                    link: finalLink,
                     tanggal: new Date().toISOString()
                 };
 
-                // 3. Simpan ke LocalStorage
-                const db = JSON.parse(localStorage.getItem('pustaka_db')) || [];
-                db.unshift(newData); // Tambah ke paling depan
-                localStorage.setItem('pustaka_db', JSON.stringify(db));
+                // Update Database (Local Storage)
+                let db = getData();
+                if (editId) {
+                    // Update Mode: Cari index dan replace
+                    const index = db.findIndex(x => x.id == editId);
+                    if(index !== -1) db[index] = newData;
+                } else {
+                    // Create Mode: Tambah ke depan
+                    db.unshift(newData);
+                }
+                
+                saveData(db);
 
                 // Sukses
-                msg.innerHTML = `<span class="text-green-600">Berhasil! ${judul} tersimpan.</span>`;
-                document.getElementById('uploadForm').reset();
+                msg.innerHTML = `<span class="text-green-600">Berhasil! Data ${editId ? 'diupdate' : 'disimpan'}.</span>`;
+                resetForm();
 
             } catch (err) {
                 msg.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
             } finally {
-                // Reset UI
+                // Reset UI Loading
                 btnSubmit.disabled = false;
                 btnSubmit.classList.remove('opacity-75');
-                btnText.innerText = "UPLOAD DATA";
+                btnText.innerText = editId ? "UPDATE DATA" : "SIMPAN";
                 loadingIcon.classList.add('hidden');
             }
         });
+
+        // Load data saat pertama kali buka
+        renderTable();
+
     </script>
 </body>
 </html>
