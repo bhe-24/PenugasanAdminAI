@@ -11,6 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
+        /* --- STYLE GLOBAL --- */
         :root { --primary: #003366; --accent: #4361ee; --bg: #f4f7fe; }
         body { background-color: var(--bg); font-family: 'Outfit', sans-serif; color: #333; margin: 0; padding-bottom: 50px; }
         .container { max-width: 1400px; width: 95%; margin: 0 auto; padding: 25px; }
@@ -223,7 +224,7 @@
             overlay.classList.add('active');
         }
 
-        // --- FITUR 1: VERIFIKASI (LOGIC FIX UNTUK CICILAN) ---
+        // --- FITUR 1: VERIFIKASI (FIX: TANDA PETIK & CICILAN) ---
         window.loadRequests = async () => {
             const container = document.getElementById('list-request');
             const loading = document.getElementById('loading-verif');
@@ -248,11 +249,13 @@
                 snap.forEach(d => {
                     try {
                         const u = d.data();
-                        const safeName = u.name || "Tanpa Nama";
-                        const shortUid = (u.uid || "ERR").substring(0,5);
+                        
+                        // 1. AMANKAN NAMA DARI TANDA PETIK
+                        const rawName = u.name || "Tanpa Nama";
+                        const safeName = rawName.replace(/'/g, "\\'"); // Ganti ' jadi \'
+                        const displayUid = (u.uid || "ERR").substring(0,5);
                         const sem = parseInt(String(u.semester || "1").replace(/\D/g, '') || 1);
                         
-                        // LOGIC TOMBOL DINAMIS
                         let buttonsHtml = '';
                         let amountDisplay = '';
                         let desc = '';
@@ -293,7 +296,7 @@
                         container.innerHTML += `
                             <div class="req-card">
                                 <div class="req-head">
-                                    <div><div class="req-name">${safeName}</div><div class="req-id">Sem ${sem} | ID: ${shortUid}</div></div>
+                                    <div><div class="req-name">${rawName}</div><div class="req-id">Sem ${sem} | ID: ${displayUid}</div></div>
                                     <div class="req-tag">Menunggu</div>
                                 </div>
                                 <div class="req-desc"><i class="fa-solid fa-receipt"></i> ${desc}</div>
@@ -308,7 +311,7 @@
             } catch(e) { console.error(e); }
         }
 
-        // Action Approve (Updated with newStatus)
+        // Action Approve
         window.actApprove = (uid, name, amount, type, sem, newStatus) => {
             const msg = newStatus === 'Cicilan' 
                 ? `Konfirmasi pembayaran CICILAN Rp ${amount.toLocaleString()}?` 
@@ -317,7 +320,7 @@
             showModal('confirm', 'Konfirmasi Terima', msg, async () => {
                 showModal('loading', 'Menyimpan', 'Sedang memproses...');
                 try {
-                    // 1. Update Status User (Sesuai tombol yg diklik admin)
+                    // 1. Update Status User
                     await updateDoc(doc(db, 'users', uid), {
                         statusPembayaran: newStatus, // 'Cicilan' atau 'Lunas'
                         paymentStatus: 'verified'    // Clear waiting
@@ -362,7 +365,7 @@
                         <td>${date}</td><td>${data.studentName}<br><small style="color:#999">${data.status || 'Lunas'}</small></td>
                         <td style="color:${data.type==='Ujian'?'#0284c7':'#7c3aed'}">${data.type}</td>
                         <td style="font-weight:bold;">Rp ${data.amount.toLocaleString('id-ID')}</td>
-                        <td>${data.adminName}</td>
+                        <td>${data.adminName || '-'}</td>
                     </tr>`;
             });
         }
