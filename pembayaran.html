@@ -31,73 +31,163 @@ body{margin:0;font-family:'Outfit',sans-serif;background:#f4f6f9}
 
 <script type="module">
 import { db, checkAuth } from "./js/firebase-config.js";
-import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 let currentUser = null;
+const GOOGLE_FORM_URL = "https://forms.gle/LHpkuvLxLH4DjpK9A";
 
-/* ================== AUTH & RENDER ================== */
+/* ================= PAYMENT FLOW ================= */
+window.triggerUploadFlow = () => {
+    localStorage.setItem('payment_status', 'uploading');
+    window.open(GOOGLE_FORM_URL, '_blank');
+    document.getElementById('modal-qris').classList.remove('active');
+};
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === 'visible') {
+        if (localStorage.getItem('payment_status') === 'uploading') {
+            document.getElementById('modal-confirm').classList.add('active');
+            localStorage.removeItem('payment_status');
+        }
+    }
+});
+
+window.handleConfirm = async (isDone) => {
+    document.getElementById('modal-confirm').classList.remove('active');
+    if (!isDone) {
+        document.getElementById('modal-qris').classList.add('active');
+        return;
+    }
+
+    document.getElementById('modal-loading').classList.add('active');
+    try {
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+            paymentStatus: 'waiting',
+            paymentDate: serverTimestamp()
+        });
+        localStorage.setItem('payment_timer_target', Date.now() + 86400000);
+        document.getElementById('modal-loading').classList.remove('active');
+        location.reload();
+    } catch (e) {
+        document.getElementById('modal-loading').classList.remove('active');
+        alert("Gagal kirim data.");
+    }
+};
+
+/* ================= TIMER ================= */
+function showTimerModal() {
+    document.getElementById('modal-timer').classList.add('active');
+    updateTimer();
+    setInterval(updateTimer, 1000);
+}
+
+function updateTimer() {
+    const target = localStorage.getItem('payment_timer_target');
+    if (!target) return;
+
+    const distance = target - Date.now();
+    if (distance <= 0) {
+        document.getElementById('countdown').innerHTML = "00:00:00";
+        return;
+    }
+
+    const h = Math.floor(distance / 3600000);
+    const m = Math.floor((distance % 3600000) / 60000);
+    const s = Math.floor((distance % 60000) / 1000);
+
+    document.getElementById('countdown').innerHTML =
+        `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+/* ================= INIT ================= */
 (async () => {
     currentUser = await checkAuth('siswa');
     if (!currentUser) return;
 
-    /* 🔥 JIKA ADMIN SUDAH VERIFIKASI → MATIKAN TIMER */
+    /* 🔥 FIX 1: ADMIN PUNYA PRIORITAS */
     if (currentUser.paymentStatus !== 'waiting') {
         localStorage.removeItem('payment_timer_target');
     }
 
-    renderUI(currentUser);
+    const rawSem = currentUser.semester || 1;
+    const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
+
+    renderData(currentUser, sem);
 })();
 
-/* ================== UI LOGIC ================== */
-function renderUI(user){
+/* ================= UI ================= */
+function setWaitingUI() {
+    document.getElementById('status-badge').className = 'status-badge st-waiting';
+    document.getElementById('status-badge').innerHTML =
+        '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI';
+
+    document.getElementById('action-area').innerHTML =
+        `<button onclick="showTimerModal()" class="btn-action btn-waiting">
+            <i class="fa-solid fa-hourglass-half"></i> Sedang Diproses Admin
+        </button>`;
+}
+
+async function renderData(user, sem) {
+    document.getElementById('header-sem').innerText = "Semester " + sem;
     document.getElementById('st-name').innerText = user.name;
+    document.getElementById('st-uid').innerText = user.uid.substring(0,6).toUpperCase();
+    document.getElementById('st-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
 
-    /* 🔥 PRIORITAS STATUS ADMIN */
-    if (user.statusPembayaran === 'Lunas') {
-        setPaidUI();
-        return;
-    }
+    const status = user.statusPembayaran;
+    const paymentStatus = user.paymentStatus;
 
-    if (user.paymentStatus === 'waiting') {
+    const badge = document.getElementById('status-badge');
+    const amountEl = document.getElementById('amount-display');
+    const detailsEl = document.getElementById('rincian-list');
+    const actionArea = document.getElementById('action-area');
+    const labelTagihan = document.getElementById('label-tagihan');
+
+    /* 🔥 FIX 2: WAITING HANYA DARI DATABASE */
+    const isWaiting = paymentStatus === 'waiting';
+
+    if (isWaiting && status !== 'Lunas') {
         setWaitingUI();
         return;
     }
 
-    setUnpaidUI();
+    /* ======== RENDER NORMAL (KODE ASLI KAMU) ======== */
+    if (sem < 3) {
+        const q = query(collection(db, 'exams'), where('status', '==', 'active'));
+        const snap = await getDocs(q);
+        const total = snap.size * 1000;
+
+        labelTagihan.innerText = "TAGIHAN UJIAN";
+        amountEl.innerText = "Rp " + total.toLocaleString('id-ID');
+
+        detailsEl.innerHTML = `
+            <div class="detail-row"><span>Biaya Per Mapel</span><span>Rp 1.000</span></div>
+            <div class="detail-row"><span>Jumlah Mapel</span><span>${snap.size}</span></div>
+            <div class="detail-row detail-total"><span>TOTAL</span><span>Rp ${total.toLocaleString('id-ID')}</span></div>
+        `;
+
+        if (status === 'Lunas') {
+            badge.className = 'status-badge st-paid';
+            badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
+            actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt">Lihat Kwitansi</a>`;
+        } else {
+            badge.className = 'status-badge st-unpaid';
+            badge.innerHTML = 'BELUM BAYAR';
+            actionArea.innerHTML = `<button onclick="showQRIS(${total},'Uang Ujian')" class="btn-action btn-pay">Bayar Sekarang</button>`;
+        }
+    }
+    /* === SEMESTER 3+ (TIDAK DIUBAH) === */
 }
 
-function setWaitingUI(){
-    document.getElementById('status-badge').className = 'status-badge st-waiting';
-    document.getElementById('status-badge').innerText = 'MENUNGGU VERIFIKASI';
-    document.getElementById('action-area').innerHTML =
-        `<button class="btn-action btn-waiting">Diproses Admin</button>`;
-}
-
-function setPaidUI(){
-    document.getElementById('status-badge').className = 'status-badge st-paid';
-    document.getElementById('status-badge').innerText = 'LUNAS';
-    document.getElementById('amount-display').innerText = 'Rp 0';
-    document.getElementById('action-area').innerHTML =
-        `<a href="kwitansi.html" class="btn-action">Lihat Kwitansi</a>`;
-}
-
-function setUnpaidUI(){
-    document.getElementById('status-badge').className = 'status-badge st-unpaid';
-    document.getElementById('status-badge').innerText = 'BELUM BAYAR';
-    document.getElementById('amount-display').innerText = 'Rp 75.450';
-    document.getElementById('action-area').innerHTML =
-        `<button class="btn-action">Bayar Sekarang</button>`;
-}
-
-/* ================== KONFIRMASI USER ================== */
-window.confirmPayment = async () => {
-    await updateDoc(doc(db,'users',currentUser.uid),{
-        paymentStatus:'waiting',
-        paymentDate:serverTimestamp()
-    });
-    localStorage.setItem('payment_timer_target',Date.now()+86400000);
-    location.reload();
+/* GLOBAL */
+window.showQRIS = (amount, label) => {
+    document.getElementById('qris-amount').innerText = "Rp " + amount.toLocaleString('id-ID');
+    document.getElementById('qris-title').innerText = label;
+    document.getElementById('modal-qris').classList.add('active');
 };
+window.closeAllModals = () =>
+    document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+window.showTimerModal = showTimerModal;
 </script>
+
 </body>
 </html>
