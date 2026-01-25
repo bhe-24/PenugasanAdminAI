@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Cuti - Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; color: #334155; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        
+        .header { background: white; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-back { text-decoration: none; color: #475569; font-weight: 600; }
+
+        .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .req-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-top: 4px solid #f59e0b; transition: 0.2s; }
+        .req-card:hover { transform: translateY(-3px); }
+
+        .student-name { font-weight: bold; font-size: 1.1rem; color: #0f172a; margin-bottom: 5px; }
+        .dates { font-size: 0.9rem; color: #64748b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .reason-box { background: #f8fafc; padding: 10px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        .btn-approve { background: #10b981; } .btn-approve:hover { background: #059669; }
+        .btn-reject { background: #ef4444; } .btn-reject:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h2 style="margin:0;"><i class="fa-solid fa-inbox"></i> Permohonan Masuk</h2>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-house"></i> Dashboard</a>
+        </div>
+
+        <div id="request-list" class="req-grid">
+            <div style="text-align:center; width:100%; grid-column:1/-1; padding:50px;">Memuat data...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, query, where, getDocs, doc, updateDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        (async () => {
+            const admin = await checkAuth('pengajar'); // Cek admin
+            if(admin) loadRequests();
+        })();
+
+        async function loadRequests() {
+            const container = document.getElementById('request-list');
+            // Ambil yg statusnya 'pending'
+            const q = query(collection(db, 'leave_requests'), where('status', '==', 'pending'), orderBy('timestamp', 'asc'));
+            const snap = await getDocs(q);
+
+            container.innerHTML = '';
+            if(snap.empty) {
+                container.innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#999;">Tidak ada permohonan baru.</div>';
+                return;
+            }
+
+            snap.forEach(d => {
+                const data = d.data();
+                container.innerHTML += `
+                    <div class="req-card" id="card-${d.id}">
+                        <div class="student-name">${data.studentName}</div>
+                        <div class="dates">
+                            <i class="fa-regular fa-calendar"></i> ${data.startDate} s/d ${data.endDate}
+                        </div>
+                        <div class="reason-box">"${data.reason}"</div>
+                        <div class="btn-group">
+                            <button onclick="window.process('${d.id}', 'rejected')" class="btn btn-reject">Tolak</button>
+                            <button onclick="window.process('${d.id}', 'approved')" class="btn btn-approve">Setujui</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Fungsi Proses (Global)
+        window.process = async (docId, newStatus) => {
+            if(!confirm(newStatus === 'approved' ? 'Setujui izin ini?' : 'Tolak izin ini?')) return;
+
+            try {
+                await updateDoc(doc(db, 'leave_requests', docId), { status: newStatus });
+                // Hapus kartu dari layar
+                document.getElementById(`card-${docId}`).remove();
+                
+                // Cek kalau habis
+                if(document.querySelectorAll('.req-card').length === 0) {
+                    document.getElementById('request-list').innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#999;">Semua permohonan selesai!</div>';
+                }
+            } catch(e) {
+                alert("Gagal memproses: " + e.message);
+            }
+        };
+    </script>
+</body>
+</html>
