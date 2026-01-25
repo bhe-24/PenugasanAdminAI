@@ -11,10 +11,8 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; margin: 0; color: #333; }
         
-        /* --- WRAPPER UTAMA APLIKASI --- */
-        #app-content {
-            display: block; /* Normal */
-        }
+        /* --- WRAPPER APLIKASI --- */
+        #app-content { display: block; }
 
         .container { max-width: 900px; margin: 0 auto; padding: 20px; }
         .page-header { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #d63384; }
@@ -33,46 +31,62 @@
 
         /* --- WRAPPER PDF (ISOLASI) --- */
         #pdf-wrapper {
-            display: none; /* Sembunyi normalnya */
+            display: none; 
             background: white;
             width: 100%;
             min-height: 100vh;
-            padding: 20px;
+            padding: 0; /* Reset Padding */
             box-sizing: border-box;
+            align-items: flex-start; /* Pastikan top-aligned */
+            justify-content: center;
         }
 
-        /* Saat Mode Print Aktif */
-        body.printing-mode #app-content { display: none !important; } /* Sembunyikan Aplikasi */
-        body.printing-mode #pdf-wrapper { display: block !important; } /* Munculkan Rapor */
-        body.printing-mode { background: white !important; } 
+        /* MODE PRINT: AKTIFKAN WRAPPER */
+        body.printing-mode #app-content { display: none !important; }
+        body.printing-mode #pdf-wrapper { display: flex !important; } 
+        body.printing-mode { background: white !important; overflow: hidden; } 
 
-        /* Desain Rapor di dalam Wrapper */
+        /* --- DESAIN PDF (UKURAN DIPERBAIKI) --- */
         #pdf-content {
-            width: 100%;
-            max-width: 800px; /* Lebar A4 */
-            margin: 0 auto;
+            /* LEBAR MAGIC UNTUK A4: 700px - 720px */
+            /* Jangan lebih dari 750px atau akan terpotong */
+            width: 700px; 
+            margin: 0 auto; /* Tengah */
+            padding: 20px;
             font-family: 'Times New Roman', serif;
             color: #000;
             background: white;
+            box-sizing: border-box; /* Pastikan padding masuk hitungan width */
         }
 
         .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; }
+        .pdf-header h2 { margin: 0; font-size: 16pt; text-transform: uppercase; } /* Font agak dikecilkan */
         .pdf-header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
+        
         .pdf-meta { width: 100%; margin-bottom: 20px; font-size: 11pt; border-collapse: collapse; }
-        .pdf-meta td { padding: 3px 0; vertical-align: top; }
-        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; }
-        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 6px 8px; }
+        .pdf-meta td { padding: 4px 0; vertical-align: top; }
+        
+        /* Tabel Nilai */
+        .pdf-table { 
+            width: 100%; /* Mengikuti lebar parent (700px) */
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+            font-size: 11pt; 
+        }
+        .pdf-table th, .pdf-table td { 
+            border: 1px solid #000; 
+            padding: 6px 8px; /* Padding sel agak dikecilkan */
+        }
         .pdf-table th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
-        .pdf-summary { border: 2px solid #000; padding: 10px; width: fit-content; margin-bottom: 40px; font-size: 11pt; }
+        
+        .pdf-summary { border: 2px solid #000; padding: 10px; width: 100%; max-width: 300px; margin-bottom: 40px; font-size: 11pt; box-sizing: border-box;}
         .pdf-sig { display: flex; justify-content: space-between; margin-top: 40px; font-size: 11pt; }
         .sig-block { text-align: center; width: 200px; }
         .sig-space { height: 60px; }
 
-        /* Loading */
         #main-loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); z-index: 9999;
+            background: rgba(255,255,255,0.95); z-index: 9999;
             display: none; justify-content: center; align-items: center; flex-direction: column;
         }
     </style>
@@ -90,11 +104,9 @@
                 <h2><i class="fa-solid fa-file-invoice"></i> Arsip E-Rapor</h2>
                 <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
             </div>
-
             <div class="search-box">
                 <input type="text" id="search" placeholder="Cari nama siswa..." oninput="window.searchSiswa()">
             </div>
-
             <div id="student-list" class="student-list">
                 <div style="text-align:center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
             </div>
@@ -111,12 +123,12 @@
 
             <table class="pdf-meta">
                 <tr>
-                    <td width="130"><b>Nama Siswa</b></td><td width="10">:</td><td id="t-name"></td>
-                    <td width="100"><b>Semester</b></td><td width="10">:</td><td id="t-sem"></td>
+                    <td width="120"><b>Nama Siswa</b></td><td width="10">:</td><td class="fill-name"></td>
+                    <td width="90"><b>Semester</b></td><td width="10">:</td><td class="fill-sem"></td>
                 </tr>
                 <tr>
-                    <td><b>ID Siswa</b></td><td>:</td><td id="t-id"></td>
-                    <td><b>Tahun Ajaran</b></td><td>:</td><td>2024/2025</td>
+                    <td><b>ID Siswa</b></td><td>:</td><td class="fill-id"></td>
+                    <td><b>Th. Ajaran</b></td><td>:</td><td>2024/2025</td>
                 </tr>
                 <tr>
                     <td><b>Program</b></td><td>:</td><td>Sastra</td>
@@ -127,18 +139,18 @@
             <table class="pdf-table">
                 <thead>
                     <tr>
-                        <th width="40">No.</th>
+                        <th width="30">No</th>
                         <th>Komponen Penilaian</th>
-                        <th width="80">Nilai Angka</th>
-                        <th width="80">Nilai Huruf</th>
+                        <th width="60">Angka</th>
+                        <th width="60">Huruf</th>
                     </tr>
                 </thead>
                 <tbody id="t-body"></tbody>
             </table>
 
             <div class="pdf-summary">
-                <strong>Indeks Prestasi Semester (IPS): <span id="t-ips" style="font-size:1.2rem;">0.00</span></strong><br>
-                <span id="t-predikat">Predikat: -</span>
+                <strong>IPS: <span class="fill-ips" style="font-size:1.2rem;">0.00</span></strong><br>
+                <span class="fill-predikat">Predikat: -</span>
             </div>
 
             <div class="pdf-sig">
@@ -148,7 +160,7 @@
                     <p>( ........................... )</p>
                 </div>
                 <div class="sig-block">
-                    <p>Temanggung, <span id="t-date"></span><br>Kepala Cendekia Aksara</p>
+                    <p>Temanggung, <span class="fill-date"></span><br>Kepala Cendekia Aksara</p>
                     <div class="sig-space"></div>
                     <p><b>M. Bayu Aji Tolafudin</b><br>NIP. -</p>
                 </div>
@@ -229,22 +241,23 @@
             container.innerHTML = htmlBuffer;
         }
 
-        // --- FUNGSI DOWNLOAD PDF (METODE ISOLASI) ---
+        // --- FUNGSI DOWNLOAD PDF ---
         window.downloadPdf = async (id, sem, name) => {
             const loader = document.getElementById('main-loading');
             loader.style.display = 'flex';
 
+            window.scrollTo(0,0);
+
             try {
-                // 1. Ambil Data
                 const docSnap = await getDoc(doc(db, 'users', id));
                 if(!docSnap.exists()) throw new Error("Data tidak ditemukan");
                 const studentData = docSnap.data();
 
-                // 2. Isi Template
-                document.getElementById('t-name').innerText = name;
-                document.getElementById('t-sem').innerText = sem;
-                document.getElementById('t-id').innerText = id.substring(0,8).toUpperCase();
-                document.getElementById('t-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                // Isi Data
+                document.querySelector('.fill-name').innerText = name;
+                document.querySelector('.fill-sem').innerText = sem;
+                document.querySelector('.fill-id').innerText = id.substring(0,8).toUpperCase();
+                document.querySelector('.fill-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
                 const components = [
                     { name: "Tugas Harian 1", val: studentData.nilai_t1 },
@@ -255,8 +268,8 @@
                     { name: "Tugas Harian 6", val: studentData.nilai_t6 },
                     { name: "Tugas Harian 7", val: studentData.nilai_t7 },
                     { name: "Tugas Harian 8", val: studentData.nilai_t8 },
-                    { name: "Ujian Tengah Semester (UTS)", val: studentData.nilai_uts },
-                    { name: "Ujian Akhir Semester (UAS)", val: studentData.nilai_uas },
+                    { name: "UTS", val: studentData.nilai_uts },
+                    { name: "UAS", val: studentData.nilai_uas },
                 ];
 
                 let rows = ""; let no = 1;
@@ -271,20 +284,18 @@
                 document.getElementById('t-body').innerHTML = rows;
 
                 const ips = parseFloat(studentData.ips || 0).toFixed(2);
-                document.getElementById('t-ips').innerText = ips;
-                document.getElementById('t-predikat').innerText = "Predikat: " + (ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-")));
+                document.querySelector('.fill-ips').innerText = ips;
+                document.querySelector('.fill-predikat').innerText = "Predikat: " + (ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-")));
 
-                // 3. MASUK MODE ISOLASI (Sembunyikan App, Munculkan PDF)
+                // AKTIFKAN MODE PRINTING (ISOLASI)
                 document.body.classList.add('printing-mode');
-                window.scrollTo(0,0); // Wajib Scroll ke atas
-
-                // Tunggu render
+                
+                // Tunggu Render
                 await new Promise(r => setTimeout(r, 800));
 
-                // 4. Generate
                 const element = document.getElementById('pdf-content');
                 const opt = {
-                    margin:       10,
+                    margin:       [10, 10, 10, 10], // Margin (mm) Top, Left, Bottom, Right
                     filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
                     image:        { type: 'jpeg', quality: 0.98 },
                     html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
@@ -297,7 +308,7 @@
                 console.error(e);
                 alert("Gagal: " + e.message);
             } finally {
-                // 5. KEMBALIKAN TAMPILAN NORMAL
+                // MATIKAN MODE PRINTING
                 document.body.classList.remove('printing-mode');
                 loader.style.display = 'none';
             }
