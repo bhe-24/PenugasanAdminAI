@@ -32,14 +32,9 @@
 
         /* --- TEMPLATE PDF TERSEMBUNYI --- */
         #pdf-template {
-            display: none; /* Disembunyikan dari layar */
-            width: 800px; /* Lebar A4 proporsional */
-            padding: 40px;
-            background: white;
-            font-family: 'Times New Roman', serif;
-            color: #000;
+            position: absolute; left: -9999px; top: -9999px; /* Sembunyikan teknik CSS */
+            width: 800px; padding: 40px; background: white; font-family: 'Times New Roman', serif; color: #000;
         }
-        /* Style khusus template PDF */
         .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
         .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; }
         .pdf-header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
@@ -52,9 +47,17 @@
         .pdf-sig { display: flex; justify-content: space-between; margin-top: 40px; font-size: 11pt; }
         .sig-block { text-align: center; width: 200px; }
         .sig-space { height: 60px; }
+        
+        /* Overlay Loading PDF */
+        #pdf-loading { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; display:none; justify-content:center; align-items:center; flex-direction:column; }
     </style>
 </head>
 <body>
+    <div id="pdf-loading">
+        <i class="fa-solid fa-file-pdf fa-bounce" style="font-size:3rem; color:#d63384;"></i>
+        <p style="margin-top:10px; font-weight:bold; color:#333;">Sedang Membuat PDF...</p>
+    </div>
+
     <div class="container">
         <div class="page-header">
             <h2><i class="fa-solid fa-file-invoice"></i> Arsip E-Rapor</h2>
@@ -145,42 +148,53 @@
         let allStudents = [];
 
         onAuthStateChanged(auth, async (user) => {
-            if (!user) await signInAnonymously(auth);
+            if (!user) {
+                try { await signInAnonymously(auth); } catch(e) { console.error(e); }
+            }
             loadData();
         });
 
         async function loadData() {
-            const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
-            const snap = await getDocs(q);
-            allStudents = [];
-            snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
-            allStudents.sort((a,b) => a.name.localeCompare(b.name));
-            render(allStudents);
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                allStudents = [];
+                snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                allStudents.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+                render(allStudents);
+            } catch(e) {
+                document.getElementById('student-list').innerHTML = '<p style="text-align:center;">Gagal memuat data.</p>';
+            }
         }
 
         window.searchSiswa = () => {
             const key = document.getElementById('search').value.toLowerCase();
-            const filtered = allStudents.filter(s => s.name.toLowerCase().includes(key));
+            const filtered = allStudents.filter(s => (s.name || "").toLowerCase().includes(key));
             render(filtered);
         };
 
+        // --- OPTIMASI RENDER (Mencegah Hang) ---
         function render(list) {
             const container = document.getElementById('student-list');
-            container.innerHTML = '';
             
             if(list.length === 0) {
                 container.innerHTML = '<p style="text-align:center;">Data tidak ditemukan.</p>';
                 return;
             }
 
+            let htmlBuffer = ""; // Pakai buffer string
+
             list.forEach(s => {
                 const currentSem = s.semester || 1;
                 let raporButtons = '';
 
+                // Escape tanda petik pada nama untuk fungsi onclick
+                const safeName = (s.name || "Siswa").replace(/'/g, "\\'");
+
                 for(let i=1; i<=3; i++) { 
                     if(i <= currentSem) {
                         raporButtons += `
-                            <button onclick="window.downloadPdf('${s.id}', ${i}, '${s.name}')" class="btn-rapor">
+                            <button onclick="window.downloadPdf('${s.id}', ${i}, '${safeName}')" class="btn-rapor">
                                 <i class="fa-solid fa-file-pdf"></i> PDF Sem ${i}
                             </button>`;
                     } else {
@@ -191,7 +205,7 @@
                     }
                 }
 
-                container.innerHTML += `
+                htmlBuffer += `
                     <div class="student-item">
                         <div class="student-header">
                             <span class="student-name">${s.name}</span>
@@ -203,32 +217,35 @@
                     </div>
                 `;
             });
+
+            container.innerHTML = htmlBuffer; // Update DOM satu kali saja
         }
 
         // --- FUNGSI DOWNLOAD PDF ---
         window.downloadPdf = async (id, sem, name) => {
-            // 1. Tampilkan Loading pada Tombol (Opsional UX)
-            // Bisa tambahkan spinner jika mau
+            const loader = document.getElementById('pdf-loading');
+            loader.style.display = 'flex'; // Tampilkan loading overlay
 
-            // 2. Ambil Data Nilai
             let studentData = {};
             try {
                 const docSnap = await getDoc(doc(db, 'users', id));
                 if(docSnap.exists()) {
                     studentData = docSnap.data();
+                } else {
+                    throw new Error("Data tidak ditemukan");
                 }
             } catch(e) {
-                alert("Gagal memuat data nilai.");
+                loader.style.display = 'none';
+                alert("Gagal memuat data nilai: " + e.message);
                 return;
             }
 
-            // 3. Isi Template PDF dengan Data
+            // Isi Data ke Template
             document.getElementById('t-name').innerText = name;
             document.getElementById('t-sem').innerText = sem;
             document.getElementById('t-id').innerText = id.substring(0,8).toUpperCase();
             document.getElementById('t-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-            // Susun Tabel Nilai
             const components = [
                 { name: "Tugas Harian 1", val: studentData.nilai_t1 },
                 { name: "Tugas Harian 2", val: studentData.nilai_t2 },
@@ -245,7 +262,7 @@
             let rows = "";
             let no = 1;
             components.forEach(comp => {
-                const val = comp.val !== undefined && comp.val !== null ? comp.val : "-";
+                const val = comp.val !== undefined && comp.val !== null && comp.val !== "" ? comp.val : "-";
                 let huruf = "-";
                 if(typeof val === 'number') {
                     if(val >= 85) huruf = "A"; else if(val >= 75) huruf = "B";
@@ -255,29 +272,28 @@
             });
             document.getElementById('t-body').innerHTML = rows;
 
-            // Hitung IPS
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             document.getElementById('t-ips').innerText = ips;
             document.getElementById('t-predikat').innerText = "Predikat: " + (ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-")));
 
-            // 4. Proses Konversi HTML ke PDF
+            // Generate PDF
             const element = document.getElementById('pdf-template');
             
-            // Tampilkan template sebentar agar html2pdf bisa membacanya (penting!)
-            element.style.display = 'block';
-
+            // Trik: Clone elemen agar styling tidak rusak saat diproses
             const opt = {
-                margin:       10, // Margin (mm)
-                filename:     `Rapor_Sem${sem}_${name.replace(/\s+/g, '_')}.pdf`,
+                margin:       10,
+                filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`, // Nama file aman
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 }, // Resolusi tinggi
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Generate & Save
             html2pdf().set(opt).from(element).save().then(() => {
-                // Sembunyikan lagi setelah download selesai
-                element.style.display = 'none';
+                loader.style.display = 'none';
+            }).catch(err => {
+                console.error(err);
+                loader.style.display = 'none';
+                alert("Gagal membuat PDF. Coba lagi.");
             });
         };
     </script>
