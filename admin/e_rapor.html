@@ -27,27 +27,42 @@
         .btn-rapor { background: #fff; border: 1px solid #d63384; color: #d63384; padding: 8px 15px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .btn-rapor:hover { background: #d63384; color: white; }
         .btn-rapor.locked { border-color: #ccc; color: #999; cursor: not-allowed; background: #f9f9f9; }
-        .btn-rapor.locked:hover { background: #f9f9f9; color: #999; }
         .btn-back { background: #6c757d; color: white; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.9rem; }
 
-        /* --- CSS TEMPLATE PDF --- */
-        /* Template Asli disembunyikan total */
-        #pdf-template-master { display: none; }
-
-        /* Kelas untuk elemen Clone yang akan diprint */
-        .pdf-visible-clone {
-            position: fixed; /* Supaya tidak mengganggu layout */
-            top: 0; left: 0;
-            z-index: -9999; /* Sembunyikan di belakang */
-            width: 800px; /* Lebar A4 */
-            padding: 40px;
-            background: white;
-            font-family: 'Times New Roman', serif;
-            color: #000;
-            display: block !important; /* Paksa muncul */
+        /* --- LOADING OVERLAY (TIRAI PENUTUP) --- */
+        #pdf-loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 9999; /* Paling Depan */
+            display: none; justify-content: center; align-items: center; flex-direction: column;
         }
 
-        /* Style Tabel PDF */
+        /* --- TEMPLATE PDF --- */
+        #pdf-template {
+            /* KUNCI SUKSES: Jangan display:none. 
+               Tapi taruh di layer paling bawah (z-index -1) 
+               dan posisikan absolute.
+            */
+            position: absolute; 
+            top: 0; left: 0;
+            z-index: -1; 
+            
+            width: 794px; /* Lebar A4 Pixel Exact */
+            min-height: 1123px; /* Tinggi A4 */
+            padding: 40px; 
+            background: white; 
+            font-family: 'Times New Roman', serif; 
+            color: #000;
+            
+            /* Sembunyikan visual dari user, tapi tetap dirender browser */
+            visibility: hidden; 
+        }
+
+        /* Kelas Saat Print: Munculkan agar html2pdf bisa lihat */
+        #pdf-template.show-for-print {
+            visibility: visible !important;
+            z-index: 100 !important; /* Naikkan sebentar */
+        }
+
         .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
         .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; }
         .pdf-header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
@@ -60,14 +75,14 @@
         .pdf-sig { display: flex; justify-content: space-between; margin-top: 40px; font-size: 11pt; }
         .sig-block { text-align: center; width: 200px; }
         .sig-space { height: 60px; }
-        
-        #pdf-loading { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index:9999; display:none; justify-content:center; align-items:center; flex-direction:column; }
     </style>
 </head>
 <body>
+    
     <div id="pdf-loading">
-        <i class="fa-solid fa-file-pdf fa-bounce" style="font-size:3rem; color:#d63384;"></i>
-        <p style="margin-top:10px; font-weight:bold; color:#333;">Memproses PDF...</p>
+        <i class="fa-solid fa-print fa-bounce" style="font-size:3rem; color:#d63384; margin-bottom: 15px;"></i>
+        <h3 style="color:#333;">Sedang Mencetak PDF...</h3>
+        <p style="color:#666;">Mohon tunggu, jangan tutup halaman ini.</p>
     </div>
 
     <div class="container">
@@ -85,7 +100,7 @@
         </div>
     </div>
 
-    <div id="pdf-template-master">
+    <div id="pdf-template">
         <div class="pdf-header">
             <h2>Komunitas Literasi Cendekia Aksara</h2>
             <h3 style="margin:5px 0; font-size:14pt; font-weight:normal;">KARTU HASIL STUDI (KHS)</h3>
@@ -94,11 +109,11 @@
 
         <table class="pdf-meta">
             <tr>
-                <td width="130"><b>Nama Siswa</b></td><td width="10">:</td><td class="fill-name"></td>
-                <td width="100"><b>Semester</b></td><td width="10">:</td><td class="fill-sem"></td>
+                <td width="130"><b>Nama Siswa</b></td><td width="10">:</td><td id="t-name"></td>
+                <td width="100"><b>Semester</b></td><td width="10">:</td><td id="t-sem"></td>
             </tr>
             <tr>
-                <td><b>ID Siswa</b></td><td>:</td><td class="fill-id"></td>
+                <td><b>ID Siswa</b></td><td>:</td><td id="t-id"></td>
                 <td><b>Tahun Ajaran</b></td><td>:</td><td>2024/2025</td>
             </tr>
             <tr>
@@ -116,12 +131,12 @@
                     <th width="80">Nilai Huruf</th>
                 </tr>
             </thead>
-            <tbody class="fill-body"></tbody>
+            <tbody id="t-body"></tbody>
         </table>
 
         <div class="pdf-summary">
-            <strong>Indeks Prestasi Semester (IPS): <span class="fill-ips" style="font-size:1.2rem;">0.00</span></strong><br>
-            <span class="fill-predikat">Predikat: -</span>
+            <strong>Indeks Prestasi Semester (IPS): <span id="t-ips" style="font-size:1.2rem;">0.00</span></strong><br>
+            <span id="t-predikat">Predikat: -</span>
         </div>
 
         <div class="pdf-sig">
@@ -131,7 +146,7 @@
                 <p>( ........................... )</p>
             </div>
             <div class="sig-block">
-                <p>Temanggung, <span class="fill-date"></span><br>Kepala Cendekia Aksara</p>
+                <p>Temanggung, <span id="t-date"></span><br>Kepala Cendekia Aksara</p>
                 <div class="sig-space"></div>
                 <p><b>M. Bayu Aji Tolafudin</b><br>NIP. -</p>
             </div>
@@ -211,85 +226,83 @@
             container.innerHTML = htmlBuffer;
         }
 
-        // --- FUNGSI DOWNLOAD PDF (TEKNIK CLONE & DESTROY) ---
+        // --- FUNGSI DOWNLOAD PDF (VERSI STABIL) ---
         window.downloadPdf = async (id, sem, name) => {
+            // 1. Tampilkan Loading (Menutupi Layar)
             const loader = document.getElementById('pdf-loading');
             loader.style.display = 'flex';
 
-            let studentData = {};
+            // 2. Scroll ke atas (PENTING! html2canvas suka error kalau discroll ke bawah)
+            window.scrollTo(0,0);
+
             try {
+                // 3. Ambil Data
                 const docSnap = await getDoc(doc(db, 'users', id));
-                if(docSnap.exists()) {
-                    studentData = docSnap.data();
-                } else {
-                    throw new Error("Data tidak ditemukan");
-                }
-            } catch(e) {
+                if(!docSnap.exists()) throw new Error("Data tidak ditemukan");
+                const studentData = docSnap.data();
+
+                // 4. Isi Template
+                document.getElementById('t-name').innerText = name;
+                document.getElementById('t-sem').innerText = sem;
+                document.getElementById('t-id').innerText = id.substring(0,8).toUpperCase();
+                document.getElementById('t-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                const components = [
+                    { name: "Tugas Harian 1", val: studentData.nilai_t1 },
+                    { name: "Tugas Harian 2", val: studentData.nilai_t2 },
+                    { name: "Tugas Harian 3", val: studentData.nilai_t3 },
+                    { name: "Tugas Harian 4", val: studentData.nilai_t4 },
+                    { name: "Tugas Harian 5", val: studentData.nilai_t5 },
+                    { name: "Tugas Harian 6", val: studentData.nilai_t6 },
+                    { name: "Tugas Harian 7", val: studentData.nilai_t7 },
+                    { name: "Tugas Harian 8", val: studentData.nilai_t8 },
+                    { name: "Ujian Tengah Semester (UTS)", val: studentData.nilai_uts },
+                    { name: "Ujian Akhir Semester (UAS)", val: studentData.nilai_uas },
+                ];
+
+                let rows = ""; let no = 1;
+                components.forEach(comp => {
+                    const val = comp.val !== undefined && comp.val !== null && comp.val !== "" ? comp.val : "-";
+                    let huruf = "-";
+                    if(typeof val === 'number') {
+                        if(val >= 85) huruf = "A"; else if(val >= 75) huruf = "B"; else if(val >= 60) huruf = "C"; else if(val >= 50) huruf = "D"; else huruf = "E";
+                    }
+                    rows += `<tr><td style="text-align:center;">${no++}</td><td>${comp.name}</td><td style="text-align:center;">${val}</td><td style="text-align:center;">${huruf}</td></tr>`;
+                });
+                document.getElementById('t-body').innerHTML = rows;
+
+                const ips = parseFloat(studentData.ips || 0).toFixed(2);
+                document.getElementById('t-ips').innerText = ips;
+                document.getElementById('t-predikat').innerText = "Predikat: " + (ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-")));
+
+                // 5. SIAPKAN ELEMEN (Buka Tirai)
+                const element = document.getElementById('pdf-template');
+                element.classList.add('show-for-print'); // Ubah visibility jadi visible
+
+                const opt = {
+                    margin:       10,
+                    filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true, scrollY: 0 }, // scrollY: 0 PENTING!
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+
+                // Tunggu sebentar biar browser render text yang baru diisi
+                await new Promise(r => setTimeout(r, 500));
+
+                // 6. ACTION!
+                await html2pdf().set(opt).from(element).save();
+                
+                // 7. BERSIHKAN (Tutup Tirai)
+                element.classList.remove('show-for-print');
                 loader.style.display = 'none';
-                alert("Gagal: " + e.message);
-                return;
+
+            } catch(e) {
+                console.error(e);
+                loader.style.display = 'none';
+                document.getElementById('pdf-template').classList.remove('show-for-print');
+                alert("Gagal membuat PDF: " + e.message);
             }
-
-            // 1. CLONE TEMPLATE (Biar Fresh Setiap Kali Download)
-            const template = document.getElementById('pdf-template-master');
-            const clone = template.cloneNode(true); // Duplikat elemen
-            
-            // 2. SET UP CLONE
-            clone.id = "pdf-temp-print"; // Kasih ID baru
-            clone.className = "pdf-visible-clone"; // Tampilkan (tapi di belakang layar)
-            document.body.appendChild(clone); // Masukkan ke Body biar kebaca browser
-
-            // 3. ISI DATA KE CLONE (Pake QuerySelector karena ID clone berubah)
-            clone.querySelector('.fill-name').innerText = name;
-            clone.querySelector('.fill-sem').innerText = sem;
-            clone.querySelector('.fill-id').innerText = id.substring(0,8).toUpperCase();
-            clone.querySelector('.fill-date').innerText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
-            const components = [
-                { name: "Tugas Harian 1", val: studentData.nilai_t1 },
-                { name: "Tugas Harian 2", val: studentData.nilai_t2 },
-                { name: "Tugas Harian 3", val: studentData.nilai_t3 },
-                { name: "Tugas Harian 4", val: studentData.nilai_t4 },
-                { name: "Tugas Harian 5", val: studentData.nilai_t5 },
-                { name: "Tugas Harian 6", val: studentData.nilai_t6 },
-                { name: "Tugas Harian 7", val: studentData.nilai_t7 },
-                { name: "Tugas Harian 8", val: studentData.nilai_t8 },
-                { name: "Ujian Tengah Semester (UTS)", val: studentData.nilai_uts },
-                { name: "Ujian Akhir Semester (UAS)", val: studentData.nilai_uas },
-            ];
-
-            let rows = ""; let no = 1;
-            components.forEach(comp => {
-                const val = comp.val !== undefined && comp.val !== null && comp.val !== "" ? comp.val : "-";
-                let huruf = "-";
-                if(typeof val === 'number') {
-                    if(val >= 85) huruf = "A"; else if(val >= 75) huruf = "B"; else if(val >= 60) huruf = "C"; else if(val >= 50) huruf = "D"; else huruf = "E";
-                }
-                rows += `<tr><td style="text-align:center;">${no++}</td><td>${comp.name}</td><td style="text-align:center;">${val}</td><td style="text-align:center;">${huruf}</td></tr>`;
-            });
-            clone.querySelector('.fill-body').innerHTML = rows;
-
-            const ips = parseFloat(studentData.ips || 0).toFixed(2);
-            clone.querySelector('.fill-ips').innerText = ips;
-            clone.querySelector('.fill-predikat').innerText = "Predikat: " + (ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-")));
-
-            // 4. GENERATE PDF DARI CLONE
-            const opt = {
-                margin:       10,
-                filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            // Tunggu sebentar biar browser render (penting buat cegah blank)
-            await new Promise(r => setTimeout(r, 500)); 
-
-            await html2pdf().set(opt).from(clone).save();
-
-            // 5. BERSIHKAN (Hancurkan Clone)
-            document.body.removeChild(clone);
-            loader.style.display = 'none';
         };
     </script>
 </body>
