@@ -29,6 +29,7 @@
         .btn-danger { background: #fee2e2; color: #b91c1c; }
         .btn-warning { background: #fff3cd; color: #856404; }
         .btn-info { background: #e0f2fe; color: #0284c7; }
+        .btn-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .btn:hover { transform: translateY(-2px); opacity: 0.9; }
 
         /* GRID UJIAN */
@@ -76,7 +77,7 @@
         }
         .monitor-overlay.active { display: flex; }
         .monitor-box {
-            background: white; width: 90%; max-width: 800px; height: 80vh;
+            background: white; width: 90%; max-width: 900px; height: 85vh;
             border-radius: 20px; overflow: hidden; display: flex; flex-direction: column;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s ease;
         }
@@ -134,8 +135,9 @@
             <input type="hidden" id="edit-id">
             
             <div class="form-group">
-                <label class="form-label">Judul Ujian</label>
-                <input type="text" id="judul" class="form-input" placeholder="Contoh: UTS Bahasa Indonesia">
+                <label class="form-label">Judul Ujian (Contoh: UTS Matematika, UAS Bahasa)</label>
+                <input type="text" id="judul" class="form-input" placeholder="Masukkan judul dengan jelas...">
+                <small style="color:var(--accent);">*Gunakan kata 'UTS' atau 'UAS' di judul agar nilai bisa disinkronkan otomatis.</small>
             </div>
             <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px;">
                 <div class="form-group">
@@ -190,6 +192,13 @@ D. 5"></textarea>
                 </div>
                 <button onclick="closeMonitor()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
+            
+            <div style="padding:15px; background:#fff; border-bottom:1px solid #eee; display:flex; justify-content:flex-end;">
+                <button id="btn-sync" class="btn btn-success">
+                    <i class="fa-solid fa-arrows-rotate"></i> Sinkronkan Nilai ke Rapor
+                </button>
+            </div>
+
             <div class="mon-tabs">
                 <div class="mon-tab active" onclick="switchMonTab('done')" id="tab-done">Sudah Mengerjakan (<span id="count-done">0</span>)</div>
                 <div class="mon-tab" onclick="switchMonTab('pending')" id="tab-pending">Belum Mengerjakan (<span id="count-pending">0</span>)</div>
@@ -262,7 +271,7 @@ D. 5"></textarea>
                             
                             <div class="ec-actions">
                                 <button onclick="window.openMonitor('${d.id}', '${data.judul}')" class="btn btn-info btn-act full-width">
-                                    <i class="fa-solid fa-chart-pie"></i> Monitoring Nilai
+                                    <i class="fa-solid fa-chart-pie"></i> Monitoring & Nilai
                                 </button>
                                 <button onclick="window.editExam('${d.id}')" class="btn btn-warning btn-act">
                                     <i class="fa-solid fa-pen"></i> Edit
@@ -293,11 +302,18 @@ D. 5"></textarea>
             }
         }
 
-        // --- MONITORING ---
+        // --- MONITORING & SYNC ---
         window.openMonitor = async (examId, title) => {
             document.getElementById('mon-title').innerText = title;
             document.getElementById('mon-subtitle').innerText = "Memuat data...";
             document.getElementById('monitor-overlay').classList.add('active');
+            
+            // Set tombol Sync
+            const btnSync = document.getElementById('btn-sync');
+            btnSync.onclick = () => window.syncGrades(examId, title); // Attach Logic Sync
+            btnSync.disabled = false;
+            btnSync.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sinkronkan Nilai ke Rapor';
+
             switchMonTab('done');
 
             try {
@@ -340,6 +356,85 @@ D. 5"></textarea>
                 document.getElementById('mon-subtitle').innerText = `Total: ${countDone + countPending} Siswa`;
 
             } catch(e) { alert("Error: " + e.message); closeMonitor(); }
+        }
+
+        // === FITUR UTAMA: SINKRON NILAI KE RAPOR ===
+        window.syncGrades = async (examId, title) => {
+            const btn = document.getElementById('btn-sync');
+            const originalText = btn.innerHTML;
+            
+            // 1. Deteksi Kolom Tujuan
+            const lowerTitle = title.toLowerCase();
+            let targetField = null;
+            if (lowerTitle.includes("uts")) targetField = "nilai_uts";
+            else if (lowerTitle.includes("uas")) targetField = "nilai_uas";
+            else if (lowerTitle.includes("tugas 1") || lowerTitle.includes("t1")) targetField = "nilai_t1";
+            else if (lowerTitle.includes("tugas 2")) targetField = "nilai_t2";
+            // ... (Tambahkan deteksi lain jika perlu)
+
+            if (!targetField) {
+                alert("⚠️ Sistem tidak mengenali jenis ujian dari Judul.\n\nPastikan Judul mengandung kata 'UTS' atau 'UAS' agar bisa otomatis masuk ke Rapor.");
+                return;
+            }
+
+            if(!confirm(`Yakin ingin menyalin nilai ini ke kolom '${targetField.toUpperCase()}' di Data Siswa?`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyinkronkan...';
+
+            try {
+                // 2. Ambil Semua Hasil Ujian Ini
+                const qResult = query(collection(db, 'quiz_results'), where('quizId', '==', examId));
+                const snapResult = await getDocs(qResult);
+
+                if(snapResult.empty) { throw new Error("Belum ada siswa yang mengerjakan ujian ini."); }
+
+                let updatedCount = 0;
+
+                // 3. Loop Setiap Hasil & Update User
+                for (const docRes of snapResult.docs) {
+                    const res = docRes.data();
+                    const score = res.score;
+                    const studentId = res.studentId;
+
+                    if (studentId) {
+                        const userRef = doc(db, 'users', studentId);
+                        const userSnap = await getDoc(userRef);
+
+                        if(userSnap.exists()) {
+                            // HITUNG ULANG IPS DI SINI (Biar Rapor Valid)
+                            let d = userSnap.data();
+                            
+                            // Update nilai di memori dulu
+                            d[targetField] = score; 
+
+                            // Rumus IPS
+                            let totalTugas = 0;
+                            for(let i=1; i<=8; i++) { totalTugas += (d[`nilai_t${i}`] || 0) * 0.05; }
+                            let sUts = (d['nilai_uts'] || 0) * 0.30;
+                            let sUas = (d['nilai_uas'] || 0) * 0.30;
+                            
+                            const finalScore = totalTugas + sUts + sUas;
+                            const newIps = (finalScore / 100) * 4;
+
+                            // Simpan ke DB
+                            await updateDoc(userRef, {
+                                [targetField]: score,
+                                ips: newIps
+                            });
+                            updatedCount++;
+                        }
+                    }
+                }
+
+                alert(`✅ Sukses! ${updatedCount} data nilai berhasil disinkronkan ke Rapor.`);
+                
+            } catch(e) {
+                alert("Gagal sinkron: " + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
 
         window.closeMonitor = () => document.getElementById('monitor-overlay').classList.remove('active');
@@ -408,7 +503,7 @@ D. 5"></textarea>
             const blocks = rawText.split(/\n\s*\n/); 
             blocks.forEach(block => {
                 const lines = block.trim().split('\n');
-                if(lines.length < 2) return; // Skip if invalid
+                if(lines.length < 2) return; 
                 const qText = lines[0].replace(/^\d+\.\s*/, '').trim(); 
                 const options = [];
                 let correctIdx = -1;
