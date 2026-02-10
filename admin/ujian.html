@@ -103,6 +103,8 @@
         .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box; }
         #bulk-text { width: 100%; height: 350px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; font-family: 'Consolas', monospace; line-height: 1.6; font-size: 0.95rem; background: #1e1e1e; color: #d4d4d4; white-space: pre; overflow-x: auto; }
         .bulk-guide { background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-size: 0.9rem; margin-bottom: 15px; color: #92400e; }
+        
+        @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
     </style>
 </head>
 <body>
@@ -115,7 +117,7 @@
             </div>
             <div class="header-actions">
                 <button onclick="openForm()" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Buat Ujian</button>
-                <a href="../index.html" class="btn btn-outline">Dashboard</a>
+                <a href="index.html" class="btn btn-outline">Dashboard</a>
             </div>
         </div>
 
@@ -133,7 +135,7 @@
             
             <div class="form-group">
                 <label class="form-label">Judul Ujian</label>
-                <input type="text" id="judul" class="form-input" placeholder="Contoh: Penilaian Akhir Semester">
+                <input type="text" id="judul" class="form-input" placeholder="Contoh: UTS Bahasa Indonesia">
             </div>
             <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px;">
                 <div class="form-group">
@@ -154,7 +156,11 @@
             </div>
 
             <div class="bulk-guide">
-                <strong>Format Input Massal:</strong><br>1. Soal<br>A. Opsi<br>*B. Opsi Benar (Pakai Bintang)<br>(Enter 2x untuk soal baru)
+                <strong>Format Input Massal:</strong><br>
+                1. Tulis soal di baris pertama.<br>
+                2. Tulis opsi jawaban A, B, C, D di bawahnya.<br>
+                3. Beri tanda bintang (*) di depan huruf opsi yang BENAR.<br>
+                4. Tekan Enter 2x untuk memisahkan antar soal.
             </div>
             <textarea id="bulk-text" placeholder="1. Ibukota Indonesia adalah...
 A. Bandung
@@ -170,7 +176,7 @@ D. 5"></textarea>
 
             <div style="margin-top:20px; text-align:right;">
                 <button onclick="closeForm()" class="btn btn-outline">Batal</button>
-                <button onclick="saveExam()" class="btn btn-primary" id="btn-save">Simpan</button>
+                <button onclick="saveExam()" class="btn btn-primary" id="btn-save">Simpan Ujian</button>
             </div>
         </div>
     </div>
@@ -209,7 +215,7 @@ D. 5"></textarea>
             else window.location.href = '../index.html';
         })();
 
-        // --- LOAD DATA (WITH TOGGLE) ---
+        // --- LOAD EXAMS ---
         async function loadExams() {
             const container = document.getElementById('exam-list');
             container.innerHTML = '';
@@ -219,14 +225,14 @@ D. 5"></textarea>
                 document.getElementById('loading').style.display = 'none';
 
                 if(snap.empty) {
-                    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999;">Belum ada ujian.</div>';
+                    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">Belum ada data ujian.</div>';
                     return;
                 }
 
                 snap.forEach(d => {
                     const data = d.data();
                     const sem = data.semester || "1"; 
-                    const status = data.status || 'active'; // Default active
+                    const status = data.status || 'active';
                     const isChecked = status === 'active' ? 'checked' : '';
                     const cardClass = status === 'active' ? '' : 'inactive';
                     const statusText = status === 'active' ? 'AKTIF' : 'OFF';
@@ -241,7 +247,7 @@ D. 5"></textarea>
                                 </div>
                                 <div>
                                     <label class="switch">
-                                        <input type="checkbox" ${isChecked} onchange="toggleStatus('${d.id}', '${status}')">
+                                        <input type="checkbox" ${isChecked} onchange="window.toggleStatus('${d.id}', '${status}')">
                                         <span class="slider"></span>
                                     </label>
                                     <span class="status-label ${statusColor}">${statusText}</span>
@@ -255,13 +261,13 @@ D. 5"></textarea>
                             </div>
                             
                             <div class="ec-actions">
-                                <button onclick="openMonitor('${d.id}', '${data.judul}')" class="btn btn-info btn-act full-width">
+                                <button onclick="window.openMonitor('${d.id}', '${data.judul}')" class="btn btn-info btn-act full-width">
                                     <i class="fa-solid fa-chart-pie"></i> Monitoring Nilai
                                 </button>
-                                <button onclick="editExam('${d.id}')" class="btn btn-warning btn-act">
+                                <button onclick="window.editExam('${d.id}')" class="btn btn-warning btn-act">
                                     <i class="fa-solid fa-pen"></i> Edit
                                 </button>
-                                <button onclick="deleteExam('${d.id}')" class="btn btn-danger btn-act">
+                                <button onclick="window.deleteExam('${d.id}')" class="btn btn-danger btn-act">
                                     <i class="fa-solid fa-trash"></i> Hapus
                                 </button>
                             </div>
@@ -272,16 +278,18 @@ D. 5"></textarea>
             } catch(e) { console.error(e); }
         }
 
-        // --- TOGGLE STATUS FUNCTION ---
+        // --- ACTIONS ---
         window.toggleStatus = async (id, currentStatus) => {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             try {
-                // Update Firestore (Instant, no loading needed for UX snap)
                 await updateDoc(doc(db, 'exams', id), { status: newStatus });
-                loadExams(); // Refresh UI to update class/text
-            } catch(e) {
-                alert("Gagal update status: " + e.message);
-                loadExams(); // Revert UI
+                loadExams();
+            } catch(e) { alert("Gagal update status: " + e.message); loadExams(); }
+        }
+
+        window.deleteExam = (id) => {
+            if(confirm('Hapus ujian ini secara permanen?')) {
+                deleteDoc(doc(db, 'exams', id)).then(loadExams);
             }
         }
 
@@ -295,13 +303,17 @@ D. 5"></textarea>
             try {
                 const qSiswa = query(collection(db, 'users'), where('role', '==', 'siswa'));
                 const snapSiswa = await getDocs(qSiswa);
+                
                 const qResult = query(collection(db, 'quiz_results'), where('quizId', '==', examId));
                 const snapResult = await getDocs(qResult);
 
                 const doneMap = {};
                 snapResult.forEach(doc => {
                     const r = doc.data();
-                    doneMap[r.studentId] = { score: r.score, time: r.submittedAt ? new Date(r.submittedAt.seconds*1000).toLocaleString('id-ID') : '-' };
+                    doneMap[r.studentId] = { 
+                        score: r.score, 
+                        time: r.submittedAt ? new Date(r.submittedAt.seconds*1000).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '-' 
+                    };
                 });
 
                 const listDone = document.getElementById('list-done');
@@ -338,7 +350,7 @@ D. 5"></textarea>
             else { tDone.classList.remove('active'); tPending.classList.add('active'); vDone.style.display = 'none'; vPending.style.display = 'block'; }
         }
 
-        // --- FORM & EDITOR ---
+        // --- FORM EDITOR ---
         window.openForm = () => {
             document.getElementById('edit-id').value = '';
             document.getElementById('judul').value = '';
@@ -380,6 +392,9 @@ D. 5"></textarea>
         }
 
         window.saveExam = async () => {
+            const btn = document.getElementById('btn-save');
+            const originalText = btn.innerText;
+            
             const id = document.getElementById('edit-id').value;
             const judul = document.getElementById('judul').value;
             const mapel = document.getElementById('mapel').value;
@@ -393,11 +408,12 @@ D. 5"></textarea>
             const blocks = rawText.split(/\n\s*\n/); 
             blocks.forEach(block => {
                 const lines = block.trim().split('\n');
-                if(lines.length < 2) return;
+                if(lines.length < 2) return; // Skip if invalid
                 const qText = lines[0].replace(/^\d+\.\s*/, '').trim(); 
                 const options = [];
                 let correctIdx = -1;
                 let optCounter = 0;
+                
                 for(let i=1; i<lines.length; i++) {
                     let opt = lines[i].trim();
                     if(!opt) continue;
@@ -409,7 +425,10 @@ D. 5"></textarea>
                 if(correctIdx !== -1 && options.length > 1) questions.push({ text: qText, options, correctIndex: correctIdx });
             });
 
-            if(questions.length === 0) return alert('Format soal salah.');
+            if(questions.length === 0) return alert('Format soal salah. Pastikan ada tanda * di jawaban benar.');
+
+            btn.innerText = "Menyimpan...";
+            btn.disabled = true;
 
             try {
                 const payload = { judul, mapel, semester: parseInt(semester), durasi: parseInt(durasi), questions, status: 'active', updatedAt: serverTimestamp() };
@@ -418,15 +437,8 @@ D. 5"></textarea>
                 closeForm();
                 loadExams();
             } catch(e) { alert(e.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
         }
-
-        window.deleteExam = (id) => {
-            if(confirm('Hapus ujian ini?')) deleteDoc(doc(db, 'exams', id)).then(loadExams);
-        }
-        
-        window.openForm = openForm; window.closeForm = closeForm;
-        window.editExam = editExam; window.deleteExam = deleteExam; window.saveExam = saveExam;
-        window.openMonitor = openMonitor; window.closeMonitor = closeMonitor; window.switchMonTab = switchMonTab; window.toggleStatus = toggleStatus;
     </script>
 </body>
 </html>
