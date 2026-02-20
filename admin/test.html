@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Ujian - Admin</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --accent: #4361ee; --bg: #f4f7fe; }
+        body { background-color: var(--bg); font-family: 'Outfit', sans-serif; color: #333; margin: 0; padding-bottom: 50px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 25px; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px; }
+        .header-title h2 { margin: 0; color: var(--primary); font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        
+        .btn { padding: 10px 20px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 0.9rem; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: white; border: 1px solid #ccc; color: #555; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; }
+        .btn-warning { background: #fff3cd; color: #856404; }
+        .btn-info { background: #e0f2fe; color: #0284c7; }
+        .btn-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+
+        .exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        
+        .exam-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid #eef2f6; transition: 0.2s; position: relative; display: flex; flex-direction: column; }
+        .exam-card:hover { border-color: var(--accent); box-shadow: 0 8px 20px rgba(67, 97, 238, 0.1); }
+        .exam-card.inactive { opacity: 0.7; background: #f8fafc; border-color: #cbd5e1; }
+        .exam-card.inactive .ec-title { color: #64748b; }
+        
+        .ec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .ec-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+        .ec-badge { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .ec-sem { background: var(--accent); color: white; }
+        .ec-type { background: #e8dbfa; color: #6b21a8; } /* Badge Tipe Ujian */
+
+        .ec-title { margin: 10px 0 5px 0; font-size: 1.15rem; color: #1e293b; font-weight: 700; line-height: 1.3; }
+        .ec-info { font-size: 0.85rem; color: #64748b; margin: 0; display: flex; gap: 10px; align-items: center; }
+        .ec-actions { margin-top: auto; padding-top: 15px; border-top: 1px dashed #eee; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .full-btn { grid-column: 1 / -1; width: 100%; justify-content: center; }
+
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .status-label { font-size: 0.75rem; font-weight: 700; margin-left: 8px; display: block; text-align: right; margin-top: 2px; }
+        .lbl-on { color: #10b981; } .lbl-off { color: #94a3b8; }
+
+        /* MONITORING OVERLAY */
+        .monitor-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; }
+        .monitor-overlay.active { display: flex; }
+        .monitor-box { background: white; width: 90%; max-width: 900px; height: 85vh; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; }
+        .monitor-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .monitor-body { flex: 1; padding: 20px; overflow-y: auto; background: #f8fafc; }
+        .mon-tabs { display: flex; background: white; border-bottom: 1px solid #eee; }
+        .mon-tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-weight: 600; color: #64748b; border-bottom: 3px solid transparent; transition: 0.2s; }
+        .mon-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f0f9ff; }
+        .mon-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .mon-table th { background: #f1f5f9; padding: 12px; text-align: left; font-weight: 600; color: #475569; }
+        .mon-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .score-badge { font-weight: 700; color: #166534; background: #dcfce7; padding: 3px 8px; border-radius: 4px; }
+
+        /* FORM OVERLAY */
+        .form-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); z-index: 1000; overflow-y: auto; display: none; padding: 30px; box-sizing: border-box; }
+        .form-overlay.active { display: block; }
+        .form-container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; }
+        .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box; }
+        
+        #bulk-text { width: 100%; height: 350px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; font-family: 'Consolas', monospace; line-height: 1.6; font-size: 0.95rem; background: #1e1e1e; color: #d4d4d4; white-space: pre; overflow-x: auto; }
+        textarea.form-input { min-height: 150px; resize: vertical; }
+
+        .bulk-guide { background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fcd34d; font-size: 0.9rem; margin-bottom: 15px; color: #92400e; }
+        
+        @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <div class="header-title">
+                <h2><i class="fa-solid fa-file-signature"></i> Manajemen Ujian</h2>
+                <p style="margin:5px 0 0; color:#666; font-size:0.9rem;">Kelola ujian Pilihan Ganda & Karya Sastra (Esai AI).</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="openForm()" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Buat Ujian</button>
+                <a href="index.html" class="btn btn-outline">Dashboard</a>
+            </div>
+        </div>
+
+        <div id="loading" style="text-align:center; padding:50px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>
+        <div id="exam-list" class="exam-grid"></div>
+    </div>
+
+    <div id="form-overlay" class="form-overlay">
+        <div class="form-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; color:var(--primary);" id="form-title">Editor Ujian</h2>
+                <button onclick="closeForm()" style="background:none; border:none; font-size:2rem; cursor:pointer;">&times;</button>
+            </div>
+            <input type="hidden" id="edit-id">
+            
+            <div class="form-group">
+                <label class="form-label">Tipe Ujian</label>
+                <select id="exam-type" class="form-input" onchange="toggleExamType()" style="background:#e8dbfa; font-weight:bold; color:#6b21a8;">
+                    <option value="pg">📝 Pilihan Ganda</option>
+                    <option value="essay">✍️ Esai / Penulisan Karya (Penilaian AI)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Judul Ujian (Contoh: UTS Matematika, UAS Sastra)</label>
+                <input type="text" id="judul" class="form-input" placeholder="Masukkan judul dengan jelas...">
+                <small style="color:var(--accent);">*Gunakan kata 'UTS' atau 'UAS' agar nilai bisa sinkron otomatis ke Rapor.</small>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px;">
+                <div class="form-group">
+                    <label class="form-label">Mata Pelajaran</label>
+                    <input type="text" id="mapel" class="form-input" placeholder="Sastra Indonesia">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Semester</label>
+                    <select id="semester" class="form-input">
+                        <option value="1">Sem 1</option><option value="2">Sem 2</option><option value="3">Sem 3</option><option value="4">Sem 4</option>
+                        <option value="5">Sem 5</option><option value="6">Sem 6</option><option value="7">Sem 7</option><option value="8">Sem 8</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Durasi (Menit)</label>
+                    <input type="number" id="durasi" class="form-input" placeholder="90">
+                </div>
+            </div>
+
+            <div id="section-pg">
+                <div class="bulk-guide">
+                    <strong>Format Input Massal:</strong><br>
+                    1. Tulis soal di baris pertama.<br>
+                    2. Tulis opsi jawaban A, B, C, D di bawahnya.<br>
+                    3. Beri tanda bintang (*) di depan huruf opsi yang BENAR.<br>
+                    4. Tekan Enter 2x untuk memisahkan antar soal.
+                </div>
+                <textarea id="bulk-text" placeholder="1. Ibukota Indonesia adalah...
+A. Bandung
+*B. Jakarta
+C. Surabaya
+D. Medan"></textarea>
+            </div>
+
+            <div id="section-essay" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">Instruksi Soal / Tugas untuk Siswa</label>
+                    <textarea id="essay-instruction" class="form-input" placeholder="Contoh: Buatlah sebuah cerpen dengan tema Perjuangan Pahlawan Kemerdekaan. Minimal terdiri dari 3 paragraf dan menggunakan kaidah PUEBI yang benar."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Rubrik Penilaian untuk AI (Prompt System)</label>
+                    <textarea id="essay-rubric" class="form-input" style="background:#f8fafc;" placeholder="Contoh: Nilai 90-100 jika EYD sempurna, plot menarik, dan diksi kaya. Nilai 70-80 jika ada salah ejaan ringan namun ide cerita bagus. Nilai di bawah 70 jika keluar dari tema."></textarea>
+                    <small style="color:#64748b;">*Beritahu AI kriteria karya yang mendapatkan nilai tinggi dan rendah.</small>
+                </div>
+            </div>
+
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeForm()" class="btn btn-outline">Batal</button>
+                <button onclick="saveExam()" class="btn btn-primary" id="btn-save">Simpan Ujian</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="monitor-overlay" class="monitor-overlay">
+        <div class="monitor-box">
+            <div class="monitor-header">
+                <div>
+                    <h3 style="margin:0;" id="mon-title">Monitoring</h3>
+                    <p style="margin:0; font-size:0.85rem; opacity:0.9;" id="mon-subtitle">-</p>
+                </div>
+                <button onclick="closeMonitor()" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <div style="padding:15px; background:#fff; border-bottom:1px solid #eee; display:flex; justify-content:flex-end;">
+                <button id="btn-sync" class="btn btn-success">
+                    <i class="fa-solid fa-arrows-rotate"></i> Sinkronkan Nilai ke Rapor
+                </button>
+            </div>
+
+            <div class="mon-tabs">
+                <div class="mon-tab active" onclick="switchMonTab('done')" id="tab-done">Sudah Mengerjakan (<span id="count-done">0</span>)</div>
+                <div class="mon-tab" onclick="switchMonTab('pending')" id="tab-pending">Belum Mengerjakan (<span id="count-pending">0</span>)</div>
+            </div>
+            <div class="monitor-body">
+                <div id="view-done">
+                    <table class="mon-table"><thead><tr><th>Nama Siswa</th><th>Nilai</th><th>Waktu</th></tr></thead><tbody id="list-done"></tbody></table>
+                </div>
+                <div id="view-pending" style="display:none;">
+                    <table class="mon-table"><thead><tr><th>Nama Siswa</th><th>ID</th></tr></thead><tbody id="list-pending"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        (async () => {
+            const user = await checkAuth('pengajar');
+            if(user) loadExams();
+            else window.location.href = '../index.html';
+        })();
+
+        // --- TOGGLE EXAM TYPE UI ---
+        window.toggleExamType = () => {
+            const type = document.getElementById('exam-type').value;
+            if(type === 'essay') {
+                document.getElementById('section-pg').style.display = 'none';
+                document.getElementById('section-essay').style.display = 'block';
+            } else {
+                document.getElementById('section-pg').style.display = 'block';
+                document.getElementById('section-essay').style.display = 'none';
+            }
+        };
+
+        // --- LOAD EXAMS ---
+        async function loadExams() {
+            const container = document.getElementById('exam-list');
+            container.innerHTML = '';
+            
+            try {
+                const snap = await getDocs(collection(db, 'exams'));
+                document.getElementById('loading').style.display = 'none';
+
+                if(snap.empty) {
+                    container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">Belum ada data ujian.</div>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const sem = data.semester || "1"; 
+                    const status = data.status || 'active';
+                    const isChecked = status === 'active' ? 'checked' : '';
+                    const cardClass = status === 'active' ? '' : 'inactive';
+                    const statusText = status === 'active' ? 'AKTIF' : 'OFF';
+                    const statusColor = status === 'active' ? 'lbl-on' : 'lbl-off';
+                    
+                    const examType = data.type === 'essay' ? '✍️ ESAI AI' : '📝 PILIHAN GANDA';
+                    const examInfo = data.type === 'essay' 
+                        ? `<span><i class="fa-solid fa-robot"></i> Dinilai Otomatis (AI)</span>` 
+                        : `<span><i class="fa-solid fa-list-ol"></i> ${data.questions ? data.questions.length : 0} Soal</span>`;
+
+                    const html = `
+                        <div class="exam-card ${cardClass}">
+                            <div class="ec-header">
+                                <div class="ec-badges">
+                                    <span class="ec-badge ec-sem">Sem ${sem}</span>
+                                    <span class="ec-badge ec-type">${examType}</span>
+                                </div>
+                                <div>
+                                    <label class="switch">
+                                        <input type="checkbox" ${isChecked} onchange="window.toggleStatus('${d.id}', '${status}')">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span class="status-label ${statusColor}">${statusText}</span>
+                                </div>
+                            </div>
+                            
+                            <h3 class="ec-title">${data.judul}</h3>
+                            <div class="ec-info">
+                                <span><i class="fa-solid fa-clock"></i> ${data.durasi}m</span>
+                                ${examInfo}
+                            </div>
+                            
+                            <div class="ec-actions">
+                                <button onclick="window.openMonitor('${d.id}', '${data.judul}')" class="btn btn-info btn-act full-width">
+                                    <i class="fa-solid fa-chart-pie"></i> Monitoring & Sinkron
+                                </button>
+                                <button onclick="window.editExam('${d.id}')" class="btn btn-warning btn-act">
+                                    <i class="fa-solid fa-pen"></i> Edit
+                                </button>
+                                <button onclick="window.deleteExam('${d.id}')" class="btn btn-danger btn-act">
+                                    <i class="fa-solid fa-trash"></i> Hapus
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        window.toggleStatus = async (id, currentStatus) => {
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            try { await updateDoc(doc(db, 'exams', id), { status: newStatus }); loadExams(); } 
+            catch(e) { alert("Gagal update: " + e.message); loadExams(); }
+        }
+
+        window.deleteExam = (id) => {
+            if(confirm('Hapus ujian ini secara permanen?')) deleteDoc(doc(db, 'exams', id)).then(loadExams);
+        }
+
+        // --- FORM EDITOR LOGIC ---
+        window.openForm = () => {
+            document.getElementById('edit-id').value = '';
+            document.getElementById('exam-type').value = 'pg';
+            document.getElementById('judul').value = '';
+            document.getElementById('mapel').value = '';
+            document.getElementById('semester').value = '1';
+            document.getElementById('durasi').value = '';
+            document.getElementById('bulk-text').value = '';
+            document.getElementById('essay-instruction').value = '';
+            document.getElementById('essay-rubric').value = '';
+            document.getElementById('form-title').innerText = "Buat Ujian Baru";
+            toggleExamType();
+            document.getElementById('form-overlay').classList.add('active');
+        }
+        window.closeForm = () => document.getElementById('form-overlay').classList.remove('active');
+
+        window.editExam = async (id) => {
+            try {
+                const snap = await getDoc(doc(db, 'exams', id));
+                const data = snap.data();
+                document.getElementById('edit-id').value = id;
+                document.getElementById('exam-type').value = data.type || 'pg';
+                document.getElementById('judul').value = data.judul;
+                document.getElementById('mapel').value = data.mapel;
+                document.getElementById('semester').value = data.semester || '1';
+                document.getElementById('durasi').value = data.durasi;
+                
+                toggleExamType();
+
+                if(data.type === 'essay') {
+                    document.getElementById('essay-instruction').value = data.essayInstruction || '';
+                    document.getElementById('essay-rubric').value = data.essayRubric || '';
+                } else {
+                    let bulkString = "";
+                    if(data.questions) {
+                        data.questions.forEach((q, i) => {
+                            bulkString += `${i+1}. ${q.text}\n`;
+                            q.options.forEach((opt, optIdx) => {
+                                const prefix = optIdx === q.correctIndex ? "*" : "";
+                                const letter = String.fromCharCode(65 + optIdx); 
+                                bulkString += `${prefix}${letter}. ${opt}\n`;
+                            });
+                            bulkString += "\n";
+                        });
+                    }
+                    document.getElementById('bulk-text').value = bulkString;
+                }
+
+                document.getElementById('form-title').innerText = "Edit Ujian";
+                document.getElementById('form-overlay').classList.add('active');
+            } catch(e) { alert('Gagal memuat data.'); }
+        }
+
+        window.saveExam = async () => {
+            const btn = document.getElementById('btn-save');
+            const originalText = btn.innerText;
+            
+            const id = document.getElementById('edit-id').value;
+            const type = document.getElementById('exam-type').value;
+            const judul = document.getElementById('judul').value;
+            const mapel = document.getElementById('mapel').value;
+            const semester = document.getElementById('semester').value;
+            const durasi = document.getElementById('durasi').value;
+
+            if(!judul || !mapel || !durasi) return alert('Lengkapi data dasar!');
+
+            let payload = { judul, type, mapel, semester: parseInt(semester), durasi: parseInt(durasi), status: 'active', updatedAt: serverTimestamp() };
+
+            if(type === 'essay') {
+                const instruksi = document.getElementById('essay-instruction').value;
+                const rubrik = document.getElementById('essay-rubric').value;
+                if(!instruksi) return alert("Instruksi Esai tidak boleh kosong!");
+                payload.essayInstruction = instruksi;
+                payload.essayRubric = rubrik;
+            } else {
+                const rawText = document.getElementById('bulk-text').value;
+                const questions = [];
+                const blocks = rawText.split(/\n\s*\n/); 
+                blocks.forEach(block => {
+                    const lines = block.trim().split('\n');
+                    if(lines.length < 2) return; 
+                    const qText = lines[0].replace(/^\d+\.\s*/, '').trim(); 
+                    const options = [];
+                    let correctIdx = -1; let optCounter = 0;
+                    for(let i=1; i<lines.length; i++) {
+                        let opt = lines[i].trim();
+                        if(!opt) continue;
+                        if(opt.startsWith('*')) { correctIdx = optCounter; opt = opt.substring(1).trim(); }
+                        opt = opt.replace(/^[A-D]\.\s*/i, '');
+                        options.push(opt);
+                        optCounter++;
+                    }
+                    if(correctIdx !== -1 && options.length > 1) questions.push({ text: qText, options, correctIndex: correctIdx });
+                });
+                if(questions.length === 0) return alert('Format soal salah.');
+                payload.questions = questions;
+            }
+
+            btn.innerText = "Menyimpan..."; btn.disabled = true;
+
+            try {
+                if(id) await updateDoc(doc(db, 'exams', id), payload);
+                else { payload.createdAt = serverTimestamp(); await addDoc(collection(db, 'exams'), payload); }
+                closeForm(); loadExams();
+            } catch(e) { alert(e.message); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        }
+
+        // --- MONITORING & SYNC ---
+        window.openMonitor = async (examId, title) => {
+            document.getElementById('mon-title').innerText = title;
+            document.getElementById('mon-subtitle').innerText = "Memuat data...";
+            document.getElementById('monitor-overlay').classList.add('active');
+            
+            const btnSync = document.getElementById('btn-sync');
+            btnSync.onclick = () => window.syncGrades(examId, title); 
+            btnSync.disabled = false; btnSync.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sinkronkan Nilai ke Rapor';
+
+            switchMonTab('done');
+
+            try {
+                const qSiswa = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snapSiswa = await getDocs(qSiswa);
+                
+                const qResult = query(collection(db, 'quiz_results'), where('quizId', '==', examId));
+                const snapResult = await getDocs(qResult);
+
+                const doneMap = {};
+                snapResult.forEach(doc => {
+                    const r = doc.data();
+                    doneMap[r.studentId] = { score: r.score, time: r.submittedAt ? new Date(r.submittedAt.seconds*1000).toLocaleString('id-ID') : '-' };
+                });
+
+                const listDone = document.getElementById('list-done');
+                const listPending = document.getElementById('list-pending');
+                listDone.innerHTML = ''; listPending.innerHTML = '';
+                let countDone = 0; let countPending = 0;
+
+                snapSiswa.forEach(doc => {
+                    const s = doc.data();
+                    if(doneMap[doc.id]) {
+                        listDone.innerHTML += `<tr><td>${s.name}<br><small style="color:#999">${doc.id.substring(0,6)}</small></td><td><span class="score-badge">${doneMap[doc.id].score}</span></td><td style="font-size:0.85rem">${doneMap[doc.id].time}</td></tr>`;
+                        countDone++;
+                    } else {
+                        listPending.innerHTML += `<tr><td>${s.name}</td><td>${doc.id.substring(0,8)}...</td></tr>`;
+                        countPending++;
+                    }
+                });
+
+                if(countDone === 0) listDone.innerHTML = '<tr><td colspan="3" style="text-align:center;">Belum ada data.</td></tr>';
+                if(countPending === 0) listPending.innerHTML = '<tr><td colspan="2" style="text-align:center;">Semua sudah selesai!</td></tr>';
+
+                document.getElementById('count-done').innerText = countDone;
+                document.getElementById('count-pending').innerText = countPending;
+                document.getElementById('mon-subtitle').innerText = `Total: ${countDone + countPending} Siswa`;
+            } catch(e) { alert("Error: " + e.message); closeMonitor(); }
+        }
+
+        window.syncGrades = async (examId, title) => {
+            const btn = document.getElementById('btn-sync');
+            const originalText = btn.innerHTML;
+            
+            const lowerTitle = title.toLowerCase();
+            let targetField = null;
+            if (lowerTitle.includes("uts")) targetField = "nilai_uts";
+            else if (lowerTitle.includes("uas")) targetField = "nilai_uas";
+            else if (lowerTitle.includes("tugas 1") || lowerTitle.includes("t1")) targetField = "nilai_t1";
+
+            if (!targetField) {
+                alert("⚠️ Sistem tidak mengenali jenis ujian dari Judul.\n\nPastikan Judul mengandung kata 'UTS' atau 'UAS' agar bisa otomatis masuk ke Rapor.");
+                return;
+            }
+
+            if(!confirm(`Yakin ingin menyalin nilai ini ke kolom '${targetField.toUpperCase()}' di Data Siswa?`)) return;
+
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyinkronkan...';
+
+            try {
+                const qResult = query(collection(db, 'quiz_results'), where('quizId', '==', examId));
+                const snapResult = await getDocs(qResult);
+                if(snapResult.empty) throw new Error("Belum ada data nilai.");
+
+                let updatedCount = 0;
+                for (const docRes of snapResult.docs) {
+                    const res = docRes.data();
+                    if (res.studentId) {
+                        const userRef = doc(db, 'users', res.studentId);
+                        const userSnap = await getDoc(userRef);
+
+                        if(userSnap.exists()) {
+                            let d = userSnap.data();
+                            d[targetField] = res.score; 
+
+                            let totalTugas = 0;
+                            for(let i=1; i<=8; i++) { totalTugas += (d[`nilai_t${i}`] || 0) * 0.05; }
+                            let sUts = (d['nilai_uts'] || 0) * 0.30;
+                            let sUas = (d['nilai_uas'] || 0) * 0.30;
+                            
+                            const finalScore = totalTugas + sUts + sUas;
+                            const newIps = (finalScore / 100) * 4;
+
+                            await updateDoc(userRef, { [targetField]: res.score, ips: newIps });
+                            updatedCount++;
+                        }
+                    }
+                }
+                alert(`✅ Sukses! ${updatedCount} data nilai berhasil disinkronkan ke Rapor.`);
+            } catch(e) { alert("Gagal sinkron: " + e.message); } 
+            finally { btn.disabled = false; btn.innerHTML = originalText; }
+        }
+
+        window.closeMonitor = () => document.getElementById('monitor-overlay').classList.remove('active');
+        window.switchMonTab = (tab) => {
+            const tDone = document.getElementById('tab-done'); const tPending = document.getElementById('tab-pending');
+            const vDone = document.getElementById('view-done'); const vPending = document.getElementById('view-pending');
+            if(tab === 'done') { tDone.classList.add('active'); tPending.classList.remove('active'); vDone.style.display = 'block'; vPending.style.display = 'none'; }
+            else { tDone.classList.remove('active'); tPending.classList.add('active'); vDone.style.display = 'none'; vPending.style.display = 'block'; }
+        }
+    </script>
+</body>
+</html>
