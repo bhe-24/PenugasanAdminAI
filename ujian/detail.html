@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembahasan Soal</title>
+    <title>Pembahasan & Tinjauan</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -15,6 +15,7 @@
         
         .container { max-width: 800px; margin: 20px auto; padding: 0 20px; }
         
+        /* --- STYLE UNTUK PG --- */
         .review-card { background: white; border-radius: 16px; padding: 25px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
         
         .q-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
@@ -27,24 +28,40 @@
         .opt-row { display: flex; gap: 15px; padding: 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #f1f5f9; align-items: center; }
         .opt-letter { width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; border-radius: 50%; background: #f1f5f9; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
         
-        /* WARNA PEMBAHASAN */
-        .opt-correct { background: #dcfce7; border-color: #86efac; } /* Kunci Jawaban */
+        .opt-correct { background: #dcfce7; border-color: #86efac; } 
         .opt-correct .opt-letter { background: #16a34a; color: white; }
         
-        .opt-wrong { background: #fee2e2; border-color: #fca5a5; } /* Jawaban Siswa Salah */
+        .opt-wrong { background: #fee2e2; border-color: #fca5a5; } 
         .opt-wrong .opt-letter { background: #ef4444; color: white; }
+
+        /* --- STYLE UNTUK ESAI --- */
+        .essay-section { background: white; border-radius: 16px; padding: 30px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .essay-title { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; color: #003366; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0; }
+        
+        .essay-content { background: #f8fafc; padding: 20px; border-radius: 12px; line-height: 1.7; font-size: 1rem; color: #334155; white-space: pre-wrap; margin-bottom: 30px; border: 1px solid #e2e8f0; }
+        
+        .feedback-box { background: #f0fdfa; border-left: 5px solid #0ea5e9; padding: 20px; border-radius: 8px 12px 12px 8px; }
+        .feedback-title { font-weight: 700; color: #0284c7; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+        .feedback-text { line-height: 1.6; color: #0f172a; white-space: pre-wrap; }
+        
+        .score-display { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .score-display .val { font-size: 3rem; font-weight: 800; color: #003366; line-height: 1; }
+        .score-display .lbl { font-size: 0.9rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+
+        .loading-state { text-align: center; padding: 100px 20px; color: #64748b; }
     </style>
 </head>
 <body>
 
     <header class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar</a>
-        <div style="font-weight:700; font-size:1.1rem;">Pembahasan</div>
+        <a href="#" id="back-link" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        <div style="font-weight:700; font-size:1.1rem;" id="page-title">Detail Hasil</div>
     </header>
 
-    <div class="container" id="review-list">
-        <div style="text-align:center; padding:50px;">
-            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; color:#ccc;"></i>
+    <div class="container" id="main-container">
+        <div class="loading-state">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; margin-bottom:15px; color:#4361ee;"></i>
+            <p>Memuat data...</p>
         </div>
     </div>
 
@@ -53,67 +70,117 @@
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const rid = new URLSearchParams(window.location.search).get('rid');
-
+        
         (async () => {
-            if(!rid) return alert("ID Hasil tidak ditemukan.");
+            if(!rid) {
+                alert("ID Hasil tidak valid.");
+                window.location.href = 'index.html';
+                return;
+            }
 
-            // 1. Ambil Hasil Siswa
-            const resSnap = await getDoc(doc(db, 'quiz_results', rid));
-            const resData = resSnap.data();
+            // Set link tombol kembali
+            document.getElementById('back-link').href = `hasil.html?rid=${rid}`;
 
-            // 2. Ambil Soal Asli (Pakai ID Ujian dari hasil siswa)
-            const examSnap = await getDoc(doc(db, 'exams', resData.quizId));
-            const questions = examSnap.data().questions;
-            const userAns = resData.answers; // { 0: 1, 1: 0 }
+            try {
+                // 1. Ambil Hasil Siswa
+                const resSnap = await getDoc(doc(db, 'quiz_results', rid));
+                if(!resSnap.exists()) throw new Error("Data tidak ditemukan.");
+                const resData = resSnap.data();
 
-            const container = document.getElementById('review-list');
-            container.innerHTML = '';
+                const container = document.getElementById('main-container');
+                container.innerHTML = ''; // Clear loading
 
-            // 3. Render Loop
-            questions.forEach((q, idx) => {
-                const myAns = userAns[idx]; // Jawaban siswa (index)
-                const correctAns = q.correctIndex; // Kunci (index)
-                const isCorrect = myAns === correctAns;
-
-                let badge = isCorrect 
-                    ? `<span class="q-badge badge-correct"><i class="fa-solid fa-check"></i> Benar</span>`
-                    : `<span class="q-badge badge-wrong"><i class="fa-solid fa-xmark"></i> Salah</span>`;
-
-                let optionsHtml = '';
-                q.options.forEach((opt, i) => {
-                    let rowClass = '';
+                // --- CABANG 1: JIKA TIPE UJIAN ADALAH ESAI ---
+                if (resData.type === 'essay') {
+                    document.getElementById('page-title').innerText = "Tinjauan Karya";
                     
-                    if (i === correctAns) {
-                        rowClass = 'opt-correct'; // Selalu hijaukan kunci
-                    } else if (i === myAns && !isCorrect) {
-                        rowClass = 'opt-wrong'; // Merahkan jawaban siswa jika salah
-                    }
+                    const score = resData.score || 0;
+                    const feedbackText = resData.feedbackAI || "Karya sedang dalam antrean untuk dibaca dan dinilai.";
+                    
+                    container.innerHTML = `
+                        <div class="essay-section">
+                            <div class="essay-title">
+                                <i class="fa-solid fa-book-open"></i> Karya Tulis Anda
+                            </div>
+                            <div class="essay-content">${resData.jawabanTeks || "Tidak ada teks."}</div>
+                            
+                            <div class="feedback-box">
+                                <div class="feedback-title">
+                                    <i class="fa-solid fa-comment-dots"></i> Catatan Peninjauan
+                                </div>
+                                <div class="feedback-text">${feedbackText}</div>
+                            </div>
 
-                    // Tanda centang/silang di ujung
-                    let icon = '';
-                    if (i === correctAns) icon = '<i class="fa-solid fa-check" style="margin-left:auto; color:#166534;"></i>';
-                    else if (i === myAns && !isCorrect) icon = '<i class="fa-solid fa-xmark" style="margin-left:auto; color:#991b1b;"></i>';
-
-                    optionsHtml += `
-                        <div class="opt-row ${rowClass}">
-                            <div class="opt-letter">${String.fromCharCode(65+i)}</div>
-                            <div>${opt}</div>
-                            ${icon}
+                            <div class="score-display">
+                                <div class="val">${score > 0 ? score : '-'}</div>
+                                <div class="lbl">Nilai Akhir</div>
+                            </div>
                         </div>
                     `;
-                });
+                } 
+                // --- CABANG 2: JIKA TIPE UJIAN ADALAH PILIHAN GANDA ---
+                else {
+                    document.getElementById('page-title').innerText = "Pembahasan Soal";
+                    
+                    const examSnap = await getDoc(doc(db, 'exams', resData.quizId));
+                    if(!examSnap.exists()) throw new Error("Data soal asli tidak ditemukan.");
+                    
+                    const questions = examSnap.data().questions || [];
+                    const userAns = resData.answers || {}; 
 
-                container.innerHTML += `
-                    <div class="review-card">
-                        <div class="q-header">
-                            <span style="font-weight:700; color:#64748b;">NO. ${idx+1}</span>
-                            ${badge}
-                        </div>
-                        <div class="q-text">${q.text}</div>
-                        <div>${optionsHtml}</div>
+                    questions.forEach((q, idx) => {
+                        const myAns = userAns[idx]; 
+                        const correctAns = q.correctIndex; 
+                        const isCorrect = myAns === correctAns;
+
+                        let badge = isCorrect 
+                            ? `<span class="q-badge badge-correct"><i class="fa-solid fa-check"></i> Benar</span>`
+                            : `<span class="q-badge badge-wrong"><i class="fa-solid fa-xmark"></i> Salah</span>`;
+
+                        let optionsHtml = '';
+                        q.options.forEach((opt, i) => {
+                            let rowClass = '';
+                            let icon = '';
+                            
+                            if (i === correctAns) {
+                                rowClass = 'opt-correct';
+                                icon = '<i class="fa-solid fa-check" style="margin-left:auto; color:#166534;"></i>';
+                            } else if (i === myAns && !isCorrect) {
+                                rowClass = 'opt-wrong';
+                                icon = '<i class="fa-solid fa-xmark" style="margin-left:auto; color:#991b1b;"></i>';
+                            }
+
+                            optionsHtml += `
+                                <div class="opt-row ${rowClass}">
+                                    <div class="opt-letter">${String.fromCharCode(65+i)}</div>
+                                    <div>${opt}</div>
+                                    ${icon}
+                                </div>
+                            `;
+                        });
+
+                        container.innerHTML += `
+                            <div class="review-card">
+                                <div class="q-header">
+                                    <span style="font-weight:700; color:#64748b;">NO. ${idx+1}</span>
+                                    ${badge}
+                                </div>
+                                <div class="q-text">${q.text}</div>
+                                <div>${optionsHtml}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('main-container').innerHTML = `
+                    <div style="text-align:center; padding: 50px; color: #ef4444;">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                        <p>${error.message}</p>
                     </div>
                 `;
-            });
+            }
         })();
     </script>
 </body>
