@@ -121,7 +121,7 @@
         .btn-ragu { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; }
         .btn-ragu.is-flagged { background: #f59e0b; color: white; border-color: #f59e0b; }
         .btn-submit { background: #10b981; color: white; display: none; }
-        .btn-submit.show-always { display: flex; margin-left: auto; } /* Untuk mode essay */
+        .btn-submit.show-always { display: flex; margin-left: auto; }
 
         /* LOADING & MODAL */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
@@ -152,7 +152,7 @@
     <div id="loading-screen">
         <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:var(--accent); margin-bottom:15px;"></i>
         <h3 id="loading-text" style="color:#64748b;">Memuat Soal...</h3>
-        <p id="loading-sub" style="color:#94a3b8; font-size:0.9rem; display:none;">AI sedang menilai karya Anda. Harap tunggu...</p>
+        <p id="loading-sub" style="color:#94a3b8; font-size:0.9rem; display:none;">Karya Anda sedang kami kirim dan tinjau. Harap tunggu sebentar...</p>
     </div>
 
     <header class="cbt-header">
@@ -210,19 +210,17 @@
         import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // CONFIG VERCEL
-        const VERCEL_API_URL = "https://ai-grader-endpoint.vercel.app/api/grade"; // KITA AKAN BUAT INI NANTI
+        const VERCEL_API_URL = "https://ai-grader-endpoint.vercel.app/api/grade"; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('id');
         let currentUser = null;
         let examData = null;
         
-        // PG States
         let questions = [];
         let answers = JSON.parse(localStorage.getItem(`ans_${examId}`)) || {};
         let flagged = new Set(JSON.parse(localStorage.getItem(`flag_${examId}`)) || []);
         let currentIdx = 0;
-        
         let timerInterval;
 
         // --- INIT ---
@@ -241,7 +239,6 @@
 
                 document.getElementById('loading-screen').style.display = 'none';
 
-                // SETUP BERDASARKAN TIPE UJIAN
                 if(examData.type === 'essay') {
                     setupEssayUI();
                 } else {
@@ -287,21 +284,18 @@
         }
 
         // ==========================================
-        // LOGIKA ESAI (AI GRADING)
+        // LOGIKA ESAI 
         // ==========================================
         function setupEssayUI() {
-            // Sembunyikan Sidebar & Tombol PG
             document.getElementById('sidebar').style.display = 'none';
             document.getElementById('btn-prev').style.display = 'none';
             document.getElementById('btn-next').style.display = 'none';
             document.getElementById('btn-ragu').style.display = 'none';
             document.getElementById('toggle-sidebar-btn').style.display = 'none';
 
-            // Munculkan Tombol Submit di Kanan
             const submitBtn = document.getElementById('btn-submit');
             submitBtn.classList.add('show-always');
 
-            // Render Form Esai
             const savedEssay = localStorage.getItem(`essay_${examId}`) || "";
             const html = `
                 <div class="q-card">
@@ -317,7 +311,6 @@
             `;
             document.getElementById('q-container').innerHTML = html;
 
-            // Auto-save typing ke LocalStorage
             document.getElementById('essay-input').addEventListener('input', (e) => {
                 localStorage.setItem(`essay_${examId}`, e.target.value);
             });
@@ -327,9 +320,9 @@
             if(examData.type === 'essay') {
                 const text = document.getElementById('essay-input').value.trim();
                 if(text.length < 50) return showModal('warning', 'Terlalu Pendek', 'Karya Anda terlalu singkat. Mohon jabarkan lebih panjang lagi.');
-                showModal('confirm', 'Kumpulkan Karya?', 'Pastikan tulisan Anda sudah sesuai kaidah sebelum dinilai oleh Sistem AI.', submitEssay);
+                // Teks Pop-up dirubah agar netral (tidak sebut AI)
+                showModal('confirm', 'Kumpulkan Karya?', 'Karya Anda akan dikirim untuk ditinjau oleh sistem. Yakin ingin mengumpulkan sekarang?', submitEssay);
             } else {
-                // Logika PG Lama
                 if (flagged.size > 0) return showModal('warning', 'Masih Ragu', `Ada ${flagged.size} soal ragu.`);
                 if(Object.keys(answers).length < questions.length) showModal('confirm', 'Belum Lengkap', 'Yakin kumpulkan?', finalSubmitPG);
                 else showModal('confirm', 'Kumpulkan?', 'Jawaban akan dikirim.', finalSubmitPG);
@@ -341,17 +334,16 @@
             
             const loadingScreen = document.getElementById('loading-screen');
             loadingScreen.style.display = 'flex';
-            document.getElementById('loading-text').innerText = "AI Sedang Menilai...";
-            document.getElementById('loading-sub').style.display = 'block';
+            // Teks loading diganti
+            document.getElementById('loading-text').innerText = "Mengirim Karya...";
+            document.getElementById('loading-sub').style.display = 'block'; 
             clearInterval(timerInterval);
 
             const studentText = document.getElementById('essay-input').value;
 
             try {
-                // 1. PANGGIL API VERCEL UNTUK NILAI AI
-                // Catatan: Jika API belum siap, kita beri nilai default 0 dulu biar tidak error
                 let aiScore = 0;
-                let aiFeedback = "Dinilai manual oleh admin (API AI belum terhubung).";
+                let aiFeedback = "Karya Anda telah berhasil dikirim dan sedang dalam proses peninjauan lebih lanjut.";
 
                 try {
                     const response = await fetch(VERCEL_API_URL, {
@@ -369,25 +361,23 @@
                         aiScore = aiResult.score;
                         aiFeedback = aiResult.feedback;
                     } else {
-                        console.warn("API Vercel gagal merespon. Lanjut simpan tanpa nilai AI.");
+                        console.warn("API Vercel gagal merespon.");
                     }
                 } catch(apiErr) {
                     console.warn("Tidak dapat menghubungi Vercel Endpoint.");
                 }
 
-                // 2. SIMPAN KE FIRESTORE
                 const docRef = await addDoc(collection(db, 'quiz_results'), {
                     quizId: examId,
                     studentId: currentUser.uid,
                     studentName: currentUser.name,
                     type: 'essay',
                     jawabanTeks: studentText,
-                    score: aiScore, // Hasil AI
-                    feedbackAI: aiFeedback, // Komentar AI
+                    score: aiScore, 
+                    feedbackAI: aiFeedback, 
                     submittedAt: serverTimestamp()
                 });
 
-                // Bersihkan cache
                 localStorage.removeItem(`exam_end_${examId}_${currentUser.uid}`);
                 localStorage.removeItem(`essay_${examId}`);
 
@@ -400,7 +390,7 @@
         }
 
         // ==========================================
-        // LOGIKA PILIHAN GANDA (LAMA)
+        // LOGIKA PILIHAN GANDA 
         // ==========================================
         function renderQuestion(idx) {
             currentIdx = idx;
