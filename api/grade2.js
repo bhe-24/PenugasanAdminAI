@@ -47,7 +47,7 @@ Informasi Siswa:
 Nama: "${studentName}"
 
 Instruksi Penugasan:
-"${instruction}"
+"${instruksiTugas}"
 
 Jawaban Siswa:
 "${answer}"
