@@ -257,7 +257,6 @@
             finally { hideLoading(); }
         };
 
-        // FUNGSI EXPAND TEXT JAWABAN
         window.toggleText = (docId) => {
             const textEl = document.getElementById(`text-${docId}`);
             const btnEl = document.getElementById(`toggle-${docId}`);
@@ -269,13 +268,12 @@
             }
         };
 
-        // HELPER AGAR MARKDOWN TERUBAH JADI TAG HTML (Jaga-jaga AI bandel)
         function formatFeedback(text) {
             if(!text) return "";
             return text
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Mengubah **teks** menjadi <b>teks</b>
-                .replace(/\*(.*?)\*/g, '<i>$1</i>')     // Mengubah *teks* menjadi <i>teks</i>
-                .replace(/\n/g, '<br>');               // Mengubah enter menjadi <br>
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') 
+                .replace(/\*(.*?)\*/g, '<i>$1</i>')     
+                .replace(/\n/g, '<br>');               
         }
 
         // --- FUNGSI MENGHUBUNGI API VERCEL (GRADE2) ---
@@ -287,10 +285,14 @@
             const textElement = document.getElementById(`text-${docId}`);
             const studentText = textElement ? textElement.innerText : "Tugas berupa File (Tidak bisa dibaca AI). Berikan saya kalimat motivasi umum untuk siswa.";
 
+            // MENGGUNAKAN currentAssignmentData.instruksi SESUAI DENGAN admin/tugas.html
+            const instruksiTugas = currentAssignmentData && currentAssignmentData.instruksi ? currentAssignmentData.instruksi : 'Kerjakan tugas dengan baik.';
+
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menganalisis...';
 
             try {
+                // MENGIRIM PROMPT SESUAI PERMINTAAN TANPA ADA PERUBAHAN
                 const promptRaw = `
 Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
 Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.
@@ -299,22 +301,25 @@ Informasi Siswa:
 Nama: "${studentName}"
 
 Instruksi Penugasan:
-"${currentAssignmentData ? currentAssignmentData.deskripsi : 'Kerjakan tugas dengan baik.'}"
+"${instruksiTugas}"
 
 Jawaban Siswa:
 "${studentText}"
 
-Tolong berikan output HANYA dalam format JSON valid berikut tanpa markdown \`\`\`json:
+Tolong berikan output HANYA dalam format JSON valid berikut:
 {
-  "score": 85,
-  "feedback": "(Isi string HTML di sini)"
+  "score": (angka bulat 0-100),
+  "feedback": "(string HTML)"
 }
 
 Ketentuan Feedback (Wajib diikuti):
 1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
-2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" dan "Kamu". Jangan gunakan "Anda" atau "Saya".
-3. Struktur Isi: Analisis Kesalahan, Koreksi, dan Pujian.
-4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. JANGAN MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
+2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" (sebagai penilai) dan "Kamu" (untuk siswa). Jangan gunakan "Anda" atau "Saya". Hindari bahasa birokratis atau terlalu formal.
+3. Struktur Isi:
+   - Analisis Kesalahan: Jelaskan bagian mana yang kurang tepat atau salah dari jawaban siswa.
+   - Koreksi: Berikan contoh jawaban yang benar atau cara memperbaikinya.
+   - Pujian: Tetap apresiasi usaha mereka.
+4. Format HTML: Gunakan tag HTML <b> untuk menebalkan poin penting, <i> untuk istilah asing, dan <br> untuk baris baru. Jangan gunakan markdown (**bold**), harus HTML tag.
                 `;
 
                 const response = await fetch(VERCEL_API_URL, {
@@ -337,7 +342,6 @@ Ketentuan Feedback (Wajib diikuti):
                 
                 if (result.score !== undefined && result.feedback) {
                     scoreInput.value = result.score;
-                    // Menggunakan innerHTML karena sekarang div contenteditable
                     feedbackInput.innerHTML = formatFeedback(result.feedback); 
                     
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Dibuat';
@@ -385,10 +389,7 @@ Ketentuan Feedback (Wajib diikuti):
                 
                 const btn = form.querySelector('.btn-save');
                 const nilaiVal = parseFloat(form.querySelector('.score-input').value) || 0;
-                
-                // Ambil Value dari div contenteditable menggunakan .innerHTML
                 let feedbackVal = form.querySelector('.rich-feedback').innerHTML; 
-                // Opsional: Bersihkan jika hanya berisi placeholder kosong
                 if (feedbackVal === '<br>' || feedbackVal === '<div><br></div>') feedbackVal = '';
 
                 const selectBox = document.getElementById('tugas-select');
