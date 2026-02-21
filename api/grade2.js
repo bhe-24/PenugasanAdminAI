@@ -49,9 +49,12 @@ Tolong berikan output HANYA dalam format JSON valid berikut:
 
 Ketentuan Feedback (Wajib diikuti):
 1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
-2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" dan "Kamu".
-3. Struktur Isi: Analisis Kesalahan, Koreksi, dan Pujian.
-4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter. DILARANG KERAS MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
+2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" (sebagai penilai) dan "Kamu" (untuk siswa). Jangan gunakan "Anda" atau "Saya". Hindari bahasa birokratis atau terlalu formal.
+3. Struktur Isi:
+   - Analisis Kesalahan: Jelaskan bagian mana yang kurang tepat atau salah dari jawaban siswa.
+   - Koreksi: Berikan contoh jawaban yang benar atau cara memperbaikinya.
+   - Pujian: Tetap apresiasi usaha mereka.
+4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. DILARANG KERAS MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
 `;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
