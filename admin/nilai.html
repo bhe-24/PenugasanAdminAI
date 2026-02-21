@@ -20,7 +20,7 @@
 
         /* DROPDOWN */
         .select-container { background: white; padding: 25px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .form-control { width: 100%; padding: 12px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s; }
+        .form-control { width: 100%; padding: 12px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s; cursor: pointer; }
         .form-control:focus { border-color: var(--primary-light); }
 
         /* CARD */
@@ -59,13 +59,16 @@
         .score-input { width: 100px; text-align: center; font-size: 1.4rem; font-weight: bold; padding: 10px; border: 2px solid #ccc; border-radius: 8px; color: var(--primary-color); }
         .score-input:focus { border-color: var(--primary-light); }
 
-        .rich-feedback { width: 100%; min-height: 100px; padding: 15px; border: 2px solid #ccc; border-radius: 8px; background: #fff; white-space: pre-wrap; font-family: inherit; resize: vertical; line-height: 1.5; transition: 0.3s; }
+        /* TEXTAREA UNTUK FEEDBACK (BISA DIEDIT MANUAL JIKA AI KELIRU) */
+        .rich-feedback { width: 100%; min-height: 120px; padding: 15px; border: 2px solid #ccc; border-radius: 8px; background: #fff; font-family: inherit; resize: vertical; line-height: 1.5; transition: 0.3s; }
         .rich-feedback:focus { border-color: var(--primary-light); }
 
         /* BUTTONS */
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
         .btn-secondary { background: #6c757d; font-size: 0.9rem; }
-        .btn-save { background: var(--accent-color); width: auto; min-width: 180px; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); transition: 0.2s; }
+        .btn-secondary:hover { background: #5a6268; }
+        
+        .btn-save { background: var(--accent-color); width: auto; min-width: 180px; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); }
         .btn-save:hover { background: #218838; transform: translateY(-2px); }
         .btn-save:disabled { background: #94d3a2; cursor: not-allowed; transform: none; }
         .form-actions { display: flex; justify-content: flex-end; }
@@ -128,7 +131,7 @@
         const db = getFirestore(app);
 
         // PATH RELATIF KE VERCEL (Karena berada di project Vercel yang sama)
-        const VERCEL_API_URL = "/api/grade"; 
+        const VERCEL_API_URL = "/api/grade2"; 
 
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
@@ -203,7 +206,7 @@
                                 `
                                 <div class="text-wrapper">
                                     <div class="answer-box" id="text-${uid}">${sub.jawabanTeks || 'Tidak ada teks jawaban.'}</div>
-                                    <button class="toggle-btn" onclick="toggleText('${uid}')" id="toggle-${uid}">Baca Selengkapnya <i class="fa-solid fa-chevron-down"></i></button>
+                                    <button class="toggle-btn" onclick="window.toggleText('${uid}')" id="toggle-${uid}">Baca Selengkapnya <i class="fa-solid fa-chevron-down"></i></button>
                                 </div>
                                 `
                             }
@@ -211,7 +214,7 @@
                             <form class="grading-form" data-id="${uid}" data-student-uid="${sub.studentUid}">
                                 <div class="ai-tools">
                                     <div><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7;"></i> Asisten AI Cendekia</div>
-                                    <button type="button" class="btn-ai" onclick="window.generateAI('${uid}', '${sub.studentName}')" id="btn-ai-${uid}">
+                                    <button type="button" class="btn-ai" onclick="window.generateAI('${uid}', \`${sub.studentName || 'Siswa'}\`)" id="btn-ai-${uid}">
                                         Buat Penilaian Otomatis
                                     </button>
                                 </div>
@@ -221,7 +224,7 @@
                                     <input type="number" class="score-input" id="score-${uid}" value="${sub.nilai||''}" min="0" max="100">
                                 </div>
                                 <div>
-                                    <label><strong>Catatan Guru (HTML / Teks Biasa):</strong></label>
+                                    <label><strong>Catatan Guru (Edit jika perlu):</strong></label>
                                     <textarea class="rich-feedback" id="feedback-${uid}" placeholder="Ketik catatan atau gunakan AI...">${sub.feedback || ''}</textarea>
                                 </div>
                                 <div class="form-actions">
@@ -261,52 +264,27 @@
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> AI Menganalisis...';
 
             try {
-                // Menggunakan format Prompt Spesifik sesuai instruksi kamu
-                const promptRaw = `
-Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
-Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.
-
-Informasi Siswa:
-Nama: "${studentName}"
-
-Instruksi Penugasan:
-"${currentAssignmentData ? currentAssignmentData.deskripsi : 'Kerjakan tugas dengan baik.'}"
-
-Jawaban Siswa:
-"${studentText}"
-
-Tolong berikan output HANYA dalam format JSON valid berikut tanpa markdown \`\`\`json:
-{
-  "score": 85,
-  "feedback": "(Isi string HTML di sini)"
-}
-
-Ketentuan Feedback (Wajib diikuti):
-1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
-2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" dan "Kamu". Jangan gunakan "Anda" atau "Saya".
-3. Struktur Isi: Analisis Kesalahan, Koreksi, dan Pujian.
-4. Format HTML: Gunakan tag HTML <b>, <i>, dan <br> (Jangan gunakan markdown seperti **bold**).
-                `;
-
-                // Kirim ke Vercel (karena di vercel API-nya kita set untuk membaca prompt utuh jika diberikan via instruction)
-                // Kita "menitipkan" seluruh instruksi kustom ini ke field instruction.
+                // Mengirim payload ke /api/grade2 di Vercel
                 const response = await fetch(VERCEL_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        instruction: promptRaw, // Mengirim prompt utuh ke Vercel
-                        rubric: "Gunakan ketentuan prompt di atas.",
+                        studentName: studentName,
+                        instruction: currentAssignmentData ? currentAssignmentData.deskripsi : 'Kerjakan tugas dengan baik.',
                         answer: studentText
                     })
                 });
                 
-                if(!response.ok) throw new Error("Gagal terhubung ke Vercel.");
+                if(!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || "Gagal terhubung ke Vercel.");
+                }
 
                 const result = await response.json();
                 
                 if (result.score !== undefined && result.feedback) {
                     scoreInput.value = result.score;
-                    feedbackInput.value = result.feedback;
+                    feedbackInput.value = result.feedback; // Otomatis mengisi textarea
                     
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Dibuat';
                     btn.style.background = "#059669";
@@ -318,7 +296,7 @@ Ketentuan Feedback (Wajib diikuti):
                         btn.disabled = false;
                     }, 3000);
                 } else {
-                    throw new Error("Respon AI tidak valid.");
+                    throw new Error("Respon AI tidak valid atau kosong.");
                 }
             } catch (e) {
                 console.error(e);
@@ -354,8 +332,7 @@ Ketentuan Feedback (Wajib diikuti):
                 
                 const btn = form.querySelector('.btn-save');
                 const nilaiVal = parseFloat(form.querySelector('.score-input').value) || 0;
-                // Ambil Value Textarea menggunakan .value
-                const feedbackVal = form.querySelector('.rich-feedback').value;
+                const feedbackVal = form.querySelector('.rich-feedback').value; // Mengambil dari textarea
 
                 const selectBox = document.getElementById('tugas-select');
                 const judulTugas = selectBox.options[selectBox.selectedIndex].getAttribute('data-judul');
@@ -372,7 +349,7 @@ Ketentuan Feedback (Wajib diikuti):
                         feedback: feedbackVal
                     });
 
-                    // B. Update Data Siswa & IPS
+                    // B. Update Data Siswa & IPS (Jika format penamaan tugas cocok)
                     if (targetField && studentUid) {
                         const userRef = doc(db, 'users', studentUid);
                         const userSnap = await getDoc(userRef);
@@ -401,6 +378,11 @@ Ketentuan Feedback (Wajib diikuti):
 
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersimpan & Sinkron!';
                     btn.style.backgroundColor = '#005a9c';
+                    
+                    const cardHeader = form.closest('.grading-card').querySelector('.card-header span.tag');
+                    cardHeader.className = 'tag tag-blue';
+                    cardHeader.innerText = 'SUDAH DINILAI';
+
                     setTimeout(() => { 
                         btn.innerHTML = originalText; 
                         btn.style.backgroundColor = ''; 
