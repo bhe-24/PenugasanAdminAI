@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koreksi Esai AI - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        :root { --primary: #003366; --accent: #28a745; --bg: #f4f7f6; }
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+        .page-header { background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
+        .page-header h2 { margin: 0; color: var(--primary); font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .btn-back { padding: 10px 15px; background: #e2e8f0; color: #333; text-decoration: none; border-radius: 8px; font-weight: bold; }
+
+        .select-box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
+
+        .submission-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #eee; padding-bottom: 15px; margin-bottom: 15px; }
+        .student-name { font-size: 1.2rem; font-weight: bold; color: var(--primary); margin: 0; }
+        
+        .essay-text { background: #f8fafc; padding: 15px; border-radius: 8px; color: #334155; line-height: 1.6; white-space: pre-wrap; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto; margin-bottom: 20px; }
+
+        .ai-tools { display: flex; gap: 15px; align-items: flex-start; background: #f0fdfa; padding: 15px; border-radius: 8px; border: 1px solid #ccfbf1; margin-bottom: 20px; }
+        .btn-ai { background: #0d9488; color: white; border: none; padding: 15px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-ai:hover { background: #0f766e; }
+        .btn-ai:disabled { background: #99f6e4; cursor: not-allowed; }
+
+        .input-group { flex: 1; display: flex; gap: 15px; }
+        .score-input { width: 100px; padding: 10px; font-size: 1.5rem; font-weight: bold; text-align: center; border: 2px solid #ddd; border-radius: 8px; }
+        .feedback-input { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: inherit; resize: vertical; min-height: 80px; }
+
+        .btn-save { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        .btn-save:hover { background: #002244; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <h2><i class="fa-solid fa-robot"></i> Asisten Koreksi Esai (AI)</h2>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        </div>
+
+        <div class="select-box">
+            <label style="font-weight:bold; display:block; margin-bottom:10px;">Pilih Ujian Tipe Esai:</label>
+            <select id="exam-select">
+                <option value="">Memuat daftar ujian...</option>
+            </select>
+        </div>
+
+        <div id="list-container">
+            <div style="text-align:center; padding:50px; color:#888;">
+                <i class="fa-solid fa-file-signature" style="font-size:3rem; margin-bottom:15px; color:#ddd;"></i>
+                <p>Silakan pilih ujian di atas untuk memuat karya siswa.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "../js/firebase-config.js";
+        import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // === TARUH API KEY KAMU DI SINI ===
+        const GEMINI_API_KEY = "GANTI_DENGAN_API_KEY_GOOGLE_STUDIO_KAMU"; 
+
+        let currentExamData = null;
+
+        // 1. Load Daftar Ujian yang tipenya 'essay'
+        async function loadEssayExams() {
+            const select = document.getElementById('exam-select');
+            try {
+                const q = query(collection(db, 'exams'), where('type', '==', 'essay'));
+                const snap = await getDocs(q);
+                
+                if (snap.empty) {
+                    select.innerHTML = '<option value="">Tidak ada ujian esai tersedia.</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">-- Pilih Ujian --</option>';
+                snap.forEach(d => {
+                    const data = d.data();
+                    select.innerHTML += `<option value="${d.id}">${data.judul} (Sem ${data.semester})</option>`;
+                });
+            } catch(e) {
+                console.error(e);
+            }
+        }
+        loadEssayExams();
+
+        // 2. Load Hasil Siswa saat Ujian dipilih
+        document.getElementById('exam-select').addEventListener('change', async (e) => {
+            const examId = e.target.value;
+            const container = document.getElementById('list-container');
+            if(!examId) return container.innerHTML = '';
+
+            container.innerHTML = '<div style="text-align:center; padding:30px;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>';
+
+            try {
+                // Ambil Data Ujian (untuk ambil instruksi & rubrik)
+                const examSnap = await getDoc(doc(db, 'exams', examId));
+                currentExamData = examSnap.data();
+
+                // Ambil Data Jawaban
+                const qRes = query(collection(db, 'quiz_results'), where('quizId', '==', examId));
+                const resSnap = await getDocs(qRes);
+
+                if(resSnap.empty) {
+                    return container.innerHTML = '<div style="text-align:center; padding:30px;">Belum ada siswa yang mengumpulkan.</div>';
+                }
+
+                container.innerHTML = '';
+                resSnap.forEach(d => {
+                    const res = d.data();
+                    const docId = d.id;
+                    const statusBadge = res.score > 0 
+                        ? `<span style="background:#dcfce7; color:#166534; padding:5px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;">SUDAH DINILAI (${res.score})</span>`
+                        : `<span style="background:#fee2e2; color:#991b1b; padding:5px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;">BELUM DINILAI</span>`;
+
+                    const html = `
+                        <div class="submission-card" id="card-${docId}">
+                            <div class="card-header">
+                                <h3 class="student-name"><i class="fa-solid fa-user-graduate"></i> ${res.studentName}</h3>
+                                ${statusBadge}
+                            </div>
+                            
+                            <div class="essay-text" id="text-${docId}">${res.jawabanTeks}</div>
+
+                            <div class="ai-tools">
+                                <button class="btn-ai" onclick="generateAI('${docId}')" id="btn-ai-${docId}">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Minta Saran AI
+                                </button>
+                                <div class="input-group">
+                                    <input type="number" id="score-${docId}" class="score-input" placeholder="Nilai" value="${res.score || ''}">
+                                    <textarea id="feedback-${docId}" class="feedback-input" placeholder="Komentar / Feedback untuk siswa...">${res.feedbackAI === 'Karya sedang dalam antrean untuk dibaca dan dinilai oleh Guru.' ? '' : res.feedbackAI || ''}</textarea>
+                                </div>
+                            </div>
+
+                            <button class="btn-save" onclick="saveGrade('${docId}', '${res.studentId}')">
+                                <i class="fa-solid fa-save"></i> Simpan Penilaian
+                            </button>
+                        </div>
+                    `;
+                    container.innerHTML += html;
+                });
+
+            } catch(err) {
+                console.error(err);
+                container.innerHTML = '<div style="text-align:center; color:red;">Gagal memuat data.</div>';
+            }
+        });
+
+        // 3. FUNGSI SAKTI: PANGGIL AI
+        window.generateAI = async (docId) => {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("GANTI_DENGAN")) {
+                return alert("API Key belum dimasukkan di source code!");
+            }
+
+            const btn = document.getElementById(`btn-ai-${docId}`);
+            const scoreInput = document.getElementById(`score-${docId}`);
+            const feedbackInput = document.getElementById(`feedback-${docId}`);
+            const studentText = document.getElementById(`text-${docId}`).innerText;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mikir...';
+
+            const prompt = `Anda adalah Guru Bahasa dan Sastra Indonesia.
+Tugas Anda menilai karya ini:
+INSTRUKSI TUGAS: "${currentExamData.essayInstruction}"
+RUBRIK PENILAIAN: "${currentExamData.essayRubric}"
+KARYA SISWA: "${studentText}"
+
+Berikan HANYA respons berformat JSON murni seperti ini:
+{"score": 85, "feedback": "Komentar guru di sini (maks 2 paragraf, puji kelebihan & beri saran perbaikan)"}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.2 } 
+                    })
+                });
+                
+                if(!response.ok) throw new Error("Gagal terhubung ke AI");
+
+                const result = await response.json();
+                let aiText = result.candidates[0].content.parts[0].text;
+                
+                // Ambil JSON saja
+                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                if(jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    
+                    // Isi Otomatis Input Form (Admin bisa edit ini sebelum simpan)
+                    scoreInput.value = parsed.score;
+                    feedbackInput.value = parsed.feedback;
+                    
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai';
+                    btn.style.background = "#28a745";
+                } else {
+                    throw new Error("Format AI kacau.");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Gagal memanggil AI: " + e.message);
+                btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Coba Lagi';
+                btn.disabled = false;
+            }
+        };
+
+        // 4. FUNGSI SIMPAN
+        window.saveGrade = async (docId, studentUid) => {
+            const scoreVal = parseFloat(document.getElementById(`score-${docId}`).value);
+            const feedbackVal = document.getElementById(`feedback-${docId}`).value;
+
+            if (isNaN(scoreVal) || scoreVal < 0 || scoreVal > 100) return alert("Masukkan nilai 0-100 yang valid.");
+
+            const btnSave = document.querySelector(`#card-${docId} .btn-save`);
+            const originalText = btnSave.innerHTML;
+            btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btnSave.disabled = true;
+
+            try {
+                // Update hasil quiz
+                await updateDoc(doc(db, 'quiz_results', docId), {
+                    score: scoreVal,
+                    feedbackAI: feedbackVal
+                });
+
+                // UPDATE UI (Ganti Badge)
+                const header = document.querySelector(`#card-${docId} .card-header`);
+                header.innerHTML = `
+                    <h3 class="student-name"><i class="fa-solid fa-user-graduate"></i> Tersimpan</h3>
+                    <span style="background:#dcfce7; color:#166534; padding:5px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;">SUDAH DINILAI (${scoreVal})</span>
+                `;
+
+                btnSave.innerHTML = '<i class="fa-solid fa-check"></i> Tersimpan';
+                btnSave.style.background = "#28a745";
+
+                setTimeout(() => {
+                    btnSave.innerHTML = originalText;
+                    btnSave.style.background = "var(--primary)";
+                    btnSave.disabled = false;
+                }, 2000);
+
+            } catch (e) {
+                console.error(e);
+                alert("Gagal menyimpan: " + e.message);
+                btnSave.innerHTML = originalText;
+                btnSave.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
