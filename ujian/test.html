@@ -341,26 +341,26 @@
 
             try {
                 let aiScore = 0;
-                let aiFeedback = "Terjadi kendala saat meninjau otomatis. Karya Anda telah tersimpan dan akan dinilai secara manual oleh Guru.";
+                let aiFeedback = "Karya Anda telah tersimpan. Guru akan segera meninjaunya secara manual.";
 
-                // 1. TEMBAK LANGSUNG KE GOOGLE GEMINI API (CORS-Safe via REST)
+                // 1. TEMBAK LANGSUNG KE GOOGLE GEMINI API
                 if (GEMINI_API_KEY && GEMINI_API_KEY !== "GANTI_DENGAN_API_KEY_GOOGLE_STUDIO_KAMU") {
                     try {
-                        const promptText = `Anda adalah seorang Guru Bahasa dan Sastra Indonesia yang sangat teliti dan suportif.
-Tugas Anda adalah menilai karya siswa.
+                        const promptText = `
+Anda adalah Guru Bahasa dan Sastra Indonesia. Evaluasi karya ini.
+INSTRUKSI: "${examData.essayInstruction}"
+RUBRIK: "${examData.essayRubric}"
+KARYA: "${studentText}"
 
-INSTRUKSI TUGAS: "${examData.essayInstruction}"
-RUBRIK PENILAIAN: "${examData.essayRubric}"
-KARYA SISWA: "${studentText}"
-
-Berikan penilaian HANYA dalam format JSON persis seperti ini (tanpa markdown tambahan):
-{"score": (angka 0-100), "feedback": "(Ulasan maksimal 3 paragraf, bertindak layaknya guru, puji kelebihan dan perbaiki kekurangan)"}`;
-
+Berikan HANYA format JSON murni seperti ini tanpa teks markdown lainnya:
+{"score": 85, "feedback": "Komentar guru di sini..."}
+`;
                         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                contents: [{ parts: [{ text: promptText }] }]
+                                contents: [{ parts: [{ text: promptText }] }],
+                                generationConfig: { temperature: 0.2 } 
                             })
                         });
                         
@@ -368,19 +368,23 @@ Berikan penilaian HANYA dalam format JSON persis seperti ini (tanpa markdown tam
                             const result = await response.json();
                             let aiResponseText = result.candidates[0].content.parts[0].text;
                             
-                            // Bersihkan format markdown jika AI membandel
-                            aiResponseText = aiResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
-                            const parsedData = JSON.parse(aiResponseText);
+                            // Ambil hanya struktur JSON menggunakan Regex (menghindari error ```json)
+                            const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
                             
-                            aiScore = parsedData.score || 0;
-                            aiFeedback = parsedData.feedback || "Karya berhasil dinilai.";
+                            if (jsonMatch) {
+                                const parsedData = JSON.parse(jsonMatch[0]);
+                                aiScore = parsedData.score || 0;
+                                aiFeedback = parsedData.feedback || "Karya berhasil dinilai.";
+                            }
+                        } else {
+                            console.warn("Respon dari Gemini gagal.");
                         }
                     } catch(apiErr) {
-                        console.warn("API Gemini Error:", apiErr);
+                        console.error("API Gemini Error:", apiErr);
                     }
                 }
 
-                // 2. SIMPAN KE FIRESTORE 
+                // 2. SIMPAN KE FIRESTORE (DENGAN HASIL JADI)
                 const docRef = await addDoc(collection(db, 'quiz_results'), {
                     quizId: examId,
                     studentId: currentUser.uid,
