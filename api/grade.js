@@ -30,29 +30,35 @@ export default async function handler(req, res) {
 
         // 2. SUSUN PROMPT UNTUK AI (Berperan sebagai Guru Sastra)
         const prompt = `
-Anda adalah seorang Guru Bahasa dan Sastra Indonesia yang sangat teliti, objektif, dan suportif.
-Tugas Anda adalah menilai karya/esai siswa berdasarkan instruksi dan rubrik berikut.
+Anda adalah seorang Guru Penulisan Kreatif dan Editor Fiksi yang sangat teliti, objektif, dan suportif.
+Tugas Anda adalah menilai karya tulisan siswa berdasarkan instruksi dan rubrik berikut.
 
 INSTRUKSI TUGAS:
-"${instruction || 'Buatlah karya tulisan yang baik dan benar.'}"
+"${instruction || 'Buatlah karya tulisan fiksi/esai yang baik dan benar sesuai kaidah.'}"
 
-RUBRIK PENILAIAN:
-"${rubric || 'Nilai 1-100 berdasarkan tata bahasa (PUEBI), struktur, dan kesesuaian tema.'}"
+RUBRIK & UNSUR PENILAIAN:
+"${rubric || 'Nilai rentang 0-100 dengan mempertimbangkan 4 unsur utama: 
+1. Gagasan/Premis: Kejelasan ide dan orisinalitas.
+2. Struktur & Logika Narasi: Alur cerita, pacing (tempo), dan konsistensi POV.
+3. Estetika & Karakter: Penggunaan panca indera (Show, Don\'t Tell) dan kehidupanan karakter.
+4. Teknis & PUEBI: Tata bahasa, efektivitas kalimat, tanda baca, dan aturan dialog tag.'}"
 
 JAWABAN/KARYA SISWA:
 "${answer}"
 
 TUGAS ANDA:
-1. Berikan nilai angka dari 0 hingga 100.
-2. Berikan feedback/komentar (maksimal 3 paragraf). Beri pujian pada bagian yang bagus, dan saran perbaikan pada bagian yang kurang. Gunakan bahasa yang memotivasi siswa (jangan gunakan kata "Sistem" atau "AI", bertindaklah seolah-olah Anda adalah guru manusianya).
+1. Berikan nilai akhir berupa angka bulat dari 0 hingga 100.
+2. Berikan feedback/catatan evaluasi yang komprehensif (wajib 3 paragraf) dengan struktur berikut:
+   - Paragraf 1 (Apresiasi & Kekuatan Karya): Sebutkan apa yang sudah berhasil dilakukan siswa dengan baik (misal: ide yang unik, deskripsi yang hidup, atau dialog yang natural).
+   - Paragraf 2 (Evaluasi Terfokus & Koreksi Teknis): Berikan kritik membangun terkait kelemahan karya (misal: kesalahan PUEBI, logika alur yang melompat, atau kalimat pemborosan). Berikan masukan spesifik.
+   - Paragraf 3 (Saran Tindakan & Motivasi): Berikan arahan jelas apa yang harus direvisi selanjutnya dan tutup dengan kalimat penyemangat. Bertindaklah layaknya mentor manusia yang peduli (jangan sebut diri Anda AI atau Sistem).
 
 PENTING:
-Kembalikan respon Anda HANYA DALAM FORMAT JSON murni (tanpa awalan \`\`\`json dan akhiran \`\`\`), dengan struktur persis seperti ini:
+Kembalikan respon Anda HANYA DALAM FORMAT JSON murni (tanpa awalan ```json dan akhiran ```), tanpa teks pengantar atau penutup apa pun. Struktur JSON harus persis seperti contoh berikut:
 {
   "score": 85,
-  "feedback": "Karya yang sangat bagus! Pemilihan diksinya..."
+  "feedback": "[Paragraf 1: Apresiasi]\n\n[Paragraf 2: Evaluasi]\n\n[Paragraf 3: Motivasi]"
 }
-`;
 
         // 3. PANGGIL GEMINI AI
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
