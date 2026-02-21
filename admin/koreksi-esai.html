@@ -36,6 +36,13 @@
 
         .btn-save { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
         .btn-save:hover { background: #002244; }
+
+        @media (max-width: 768px) {
+            .ai-tools { flex-direction: column; }
+            .btn-ai { width: 100%; justify-content: center; }
+            .input-group { width: 100%; flex-direction: column; }
+            .score-input { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -65,8 +72,8 @@
         import { db } from "../js/firebase-config.js";
         import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // === TARUH API KEY KAMU DI SINI ===
-        const GEMINI_API_KEY = "GANTI_DENGAN_API_KEY_GOOGLE_STUDIO_KAMU"; 
+        // === KARENA BERADA DI SATU PROJECT VERCEL, CUKUP PANGGIL PATH RELATIF ===
+        const VERCEL_API_URL = "/api/grade"; 
 
         let currentExamData = null;
 
@@ -122,6 +129,9 @@
                         ? `<span style="background:#dcfce7; color:#166534; padding:5px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;">SUDAH DINILAI (${res.score})</span>`
                         : `<span style="background:#fee2e2; color:#991b1b; padding:5px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;">BELUM DINILAI</span>`;
 
+                    // Bersihkan placeholder jika belum dinilai
+                    const currentFeedback = (res.feedbackAI && res.feedbackAI.includes('antrean')) ? '' : (res.feedbackAI || '');
+
                     const html = `
                         <div class="submission-card" id="card-${docId}">
                             <div class="card-header">
@@ -132,16 +142,16 @@
                             <div class="essay-text" id="text-${docId}">${res.jawabanTeks}</div>
 
                             <div class="ai-tools">
-                                <button class="btn-ai" onclick="generateAI('${docId}')" id="btn-ai-${docId}">
+                                <button class="btn-ai" onclick="window.generateAI('${docId}')" id="btn-ai-${docId}">
                                     <i class="fa-solid fa-wand-magic-sparkles"></i> Minta Saran AI
                                 </button>
                                 <div class="input-group">
                                     <input type="number" id="score-${docId}" class="score-input" placeholder="Nilai" value="${res.score || ''}">
-                                    <textarea id="feedback-${docId}" class="feedback-input" placeholder="Komentar / Feedback untuk siswa...">${res.feedbackAI === 'Karya sedang dalam antrean untuk dibaca dan dinilai oleh Guru.' ? '' : res.feedbackAI || ''}</textarea>
+                                    <textarea id="feedback-${docId}" class="feedback-input" placeholder="Komentar / Feedback untuk siswa...">${currentFeedback}</textarea>
                                 </div>
                             </div>
 
-                            <button class="btn-save" onclick="saveGrade('${docId}', '${res.studentId}')">
+                            <button class="btn-save" onclick="window.saveGrade('${docId}', '${res.studentId}')">
                                 <i class="fa-solid fa-save"></i> Simpan Penilaian
                             </button>
                         </div>
@@ -155,12 +165,8 @@
             }
         });
 
-        // 3. FUNGSI SAKTI: PANGGIL AI
+        // 3. FUNGSI SAKTI: PANGGIL BACKEND VERCEL (LOCAL PATH)
         window.generateAI = async (docId) => {
-            if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("GANTI_DENGAN")) {
-                return alert("API Key belum dimasukkan di source code!");
-            }
-
             const btn = document.getElementById(`btn-ai-${docId}`);
             const scoreInput = document.getElementById(`score-${docId}`);
             const feedbackInput = document.getElementById(`feedback-${docId}`);
@@ -169,43 +175,35 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mikir...';
 
-            const prompt = `Anda adalah Guru Bahasa dan Sastra Indonesia.
-Tugas Anda menilai karya ini:
-INSTRUKSI TUGAS: "${currentExamData.essayInstruction}"
-RUBRIK PENILAIAN: "${currentExamData.essayRubric}"
-KARYA SISWA: "${studentText}"
-
-Berikan HANYA respons berformat JSON murni seperti ini:
-{"score": 85, "feedback": "Komentar guru di sini (maks 2 paragraf, puji kelebihan & beri saran perbaikan)"}`;
-
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                // Tembak API Backend Vercel di folder yang sama
+                const response = await fetch(VERCEL_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { temperature: 0.2 } 
+                        instruction: currentExamData.essayInstruction,
+                        rubric: currentExamData.essayRubric,
+                        answer: studentText
                     })
                 });
                 
-                if(!response.ok) throw new Error("Gagal terhubung ke AI");
+                if(!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || "Gagal terhubung ke server backend Vercel.");
+                }
 
+                // Ambil respons dari Vercel
                 const result = await response.json();
-                let aiText = result.candidates[0].content.parts[0].text;
                 
-                // Ambil JSON saja
-                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-                if(jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    
-                    // Isi Otomatis Input Form (Admin bisa edit ini sebelum simpan)
-                    scoreInput.value = parsed.score;
-                    feedbackInput.value = parsed.feedback;
+                if (result.score !== undefined && result.feedback) {
+                    // Isi Form
+                    scoreInput.value = result.score;
+                    feedbackInput.value = result.feedback;
                     
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai';
                     btn.style.background = "#28a745";
                 } else {
-                    throw new Error("Format AI kacau.");
+                    throw new Error("Respon dari backend tidak lengkap atau JSON rusak.");
                 }
             } catch (e) {
                 console.error(e);
@@ -228,7 +226,7 @@ Berikan HANYA respons berformat JSON murni seperti ini:
             btnSave.disabled = true;
 
             try {
-                // Update hasil quiz
+                // Update hasil quiz di Firestore
                 await updateDoc(doc(db, 'quiz_results', docId), {
                     score: scoreVal,
                     feedbackAI: feedbackVal
