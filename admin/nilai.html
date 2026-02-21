@@ -69,8 +69,14 @@
         .score-input { width: 90px; text-align: center; font-size: 1.5rem; font-weight: bold; padding: 10px; border: 2px solid #ccc; border-radius: 8px; color: var(--primary-color); }
         .score-input:focus { border-color: var(--primary-light); }
 
-        .rich-feedback { width: 100%; min-height: 120px; padding: 15px; border: 2px solid #ccc; border-radius: 8px; background: #fff; font-family: inherit; resize: vertical; line-height: 1.5; transition: 0.3s; }
+        /* RICH FEEDBACK (CONTENTEDITABLE) */
+        .rich-feedback { 
+            width: 100%; min-height: 120px; padding: 15px; border: 2px solid #ccc; 
+            border-radius: 8px; background: #fff; font-family: inherit; 
+            line-height: 1.6; transition: 0.3s; overflow-y: auto; max-height: 300px;
+        }
         .rich-feedback:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(0, 90, 156, 0.1); }
+        .rich-feedback[placeholder]:empty:before { content: attr(placeholder); color: #999; pointer-events: none; display: block; /* For Firefox */ }
 
         /* BUTTONS */
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
@@ -218,7 +224,7 @@
                                 `
                                 <div class="text-wrapper">
                                     <div class="answer-box" id="text-${uid}">${sub.jawabanTeks || 'Tidak ada teks jawaban.'}</div>
-                                    <button class="toggle-btn" onclick="window.toggleText('${uid}')" id="toggle-${uid}">Baca Selengkapnya <i class="fa-solid fa-chevron-down"></i></button>
+                                    <button type="button" class="toggle-btn" onclick="window.toggleText('${uid}')" id="toggle-${uid}">Baca Selengkapnya <i class="fa-solid fa-chevron-down"></i></button>
                                 </div>
                                 `
                             }
@@ -237,7 +243,7 @@
                                 </div>
                                 <div>
                                     <label><strong>Catatan Guru / Ulasan AI:</strong></label>
-                                    <textarea class="rich-feedback" id="feedback-${uid}" placeholder="Ketik catatan di sini...">${sub.feedback || ''}</textarea>
+                                    <div class="rich-feedback" id="feedback-${uid}" contenteditable="true" placeholder="Ketik catatan di sini...">${sub.feedback || ''}</div>
                                 </div>
                                 <div class="form-actions" style="margin-top:10px;">
                                     <button type="submit" class="btn btn-save"><i class="fa-solid fa-save"></i> Simpan & Sinkron IPS</button>
@@ -263,6 +269,15 @@
             }
         };
 
+        // HELPER AGAR MARKDOWN TERUBAH JADI TAG HTML (Jaga-jaga AI bandel)
+        function formatFeedback(text) {
+            if(!text) return "";
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Mengubah **teks** menjadi <b>teks</b>
+                .replace(/\*(.*?)\*/g, '<i>$1</i>')     // Mengubah *teks* menjadi <i>teks</i>
+                .replace(/\n/g, '<br>');               // Mengubah enter menjadi <br>
+        }
+
         // --- FUNGSI MENGHUBUNGI API VERCEL (GRADE2) ---
         window.generateAI = async (docId, studentName) => {
             const btn = document.getElementById(`btn-ai-${docId}`);
@@ -276,13 +291,40 @@
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menganalisis...';
 
             try {
+                const promptRaw = `
+Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
+Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.
+
+Informasi Siswa:
+Nama: "${studentName}"
+
+Instruksi Penugasan:
+"${currentAssignmentData ? currentAssignmentData.deskripsi : 'Kerjakan tugas dengan baik.'}"
+
+Jawaban Siswa:
+"${studentText}"
+
+Tolong berikan output HANYA dalam format JSON valid berikut tanpa markdown \`\`\`json:
+{
+  "score": 85,
+  "feedback": "(Isi string HTML di sini)"
+}
+
+Ketentuan Feedback (Wajib diikuti):
+1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
+2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" dan "Kamu". Jangan gunakan "Anda" atau "Saya".
+3. Struktur Isi: Analisis Kesalahan, Koreksi, dan Pujian.
+4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. JANGAN MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
+                `;
+
                 const response = await fetch(VERCEL_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        studentName: studentName,
-                        instruction: currentAssignmentData ? currentAssignmentData.deskripsi : 'Kerjakan tugas dengan baik.',
-                        answer: studentText
+                        instruction: promptRaw, 
+                        rubric: "Gunakan ketentuan prompt di atas.",
+                        answer: studentText,
+                        studentName: studentName
                     })
                 });
                 
@@ -295,9 +337,10 @@
                 
                 if (result.score !== undefined && result.feedback) {
                     scoreInput.value = result.score;
-                    feedbackInput.value = result.feedback; 
+                    // Menggunakan innerHTML karena sekarang div contenteditable
+                    feedbackInput.innerHTML = formatFeedback(result.feedback); 
                     
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai';
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Dibuat';
                     btn.style.background = "#059669";
                     
                     setTimeout(() => {
@@ -342,7 +385,11 @@
                 
                 const btn = form.querySelector('.btn-save');
                 const nilaiVal = parseFloat(form.querySelector('.score-input').value) || 0;
-                const feedbackVal = form.querySelector('.rich-feedback').value; 
+                
+                // Ambil Value dari div contenteditable menggunakan .innerHTML
+                let feedbackVal = form.querySelector('.rich-feedback').innerHTML; 
+                // Opsional: Bersihkan jika hanya berisi placeholder kosong
+                if (feedbackVal === '<br>' || feedbackVal === '<div><br></div>') feedbackVal = '';
 
                 const selectBox = document.getElementById('tugas-select');
                 const judulTugas = selectBox.options[selectBox.selectedIndex].getAttribute('data-judul');
