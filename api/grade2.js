@@ -23,10 +23,19 @@ export default async function handler(req, res) {
 
     try {
         // Mengambil data dari frontend admin/penilaian.html
-        const { studentName, instruction, answer } = req.body;
+        let { studentName, instruction, answer } = req.body;
 
         if (!answer || answer.trim() === '') {
             return res.status(400).json({ error: 'Jawaban siswa kosong' });
+        }
+
+        // --- SOLUSI BUG "UNDEFINED" ---
+        // Jika dari frontend terkirim teks "undefined" atau kosong, kita timpa dengan kalimat default.
+        if (!instruction || instruction === 'undefined' || instruction === 'null' || instruction.trim() === '') {
+            instruction = 'Kerjakan tugas dengan baik, jujur, dan perhatikan kaidah penulisan.';
+        }
+        if (!studentName || studentName === 'undefined') {
+            studentName = 'Teman';
         }
 
         // 2. SUSUN PROMPT (Gaya Teman Belajar Asik & Pintar)
@@ -35,10 +44,10 @@ Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
 Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.
 
 Informasi Siswa:
-Nama: "${studentName || 'Siswa'}"
+Nama: "${studentName}"
 
 Instruksi Penugasan:
-"${instruction || 'Kerjakan tugas dengan baik dan benar.'}"
+"${instruction}"
 
 Jawaban Siswa:
 "${answer}"
@@ -50,13 +59,13 @@ Tolong berikan output HANYA dalam format JSON valid berikut:
 }
 
 Ketentuan Feedback (Wajib diikuti):
-1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName || 'Siswa'}!" atau "Selamat Pagi/Siang/Sore, ${studentName || 'Siswa'}!".
+1. Sapaan & Nama: Mulailah dengan sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
 2. Gaya Bahasa: Gunakan bahasa yang santai, akrab, dan memotivasi. Gunakan kata ganti "Aku" (sebagai penilai) dan "Kamu" (untuk siswa). Jangan gunakan "Anda" atau "Saya". Hindari bahasa birokratis atau terlalu formal.
 3. Struktur Isi:
    - Analisis Kesalahan: Jelaskan bagian mana yang kurang tepat atau salah dari jawaban siswa.
    - Koreksi: Berikan contoh jawaban yang benar atau cara memperbaikinya.
    - Pujian: Tetap apresiasi usaha mereka.
-4. Format HTML: Gunakan tag HTML <b> untuk menebalkan poin penting, <i> untuk istilah asing, dan <br> untuk baris baru. Jangan gunakan markdown (**bold**), harus HTML tag. Jangan gunakan blok \`\`\`html.
+4. Format HTML: Gunakan tag HTML <b> untuk menebalkan poin penting, <i> untuk istilah asing, dan <br> untuk baris baru. Jangan gunakan markdown (**bold**), harus HTML tag.
 `;
 
         // 3. PANGGIL GEMINI AI
