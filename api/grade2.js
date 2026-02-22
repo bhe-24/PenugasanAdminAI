@@ -57,7 +57,7 @@ Ketentuan Feedback (Wajib diikuti):
 4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. DILARANG KERAS MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
 `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { temperature: 0.4 } 
