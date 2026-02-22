@@ -36,12 +36,13 @@ ATURAN MENJAWAB (WAJIB DIIKUTI):
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama3-70b-8192', // Menggunakan model LLaMA 3 70B yang sangat cerdas bahasa Indonesianya
+                // PERUBAHAN ADA DI SINI: Menggunakan model terbaru Groq yang didukung
+                model: 'llama-3.3-70b-versatile', 
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: message }
                 ],
-                temperature: 0.5, // Dibuat seimbang agar tidak terlalu kaku tapi tetap fokus
+                temperature: 0.5,
             })
         });
 
@@ -55,7 +56,7 @@ ATURAN MENJAWAB (WAJIB DIIKUTI):
         // 4. BERSIHKAN & KIRIM BALASAN
         let textResponse = data.choices[0].message.content;
         
-        // Jaga-jaga jika AI LLaMA masih bandel pakai markdown, kita bersihkan di Backend
+        // Jaga-jaga jika AI masih bandel pakai markdown
         textResponse = textResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
         res.status(200).json({ reply: textResponse });
