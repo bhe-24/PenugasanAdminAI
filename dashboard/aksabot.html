@@ -178,7 +178,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // PERBAIKAN: Menambahkan getDocs, collection, query, orderBy
+        import { getFirestore, doc, getDoc, getDocs, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = { 
@@ -214,7 +215,7 @@
             }, 300);
         });
 
-        // 1. Authenticate & Load Knowledge
+        // 1. Authenticate & Load Knowledge Base
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 await signInAnonymously(auth);
@@ -223,10 +224,22 @@
                 if(userSnap.exists()) currentUserName = userSnap.data().name || "Siswa";
             }
             
+            // PERBAIKAN UTAMA: Mengambil semua dokumen dari koleksi 'aksabot_knowledge'
             try {
-                const docSnap = await getDoc(doc(db, "settings", "aksabot_knowledge"));
-                if(docSnap.exists()) knowledgeBaseText = docSnap.data().content;
-            } catch(e) { console.error("Gagal meload otak AI", e); }
+                const q = query(collection(db, "aksabot_knowledge"), orderBy("createdAt", "asc"));
+                const querySnapshot = await getDocs(q);
+                
+                let combinedKnowledge = "";
+                querySnapshot.forEach((doc) => {
+                    combinedKnowledge += doc.data().content + "\n\n"; // Gabungkan dengan jarak enter
+                });
+
+                if(combinedKnowledge.trim() !== "") {
+                    knowledgeBaseText = combinedKnowledge;
+                }
+            } catch(e) { 
+                console.error("Gagal meload otak AI dari Arsip:", e); 
+            }
             
             loadChatHistory();
         });
