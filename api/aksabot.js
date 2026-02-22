@@ -33,7 +33,7 @@ PERTANYAAN PENGGUNA:
 "${message}"
 `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "Gemma-3-2B" });
         const result = await model.generateContent(prompt);
         let textResponse = result.response.text();
         
