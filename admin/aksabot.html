@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pusat Pengetahuan AksaBot - Admin</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #003366; --bg: #f4f7fe; --accent: #11998e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+        .header h2 { margin: 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .info-box { background: #e0f2fe; color: #0284c7; padding: 15px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 20px; border-left: 5px solid #0ea5e9; }
+        textarea { width: 100%; height: 400px; padding: 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 1rem; line-height: 1.6; resize: vertical; box-sizing: border-box; }
+        textarea:focus { border-color: var(--accent); outline: none; }
+        .btn { padding: 12px 25px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;}
+        .btn:hover { background: #0f857b; transform: translateY(-2px); }
+        .btn-back { background: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2><i class="fa-solid fa-brain"></i> Pusat Pengetahuan AksaBot</h2>
+            <a href="index.html" class="btn btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+        </div>
+        
+        <div class="info-box">
+            <i class="fa-solid fa-circle-info"></i> Tuliskan semua informasi penting tentang Cendekia Aksara di sini (Sejarah, Pendiri, Program Kelas, Visi Misi, Cara Daftar, dll). AksaBot akan menggunakan teks ini sebagai pedoman untuk menjawab pertanyaan siswa.
+        </div>
+
+        <textarea id="knowledge-base" placeholder="Contoh: Cendekia Aksara adalah komunitas penulis yang didirikan pada... Program yang tersedia meliputi..."></textarea>
+        
+        <div style="text-align: right; margin-top: 20px;">
+            <button id="btn-save" class="btn" onclick="saveKnowledge()"><i class="fa-solid fa-save"></i> Simpan Pengetahuan AI</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const docRef = doc(db, "settings", "aksabot_knowledge");
+
+        // Load data saat pertama buka
+        async function loadData() {
+            const btn = document.getElementById('btn-save');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memuat...';
+            try {
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    document.getElementById('knowledge-base').value = snap.data().content;
+                }
+            } catch(e) { console.error(e); }
+            btn.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Pengetahuan AI';
+        }
+
+        // Simpan data
+        window.saveKnowledge = async () => {
+            const btn = document.getElementById('btn-save');
+            const content = document.getElementById('knowledge-base').value;
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+            
+            try {
+                await setDoc(docRef, { content: content, updatedAt: new Date() });
+                alert("Berhasil! AksaBot sekarang sudah mempelajari informasi baru ini.");
+            } catch(e) {
+                alert("Gagal menyimpan data.");
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersimpan';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Pengetahuan AI';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        };
+
+        loadData();
+    </script>
+</body>
+</html>
