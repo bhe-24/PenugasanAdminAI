@@ -37,7 +37,7 @@ ATURAN MENJAWAB (WAJIB DIIKUTI):
             },
             body: JSON.stringify({
                 // PERUBAHAN ADA DI SINI: Menggunakan model terbaru Groq yang didukung
-                model: 'llama-3.1-8b-instant', 
+                model: 'meta-llama/llama-guard-4-12b', 
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: message }
