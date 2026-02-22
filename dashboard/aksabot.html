@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AksaBot - Asisten Pintar</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -13,15 +13,17 @@
         :root { --primary: #003366; --accent: #00bcd4; --bg: #f0f4f8; }
         * { box-sizing: border-box; margin: 0; padding: 0; outline: none; font-family: 'Nunito', sans-serif; }
         
-        body { 
+        html, body { 
             background-color: var(--bg); 
-            height: 100vh; /* Kunci layar penuh */
+            height: 100dvh; /* viewport-fit=cover support for iOS */
+            width: 100vw;
             display: flex; justify-content: center; align-items: center;
-            overflow: hidden; /* Hilangkan scroll body browser */
+            overflow: hidden; /* Mencegah pull-to-refresh & overscroll */
+            position: fixed;
         }
 
         .chat-app {
-            width: 100%; max-width: 600px; height: 100vh;
+            width: 100%; max-width: 600px; height: 100%;
             background: white; display: flex; flex-direction: column;
             box-shadow: 0 0 30px rgba(0,0,0,0.15); position: relative;
             overflow: hidden;
@@ -44,28 +46,24 @@
             display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--accent);
             animation: float 3s ease-in-out infinite; box-shadow: 0 4px 8px rgba(0,0,0,0.2); flex-shrink: 0;
         }
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-3px); }
-            100% { transform: translateY(0px); }
-        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-3px); } 100% { transform: translateY(0px); } }
+        
         .header-info { flex: 1; }
         .header-info h2 { font-size: 1.25rem; margin-bottom: 2px; }
         .header-info p { font-size: 0.85rem; color: #b3d4ff; display: flex; align-items: center; gap: 6px;}
         .online-dot { width: 8px; height: 8px; background: #28a745; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px #28a745; }
 
-        .btn-back { color: white; text-decoration: none; font-size: 1.3rem; padding: 5px 10px; border-radius: 8px; transition: 0.2s;}
+        .btn-back { color: white; text-decoration: none; font-size: 1.3rem; padding: 5px 10px; border-radius: 8px; transition: 0.2s; cursor: pointer;}
         .btn-back:hover { background: rgba(255,255,255,0.2); }
 
         /* --- CHAT AREA (SCROLLABLE) --- */
         .chat-body {
-            flex: 1; /* Mengisi sisa ruang antara header dan footer */
-            overflow-y: auto; /* Scroll hanya di dalam sini */
+            flex: 1; 
+            overflow-y: auto;
             padding: 25px 20px; background: #f8fafc;
-            display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth;
+            display: flex; flex-direction: column; gap: 15px;
+            scroll-behavior: smooth;
         }
-
-        /* Hilangkan scrollbar default untuk tampilan lebih clean (opsional) */
         .chat-body::-webkit-scrollbar { width: 6px; }
         .chat-body::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 
@@ -88,10 +86,11 @@
         .dot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes blink { 0% { opacity: 0.2; transform: scale(0.8); } 20% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0.2; transform: scale(0.8); } }
 
-        /* --- INPUT AREA (STICKY BOTTOM) --- */
+        /* --- INPUT AREA (STICKY BOTTOM - KEYBOARD SAFE) --- */
         .chat-footer {
             padding: 15px 20px; background: white; border-top: 1px solid #e2e8f0;
             display: flex; gap: 12px; align-items: center; width: 100%; flex-shrink: 0;
+            padding-bottom: calc(15px + env(safe-area-inset-bottom)); /* Safe area iOS */
         }
 
         .input-box { flex: 1; padding: 15px 20px; border: 2px solid #e2e8f0; border-radius: 30px; font-size: 1rem; transition: 0.3s; background: #f8fafc; }
@@ -100,6 +99,32 @@
         .btn-send { background: linear-gradient(135deg, #00bcd4, #0097a7); color: white; border: none; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0,188,212,0.3); flex-shrink: 0; }
         .btn-send:hover:not(:disabled) { transform: scale(1.05) rotate(5deg); }
         .btn-send:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; transform: none;}
+
+        /* --- MODAL CONFIRMATION EXIT --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+            display: none; justify-content: center; align-items: center; z-index: 9999;
+            opacity: 0; transition: 0.3s;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        
+        .modal-box {
+            background: white; padding: 30px; border-radius: 20px; width: 85%; max-width: 350px;
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: scale(0.8); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        
+        .modal-icon { font-size: 3rem; color: #dc3545; margin-bottom: 15px; }
+        .modal-title { font-size: 1.3rem; color: var(--primary); margin-bottom: 10px; font-weight: 800; }
+        .modal-text { font-size: 0.95rem; color: #64748b; margin-bottom: 25px; line-height: 1.5; }
+        
+        .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+        .modal-btn { padding: 12px; border-radius: 10px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; }
+        .modal-btn-save { background: var(--primary); color: white; }
+        .modal-btn-delete { background: #fee2e2; color: #b91c1c; }
+        .modal-btn-cancel { background: #f1f5f9; color: #475569; }
 
     </style>
 </head>
@@ -112,7 +137,7 @@
                 <h2>AksaBot</h2>
                 <p><span class="online-dot"></span> Selalu Siap Membantu</p>
             </div>
-            <a href="index.html" class="btn-back" title="Tutup Chat"><i class="fa-solid fa-xmark"></i></a>
+            <button class="btn-back" id="btn-exit" style="background:none; border:none; outline:none;" title="Keluar"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
         </div>
 
         <div class="chat-body" id="chat-box">
@@ -126,7 +151,6 @@
                 <button class="faq-chip" onclick="sendFAQ('Siapa saja pendiri Cendekia Aksara?')">Siapa pendirinya?</button>
                 <button class="faq-chip" onclick="sendFAQ('Program kelas apa saja yang ada?')">Program Kelas?</button>
             </div>
-
             </div>
 
         <div class="typing-indicator" id="typing">
@@ -137,6 +161,19 @@
             <input type="text" id="chat-input" class="input-box" placeholder="Ketik pesanmu di sini..." autocomplete="off">
             <button type="submit" class="btn-send" id="btn-send"><i class="fa-solid fa-paper-plane"></i></button>
         </form>
+    </div>
+
+    <div id="exit-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-door-open"></i></div>
+            <div class="modal-title">Akhiri Percakapan?</div>
+            <div class="modal-text">Apakah kamu ingin menyimpan riwayat obrolan ini untuk nanti, atau menghapusnya?</div>
+            <div class="modal-btns">
+                <button class="modal-btn modal-btn-save" onclick="handleExit('save')">Simpan & Kembali ke Dasbor</button>
+                <button class="modal-btn modal-btn-delete" onclick="handleExit('delete')">Hapus Riwayat & Keluar</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Batal</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -168,22 +205,25 @@
         const btnSend = document.getElementById('btn-send');
         const typingIndicator = document.getElementById('typing');
         const faqBox = document.getElementById('faq-box');
+        const exitModal = document.getElementById('exit-modal');
 
-        // 1. Authenticate & Load Knowledge Base
+        // Mengatasi Bug Keyboard di Mobile Browser (Safari/Chrome Mobile)
+        chatInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+            }, 300);
+        });
+
+        // 1. Authenticate & Load Knowledge
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 await signInAnonymously(auth);
             } else {
-                // Ambil nama user (jika login sebagai siswa)
                 const userSnap = await getDoc(doc(db, "users", user.uid));
                 if(userSnap.exists()) currentUserName = userSnap.data().name || "Siswa";
             }
             
-            // Diam-diam meload "Otak Cendekia" dari koleksi arsip yang terbaru
             try {
-                // Di admin kita menggunakan addDoc ke 'aksabot_knowledge', kita bisa ambil yang paling baru.
-                // Jika ingin simpel, kamu bisa tetap simpan satu dokumen induk di admin.
-                // Untuk kode ini, asumsikan kita ambil dari doc 'aksabot_knowledge' di 'settings' seperti kode lamamu.
                 const docSnap = await getDoc(doc(db, "settings", "aksabot_knowledge"));
                 if(docSnap.exists()) knowledgeBaseText = docSnap.data().content;
             } catch(e) { console.error("Gagal meload otak AI", e); }
@@ -191,28 +231,19 @@
             loadChatHistory();
         });
 
-        // 2. Format Teks (Bold dan Breakline HTML)
+        // 2. Format HTML
         function formatHTML(text) {
-            return text
-                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Mengubah **teks** menjadi bold
-                .replace(/\*(.*?)\*/g, '<i>$1</i>')     // Mengubah *teks* menjadi italic
-                .replace(/\n/g, '<br>');               // Mengubah Enter menjadi baris baru
+            return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
         }
 
-        // 3. Render Pesan ke Layar
+        // 3. Render Pesan
         function appendMessage(sender, text, saveLocal = true) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender === 'bot' ? 'msg-bot' : 'msg-user'}`;
             msgDiv.innerHTML = formatHTML(text);
-            
             chatBox.appendChild(msgDiv);
             
-            // Selalu auto-scroll ke bawah saat ada pesan baru
-            chatBox.scrollTo({
-                top: chatBox.scrollHeight,
-                behavior: 'smooth'
-            });
-
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
             if (saveLocal) saveHistory(sender, text);
         }
 
@@ -220,14 +251,14 @@
         function saveHistory(sender, text) {
             let history = JSON.parse(localStorage.getItem('aksabot_history')) || [];
             history.push({ sender, text });
-            if(history.length > 50) history.shift(); // Max 50 pesan
+            if(history.length > 50) history.shift();
             localStorage.setItem('aksabot_history', JSON.stringify(history));
         }
 
         function loadChatHistory() {
             let history = JSON.parse(localStorage.getItem('aksabot_history'));
             if(history && history.length > 0) {
-                faqBox.style.display = 'none'; // Sembunyikan FAQ jika sudah ada chat
+                faqBox.style.display = 'none';
                 history.forEach(msg => appendMessage(msg.sender, msg.text, false));
             }
         }
@@ -243,14 +274,11 @@
             const text = chatInput.value.trim();
             if (!text) return;
 
-            faqBox.style.display = 'none'; // Sembunyikan tombol FAQ
-
-            // Tampilkan pesan User
+            faqBox.style.display = 'none';
             appendMessage('user', text);
             chatInput.value = '';
             btnSend.disabled = true;
 
-            // Tampilkan animasi mengetik (pindahkan elemen typing ke paling bawah)
             chatBox.appendChild(typingIndicator);
             typingIndicator.style.display = 'block';
             chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
@@ -259,14 +287,10 @@
                 const response = await fetch(VERCEL_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: text,
-                        knowledgeContext: knowledgeBaseText,
-                        userName: currentUserName
-                    })
+                    body: JSON.stringify({ message: text, knowledgeContext: knowledgeBaseText, userName: currentUserName })
                 });
 
-                if(!response.ok) throw new Error("Gagal menghubungi server.");
+                if(!response.ok) throw new Error("Gagal");
                 const data = await response.json();
                 
                 typingIndicator.style.display = 'none';
@@ -277,9 +301,28 @@
                 appendMessage('bot', 'Aduh, jaringan lagi kurang stabil nih. Coba sapa aku lagi ya! 🔌');
             } finally {
                 btnSend.disabled = false;
-                chatInput.focus(); // Kembalikan kursor ke kotak teks
+                chatInput.focus();
             }
         });
+
+        // 6. MODAL EXIT LOGIC
+        document.getElementById('btn-exit').addEventListener('click', () => {
+            exitModal.classList.add('active');
+            chatInput.blur(); // Turunkan keyboard jika masih terbuka
+        });
+
+        window.closeModal = () => {
+            exitModal.classList.remove('active');
+        };
+
+        window.handleExit = (action) => {
+            if (action === 'delete') {
+                localStorage.removeItem('aksabot_history'); // Bersihkan riwayat
+            }
+            // Jika action 'save', biarkan saja localStorage apa adanya
+            
+            window.location.href = 'index.html'; // Pindah ke dashboard utama
+        };
     </script>
 </body>
 </html>
