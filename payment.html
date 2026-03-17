@@ -112,6 +112,11 @@
         .btn-yes { background: #003366; color: white; }
         .btn-no { background: #f1f5f9; color: #475569; }
 
+        /* NEW CUSTOM MODAL (SUCCESS/ERROR) */
+        #modal-notification .modal-box { border-top: 5px solid var(--primary); }
+        #modal-notification.success .modal-box { border-top-color: #10b981; }
+        #modal-notification.error .modal-box { border-top-color: #ef4444; }
+
         @media (max-width: 768px) {
             .container { padding: 15px; }
             .page-header { flex-direction: column; align-items: flex-start; text-align: left; }
@@ -171,12 +176,18 @@
             <p class="modal-p" style="font-size:0.85rem; margin-bottom: 15px; font-weight: 600; color: #d97706;">
                 Transfer TEPAT sesuai nominal di atas.<br>Verifikasi otomatis dalam 1 menit.
             </p>
-            <div id="loading-spinner-small" style="display: none; margin-bottom: 10px;">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Menunggu pembayaran...
-            </div>
             <button class="btn-action btn-waiting" style="cursor: default; opacity: 0.7;">
                 <i class="fa-solid fa-hourglass-half"></i> Sistem Mengecek Otomatis
             </button>
+        </div>
+    </div>
+
+    <div id="modal-notification" class="modal-overlay">
+        <div class="modal-box">
+            <div id="noti-icon" class="modal-icon-lg"></div>
+            <h3 id="noti-title" class="modal-h3">Notifikasi</h3>
+            <p id="noti-msg" class="modal-p"></p>
+            <button class="btn-action btn-receipt" onclick="closeAllModals()">Tutup</button>
         </div>
     </div>
 
@@ -212,28 +223,43 @@
         let currentUser = null;
         let unsubscribePayment = null;
 
+        // --- CUSTOM MODAL FUNCTION (GANTI ALERT) ---
+        window.showCustomModal = (type, title, message) => {
+            const modal = document.getElementById('modal-notification');
+            const icon = document.getElementById('noti-icon');
+            const titleEl = document.getElementById('noti-title');
+            const msgEl = document.getElementById('noti-msg');
+
+            modal.classList.remove('success', 'error');
+            modal.classList.add(type);
+
+            if (type === 'success') icon.innerHTML = '✅';
+            else if (type === 'error') icon.innerHTML = '❌';
+            else icon.innerHTML = 'ℹ️';
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            modal.classList.add('active');
+        };
+
         // --- PAYMENT FLOW OTOMATIS ---
         window.showQRIS = async (amount, label) => {
             document.getElementById('modal-loading').classList.add('active');
 
-            // 1. Generate Kode Unik (1 - 500)
             const uniqueCode = Math.floor(Math.random() * 500) + 1;
             const finalAmount = amount + uniqueCode;
 
             try {
-                // 2. Simpan nominal unik ke Firebase agar listener forwarder bisa mencocokkan
                 await updateDoc(doc(db, 'users', currentUser.uid), { 
                     paymentStatus: 'waiting', 
                     pendingAmount: finalAmount 
                 });
 
-                // 3. Tampilkan UI QRIS
                 document.getElementById('qris-amount').innerText = "Rp " + finalAmount.toLocaleString('id-ID');
                 document.getElementById('qris-title').innerText = label + " (+ Kode Unik)";
                 document.getElementById('modal-loading').classList.remove('active');
                 document.getElementById('modal-qris').classList.add('active');
 
-                // 4. Nyalakan Real-time Listener (Listen perubahan status)
                 if (unsubscribePayment) unsubscribePayment();
                 unsubscribePayment = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
                     const data = docSnap.data();
@@ -245,14 +271,14 @@
 
             } catch(e) {
                 document.getElementById('modal-loading').classList.remove('active');
-                alert("Gagal mengaktifkan sistem pembayaran.");
+                showCustomModal('error', 'Gagal', 'Gagal mengaktifkan sistem pembayaran.');
             }
         };
 
         function handlePaymentSuccess() {
             closeAllModals();
-            alert("PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.");
-            location.reload();
+            showCustomModal('success', 'Berhasil', 'PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.');
+            setTimeout(() => { location.reload(); }, 2500);
         }
 
         window.closeAllModals = () => {
@@ -260,7 +286,6 @@
             document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
         };
 
-        // --- RENDER LOGIC UTAMA ---
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
@@ -268,7 +293,6 @@
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
-                // Jika user sedang dalam status waiting, otomatis nyalakan listener
                 if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                     setWaitingUI();
                     onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
@@ -287,7 +311,6 @@
             if(actionArea) { actionArea.innerHTML = `<button onclick="location.reload()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Mengecek Otomatis...</button>`; }
         }
 
-        // --- RENDER DATA SEMESTER (SAMA SEPERTI KODE ASLI) ---
         async function renderData(user, sem) {
             document.getElementById('header-sem').innerText = "Semester " + sem;
             document.getElementById('st-name').innerText = user.name;
@@ -305,7 +328,6 @@
 
             if (paymentStatus === 'waiting' && status !== 'Lunas') {
                 setWaitingUI();
-                // Hitung info display tagihan
                 if (sem < 3) {
                     const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                     const snap = await getDocs(q);
