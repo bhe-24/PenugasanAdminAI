@@ -212,29 +212,41 @@
     }
 
     // --- FUNGSI RENDER (Tetap Sama) ---
-    function renderVerifList(snap) {
-        const container = document.getElementById('list-request');
-        const badge = document.getElementById('badge-waiting');
-        container.innerHTML = '';
-        badge.innerText = snap.size;
-        badge.classList.toggle('hidden', snap.size === 0);
-        document.getElementById('empty-verif').classList.toggle('hidden', snap.size > 0);
-        snap.forEach(d => {
-            const u = d.data();
-            const safeName = u.name ? u.name.replace(/'/g, "\\'") : "Siswa";
-            container.innerHTML += `
-                <div class="req-card">
-                    <div style="font-weight:700;">${u.name}</div>
-                    <div style="font-size:0.8rem; color:#666;">ID: ${u.uid.substring(0,5)} | Sem: ${u.semester}</div>
-                    <div class="req-amount">Rp ${u.pendingAmount ? u.pendingAmount.toLocaleString() : '-'}</div>
-                    <div class="btn-group">
-                        <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
-                        <button onclick="manualApprove('${d.id}', '${safeName}', ${u.pendingAmount}, ${u.semester})" class="btn-act bg-green">Terima Manual</button>
-                    </div>
+    // --- PERBAIKAN FUNGSI RENDER (CEK FIELD LEBIH TELITI) ---
+function renderVerifList(snap) {
+    const container = document.getElementById('list-request');
+    const badge = document.getElementById('badge-waiting');
+    container.innerHTML = '';
+    
+    badge.innerText = snap.size;
+    badge.classList.toggle('hidden', snap.size === 0);
+    document.getElementById('empty-verif').classList.toggle('hidden', snap.size > 0);
+
+    snap.forEach(d => {
+        const u = d.data();
+        
+        // Cek apakah data user ada (mencegah error nama kosong)
+        const name = u.name || "Siswa Tanpa Nama";
+        const sem = u.semester || "-";
+        const uidStr = d.id.substring(0,5);
+        const amount = u.pendingAmount || 0;
+
+        container.innerHTML += `
+            <div class="req-card">
+                <div style="font-weight:700; color:var(--primary); font-size:1.1rem;">${name}</div>
+                <div style="font-size:0.8rem; color:#64748b; margin-bottom:10px;">
+                    <i class="fa-solid fa-graduation-cap"></i> Sem: ${sem} | <i class="fa-solid fa-id-badge"></i> ID: ${uidStr}
                 </div>
-            `;
-        });
-    }
+                <div class="req-label" style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase;">Nominal Terdeteksi:</div>
+                <div class="req-amount" style="color:#1e293b; margin-bottom:15px;">Rp ${amount.toLocaleString('id-ID')}</div>
+                <div class="btn-group">
+                    <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
+                    <button onclick="manualApprove('${d.id}', '${name.replace(/'/g, "\\'")}', ${amount}, '${sem}')" class="btn-act bg-green">Konfirmasi Manual</button>
+                </div>
+            </div>
+        `;
+    });
+}
 
     function renderArchive(snap) {
         const tbody = document.getElementById('archive-body');
