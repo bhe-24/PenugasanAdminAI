@@ -129,125 +129,183 @@
     </div>
 
     <script type="module">
-        import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, addDoc, serverTimestamp, orderBy, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { db, checkAuth } from "../js/firebase-config.js";
+    import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, addDoc, serverTimestamp, orderBy, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let currentAdmin = null;
+    let currentAdmin = null;
 
-        (async () => {
-            currentAdmin = await checkAuth('pengajar');
-            if(!currentAdmin) window.location.href = '../index.html';
+    (async () => {
+        currentAdmin = await checkAuth('pengajar');
+        if(!currentAdmin) window.location.href = '../index.html';
 
-            // REAL-TIME LISTENER: Antrean Verifikasi
-            const qVerif = query(collection(db, 'users'), where('paymentStatus', '==', 'waiting'));
-            onSnapshot(qVerif, (snap) => {
-                renderVerifList(snap);
-            });
+        // REAL-TIME LISTENER: Antrean Verifikasi
+        const qVerif = query(collection(db, 'users'), where('paymentStatus', '==', 'waiting'));
+        onSnapshot(qVerif, (snap) => {
+            renderVerifList(snap);
+        });
 
-            // REAL-TIME LISTENER: Arsip Pemasukan
-            const qArsip = query(collection(db, 'finance_logs'), orderBy('timestamp', 'desc'));
-            onSnapshot(qArsip, (snap) => {
-                renderArchive(snap);
-            });
+        // REAL-TIME LISTENER: Arsip Pemasukan
+        const qArsip = query(collection(db, 'finance_logs'), orderBy('timestamp', 'desc'));
+        onSnapshot(qArsip, (snap) => {
+            renderArchive(snap);
+        });
 
-            loadCycleStatus();
-        })();
+        loadCycleStatus();
+    })();
 
-        function renderVerifList(snap) {
-            const container = document.getElementById('list-request');
-            const badge = document.getElementById('badge-waiting');
-            container.innerHTML = '';
-            
-            badge.innerText = snap.size;
-            badge.classList.toggle('hidden', snap.size === 0);
-            document.getElementById('empty-verif').classList.toggle('hidden', snap.size > 0);
-
-            snap.forEach(d => {
-                const u = d.data();
-                const safeName = u.name ? u.name.replace(/'/g, "\\'") : "Siswa";
-                container.innerHTML += `
-                    <div class="req-card">
-                        <div style="font-weight:700;">${u.name}</div>
-                        <div style="font-size:0.8rem; color:#666;">ID: ${u.uid.substring(0,5)} | Sem: ${u.semester}</div>
-                        <div class="req-amount">Rp ${u.pendingAmount ? u.pendingAmount.toLocaleString() : '-'}</div>
-                        <div class="btn-group">
-                            <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
-                            <button onclick="manualApprove('${d.id}', '${safeName}', ${u.pendingAmount}, ${u.semester})" class="btn-act bg-green">Terima Manual</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function renderArchive(snap) {
-            const tbody = document.getElementById('archive-body');
-            tbody.innerHTML = '';
-            snap.forEach(d => {
-                const data = d.data();
-                const time = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleString('id-ID') : '-';
-                tbody.innerHTML += `
-                    <tr style="border-bottom:1px solid #eee;">
-                        <td style="padding:12px; font-size:0.85rem;">${time}</td>
-                        <td><b>${data.studentName}</b><br><small>${data.type}</small></td>
-                        <td>Rp ${data.amount.toLocaleString()}</td>
-                        <td style="color:#4361ee; font-weight:600;">${data.adminName}</td>
-                    </tr>
-                `;
-            });
-        }
-
-        window.manualApprove = (uid, name, amount, sem) => {
-            showModal('confirm', 'Konfirmasi Manual', `Terima pembayaran Rp ${amount.toLocaleString()} untuk ${name}?`, async () => {
-                await updateDoc(doc(db, 'users', uid), { statusPembayaran: 'Lunas', paymentStatus: 'verified', pendingAmount: 0 });
-                await addDoc(collection(db, 'finance_logs'), {
-                    studentName: name, studentUid: uid, amount: amount, semester: sem,
-                    type: "Manual Admin", adminName: currentAdmin.name, timestamp: serverTimestamp()
-                });
-                closeModal();
-            });
-        }
-
-        window.actReject = (uid) => {
-            showModal('confirm', 'Tolak Pembayaran', 'Siswa harus mengulang proses bayar. Lanjutkan?', async () => {
-                await updateDoc(doc(db, 'users', uid), { paymentStatus: 'rejected', pendingAmount: 0 });
-                closeModal();
-            });
-        }
-
-        // FUNGSI TAB & MODAL TETAP (Optimasi UI)
-        window.switchTab = (tab) => {
-            document.getElementById('tab-verif').classList.toggle('hidden', tab !== 'verif');
-            document.getElementById('tab-arsip').classList.toggle('hidden', tab !== 'arsip');
-            document.getElementById('tab-btn-verif').classList.toggle('active', tab === 'verif');
-            document.getElementById('tab-btn-arsip').classList.toggle('active', tab === 'arsip');
-        }
-
-        function showModal(type, title, msg, action) {
-            const m = document.getElementById('custom-modal');
-            document.getElementById('modal-icon').innerHTML = type === 'confirm' ? '🤔' : '✅';
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-msg').innerText = msg;
-            const btnArea = document.getElementById('modal-actions');
-            btnArea.innerHTML = `<button class="btn" onclick="closeModal()">Batal</button>
-                                 <button class="btn" style="background:#003366; color:white;" id="btn-confirm">Ya, Proses</button>`;
-            document.getElementById('btn-confirm').onclick = action;
-            m.classList.add('active');
-        }
-
-        window.closeModal = () => document.getElementById('custom-modal').classList.remove('active');
-        window.toggleCycle = async (el) => { /* Logika Reset Tetap Sama */ };
+    // --- FUNGSI SIKLUS (YANG TADI MACET) ---
+    window.toggleCycle = async (el) => {
+        const isOpen = el.checked;
         
-        // Load Status Siklus di awal
-        async function loadCycleStatus() {
-            const snap = await getDoc(doc(db, 'settings', 'finance'));
-            if(snap.exists()){
-                const open = snap.data().isOpen;
-                document.getElementById('cycle-toggle').checked = open;
-                const badge = document.getElementById('cycle-badge');
-                badge.className = open ? 'cycle-status st-open' : 'cycle-status st-closed';
-                badge.innerText = open ? 'Pembayaran DIBUKA' : 'Pembayaran DITUTUP';
-            }
+        if (!isOpen) {
+            // Jika mau ditutup (Reset)
+            showModal('confirm', 'Tutup & Reset?', 'SEMUA status siswa akan di-reset jadi BELUM BAYAR. Lanjutkan?', 
+                async () => {
+                    showModal('loading', 'Resetting...', 'Mereset data...');
+                    try {
+                        // 1. Update status di settings
+                        await setDoc(doc(db, 'settings', 'finance'), { isOpen: false }, { merge: true });
+                        
+                        // 2. Ambil semua siswa untuk di-reset
+                        const qSiswa = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                        const snap = await getDocs(qSiswa);
+                        const batch = writeBatch(db);
+                        
+                        snap.forEach(d => {
+                            batch.update(doc(db, 'users', d.id), { 
+                                statusPembayaran: 'Belum', 
+                                paymentStatus: null,
+                                pendingAmount: 0 
+                            });
+                        });
+                        
+                        await batch.commit();
+                        updateCycleUI(false);
+                        closeModal();
+                        showModal('success', 'Selesai', 'Siklus ditutup & semua data siswa telah di-reset.');
+                    } catch (e) {
+                        showModal('error', 'Gagal', e.message);
+                    }
+                },
+                () => { el.checked = true; } // Jika batal, kembalikan ke ON
+            );
+        } else {
+            // Jika mau dibuka
+            await setDoc(doc(db, 'settings', 'finance'), { isOpen: true }, { merge: true });
+            updateCycleUI(true);
         }
-    </script>
+    }
+
+    async function loadCycleStatus() {
+        const snap = await getDoc(doc(db, 'settings', 'finance'));
+        if(snap.exists()){
+            const open = snap.data().isOpen;
+            document.getElementById('cycle-toggle').checked = open;
+            updateCycleUI(open);
+        }
+    }
+
+    function updateCycleUI(isOpen) {
+        const badge = document.getElementById('cycle-badge');
+        badge.className = isOpen ? 'cycle-status st-open' : 'cycle-status st-closed';
+        badge.innerText = isOpen ? 'Pembayaran DIBUKA' : 'Pembayaran DITUTUP';
+    }
+
+    // --- FUNGSI RENDER (Tetap Sama) ---
+    function renderVerifList(snap) {
+        const container = document.getElementById('list-request');
+        const badge = document.getElementById('badge-waiting');
+        container.innerHTML = '';
+        badge.innerText = snap.size;
+        badge.classList.toggle('hidden', snap.size === 0);
+        document.getElementById('empty-verif').classList.toggle('hidden', snap.size > 0);
+        snap.forEach(d => {
+            const u = d.data();
+            const safeName = u.name ? u.name.replace(/'/g, "\\'") : "Siswa";
+            container.innerHTML += `
+                <div class="req-card">
+                    <div style="font-weight:700;">${u.name}</div>
+                    <div style="font-size:0.8rem; color:#666;">ID: ${u.uid.substring(0,5)} | Sem: ${u.semester}</div>
+                    <div class="req-amount">Rp ${u.pendingAmount ? u.pendingAmount.toLocaleString() : '-'}</div>
+                    <div class="btn-group">
+                        <button onclick="actReject('${d.id}')" class="btn-act bg-red">Tolak</button>
+                        <button onclick="manualApprove('${d.id}', '${safeName}', ${u.pendingAmount}, ${u.semester})" class="btn-act bg-green">Terima Manual</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function renderArchive(snap) {
+        const tbody = document.getElementById('archive-body');
+        tbody.innerHTML = '';
+        snap.forEach(d => {
+            const data = d.data();
+            const time = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleString('id-ID') : '-';
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:12px; font-size:0.85rem;">${time}</td>
+                    <td><b>${data.studentName}</b><br><small>${data.type}</small></td>
+                    <td>Rp ${data.amount.toLocaleString()}</td>
+                    <td style="color:#4361ee; font-weight:600;">${data.adminName}</td>
+                </tr>
+            `;
+        });
+    }
+
+    window.manualApprove = (uid, name, amount, sem) => {
+        showModal('confirm', 'Konfirmasi Manual', `Terima pembayaran Rp ${amount.toLocaleString()} untuk ${name}?`, async () => {
+            await updateDoc(doc(db, 'users', uid), { statusPembayaran: 'Lunas', paymentStatus: 'verified', pendingAmount: 0 });
+            await addDoc(collection(db, 'finance_logs'), {
+                studentName: name, studentUid: uid, amount: amount, semester: sem,
+                type: "Manual Admin", adminName: currentAdmin.name, timestamp: serverTimestamp()
+            });
+            closeModal();
+        });
+    }
+
+    window.actReject = (uid) => {
+        showModal('confirm', 'Tolak Pembayaran', 'Siswa harus mengulang proses bayar. Lanjutkan?', async () => {
+            await updateDoc(doc(db, 'users', uid), { paymentStatus: 'rejected', pendingAmount: 0 });
+            closeModal();
+        });
+    }
+
+    window.switchTab = (tab) => {
+        document.getElementById('tab-verif').classList.toggle('hidden', tab !== 'verif');
+        document.getElementById('tab-arsip').classList.toggle('hidden', tab !== 'arsip');
+        document.getElementById('tab-btn-verif').classList.toggle('active', tab === 'verif');
+        document.getElementById('tab-btn-arsip').classList.toggle('active', tab === 'arsip');
+    }
+
+    function showModal(type, title, msg, action, cancelAction) {
+        const m = document.getElementById('custom-modal');
+        const icon = document.getElementById('modal-icon');
+        if(type === 'success') icon.innerHTML = '✅';
+        else if(type === 'error') icon.innerHTML = '❌';
+        else if(type === 'loading') icon.innerHTML = '⏳';
+        else icon.innerHTML = '🤔';
+
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-msg').innerText = msg;
+        const btnArea = document.getElementById('modal-actions');
+        
+        if (type === 'loading') {
+            btnArea.innerHTML = '';
+        } else {
+            btnArea.innerHTML = `<button class="btn" id="btn-cancel">Batal</button>
+                                 <button class="btn" style="background:#003366; color:white;" id="btn-confirm">Proses</button>`;
+            document.getElementById('btn-confirm').onclick = action;
+            document.getElementById('btn-cancel').onclick = () => {
+                closeModal();
+                if(cancelAction) cancelAction();
+            };
+        }
+        m.classList.add('active');
+    }
+
+    window.closeModal = () => document.getElementById('custom-modal').classList.remove('active');
+    window.loadRequests = () => location.reload(); 
+</script>
 </body>
 </html>
