@@ -97,6 +97,7 @@
             
             <div class="khs-wrapper">
                 <div id="khs-paper" class="khs-paper">
+                    
                     <img src="https://i.imgur.com/5Srjyo4.png" class="khs-watermark img-cross" alt="Watermark" crossorigin="anonymous">
 
                     <div class="khs-header">
@@ -135,7 +136,8 @@
                                 <th style="width: 60px;">Mutu</th>
                             </tr>
                         </thead>
-                        <tbody id="khs-tbody"></tbody>
+                        <tbody id="khs-tbody">
+                            </tbody>
                         <tfoot>
                             <tr style="background-color: #f8f9fa; font-weight: bold;">
                                 <td colspan="2" style="text-align: right; padding-right: 10px;">Total SKS</td>
@@ -170,20 +172,7 @@
 
         let currentUser = null;
 
-        // Mengubah gambar menjadi base64 untuk menghindari masalah saat didownload
-        async function convertImgToBase64(url) {
-            try {
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-                const response = await fetch(proxyUrl);
-                const blob = await response.blob();
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch(e) { return url; }
-        }
-
+        // INIT DATA
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
@@ -206,7 +195,8 @@
 
             // LOGIKA UTAMA: Pastikan Nilai Lengkap DAN akses_khs = true dari Admin
             if(isComplete && user.akses_khs === true) {
-                renderKHS(user);
+                renderKHS(user); // Panggil render data tabel
+                
                 document.getElementById('document-area').classList.remove('hidden');
                 document.getElementById('btn-download').classList.remove('hidden');
                 
@@ -222,15 +212,8 @@
             }
         }
 
-        async function renderKHS(user) {
-            // Ubah gambar ke base64 agar PDF tidak error di HP
-            const logoUrl = await convertImgToBase64("https://i.imgur.com/5Srjyo4.png");
-            const stampUrl = await convertImgToBase64("https://i.imgur.com/YvrNYRw.png");
-            const imgs = document.querySelectorAll('.img-cross');
-            imgs[0].src = logoUrl; // Watermark
-            imgs[1].src = logoUrl; // Logo Header
-            imgs[2].src = stampUrl; // TTD
-
+        // FUNGSI RENDER (Dibuat Sync tanpa proxy agar tabel PASTI terisi)
+        function renderKHS(user) {
             const now = new Date();
             const tahunAjaran = `${now.getMonth() + 1}/${now.getFullYear()}`;
 
@@ -269,12 +252,12 @@
                 
                 tbody.innerHTML += `
                     <tr>
-                        <td>${m.no}.</td>
-                        <td>${m.nama}</td>
-                        <td>${m.sks}</td>
-                        <td>${m.val.toFixed(0)}</td>
-                        <td>${g.h}</td>
-                        <td>${mutu}</td>
+                        <td style="text-align: center;">${m.no}.</td>
+                        <td style="text-align: left; padding-left: 10px;">${m.nama}</td>
+                        <td style="text-align: center;">${m.sks}</td>
+                        <td style="text-align: center;">${m.val.toFixed(0)}</td>
+                        <td style="text-align: center;">${g.h}</td>
+                        <td style="text-align: center;">${mutu}</td>
                     </tr>
                 `;
             });
@@ -296,9 +279,10 @@
 
             const element = document.getElementById('khs-paper');
             
+            // Konfigurasi Canvas agar tajam (Scale 2x)
             html2canvas(element, {
                 scale: 2,
-                useCORS: true,
+                useCORS: true, // Penting untuk gambar eksternal (Imgur)
                 backgroundColor: "#ffffff",
                 logging: false
             }).then(canvas => {
