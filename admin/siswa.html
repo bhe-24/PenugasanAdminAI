@@ -65,11 +65,16 @@
         .btn-secondary:hover { background: #e2e8f0; }
         .btn-primary { background: var(--primary); }
         
-        .card-actions { display: flex; gap: 10px; }
-        .btn-save { flex: 1; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); transition: 0.2s; }
-        .btn-save:hover { background: #218838; transform: translateY(-2px); }
+        .card-actions { display: flex; gap: 10px; flex-wrap: wrap;}
+        .btn-save { flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 6px rgba(0, 51, 102, 0.2); transition: 0.2s; min-width: 180px; }
+        .btn-save:hover { background: #002244; transform: translateY(-2px); }
         .btn-save:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
         
+        .btn-khs { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s; min-width: 140px; color: white; }
+        .khs-open { background: var(--accent); box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); }
+        .khs-closed { background: var(--danger); box-shadow: 0 4px 6px rgba(220, 53, 69, 0.2); }
+        .btn-khs:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
         .btn-delete { padding: 12px 15px; background: white; color: var(--danger); border: 2px solid #fca5a5; border-radius: 8px; cursor: pointer; transition: 0.2s; }
         .btn-delete:hover { background: var(--danger); color: white; }
 
@@ -118,7 +123,6 @@
         import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // GANTI INI DENGAN CONFIG FIREBASE ANDA
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
             authDomain: "mading-cf676.firebaseapp.com", 
@@ -190,9 +194,11 @@
             list.forEach(u => {
                 const n = u; 
                 const ips = parseFloat(u.ips||0).toFixed(2);
+                
+                // Status KHS (Default False jika belum ada)
+                const isKHSOpen = u.akses_khs === true; 
 
                 // --- LOGIKA DETEKSI SISWA PASIF ---
-                // Menghitung berapa banyak tugas (t1-t8, uts, uas) yang memiliki nilai
                 let totalTugasTerisi = 0;
                 for(let i=1; i<=8; i++) {
                     if (n[`nilai_t${i}`] !== undefined && n[`nilai_t${i}`] !== null && n[`nilai_t${i}`] !== "") totalTugasTerisi++;
@@ -237,8 +243,14 @@
 
                         <div class="card-actions">
                             <button class="btn-save" onclick="window.save('${u.id}')">
-                                <i class="fa-solid fa-calculator"></i> Simpan & Hitung IPS
+                                <i class="fa-solid fa-calculator"></i> Simpan Nilai
                             </button>
+                            
+                            ${isKHSOpen 
+                                ? `<button class="btn-khs khs-open" onclick="window.toggleKHS('${u.id}', true)"><i class="fa-solid fa-lock-open"></i> KHS Terbuka</button>`
+                                : `<button class="btn-khs khs-closed" onclick="window.toggleKHS('${u.id}', false)"><i class="fa-solid fa-lock"></i> KHS Terkunci</button>`
+                            }
+
                             ${isInactive ? `
                             <button class="btn-delete" title="Hapus Siswa Pasif" onclick="window.deleteStudent('${u.id}', '${u.name}')">
                                 <i class="fa-solid fa-trash-can"></i>
@@ -261,6 +273,22 @@
                 </div>
             `;
         }
+
+        // --- FUNGSI TOGGLE KHS ---
+        window.toggleKHS = async (uid, currentStatus) => {
+            try {
+                const newStatus = !currentStatus;
+                await updateDoc(doc(db, 'users', uid), {
+                    akses_khs: newStatus
+                });
+                
+                showToast(newStatus ? "Akses KHS Siswa Dibuka!" : "Akses KHS Siswa Dikunci!", "success");
+                loadData(); // Refresh UI untuk mengganti warna tombol
+            } catch (e) {
+                console.error(e);
+                showToast("Gagal mengubah akses KHS.", "error");
+            }
+        };
 
         window.save = async (uid) => {
             const btn = event.currentTarget;
