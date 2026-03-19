@@ -254,7 +254,7 @@
             }
         }
 
-        // LOGIKA DOWNLOAD PDF
+        // LOGIKA DOWNLOAD PDF YANG DISEMPURNAKAN
         window.downloadPDF = function() {
             const btn = document.querySelector('.btn-print');
             const originalText = btn.innerHTML;
@@ -262,6 +262,11 @@
             btn.disabled = true;
 
             const element = document.getElementById('receipt-paper');
+
+            // HACK PENTING: Hilangkan efek zoom/scale dari CSS sementara waktu
+            // agar PDF membaca ukuran kertas A4 secara penuh (100%) dan tidak terpotong.
+            element.style.transform = 'none';
+            element.style.marginBottom = '0';
             
             const opt = {
                 margin: 0,
@@ -269,18 +274,24 @@
                 image: { type: 'jpeg', quality: 1 }, 
                 html2canvas: { 
                     scale: 2, 
-                    useCORS: true, // Izinkan mengunduh gambar lintas domain (seperti Imgur)
+                    useCORS: true, 
                     scrollY: 0,
-                    windowWidth: element.scrollWidth,
-                    windowHeight: element.scrollHeight
+                    windowWidth: 1024 // Set kanvas virtual lebih besar dari HP
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
+                // Kembalikan ke format responsif setelah PDF selesai dibuat
+                element.style.transform = '';
+                element.style.marginBottom = '';
+
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }).catch(err => {
+                element.style.transform = '';
+                element.style.marginBottom = '';
+
                 console.error(err);
                 alert("Terjadi kesalahan saat memproses file PDF.");
                 btn.innerHTML = originalText;
