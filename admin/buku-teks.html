@@ -143,24 +143,7 @@
 
     <script type="module">
         let daftarBabTersimpan = [];
-        window.bookDataArray = []; // Menyimpan data murni per bab untuk PDF
-
-        // Helper: Convert Image URL to Base64 (Untuk Logo Cover)
-        async function getBase64ImageFromUrl(imageUrl) {
-            try {
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(imageUrl);
-                const response = await fetch(proxyUrl);
-                const blob = await response.blob();
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                return null;
-            }
-        }
+        window.bookDataArray = []; 
 
         // FASE 1 -> FASE 2
         window.generateKerangka = async () => {
@@ -266,125 +249,122 @@
         };
 
         // FASE UNDUH - PDFMAKE (TIMES NEW ROMAN, RAPAT, ANTI-ENTER BERLEBIH)
-        window.unduhBukuPDF = async () => {
+        window.unduhBukuPDF = () => {
             const btn = document.querySelector('#result-actions .btn');
             const oriText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Tata Letak PDF...';
             btn.disabled = true;
             
-            try {
-                const judulUtama = document.getElementById('input-judul').value || "Buku Teks Cendekia";
-                const logoBase64 = await getBase64ImageFromUrl("https://i.imgur.com/5Srjyo4.png");
+            // Berikan sedikit delay agar UI berubah sebelum PDFMake membekukan browser sementara
+            setTimeout(() => {
+                try {
+                    const judulUtama = document.getElementById('input-judul').value || "Buku Teks Cendekia";
 
-                // MENGAKTIFKAN TIMES NEW ROMAN STANDAR PDF
-                pdfMake.fonts = {
-                    Times: {
-                        normal: 'Times-Roman',
-                        bold: 'Times-Bold',
-                        italics: 'Times-Italic',
-                        bolditalics: 'Times-BoldItalic'
-                    },
-                    Roboto: { // Fallback aman
-                        normal: 'Roboto-Regular.ttf',
-                        bold: 'Roboto-Medium.ttf',
-                        italics: 'Roboto-Italic.ttf',
-                        bolditalics: 'Roboto-MediumItalic.ttf'
-                    }
-                };
-
-                let pdfContentDefinition = [];
-
-                // 1. HALAMAN COVER
-                pdfContentDefinition.push(
-                    logoBase64 ? { image: logoBase64, width: 120, alignment: 'center', margin: [0, 100, 0, 30] } : { text: '' },
-                    { text: 'CENDEKIA AKSARA', style: 'coverPenerbit', alignment: 'center', margin: [0, 0, 0, 15] },
-                    { text: judulUtama.toUpperCase(), style: 'coverTitle', alignment: 'center', margin: [0, 0, 0, 40] },
-                    { text: 'Buku Teks / Pegangan Siswa\nDisusun secara otomatis oleh Sistem Cendekia', style: 'coverSub', alignment: 'center', pageBreak: 'after' }
-                );
-
-                // 2. MERANGKAI BAB YANG SUDAH JADI (Sekalipun belum beres semua)
-                window.bookDataArray.forEach(item => {
-                    let cleanHtml = item.content
-                        .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
-                        .replace(/(<br\s*\/?>\s*){2,}/gi, '<br>') 
-                        .replace(/<p>\s*<\/p>/gi, ''); 
-
-                    if (item.type === 'toc') {
-                        let parsedTOC = htmlToPdfmake(cleanHtml);
-                        parsedTOC.forEach(el => pdfContentDefinition.push(el));
-                        pdfContentDefinition.push({ text: '', pageBreak: 'after' }); 
-                    } 
-                    else if (item.type === 'chapter') {
-                        // HALAMAN JUDUL BAB KHUSUS (Tengah Layar Besar)
-                        pdfContentDefinition.push({
-                            text: item.title.toUpperCase(),
-                            style: 'chapterHalamanJudul',
-                            pageBreak: 'after' 
-                        });
-
-                        // ISI MATERI BAB
-                        let parsedContent = htmlToPdfmake(cleanHtml, { tableAutoSize: true });
-                        parsedContent.forEach(el => pdfContentDefinition.push(el));
-                        pdfContentDefinition.push({ text: '', pageBreak: 'after' });
-                    }
-                });
-
-                // 3. KONFIGURASI PDF
-                const docDefinition = {
-                    pageSize: 'A4',
-                    pageMargins: [60, 80, 60, 60],
-                    header: function(currentPage, pageCount) {
-                        if (currentPage > 1) { 
-                            return {
-                                columns: [
-                                    { text: 'Buku Teks Cendekia Aksara', alignment: 'left', style: 'pakaian_header' },
-                                    { text: judulUtama, alignment: 'right', style: 'pakaian_header' }
-                                ],
-                                margin: [60, 40, 60, 0]
-                            };
+                    // MENGAKTIFKAN TIMES NEW ROMAN STANDAR PDF
+                    pdfMake.fonts = {
+                        Times: {
+                            normal: 'Times-Roman',
+                            bold: 'Times-Bold',
+                            italics: 'Times-Italic',
+                            bolditalics: 'Times-BoldItalic'
                         }
-                    },
-                    footer: function(currentPage, pageCount) {
-                        if (currentPage > 1) {
-                            return {
-                                text: currentPage.toString(),
-                                alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10, font: 'Times'
-                            };
+                    };
+
+                    let pdfContentDefinition = [];
+
+                    // 1. HALAMAN COVER (Tanpa Gambar, Full Text Elegan)
+                    pdfContentDefinition.push(
+                        { text: 'CENDEKIA AKSARA', style: 'coverPenerbit', alignment: 'center', margin: [0, 200, 0, 15] },
+                        // Garis pemisah Cover
+                        { canvas: [{ type: 'line', x1: 100, y1: 0, x2: 400, y2: 0, lineWidth: 2, lineColor: '#d4af37' }], margin: [0, 0, 0, 20], alignment: 'center' },
+                        { text: judulUtama.toUpperCase(), style: 'coverTitle', alignment: 'center', margin: [0, 0, 0, 40] },
+                        { text: 'Buku Teks / Pegangan Siswa\nDisusun secara otomatis oleh Sistem Cendekia', style: 'coverSub', alignment: 'center', pageBreak: 'after' }
+                    );
+
+                    // 2. MERANGKAI BAB YANG SUDAH JADI
+                    window.bookDataArray.forEach(item => {
+                        let cleanHtml = item.content
+                            .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
+                            .replace(/(<br\s*\/?>\s*){2,}/gi, '<br>') 
+                            .replace(/<p>\s*<\/p>/gi, ''); 
+
+                        if (item.type === 'toc') {
+                            let parsedTOC = htmlToPdfmake(cleanHtml);
+                            parsedTOC.forEach(el => pdfContentDefinition.push(el));
+                            pdfContentDefinition.push({ text: '', pageBreak: 'after' }); 
+                        } 
+                        else if (item.type === 'chapter') {
+                            // HALAMAN JUDUL BAB KHUSUS (Tengah Layar Besar)
+                            pdfContentDefinition.push({
+                                text: item.title.toUpperCase(),
+                                style: 'chapterHalamanJudul',
+                                pageBreak: 'after' 
+                            });
+
+                            // ISI MATERI BAB
+                            let parsedContent = htmlToPdfmake(cleanHtml, { tableAutoSize: true });
+                            parsedContent.forEach(el => pdfContentDefinition.push(el));
+                            pdfContentDefinition.push({ text: '', pageBreak: 'after' });
                         }
-                    },
-                    content: pdfContentDefinition,
-                    // PENGATURAN SPASI RAPAT & RATA KANAN-KIRI
-                    styles: {
-                        coverPenerbit: { font: 'Times', fontSize: 16, color: '#003366', bold: true, letterSpacing: 2 },
-                        coverTitle: { font: 'Times', fontSize: 32, bold: true, color: '#d4af37' },
-                        coverSub: { font: 'Times', fontSize: 12, color: '#666', italics: true },
-                        chapterHalamanJudul: { font: 'Times', fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
-                        pakaian_header: { font: 'Times', fontSize: 9, color: '#999', italics: true },
-                        
-                        html_p: { font: 'Times', margin: [0, 0, 0, 5], alignment: 'justify' },
-                        html_ul: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
-                        html_ol: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
-                        html_li: { font: 'Times', margin: [0, 0, 0, 2], alignment: 'justify' },
-                        html_h1: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
-                        html_h2: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
-                        html_h3: { font: 'Times', margin: [0, 8, 0, 4], color: '#003366' },
-                        html_table: { font: 'Times', margin: [0, 10, 0, 15] },
-                        html_th: { font: 'Times', fillColor: '#003366', color: 'white', bold: true, alignment: 'center', padding: 6 },
-                        html_td: { font: 'Times', padding: 6, alignment: 'justify' }
-                    },
-                    defaultStyle: { font: 'Times', fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
-                };
+                    });
 
-                // 4. Eksekusi Download
-                pdfMake.createPdf(docDefinition).download(`Buku_${judulUtama}_TimesNewRoman.pdf`);
+                    // 3. KONFIGURASI PDF
+                    const docDefinition = {
+                        pageSize: 'A4',
+                        pageMargins: [60, 80, 60, 60],
+                        header: function(currentPage, pageCount) {
+                            if (currentPage > 1) { 
+                                return {
+                                    columns: [
+                                        { text: 'Buku Teks Cendekia Aksara', alignment: 'left', style: 'pakaian_header' },
+                                        { text: judulUtama, alignment: 'right', style: 'pakaian_header' }
+                                    ],
+                                    margin: [60, 40, 60, 0]
+                                };
+                            }
+                        },
+                        footer: function(currentPage, pageCount) {
+                            if (currentPage > 1) {
+                                return {
+                                    text: currentPage.toString(),
+                                    alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10, font: 'Times'
+                                };
+                            }
+                        },
+                        content: pdfContentDefinition,
+                        // PENGATURAN SPASI RAPAT & RATA KANAN-KIRI
+                        styles: {
+                            coverPenerbit: { font: 'Times', fontSize: 18, color: '#003366', bold: true, letterSpacing: 3 },
+                            coverTitle: { font: 'Times', fontSize: 36, bold: true, color: '#000000' },
+                            coverSub: { font: 'Times', fontSize: 14, color: '#666', italics: true },
+                            chapterHalamanJudul: { font: 'Times', fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
+                            pakaian_header: { font: 'Times', fontSize: 9, color: '#999', italics: true },
+                            
+                            html_p: { font: 'Times', margin: [0, 0, 0, 5], alignment: 'justify' },
+                            html_ul: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
+                            html_ol: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
+                            html_li: { font: 'Times', margin: [0, 0, 0, 2], alignment: 'justify' },
+                            html_h1: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
+                            html_h2: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
+                            html_h3: { font: 'Times', margin: [0, 8, 0, 4], color: '#003366' },
+                            html_table: { font: 'Times', margin: [0, 10, 0, 15] },
+                            html_th: { font: 'Times', fillColor: '#003366', color: 'white', bold: true, alignment: 'center', padding: 6 },
+                            html_td: { font: 'Times', padding: 6, alignment: 'justify' }
+                        },
+                        defaultStyle: { font: 'Times', fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
+                    };
 
-            } catch (e) {
-                console.error(e);
-                alert("Gagal membangun file PDF.");
-            } finally {
-                btn.innerHTML = oriText;
-                btn.disabled = false;
-            }
+                    // 4. Eksekusi Download
+                    pdfMake.createPdf(docDefinition).download(`Buku_${judulUtama}_Cendekia.pdf`);
+
+                } catch (e) {
+                    console.error(e);
+                    alert("Gagal membangun file PDF.");
+                } finally {
+                    btn.innerHTML = oriText;
+                    btn.disabled = false;
+                }
+            }, 100); // Delay 100ms
         };
     </script>
 </body>
