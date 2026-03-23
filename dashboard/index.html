@@ -50,6 +50,17 @@
             margin-top: 5px; font-weight: 400;
         }
 
+        /* --- BADGE STATUS --- */
+        #status-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            margin-top: 10px; padding: 5px 12px; border-radius: 20px;
+            font-size: 0.8rem; font-weight: 600; font-family: 'Poppins';
+            transition: 0.3s;
+        }
+        .status-aktif { background: #22c55e; color: white; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); }
+        .status-cuti { background: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
+        .status-nonaktif { background: #ef4444; color: white; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+
         @media (max-width: 480px) {
             .brand-header { padding: 20px; gap: 15px; }
             .header-logo-circle { width: 60px; height: 60px; }
@@ -72,11 +83,13 @@
             text-align: center; text-decoration: none; color: white;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            min-height: 120px; cursor: pointer;
+            min-height: 120px; cursor: pointer; position: relative; overflow: hidden;
         }
-        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
-        .dashboard-card i { font-size: 2rem; margin-bottom: 10px; opacity: 0.9; }
-        .dashboard-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+        
+        /* EFEK HOVER JIKA AKTIF */
+        .dashboard-card:not(.disabled-card):hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .dashboard-card i { font-size: 2rem; margin-bottom: 10px; opacity: 0.9; transition: 0.3s;}
+        .dashboard-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0; transition: 0.3s;}
 
         /* WARNA KARTU */
         .tugas { background: linear-gradient(135deg, #005a9c 0%, #007bff 100%); }
@@ -87,10 +100,18 @@
         .ujian { background: linear-gradient(135deg, #f7a04a 0%, #ffc107 100%); }
         .generator-ide { background: linear-gradient(135deg, #1C6FF8 0%, #FEF720 100%); }
         .card-bayar { background: linear-gradient(135deg, #f2994a, #f2c94c); }
-        .aksabot { background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); } /* Warna Khas AksaBot */
-        
-        /* WARNA KARTU CUTI (Merah) */
+        .aksabot { background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); } 
         .card-cuti { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+
+        /* KARTU DISABLED (ABU-ABU) */
+        .disabled-card {
+            background: #e2e8f0 !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+        }
+        .disabled-card i, .disabled-card h3 {
+            color: #94a3b8 !important;
+        }
 
         /* Tombol Keluar */
         #logout-btn {
@@ -104,6 +125,7 @@
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 31, 63, 0.6); backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: flex; justify-content: center; align-items: center;
             z-index: 10000; opacity: 0; visibility: hidden; transition: all 0.3s ease;
         }
@@ -117,9 +139,9 @@
         .modal-overlay.active .modal-box { transform: scale(1); }
         .modal-icon { font-size: 3rem; margin-bottom: 15px; color: #003366; }
         .modal-title { font-family: 'Playfair Display', serif; margin: 0 0 10px 0; font-size: 1.5rem; color: #333; }
-        .modal-text { color: #666; margin-bottom: 25px; line-height: 1.5; }
+        .modal-text { color: #666; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; }
-        .btn-modal { padding: 10px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: transform 0.2s; }
+        .btn-modal { padding: 10px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: transform 0.2s; font-family: 'Poppins';}
         .btn-modal:active { transform: scale(0.95); }
         .btn-cancel { background: #f1f1f1; color: #666; }
         .btn-confirm { background: #003366; color: white; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.3); }
@@ -136,6 +158,7 @@
             <div class="header-info">
                 <h1 class="header-brand-name">Cendekia Aksara</h1>
                 <div id="user-greeting" class="header-greeting"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
+                <div id="status-badge" style="display:none;"></div>
             </div>
         </div>
 
@@ -154,13 +177,17 @@
                 <i class="fa-solid fa-robot"></i> <h3>Asisten AksaBot</h3> 
             </a>
 
-            <a href="https://generator-ide.vercel.app/" target="_blank" class="dashboard-card generator-ide"> 
+            <a href="https://generator-ide.vercel.app/" target="_blank" class="dashboard-card generator-ide always-on-cuti"> 
                 <i class="fa-solid fa-brain"></i> <h3>Generator Ide</h3> 
             </a>
-            <a href="/pustaka-materi/index.html" class="dashboard-card pustaka"> 
+            <a href="/pustaka-materi/index.html" class="dashboard-card pustaka always-on-cuti"> 
                 <i class="fa-solid fa-book-open"></i> <h3>Pustaka Materi</h3> 
             </a>
-             <a href="/kuis/index.html" class="dashboard-card kuis"> 
+            <a href="#" onclick="comingSoon(event)" class="dashboard-card card-cuti always-on-cuti">
+                <i class="fa-solid fa-calendar-xmark"></i> 
+                <h3>Ajukan Izin / Cuti</h3>
+            </a>
+            <a href="/kuis/index.html" class="dashboard-card kuis"> 
                 <i class="fa-solid fa-list-check"></i> <h3>Portal Kuis</h3> 
             </a>
             <a href="/ujian/index.html" class="dashboard-card ujian"> 
@@ -169,11 +196,6 @@
             <a href="/payment.html" class="dashboard-card card-bayar">
                 <i class="fa-solid fa-wallet"></i> 
                 <h3>Pembayaran / SPP</h3>
-            </a>
-            
-            <a href="#" onclick="comingSoon(event)" class="dashboard-card card-cuti">
-                <i class="fa-solid fa-calendar-xmark"></i> 
-                <h3>Ajukan Izin</h3>
             </a>
         </div>
         
@@ -195,8 +217,9 @@
     </div>
 
     <script type="module">
-        import { auth, checkAuth } from "/js/firebase-config.js";
+        import { db, auth, checkAuth } from "/js/firebase-config.js";
         import { signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FUNGSI CUSTOM MODAL ---
         window.showModal = (title, message, isConfirm = false, type = 'normal') => {
@@ -212,13 +235,17 @@
                 textEl.innerText = message;
                 
                 if (type === 'danger') {
+                    iconEl.innerHTML = '<i class="fa-solid fa-ban" style="color:#dc3545"></i>';
+                    btnConfirm.className = 'btn-modal btn-danger-modal';
+                    btnConfirm.innerText = "Mengerti";
+                } else if (type === 'logout') {
                     iconEl.innerHTML = '<i class="fa-solid fa-right-from-bracket" style="color:#dc3545"></i>';
                     btnConfirm.className = 'btn-modal btn-danger-modal';
                     btnConfirm.innerText = "Ya, Keluar";
-                } else if (type === 'maintenance') {
-                    iconEl.innerHTML = '<i class="fa-solid fa-person-digging" style="color:#eb3349"></i>'; // Ikon Konstruksi
+                } else if (type === 'warning') {
+                    iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b"></i>';
                     btnConfirm.className = 'btn-modal btn-confirm';
-                    btnConfirm.innerText = "Siap, Menunggu";
+                    btnConfirm.innerText = "Mengerti";
                 } else {
                     iconEl.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
                     btnConfirm.className = 'btn-modal btn-confirm';
@@ -230,6 +257,7 @@
 
                 const cleanup = () => {
                     modal.classList.remove('active');
+                    // Reset event listener agar tidak bentrok
                     btnConfirm.replaceWith(btnConfirm.cloneNode(true));
                     btnCancel.replaceWith(btnCancel.cloneNode(true));
                 };
@@ -239,33 +267,97 @@
             });
         };
 
-        // --- LOGIC: COMING SOON ---
         window.comingSoon = (e) => {
             e.preventDefault();
-            // Panggil modal dengan tipe khusus 'maintenance'
-            window.showModal(
-                'Fitur Segera Hadir! 🚧', 
-                'Mohon maaf, fitur Pengajuan Izin/Cuti sedang dalam tahap pengembangan sistem. Nantikan update selanjutnya ya!', 
-                false, 
-                'maintenance'
-            );
+            window.showModal('Fitur Segera Hadir! 🚧', 'Mohon maaf, fitur ini sedang dalam tahap pengembangan sistem.', false, 'warning');
         };
 
-        // --- MAIN LOGIC ---
+        // --- MAIN LOGIC & STATUS CHECKER ---
         (async () => {
             const userData = await checkAuth('siswa');
             
             if(userData) {
+                // 1. Setup Sapaan
                 const jam = new Date().getHours();
-                let sapaan = "Selamat Pagi";
-                let icon = "⛅";
-                
+                let sapaan = "Selamat Pagi"; let icon = "⛅";
                 if (jam >= 10 && jam < 15) { sapaan = "Selamat Siang"; icon = "☀️"; }
                 else if (jam >= 15 && jam < 18) { sapaan = "Selamat Sore"; icon = "🌇"; }
                 else if (jam >= 18) { sapaan = "Selamat Malam"; icon = "🌙"; }
 
                 const nickName = userData.name.split(' ')[0];
                 document.getElementById('user-greeting').innerHTML = `${sapaan}, ${nickName} 😊 ${icon}`;
+
+                // 2. Setup Logic Status & Pemblokiran
+                let currentStatus = userData.status || 'aktif';
+                const badge = document.getElementById('status-badge');
+                badge.style.display = 'inline-flex';
+
+                // Cek inaktivitas (2 Bulan 15 Hari = ~75 Hari)
+                if (currentStatus !== 'nonaktif') {
+                    // Pakai last_active, jika tidak ada pakai createdAt, jika tidak ada pakai tanggal sekarang
+                    let lastActiveDate = new Date(); 
+                    if (userData.last_active && userData.last_active.toDate) {
+                        lastActiveDate = userData.last_active.toDate();
+                    } else if (userData.createdAt) {
+                        lastActiveDate = new Date(userData.createdAt);
+                    }
+
+                    const diffTime = Math.abs(new Date() - lastActiveDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    if (diffDays > 75) {
+                        currentStatus = 'nonaktif';
+                        // Kunci di database
+                        updateDoc(doc(db, 'users', userData.uid), { status: 'nonaktif' });
+                    }
+                }
+
+                const allCards = document.querySelectorAll('.dashboard-card');
+
+                if (currentStatus === 'aktif') {
+                    badge.className = 'status-aktif';
+                    badge.innerHTML = '<i class="fa-solid fa-user-check"></i> Status: Aktif';
+                    // Catat kehadiran hari ini di database
+                    updateDoc(doc(db, 'users', userData.uid), { last_active: serverTimestamp() });
+
+                } else if (currentStatus === 'cuti') {
+                    badge.className = 'status-cuti';
+                    badge.innerHTML = '<i class="fa-solid fa-bed"></i> Status: Cuti / Izin';
+                    
+                    // Blokir semua kartu kecuali yang punya class "always-on-cuti"
+                    allCards.forEach(card => {
+                        if (!card.classList.contains('always-on-cuti')) {
+                            card.classList.add('disabled-card');
+                            card.onclick = (e) => {
+                                e.preventDefault();
+                                window.showModal('Akses Dibatasi', 'Fitur ini tidak dapat digunakan selama Anda dalam masa Cuti/Izin.', false, 'warning');
+                            };
+                        }
+                    });
+
+                } else if (currentStatus === 'nonaktif') {
+                    badge.className = 'status-nonaktif';
+                    badge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Status: Dinonaktifkan';
+                    
+                    // Blokir SEMUA fitur
+                    allCards.forEach(card => {
+                        card.classList.add('disabled-card');
+                        card.onclick = (e) => {
+                            e.preventDefault();
+                            window.showModal('Akun Dibekukan', 'Akun Anda dinonaktifkan karena tidak ada aktivitas lebih dari 2 Bulan 15 Hari. Silakan ajukan banding ke Admin.', false, 'danger');
+                        };
+                    });
+
+                    // Tampilkan Pop-Up Segera setelah Login
+                    setTimeout(() => {
+                        window.showModal(
+                            'Akun Dinonaktifkan ⚠️', 
+                            'Sistem mendeteksi tidak ada aktivitas pembelajaran selama lebih dari 75 hari. Seluruh akses fitur telah dikunci. Silakan hubungi Admin untuk mengajukan pengaktifan kembali.', 
+                            false, 
+                            'danger'
+                        );
+                    }, 500);
+                }
             }
         })();
 
@@ -275,7 +367,7 @@
                 'Konfirmasi Keluar', 
                 'Apakah Anda yakin ingin mengakhiri sesi ini?', 
                 true, 
-                'danger'
+                'logout'
             );
 
             if (yakin) {
