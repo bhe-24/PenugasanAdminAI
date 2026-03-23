@@ -3,97 +3,369 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Cuti - Admin</title>
+    <title>Kelola Cuti & Akun - Admin Cendekia</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; color: #334155; }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        :root { --primary: #003366; --accent: #d4af37; --bg: #f4f6f9; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; color: #334155; padding-bottom: 50px;}
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
         
-        .header { background: white; padding: 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .btn-back { text-decoration: none; color: #475569; font-weight: 600; }
+        /* HEADER MEWAH */
+        .header { background: white; padding: 25px 35px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid var(--accent);}
+        .header-title { display: flex; align-items: center; gap: 15px; }
+        .header-title i { font-size: 2.2rem; color: var(--primary); }
+        .header-title div h2 { margin: 0; font-family: 'Playfair Display', serif; color: var(--primary); font-size: 1.8rem; }
+        .header-title div p { margin: 2px 0 0 0; color: #64748b; font-size: 0.9rem; }
+        .btn-back { background: #f1f5f9; color: #475569; padding: 10px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; }
+        .btn-back:hover { background: #e2e8f0; color: #1e293b; }
 
-        .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .req-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-top: 4px solid #f59e0b; transition: 0.2s; }
-        .req-card:hover { transform: translateY(-3px); }
+        /* TABS KONTROL */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 12px 25px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins'; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.2s; display: inline-flex; gap: 8px; align-items: center; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0,51,102,0.2);}
+        .tab-btn:not(.active):hover { background: #f8fafc; }
 
-        .student-name { font-weight: bold; font-size: 1.1rem; color: #0f172a; margin-bottom: 5px; }
-        .dates { font-size: 0.9rem; color: #64748b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        .reason-box { background: #f8fafc; padding: 10px; border-radius: 8px; font-size: 0.95rem; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* GRID CUTI */
+        .req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .req-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 4px solid #f59e0b; transition: 0.2s; display: flex; flex-direction: column;}
+        .req-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .req-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; background: #f1f5f9; color: #475569; margin-bottom: 10px; width: fit-content;}
+
+        .student-name { font-weight: 700; font-size: 1.2rem; color: #0f172a; margin-bottom: 8px; }
+        .dates { font-size: 0.85rem; color: #64748b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .reason-box { background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 25px; border: 1px solid #e2e8f0; flex-grow: 1; line-height: 1.5; color: #475569;}
 
         .btn-group { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
-        .btn-approve { background: #10b981; } .btn-approve:hover { background: #059669; }
-        .btn-reject { background: #ef4444; } .btn-reject:hover { background: #dc2626; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-family: 'Poppins';}
+        .btn-approve { background: #166534; box-shadow: 0 4px 10px rgba(22, 101, 52, 0.2);} .btn-approve:hover { background: #14532d; }
+        .btn-reject { background: #dc3545; box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);} .btn-reject:hover { background: #b02a37; }
+        .btn-pdf { background: #d4af37; color: #003366; width: 100%; margin-top: 10px;} .btn-pdf:hover { background: #b5952f; }
+
+        /* PANEL KONTROL AKUN */
+        .kontrol-panel { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .search-box { display: flex; gap: 15px; margin-bottom: 30px; }
+        .search-box input { flex: 1; padding: 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Poppins'; font-size: 1rem; outline: none; transition: 0.3s;}
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box button { padding: 0 30px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: 'Poppins'; font-size: 1rem;}
+
+        .akun-list { display: flex; flex-direction: column; gap: 15px; }
+        .akun-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .akun-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; color: #0f172a; }
+        .akun-info p { margin: 0; font-size: 0.85rem; color: #64748b; }
+        .status-label { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: bold; margin-top: 8px; display: inline-block;}
+        .lbl-aktif { background: #dcfce7; color: #166534; }
+        .lbl-cuti { background: #fef3c7; color: #b45309; }
+        .lbl-nonaktif { background: #fee2e2; color: #b91c1c; }
+
+        @media (max-width: 600px) {
+            .header { flex-direction: column; gap: 15px; align-items: flex-start; }
+            .akun-item { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .btn-group { flex-direction: column; width: 100%; }
+            .search-box { flex-direction: column; }
+            .search-box button { padding: 15px; }
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <h2 style="margin:0;"><i class="fa-solid fa-inbox"></i> Permohonan Masuk</h2>
-            <a href="index.html" class="btn-back"><i class="fa-solid fa-house"></i> Dashboard</a>
+            <div class="header-title">
+                <i class="fa-solid fa-users-gear"></i>
+                <div>
+                    <h2>Kontrol Administrasi</h2>
+                    <p>Pusat Komando Izin, Cuti, dan Blokir Akun</p>
+                </div>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-house"></i> Kembali ke Dasbor</a>
         </div>
 
-        <div id="request-list" class="req-grid">
-            <div style="text-align:center; width:100%; grid-column:1/-1; padding:50px;">Memuat data...</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-cuti', this)"><i class="fa-solid fa-envelope-open-text"></i> Permohonan Izin Baru</button>
+            <button class="tab-btn" onclick="switchTab('tab-akun', this)"><i class="fa-solid fa-user-shield"></i> Kontrol Blokir Akun</button>
+        </div>
+
+        <div id="tab-cuti" class="tab-content active">
+            <div id="request-list" class="req-grid">
+                <div style="text-align:center; width:100%; grid-column:1/-1; padding:50px; color:#64748b;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>Memeriksa Kotak Masuk...
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-akun" class="tab-content">
+            <div class="kontrol-panel">
+                <div class="search-box">
+                    <input type="text" id="search-student" placeholder="Cari nama atau UID siswa...">
+                    <button onclick="cariSiswa()"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
+                </div>
+                
+                <div id="akun-list" class="akun-list">
+                    <div style="text-align:center; padding:30px; color:#94a3b8;"><i class="fa-solid fa-magnifying-glass fa-2x"></i><br><br>Silakan cari nama siswa untuk mengontrol akunnya.</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, where, getDocs, doc, updateDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // TAB SWITCHER
+        window.switchTab = (tabId, btn) => {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        };
+
+        // Format Tanggal Indo
+        const formatTgl = (dateStr) => {
+            if(!dateStr) return "-";
+            const date = new Date(dateStr);
+            const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        };
+
+        // HELPER LOGO BASE64
+        async function getBase64Logo() {
+            try {
+                const response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent("https://i.imgur.com/5Srjyo4.png"));
+                const blob = await response.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch(e) { return null; }
+        }
+
+        // ==========================================
+        // FITUR 1: KELOLA PERMOHONAN CUTI/IZIN
+        // ==========================================
         (async () => {
-            const admin = await checkAuth('pengajar'); // Cek admin
+            const admin = await checkAuth('admin'); // PASTIKAN ROLE ADMIN
             if(admin) loadRequests();
         })();
 
         async function loadRequests() {
             const container = document.getElementById('request-list');
-            // Ambil yg statusnya 'pending'
-            const q = query(collection(db, 'leave_requests'), where('status', '==', 'pending'), orderBy('timestamp', 'asc'));
-            const snap = await getDocs(q);
+            try {
+                const q = query(collection(db, 'leave_requests'), where('status', '==', 'pending'), orderBy('timestamp', 'asc'));
+                const snap = await getDocs(q);
 
-            container.innerHTML = '';
-            if(snap.empty) {
-                container.innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#999;">Tidak ada permohonan baru.</div>';
-                return;
+                container.innerHTML = '';
+                if(snap.empty) {
+                    container.innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#94a3b8; padding:40px;"><i class="fa-solid fa-inbox fa-3x" style="opacity:0.3; margin-bottom:15px;"></i><br>Tidak ada permohonan baru.</div>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    // Encode data agar aman masuk HTML onclick
+                    const safeData = encodeURIComponent(JSON.stringify({...data, id: d.id}));
+                    
+                    container.innerHTML += `
+                        <div class="req-card" id="card-${d.id}">
+                            <div class="req-badge">${data.type || 'Izin'}</div>
+                            <div class="student-name">${data.studentName}</div>
+                            <div class="dates">
+                                <i class="fa-regular fa-calendar"></i> ${formatTgl(data.startDate)} s.d. ${formatTgl(data.endDate)}
+                            </div>
+                            <div class="reason-box">"${data.reason}"</div>
+                            <div class="btn-group">
+                                <button onclick="processIzin('${d.id}', 'rejected', '${data.studentId}')" class="btn btn-reject"><i class="fa-solid fa-xmark"></i> Tolak</button>
+                                <button onclick="processIzin('${d.id}', 'approved', '${data.studentId}')" class="btn btn-approve"><i class="fa-solid fa-check"></i> Setujui</button>
+                            </div>
+                            <button onclick="cetakSurat('${safeData}', 'IZIN')" class="btn btn-pdf"><i class="fa-solid fa-print"></i> Cetak Dokumen Pengajuan</button>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                container.innerHTML = `<div style="text-align:center; width:100%; grid-column:1/-1; color:red;">Gagal memuat data: ${e.message}</div>`;
             }
-
-            snap.forEach(d => {
-                const data = d.data();
-                container.innerHTML += `
-                    <div class="req-card" id="card-${d.id}">
-                        <div class="student-name">${data.studentName}</div>
-                        <div class="dates">
-                            <i class="fa-regular fa-calendar"></i> ${data.startDate} s/d ${data.endDate}
-                        </div>
-                        <div class="reason-box">"${data.reason}"</div>
-                        <div class="btn-group">
-                            <button onclick="window.process('${d.id}', 'rejected')" class="btn btn-reject">Tolak</button>
-                            <button onclick="window.process('${d.id}', 'approved')" class="btn btn-approve">Setujui</button>
-                        </div>
-                    </div>
-                `;
-            });
         }
 
-        // Fungsi Proses (Global)
-        window.process = async (docId, newStatus) => {
-            if(!confirm(newStatus === 'approved' ? 'Setujui izin ini?' : 'Tolak izin ini?')) return;
+        window.processIzin = async (docId, newStatus, studentId) => {
+            if(!confirm(newStatus === 'approved' ? 'Setujui izin ini? Akun siswa akan otomatis dikunci mode Cuti.' : 'Tolak permohonan izin ini?')) return;
 
             try {
+                // 1. Update Status Surat Izin
                 await updateDoc(doc(db, 'leave_requests', docId), { status: newStatus });
-                // Hapus kartu dari layar
-                document.getElementById(`card-${docId}`).remove();
                 
-                // Cek kalau habis
+                // 2. JIKA DISETUJUI, UBAH STATUS AKUN SISWA MENJADI 'cuti'
+                if (newStatus === 'approved') {
+                    await updateDoc(doc(db, 'users', studentId), { status: 'cuti' });
+                }
+
+                document.getElementById(`card-${docId}`).remove();
                 if(document.querySelectorAll('.req-card').length === 0) {
-                    document.getElementById('request-list').innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#999;">Semua permohonan selesai!</div>';
+                    document.getElementById('request-list').innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; color:#94a3b8; padding:40px;"><i class="fa-solid fa-check-double fa-3x" style="opacity:0.3; margin-bottom:15px;"></i><br>Semua permohonan selesai diproses!</div>';
                 }
             } catch(e) {
                 alert("Gagal memproses: " + e.message);
             }
+        };
+
+        // ==========================================
+        // FITUR 2: CARI & KONTROL AKUN (BLOKIR/BUKA)
+        // ==========================================
+        window.cariSiswa = async () => {
+            const keyword = document.getElementById('search-student').value.toLowerCase();
+            const container = document.getElementById('akun-list');
+            if(!keyword) return;
+
+            container.innerHTML = '<div style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Mencari...</div>';
+
+            try {
+                // Mengambil semua siswa (ideal jika datanya tidak puluhan ribu, jika banyak butuh query lebih spesifik)
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                
+                let foundHTML = '';
+                
+                snap.forEach(d => {
+                    const data = d.data();
+                    if(data.name.toLowerCase().includes(keyword) || d.id.toLowerCase().includes(keyword)) {
+                        
+                        let stLabel = `<span class="status-label lbl-aktif">Aktif</span>`;
+                        let aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'nonaktif', '${data.name}')" class="btn btn-reject"><i class="fa-solid fa-lock"></i> Bekukan Akun</button>`;
+                        
+                        if(data.status === 'nonaktif') {
+                            stLabel = `<span class="status-label lbl-nonaktif">Nonaktif (Dibekukan)</span>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Aktifkan Kembali</button>`;
+                        } else if (data.status === 'cuti') {
+                            stLabel = `<span class="status-label lbl-cuti">Sedang Cuti / Izin</span>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Cabut Status Cuti (Aktifkan)</button>`;
+                        }
+
+                        // Tombol Cetak Surat Keputusan Blokir/Aktif
+                        const dataSurat = encodeURIComponent(JSON.stringify({ id: d.id, name: data.name, status: data.status }));
+
+                        foundHTML += `
+                            <div class="akun-item">
+                                <div class="akun-info">
+                                    <h4>${data.name}</h4>
+                                    <p>UID: ${d.id}</p>
+                                    ${stLabel}
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:8px; width:250px;">
+                                    ${aksiBtn}
+                                    <button onclick="cetakSurat('${dataSurat}', 'AKUN')" class="btn btn-pdf" style="margin:0; padding:8px; font-size:0.85rem;"><i class="fa-solid fa-print"></i> Cetak Surat Keputusan</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if(foundHTML === '') container.innerHTML = '<div style="text-align:center; color:#999;">Siswa tidak ditemukan.</div>';
+                else container.innerHTML = foundHTML;
+
+            } catch (e) {
+                container.innerHTML = `<div style="text-align:center; color:red;">Error: ${e.message}</div>`;
+            }
+        };
+
+        window.ubahStatusAkun = async (uid, newStatus, name) => {
+            const pesan = newStatus === 'aktif' ? `Aktifkan kembali akun ${name}?` : `Bekukan dan kunci akun ${name}?`;
+            if(!confirm(pesan)) return;
+
+            try {
+                await updateDoc(doc(db, 'users', uid), { status: newStatus });
+                alert(`Akun ${name} berhasil diperbarui menjadi ${newStatus.toUpperCase()}`);
+                cariSiswa(); // Refresh daftar pencarian
+            } catch (e) {
+                alert("Gagal mengubah status: " + e.message);
+            }
+        };
+
+        // ==========================================
+        // FITUR 3: MESIN CETAK SURAT PDF KEPUTUSAN
+        // ==========================================
+        window.cetakSurat = async (encodedData, tipeSurat) => {
+            const data = JSON.parse(decodeURIComponent(encodedData));
+            const tglCetak = formatTgl(new Date());
+            const logo = await getBase64Logo();
+
+            let judulSurat = ''; let isiSurat = ''; let keteranganPenting = '';
+
+            // LOGIKA SURAT IZIN/CUTI
+            if(tipeSurat === 'IZIN') {
+                judulSurat = 'SURAT KEPUTUSAN IZIN / CUTI AKADEMIK';
+                isiSurat = `Berdasarkan permohonan yang diajukan ke dalam sistem, pihak Administrator Cendekia Aksara memproses dokumen atas nama:\n\nNama Siswa: ${data.studentName}\nJenis Pengajuan: ${data.type || 'Izin'}\nDurasi: ${formatTgl(data.startDate)} s.d. ${formatTgl(data.endDate)}\nAlasan: ${data.reason}\n\nMenyatakan bahwa permohonan tersebut secara resmi DIKETAHUI. Jika disetujui, akun siswa akan diubah menjadi Mode Cuti dan fitur pembelajaran akan dibekukan sementara.`;
+                keteranganPenting = 'Status di Sistem: Dokumen Verifikasi Internal';
+            } 
+            // LOGIKA SURAT PENAHANAN / PEMBUKAAN AKUN
+            else if (tipeSurat === 'AKUN') {
+                if (data.status === 'nonaktif') {
+                    // Surat Akun Dibekukan
+                    judulSurat = 'SURAT PEMBERITAHUAN PENONAKTIFAN AKUN (SUSPEND)';
+                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah DINONAKTIFKAN/DIBEKUKAN dari sistem portal pembelajaran.\nAlasan utama pemblokiran: Tidak adanya aktivitas pembelajaran selama lebih dari batas waktu yang ditentukan (2 Bulan 15 Hari) atau adanya pelanggaran kedisiplinan administratif.`;
+                    keteranganPenting = 'Siswa wajib mengajukan banding secara langsung kepada Administrator untuk dapat membuka kembali akses sistem.';
+                } else {
+                    // Surat Akun Aktif/Normal
+                    judulSurat = 'SURAT KETETAPAN PENGAKTIFAN AKUN';
+                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah sepenuhnya AKTIF dan sah digunakan kembali untuk mengakses seluruh portal pembelajaran, pustaka, tugas, dan ujian di platform Cendekia Aksara.`;
+                    keteranganPenting = 'Siswa diharap menjaga rutinitas kehadiran agar akun tidak kembali terkunci otomatis oleh sistem (Auto-Suspend 75 Hari).';
+                }
+            }
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [60, 60, 60, 60],
+                content: [
+                    // KOP SURAT
+                    {
+                        columns: [
+                            logo ? { image: logo, width: 70, margin: [0, 0, 20, 0] } : { text: '' },
+                            {
+                                stack: [
+                                    { text: 'KOMUNITAS LITERASI CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', alignment: 'center' },
+                                    { text: judulSurat, fontSize: 12, bold: true, color: '#d4af37', alignment: 'center', margin: [0, 5, 0, 0] },
+                                    { text: 'Dokumen Ketetapan Sistem Administrasi Pusat', fontSize: 10, color: '#666', alignment: 'center' }
+                                ],
+                                width: '*'
+                            }
+                        ]
+                    },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 2, lineColor: '#003366' }], margin: [0, 15, 0, 30] },
+
+                    // ISI SURAT
+                    { text: 'Dengan hormat,', margin: [0, 0, 0, 15] },
+                    { text: isiSurat, alignment: 'justify', margin: [0, 0, 0, 20], lineHeight: 1.5 },
+                    
+                    { text: 'Catatan Penting:', bold: true, margin: [0, 0, 0, 5] },
+                    { text: keteranganPenting, alignment: 'justify', margin: [0, 0, 0, 30], color: '#dc3545', italics: true },
+
+                    // TANDA TANGAN 
+                    {
+                        columns: [
+                            { text: '', width: '*' }, 
+                            {
+                                stack: [
+                                    { text: `Magelang, ${tglCetak}`, alignment: 'center', margin: [0, 0, 0, 40] },
+                                    { text: 'Administrator Pusat', alignment: 'center', bold: true, decoration: 'underline' },
+                                    { text: 'Dokumen Sah Secara Elektronik', alignment: 'center', fontSize: 9, color: '#999' }
+                                ],
+                                width: 200
+                            }
+                        ]
+                    }
+                ],
+                defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#222' }
+            };
+
+            const fileName = `SK_Admin_${data.studentName || data.name}_${tglCetak.replace(/\s+/g, '')}.pdf`;
+            pdfMake.createPdf(docDefinition).download(fileName);
         };
     </script>
 </body>
