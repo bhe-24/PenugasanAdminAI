@@ -20,7 +20,7 @@
         
         /* Header Dashboard */
         .page-header { background: #fff; padding: 25px 40px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 4px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
-        .page-header h2 { margin: 0; color: var(--primary); font-family: 'Times New Roman', Times, serif; font-weight: bold;}
+        .page-header h2 { margin: 0; color: var(--primary); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: bold;}
         
         /* Panel Form */
         .panel-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; animation: fadeIn 0.5s ease;}
@@ -47,10 +47,10 @@
         /* Box Kemajuan AI */
         .progress-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; border-radius: 8px; text-align: center; margin-bottom: 20px;}
         
-        /* Area Pratinjau Web - Times New Roman */
+        /* Area Pratinjau Web */
         #book-content-preview { 
             padding: 40px; background: #fafafa; border: 1px dashed #ccc; margin-top: 20px; max-height: 500px; overflow-y: auto; 
-            font-family: 'Times New Roman', Times, serif; line-height: 1.5; text-align: justify;
+            line-height: 1.5; text-align: justify;
         }
         #book-content-preview h1, #book-content-preview h2, #book-content-preview h3 { font-weight: bold; color: var(--primary); }
         #book-content-preview p { margin-bottom: 8px; margin-top: 0; }
@@ -133,7 +133,7 @@
                 <h3 id="generate-status-title" style="color: var(--primary); margin-bottom: 15px;">Buku Sedang Disusun...</h3>
                 <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">Anda dapat mengunduh PDF kapan saja. PDF akan berisi bab yang sudah selesai ditulis hingga detik ini.</p>
                 <button class="btn btn-accent" onclick="unduhBukuPDF()" style="font-size: 1.1rem; padding: 15px 30px;">
-                    <i class="fa-solid fa-file-pdf"></i> Unduh Buku Teks (Times New Roman - PDF)
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Buku Teks (PDF)
                 </button>
             </div>
 
@@ -143,7 +143,7 @@
 
     <script type="module">
         let daftarBabTersimpan = [];
-        window.bookDataArray = []; 
+        window.bookDataArray = []; // Menyimpan data murni per bab untuk PDF
 
         // FASE 1 -> FASE 2
         window.generateKerangka = async () => {
@@ -248,7 +248,7 @@
             document.getElementById('generate-status-title').innerText = 'Buku Selesai Disusun!';
         };
 
-        // FASE UNDUH - PDFMAKE (TIMES NEW ROMAN, RAPAT, ANTI-ENTER BERLEBIH)
+        // FASE UNDUH - PDFMAKE MURNI TANPA FONT CUSTOM (MENGHINDARI ERROR 404)
         window.unduhBukuPDF = () => {
             const btn = document.querySelector('#result-actions .btn');
             const oriText = btn.innerHTML;
@@ -260,22 +260,11 @@
                 try {
                     const judulUtama = document.getElementById('input-judul').value || "Buku Teks Cendekia";
 
-                    // MENGAKTIFKAN TIMES NEW ROMAN STANDAR PDF
-                    pdfMake.fonts = {
-                        Times: {
-                            normal: 'Times-Roman',
-                            bold: 'Times-Bold',
-                            italics: 'Times-Italic',
-                            bolditalics: 'Times-BoldItalic'
-                        }
-                    };
-
                     let pdfContentDefinition = [];
 
-                    // 1. HALAMAN COVER (Tanpa Gambar, Full Text Elegan)
+                    // 1. HALAMAN COVER (Tanpa Logo Gambar untuk menghindari error CORS saat download)
                     pdfContentDefinition.push(
                         { text: 'CENDEKIA AKSARA', style: 'coverPenerbit', alignment: 'center', margin: [0, 200, 0, 15] },
-                        // Garis pemisah Cover
                         { canvas: [{ type: 'line', x1: 100, y1: 0, x2: 400, y2: 0, lineWidth: 2, lineColor: '#d4af37' }], margin: [0, 0, 0, 20], alignment: 'center' },
                         { text: judulUtama.toUpperCase(), style: 'coverTitle', alignment: 'center', margin: [0, 0, 0, 40] },
                         { text: 'Buku Teks / Pegangan Siswa\nDisusun secara otomatis oleh Sistem Cendekia', style: 'coverSub', alignment: 'center', pageBreak: 'after' }
@@ -327,31 +316,32 @@
                             if (currentPage > 1) {
                                 return {
                                     text: currentPage.toString(),
-                                    alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10, font: 'Times'
+                                    alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10
                                 };
                             }
                         },
                         content: pdfContentDefinition,
                         // PENGATURAN SPASI RAPAT & RATA KANAN-KIRI
                         styles: {
-                            coverPenerbit: { font: 'Times', fontSize: 18, color: '#003366', bold: true, letterSpacing: 3 },
-                            coverTitle: { font: 'Times', fontSize: 36, bold: true, color: '#000000' },
-                            coverSub: { font: 'Times', fontSize: 14, color: '#666', italics: true },
-                            chapterHalamanJudul: { font: 'Times', fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
-                            pakaian_header: { font: 'Times', fontSize: 9, color: '#999', italics: true },
+                            coverPenerbit: { fontSize: 18, color: '#003366', bold: true, letterSpacing: 3 },
+                            coverTitle: { fontSize: 36, bold: true, color: '#000000' },
+                            coverSub: { fontSize: 14, color: '#666', italics: true },
+                            chapterHalamanJudul: { fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
+                            pakaian_header: { fontSize: 9, color: '#999', italics: true },
                             
-                            html_p: { font: 'Times', margin: [0, 0, 0, 5], alignment: 'justify' },
-                            html_ul: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
-                            html_ol: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
-                            html_li: { font: 'Times', margin: [0, 0, 0, 2], alignment: 'justify' },
-                            html_h1: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
-                            html_h2: { font: 'Times', margin: [0, 10, 0, 5], color: '#003366' },
-                            html_h3: { font: 'Times', margin: [0, 8, 0, 4], color: '#003366' },
-                            html_table: { font: 'Times', margin: [0, 10, 0, 15] },
-                            html_th: { font: 'Times', fillColor: '#003366', color: 'white', bold: true, alignment: 'center', padding: 6 },
-                            html_td: { font: 'Times', padding: 6, alignment: 'justify' }
+                            // SPASI RAPAT
+                            html_p: { margin: [0, 0, 0, 5], alignment: 'justify' },
+                            html_ul: { margin: [0, 0, 0, 8], marginLeft: 15 },
+                            html_ol: { margin: [0, 0, 0, 8], marginLeft: 15 },
+                            html_li: { margin: [0, 0, 0, 2], alignment: 'justify' },
+                            html_h1: { margin: [0, 10, 0, 5], color: '#003366' },
+                            html_h2: { margin: [0, 10, 0, 5], color: '#003366' },
+                            html_h3: { margin: [0, 8, 0, 4], color: '#003366' },
+                            html_table: { margin: [0, 10, 0, 15] },
+                            html_th: { fillColor: '#003366', color: 'white', bold: true, alignment: 'center', padding: 6 },
+                            html_td: { padding: 6, alignment: 'justify' }
                         },
-                        defaultStyle: { font: 'Times', fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
+                        defaultStyle: { fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
                     };
 
                     // 4. Eksekusi Download
