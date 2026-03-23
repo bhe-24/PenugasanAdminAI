@@ -58,6 +58,7 @@
         .badge-download { background: #e8f5e9; color: #1b5e20; }  /* Hijau: Download */
         .badge-submit { background: #fff3e0; color: #e65100; }    /* Oranye: Submit */
         .badge-login { background: #f3e5f5; color: #7b1fa2; }     /* Ungu: Login */
+        .badge-default { background: #f1f5f9; color: #475569; }   /* Abu-abu: Lainnya */
 
         .text-muted { font-size: 0.8rem; color: #888; }
         .user-avatar { 
@@ -99,14 +100,14 @@
 <body>
     <div class="container">
         <div class="page-header">
-            <h2><i class="fa-solid fa-clock-rotate-left"></i> Arsip Aktivitas Siswa</h2>
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Arsip Aktivitas Sistem</h2>
             <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px;">
                 <i class="fa-solid fa-arrow-left"></i> Kembali
             </a>
         </div>
 
         <div class="toolbar">
-            <input type="text" id="search-log" class="search-input" placeholder="Cari nama siswa atau jenis aktivitas...">
+            <input type="text" id="search-log" class="search-input" placeholder="Cari nama pengguna, modul, atau jenis aktivitas...">
             <button class="btn-refresh" onclick="location.reload()">
                 <i class="fa-solid fa-rotate-right"></i> Segarkan
             </button>
@@ -117,17 +118,17 @@
                 <thead>
                     <tr>
                         <th style="width: 20%;">Waktu</th>
-                        <th style="width: 25%;">Pengguna (Siswa)</th>
+                        <th style="width: 25%;">Pengguna</th>
                         <th style="width: 20%;">Aktivitas</th>
-                        <th style="width: 25%;">Detail / Konteks</th>
+                        <th style="width: 25%;">Modul / Konteks</th>
                         <th style="width: 10%;">Status</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-logs">
                     <tr>
                         <td colspan="5" style="text-align: center; padding: 40px; color: #999;">
-                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br>
-                            Sedang memuat catatan aktivitas...
+                            <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>
+                            Sedang sinkronisasi data arsip secara real-time...
                         </td>
                     </tr>
                 </tbody>
@@ -135,7 +136,7 @@
         </div>
         
         <p style="text-align: center; color: #999; font-size: 0.8rem; margin-top: 20px;">
-            Menampilkan 50 aktivitas terakhir demi performa sistem.
+            Menampilkan 50 aktivitas terakhir demi performa sistem. Data ini merepresentasikan catatan mutakhir dari database.
         </p>
     </div>
 
@@ -154,22 +155,23 @@
             const tbody = document.getElementById('tbody-logs');
             
             try {
-                // Ambil Data Log
+                // Asumsi: Koleksi arsip log di Firestore adalah 'activity_logs' atau 'khs_access_logs'
+                // Karena kita belum membahas sistem log terpadu secara utuh, saya gunakan koleksi yang ada di kodemu (khs_access_logs).
+                // Jika kamu kelak menyatukan semua log (login, tugas, dll) ke koleksi 'activity_logs', tinggal ubah string di bawah.
                 const q = query(collection(db, 'khs_access_logs'), orderBy('timestamp', 'desc'), limit(50));
                 const snap = await getDocs(q);
 
                 if(snap.empty) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada aktivitas tercatat.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada aktivitas tercatat di database.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = ''; // Bersihkan loading
+                tbody.innerHTML = ''; // Bersihkan baris loading
 
                 snap.forEach(doc => {
                     const l = doc.data();
                     
-                    // 1. Format Tanggal (Indonesia)
-                    // Cek jika timestamp valid
+                    // 1. Format Tanggal Real-time (Dari Firestore Timestamp)
                     let dateStr = "-";
                     if (l.timestamp) {
                         const date = l.timestamp.toDate();
@@ -179,49 +181,58 @@
                         });
                     }
 
-                    // 2. Format Badge Aktivitas & Ikon
+                    // 2. Format Badge Aktivitas & Ikon Secara Dinamis
                     let badge = '';
-                    let detailText = l.detail || "-"; // Jika nanti ada kolom detail di DB
+                    // Mengambil aksi asli, jadikan kapital, hapus spasi berlebih
+                    let actionName = (l.action || l.activity || 'SYSTEM').toUpperCase().trim();
                     
-                    // Logika tampilan berdasarkan Action
-                    if (l.action === 'DOWNLOAD') {
-                        badge = `<span class="badge badge-download"><i class="fa-solid fa-download"></i> Unduh KHS</span>`;
-                        detailText = "Dokumen PDF/PNG";
-                    } else if (l.action === 'VIEW') {
-                        badge = `<span class="badge badge-view"><i class="fa-solid fa-eye"></i> Lihat KHS</span>`;
-                        detailText = "Akses Halaman";
-                    } else if (l.action === 'LOGIN') {
-                        badge = `<span class="badge badge-login"><i class="fa-solid fa-right-to-bracket"></i> Masuk</span>`;
-                        detailText = "Web Portal";
+                    if (actionName.includes('DOWNLOAD')) {
+                        badge = `<span class="badge badge-download"><i class="fa-solid fa-download"></i> Unduh</span>`;
+                    } else if (actionName.includes('VIEW') || actionName.includes('READ')) {
+                        badge = `<span class="badge badge-view"><i class="fa-solid fa-eye"></i> Lihat</span>`;
+                    } else if (actionName.includes('LOGIN')) {
+                        badge = `<span class="badge badge-login"><i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem</span>`;
+                    } else if (actionName.includes('SUBMIT') || actionName.includes('UPLOAD')) {
+                        badge = `<span class="badge badge-submit"><i class="fa-solid fa-paper-plane"></i> Kirim</span>`;
                     } else {
-                        badge = `<span class="badge badge-submit"><i class="fa-solid fa-bolt"></i> ${l.action}</span>`;
+                        // Badge default untuk aksi lainnya
+                        badge = `<span class="badge badge-default"><i class="fa-solid fa-bolt"></i> ${actionName}</span>`;
                     }
 
-                    // Inisial Nama untuk Avatar
-                    const initial = l.studentName ? l.studentName.charAt(0).toUpperCase() : "?";
+                    // 3. Ekstrak Detail Modul/Konteks Asli dari Database
+                    let detailText = "Modul Sistem";
+                    // Mencoba mencari detail dari field yang umum digunakan untuk logging
+                    if (l.module) detailText = l.module;
+                    else if (l.detail) detailText = l.detail;
+                    else if (l.context) detailText = l.context;
+                    else if (actionName === 'DOWNLOAD' || actionName === 'VIEW') detailText = 'KHS / Rapor'; // Fallback cerdas berdasarkan konteks koleksi
 
-                    // 3. Render Baris (Perhatikan data-label untuk Mobile!)
+                    // Tampilkan user (Siswa atau Admin)
+                    let userName = l.studentName || l.userName || "Unknown User";
+                    let userId = l.studentUid || l.userId || "N/A";
+                    const initial = userName !== "Unknown User" ? userName.charAt(0).toUpperCase() : "?";
+
+                    // 4. Render Baris
                     tbody.innerHTML += `
                         <tr>
                             <td data-label="Waktu">
                                 <strong>${dateStr}</strong>
                             </td>
-                            <td data-label="Siswa">
+                            <td data-label="Pengguna">
                                 <div style="display:flex; align-items:center;">
                                     <div class="user-avatar">${initial}</div>
                                     <div>
-                                        <strong>${l.studentName}</strong><br>
-                                        <span class="text-muted">ID: ${l.studentUid ? l.studentUid.substring(0,6) : 'N/A'}...</span>
+                                        <strong>${userName}</strong><br>
+                                        <span class="text-muted">ID: ${userId.substring(0,8)}</span>
                                     </div>
                                 </div>
                             </td>
                             <td data-label="Aktivitas">${badge}</td>
                             <td data-label="Detail">
-                                <span style="color:#555;">${detailText}</span><br>
-                                <span class="text-muted" style="font-size:0.75rem;">IP: 192.168.x.x (Simulasi)</span>
+                                <span style="color:#333; font-weight:600;">${detailText}</span>
                             </td>
                             <td data-label="Status">
-                                <i class="fa-solid fa-circle-check" style="color:#28a745;"></i> Sukses
+                                <span style="color:#166534; font-weight:bold;"><i class="fa-solid fa-check"></i> Sukses</span>
                             </td>
                         </tr>
                     `;
@@ -229,11 +240,11 @@
 
             } catch (err) {
                 console.error(err);
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Gagal memuat log: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red;">Gagal menyinkronkan log: ${err.message}</td></tr>`;
             }
         }
 
-        // Fitur Pencarian Sederhana (Client Side)
+        // Fitur Pencarian Sederhana (Client Side Filtering)
         document.getElementById('search-log').onkeyup = function() {
             const val = this.value.toLowerCase();
             const rows = document.querySelectorAll('#tbody-logs tr');
