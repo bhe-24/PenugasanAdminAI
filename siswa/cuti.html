@@ -89,6 +89,9 @@
         /* Badge Approved jadi tombol Download */
         .badge.approved { background: #166534; color: white; border: 1px solid #14532d; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(22, 101, 52, 0.2);} 
         .badge.approved:hover { background: #14532d; transform: scale(1.05); }
+        
+        /* Tombol Sedang Memproses PDF */
+        .badge.loading-pdf { background: #94a3b8; color: white; border: 1px solid #64748b; cursor: wait; }
 
         /* Empty State */
         .empty-state { text-align: center; padding: 40px; color: #94a3b8; background: white; border-radius: 12px; border: 1px dashed #cbd5e1; }
@@ -99,9 +102,29 @@
             .history-item { flex-direction: column; align-items: flex-start; gap: 15px;}
             .badge { width: 100%; justify-content: center; box-sizing: border-box;}
         }
+
+        /* --- NOTIFIKASI TOAST (PENGGANTI ALERT) --- */
+        #toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: white; padding: 15px 20px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px;
+            transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            font-weight: 600; font-size: 0.9rem; border-left: 4px solid var(--primary);
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.success { border-left-color: #22c55e; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast i { font-size: 1.2rem; }
+        .toast.success i { color: #22c55e; }
+        .toast.error i { color: #ef4444; }
     </style>
 </head>
 <body>
+
+    <div id="toast-container"></div>
 
     <div class="container">
         <div class="page-header">
@@ -169,6 +192,27 @@
 
         let currentUser = null;
 
+        // FUNGSI TOAST NOTIFICATION (Pengganti Alert)
+        window.showToast = (message, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check"></i>' : '<i class="fa-solid fa-circle-exclamation"></i>';
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            // Animasi masuk
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Animasi keluar dan hapus elemen
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
         // Init
         (async () => {
             currentUser = await checkAuth('siswa');
@@ -190,7 +234,9 @@
                 const type = document.getElementById('leave-type').value;
                 const reason = document.getElementById('reason').value.trim();
 
-                if(new Date(start) > new Date(end)) throw new Error("Tanggal selesai tidak boleh mundur dari tanggal mulai.");
+                if(new Date(start) > new Date(end)) {
+                    throw new Error("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+                }
 
                 await addDoc(collection(db, 'leave_requests'), {
                     studentId: currentUser.uid,
@@ -203,11 +249,11 @@
                     timestamp: serverTimestamp()
                 });
                 
-                alert("Formulir berhasil dikirim! Silakan tunggu Admin menyetujui pengajuan ini.");
+                window.showToast("Formulir berhasil dikirim! Silakan tunggu persetujuan Admin.");
                 e.target.reset();
                 loadHistory(); 
             } catch(err) {
-                alert("Gagal: " + err.message);
+                window.showToast(err.message, 'error');
             } finally {
                 btn.innerHTML = originalContent; 
                 btn.disabled = false;
@@ -250,7 +296,6 @@
                     } else if (d.status === 'rejected') {
                         badgeHtml = `<span class="badge rejected"><i class="fa-solid fa-xmark"></i> Ditolak</span>`;
                     } else if (d.status === 'approved') {
-                        // JIKA DISETUJUI, BADGE MENJADI TOMBOL DOWNLOAD PDF!
                         // Parameter di-encode ke JSON untuk dilempar ke fungsi onClick
                         const pdfDataStr = encodeURIComponent(JSON.stringify({
                             nama: currentUser.name,
@@ -260,7 +305,8 @@
                             selesai: formatDate(d.endDate)
                         }));
                         
-                        badgeHtml = `<button onclick="unduhSuratIzin('${pdfDataStr}')" class="badge approved"><i class="fa-solid fa-file-pdf"></i> Unduh Surat Resmi</button>`;
+                        // Melempar 'this' agar tombol bisa diubah wujudnya saat loading
+                        badgeHtml = `<button onclick="unduhSuratIzin('${pdfDataStr}', this)" class="badge approved"><i class="fa-solid fa-file-pdf"></i> Unduh Surat Resmi</button>`;
                     }
 
                     container.innerHTML += `
@@ -282,86 +328,109 @@
             }
         }
 
-        // 3. FUNGSI GENERATE PDF SURAT RESMI (Berjalan saat siswa klik tombol Unduh)
-        window.unduhSuratIzin = async (encodedData) => {
+        // 3. FUNGSI GENERATE PDF SURAT RESMI (AMAN DARI CORS ERROR)
+        window.unduhSuratIzin = async (encodedData, btnElement) => {
             const data = JSON.parse(decodeURIComponent(encodedData));
             const tglCetak = formatDate(new Date());
 
-            // Helper ambil logo
-            async function getBase64ImageFromUrl(imageUrl) {
+            // Loading state di tombol PDF
+            const oriBtnHTML = btnElement.innerHTML;
+            btnElement.className = "badge loading-pdf";
+            btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun...';
+            btnElement.disabled = true;
+
+            // Helper ambil logo dengan TIMEOUT agar tidak hang
+            async function getBase64Logo() {
                 try {
-                    const response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(imageUrl));
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000); // Max nunggu 4 detik
+                    
+                    const response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent("https://i.imgur.com/5Srjyo4.png"), { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) return null;
                     const blob = await response.blob();
+                    
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
                         reader.readAsDataURL(blob);
                     });
-                } catch(e) { return null; }
+                } catch(e) { return null; } // Lanjut walau logo gagal
             }
 
-            const logoBase64 = await getBase64ImageFromUrl("https://i.imgur.com/5Srjyo4.png");
+            try {
+                const logoBase64 = await getBase64Logo();
 
-            const docDefinition = {
-                pageSize: 'A4',
-                pageMargins: [60, 60, 60, 60],
-                content: [
-                    // KOP SURAT
-                    {
-                        columns: [
-                            logoBase64 ? { image: logoBase64, width: 70, margin: [0, 0, 20, 0] } : { text: '' },
-                            {
-                                stack: [
-                                    { text: 'KOMUNITAS LITERASI CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', alignment: 'center' },
-                                    { text: 'Surat Keterangan Izin / Cuti Akademik', fontSize: 12, bold: true, color: '#d63384', alignment: 'center', margin: [0, 5, 0, 0] },
-                                    { text: 'Dokumen Resmi Sistem Administrasi Siswa', fontSize: 10, color: '#666', alignment: 'center' }
-                                ],
-                                width: '*' // Mengambil sisa ruang
-                            }
-                        ]
-                    },
-                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 2, lineColor: '#003366' }], margin: [0, 15, 0, 30] },
-
-                    // ISI SURAT
-                    { text: 'Dengan hormat,', margin: [0, 0, 0, 10] },
-                    { text: 'Melalui surat elektronik ini, sistem administrasi Cendekia Aksara menyatakan bahwa siswa di bawah ini:', margin: [0, 0, 0, 15] },
-                    
-                    // TABEL DATA SISWA
-                    {
-                        table: {
-                            widths: [150, 10, '*'],
-                            body: [
-                                [{text: 'Nama Lengkap', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.nama, bold: true, border:[false,false,false,false]}],
-                                [{text: 'Status / Perihal', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.jenis, bold: true, border:[false,false,false,false]}],
-                                [{text: 'Durasi Izin', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: `${data.mulai}  s.d.  ${data.selesai}`, bold:true, border:[false,false,false,false]}],
-                                [{text: 'Keterangan/Alasan', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.alasan, border:[false,false,false,false]}]
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [60, 60, 60, 60],
+                    content: [
+                        // KOP SURAT
+                        {
+                            columns: [
+                                logoBase64 ? { image: logoBase64, width: 70, margin: [0, 0, 20, 0] } : { text: '' },
+                                {
+                                    stack: [
+                                        { text: 'KOMUNITAS LITERASI CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', alignment: 'center' },
+                                        { text: 'Surat Keterangan Izin / Cuti Akademik', fontSize: 12, bold: true, color: '#d63384', alignment: 'center', margin: [0, 5, 0, 0] },
+                                        { text: 'Dokumen Resmi Sistem Administrasi Siswa', fontSize: 10, color: '#666', alignment: 'center' }
+                                    ],
+                                    width: '*' // Mengambil sisa ruang
+                                }
                             ]
                         },
-                        margin: [20, 0, 0, 20]
-                    },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 2, lineColor: '#003366' }], margin: [0, 15, 0, 30] },
 
-                    { text: 'Telah sah tercatat dalam sistem dan DIBERIKAN IZIN untuk tidak mengikuti kegiatan operasional/pembelajaran (Cuti Akademik Sementara) sesuai dengan durasi waktu yang tertera di atas.', alignment: 'justify', margin: [0, 0, 0, 10] },
-                    { text: 'Selama masa izin tersebut, sistem pembelajaran (Kuis, Ujian, Tugas) siswa ini dibekukan sementara hingga masa izin berakhir. Surat ini sah dicetak dari portal resmi Cendekia Aksara tanpa memerlukan tanda tangan basah.', alignment: 'justify', margin: [0, 0, 0, 30] },
+                        // ISI SURAT
+                        { text: 'Dengan hormat,', margin: [0, 0, 0, 10] },
+                        { text: 'Melalui surat elektronik ini, sistem administrasi Cendekia Aksara menyatakan bahwa siswa di bawah ini:', margin: [0, 0, 0, 15] },
+                        
+                        // TABEL DATA SISWA
+                        {
+                            table: {
+                                widths: [150, 10, '*'],
+                                body: [
+                                    [{text: 'Nama Lengkap', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.nama, bold: true, border:[false,false,false,false]}],
+                                    [{text: 'Status / Perihal', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.jenis, bold: true, border:[false,false,false,false]}],
+                                    [{text: 'Durasi Izin', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: `${data.mulai}  s.d.  ${data.selesai}`, bold:true, border:[false,false,false,false]}],
+                                    [{text: 'Keterangan/Alasan', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: data.alasan, border:[false,false,false,false]}]
+                                ]
+                            },
+                            margin: [20, 0, 0, 20]
+                        },
 
-                    // TANDA TANGAN / CAP
-                    {
-                        columns: [
-                            { text: '', width: '*' }, // Spacer Kiri
-                            {
-                                stack: [
-                                    { text: `Magelang, ${tglCetak}`, alignment: 'center', margin: [0, 0, 0, 40] },
-                                    { text: 'Administrator Cendekia Aksara', alignment: 'center', bold: true, decoration: 'underline' },
-                                    { text: 'Dokumen Digital', alignment: 'center', fontSize: 9, color: '#999' }
-                                ],
-                                width: 200
-                            }
-                        ]
-                    }
-                ],
-                defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#222' }
-            };
+                        { text: 'Telah sah tercatat dalam sistem dan DIBERIKAN IZIN untuk tidak mengikuti kegiatan operasional/pembelajaran (Cuti Akademik Sementara) sesuai dengan durasi waktu yang tertera di atas.', alignment: 'justify', margin: [0, 0, 0, 10] },
+                        { text: 'Selama masa izin tersebut, sistem pembelajaran (Kuis, Ujian, Tugas) siswa ini dibekukan sementara hingga masa izin berakhir. Surat ini sah dicetak dari portal resmi Cendekia Aksara tanpa memerlukan tanda tangan basah.', alignment: 'justify', margin: [0, 0, 0, 30] },
 
-            pdfMake.createPdf(docDefinition).download(`Surat_Izin_${data.nama.replace(/\s+/g, '_')}.pdf`);
+                        // TANDA TANGAN / CAP
+                        {
+                            columns: [
+                                { text: '', width: '*' }, // Spacer Kiri
+                                {
+                                    stack: [
+                                        { text: `Magelang, ${tglCetak}`, alignment: 'center', margin: [0, 0, 0, 40] },
+                                        { text: 'Administrator Cendekia Aksara', alignment: 'center', bold: true, decoration: 'underline' },
+                                        { text: 'Dokumen Digital', alignment: 'center', fontSize: 9, color: '#999' }
+                                    ],
+                                    width: 200
+                                }
+                            ]
+                        }
+                    ],
+                    defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#222' }
+                };
+
+                pdfMake.createPdf(docDefinition).download(`Surat_Izin_${data.nama.replace(/\s+/g, '_')}.pdf`);
+                
+            } catch(error) {
+                window.showToast("Gagal menyusun PDF. Silakan coba lagi.", "error");
+            } finally {
+                // Kembalikan tombol seperti semula
+                btnElement.className = "badge approved";
+                btnElement.innerHTML = oriBtnHTML;
+                btnElement.disabled = false;
+            }
         };
     </script>
 </body>
