@@ -300,57 +300,62 @@
             }
         };
 
-        // 4. UNDUH PDF LANGSUNG (ANTI POTONG & ANTI BLANK)
+        // 4. UNDUH PDF LANGSUNG (SOLUSI FINAL ANTI BLANK)
         window.unduhRPP = () => {
             const btn = document.getElementById('btn-download-pdf');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...';
-            
-            document.getElementById('loading-text').innerText = "Membuat File PDF...";
-            document.getElementById('loading-overlay').style.display = 'flex';
-
+            const loadingOverlay = document.getElementById('loading-overlay');
             const element = document.getElementById('pdf-wrapper');
             
-            // HACK: Tampilkan elemen di luar layar, agar browser merender DOM tanpa merusak tampilan admin
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...';
+            document.getElementById('loading-text').innerText = "Membuat File PDF...";
+            
+            // 1. Munculkan loading overlay dengan warna putih solid (agar menutupi PDF yang sedang di-render)
+            loadingOverlay.style.background = '#ffffff';
+            loadingOverlay.style.display = 'flex';
+
+            // 2. Munculkan elemen PDF tepat di layar tapi bersembunyi di bawah loading overlay
             element.style.display = 'block';
             element.style.position = 'absolute';
             element.style.top = '0';
             element.style.left = '0';
-            element.style.zIndex = '-10'; 
+            element.style.zIndex = '9990'; // Di bawah loading overlay (yang z-index nya 9999)
 
-            const opt = {
-                margin:       [15, 15, 20, 15], 
-                filename:     `RPP_${document.getElementById('pdf-mapel').innerText}_Sem${document.getElementById('input-semester').value}.pdf`,
-                image:        { type: 'jpeg', quality: 1 },
-                html2canvas:  { 
-                    scale: 2, 
-                    useCORS: true,
-                    windowWidth: 800,
-                    scrollY: 0
-                },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.avoid-break'] }
-            };
-
-            // JEDA WAKTU SANGAT PENTING: Beri waktu browser untuk merender elemen yang baru di-display
+            // 3. Beri jeda 0.8 detik agar browser memastikan semua teks dan gambar sudah tampil sempurna di DOM
             setTimeout(() => {
+                const opt = {
+                    margin:       [15, 15, 20, 15], 
+                    filename:     `RPP_${document.getElementById('pdf-mapel').innerText}_Sem${document.getElementById('input-semester').value}.pdf`,
+                    image:        { type: 'jpeg', quality: 1 },
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true,
+                        scrollY: 0 // Memastikan html2canvas memotret dari paling atas
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.avoid-break'] }
+                };
+
                 html2pdf().set(opt).from(element).save().then(() => {
-                    // Kembalikan seperti semula setelah selesai diunduh
+                    // 4. Kembalikan semua ke posisi semula jika sudah sukses
                     element.style.display = 'none';
                     element.style.position = 'static';
-                    element.style.zIndex = 'auto';
                     
-                    document.getElementById('loading-overlay').style.display = 'none';
+                    loadingOverlay.style.background = 'rgba(255,255,255,0.95)'; // Kembalikan ke warna asli
+                    loadingOverlay.style.display = 'none';
+                    
                     btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
                 }).catch(err => {
+                    // Jika gagal, kembalikan juga ke posisi semula
                     element.style.display = 'none';
                     element.style.position = 'static';
-                    element.style.zIndex = 'auto';
                     
-                    document.getElementById('loading-overlay').style.display = 'none';
+                    loadingOverlay.style.background = 'rgba(255,255,255,0.95)';
+                    loadingOverlay.style.display = 'none';
+                    
                     alert("Gagal mengunduh. Pastikan data sudah selesai disusun.");
                     btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
                 });
-            }, 500); // jeda 500 milidetik (0.5 detik)
+            }, 800); // 800ms cukup untuk merender hasil AI dengan utuh
         };
     </script>
 </body>
