@@ -130,7 +130,8 @@
             </div>
 
             <div id="result-actions" class="hidden" style="text-align: center; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;">
-                <h3 style="color: var(--primary); margin-bottom: 15px;">Buku Selesai Disusun!</h3>
+                <h3 id="generate-status-title" style="color: var(--primary); margin-bottom: 15px;">Buku Sedang Disusun...</h3>
+                <p style="font-size: 0.85rem; color: #888; margin-bottom: 15px;">Anda dapat mengunduh PDF kapan saja. PDF akan berisi bab yang sudah selesai ditulis hingga detik ini.</p>
                 <button class="btn btn-accent" onclick="unduhBukuPDF()" style="font-size: 1.1rem; padding: 15px 30px;">
                     <i class="fa-solid fa-file-pdf"></i> Unduh Buku Teks (Times New Roman - PDF)
                 </button>
@@ -218,6 +219,10 @@
                 { type: 'toc', content: `<h2 style="color:#d4af37;">Daftar Isi</h2>${htmlTOC}` }
             ];
 
+            // TAMPILKAN TOMBOL UNDUH SEJAK AWAL (Fitur Penyelamat)
+            document.getElementById('result-actions').classList.remove('hidden');
+            document.getElementById('generate-status-title').innerText = 'Buku Sedang Disusun...';
+
             // SEQUENTIAL LOOP GENERATION PER BAB
             for (let i = 0; i < daftarBabTersimpan.length; i++) {
                 const babJudul = daftarBabTersimpan[i];
@@ -244,14 +249,20 @@
                     
                 } catch (e) {
                     console.error(e);
+                    // Tetap lanjutkan ke bab berikutnya, tapi beri penanda gagal di web dan PDF
                     previewArea.innerHTML += `<h2 style="color:red; text-align:center;">Gagal memuat: ${babJudul}</h2>`;
+                    window.bookDataArray.push({
+                        type: 'chapter',
+                        title: babJudul,
+                        content: `<p style="color:red; text-align:center;"><em>Bab ini gagal disusun oleh AI karena gangguan server atau batas waktu habis.</em></p>`
+                    });
                 }
             }
 
             statusText.innerText = "Buku Teks Cendekia Aksara Selesai!";
-            statusDetail.innerText = "Seluruh materi telah disusun padat. Silakan unduh PDF.";
+            statusDetail.innerText = "Seluruh materi telah disusun padat.";
             document.querySelector('.fa-robot').classList.replace('fa-bounce', 'fa-check');
-            document.getElementById('result-actions').classList.remove('hidden');
+            document.getElementById('generate-status-title').innerText = 'Buku Selesai Disusun!';
         };
 
         // FASE UNDUH - PDFMAKE (TIMES NEW ROMAN, RAPAT, ANTI-ENTER BERLEBIH)
@@ -262,7 +273,7 @@
             btn.disabled = true;
             
             try {
-                const judulUtama = document.getElementById('input-judul').value;
+                const judulUtama = document.getElementById('input-judul').value || "Buku Teks Cendekia";
                 const logoBase64 = await getBase64ImageFromUrl("https://i.imgur.com/5Srjyo4.png");
 
                 // MENGAKTIFKAN TIMES NEW ROMAN STANDAR PDF
@@ -291,13 +302,12 @@
                     { text: 'Buku Teks / Pegangan Siswa\nDisusun secara otomatis oleh Sistem Cendekia', style: 'coverSub', alignment: 'center', pageBreak: 'after' }
                 );
 
-                // 2. MERANGKAI BAB
+                // 2. MERANGKAI BAB YANG SUDAH JADI (Sekalipun belum beres semua)
                 window.bookDataArray.forEach(item => {
-                    // PEMBERSIHAN STRING HTML: Buang <br> berlebih dan <p> kosong penyebab spasi melompong
                     let cleanHtml = item.content
-                        .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') // Hapus <p><br></p>
-                        .replace(/(<br\s*\/?>\s*){2,}/gi, '<br>') // Ubah multi-br jadi 1 br
-                        .replace(/<p>\s*<\/p>/gi, ''); // Hapus <p> kosong
+                        .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
+                        .replace(/(<br\s*\/?>\s*){2,}/gi, '<br>') 
+                        .replace(/<p>\s*<\/p>/gi, ''); 
 
                     if (item.type === 'toc') {
                         let parsedTOC = htmlToPdfmake(cleanHtml);
@@ -351,8 +361,7 @@
                         chapterHalamanJudul: { font: 'Times', fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
                         pakaian_header: { font: 'Times', fontSize: 9, color: '#999', italics: true },
                         
-                        // Override margin bawaan html-to-pdfmake agar spasi tidak renggang
-                        html_p: { font: 'Times', margin: [0, 0, 0, 5], alignment: 'justify' }, // Spasi bawah p ditekan jadi 5 (awalnya 10+)
+                        html_p: { font: 'Times', margin: [0, 0, 0, 5], alignment: 'justify' },
                         html_ul: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
                         html_ol: { font: 'Times', margin: [0, 0, 0, 8], marginLeft: 15 },
                         html_li: { font: 'Times', margin: [0, 0, 0, 2], alignment: 'justify' },
@@ -363,7 +372,6 @@
                         html_th: { font: 'Times', fillColor: '#003366', color: 'white', bold: true, alignment: 'center', padding: 6 },
                         html_td: { font: 'Times', padding: 6, alignment: 'justify' }
                     },
-                    // Font Times New Roman dengan Line Height padat (1.15)
                     defaultStyle: { font: 'Times', fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
                 };
 
