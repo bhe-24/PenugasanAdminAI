@@ -13,6 +13,7 @@
         :root { --primary: #003366; --accent: #d4af37; --bg: #f4f7f6; }
         body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; color: #333; }
         
+        /* DIPERLEBAR AGAR FULL LAPTOP */
         .container { width: 95%; max-width: 1600px; margin: 0 auto; padding: 20px; }
         
         .page-header { background: #fff; padding: 25px 40px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 4px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
@@ -41,23 +42,22 @@
         .gaji-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; border-radius: 8px; margin-top: 30px; text-align: center; }
         .gaji-box h3 { margin: 10px 0; color: #166534; font-size: 2.2rem; }
 
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.3s;}
+        /* LOADING SUPERIOR */
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.3s;}
         
-        /* WADAH PDF DISEMBUNYIKAN TAPI TETAP BISA DIBACA SISTEM DOWNLOAD */
+        /* WADAH PDF DISEMBUNYIKAN SECARA NORMAL (display: none) */
         #pdf-wrapper { 
-            position: absolute; 
-            left: -9999px; /* Jauh dari layar */
-            top: 0; 
-            width: 800px; /* Ukuran pas A4 untuk rendering */
+            display: none;
+            width: 800px; 
             background: white; 
-            padding: 30px 40px; 
+            padding: 40px; 
             font-family: 'Times New Roman', serif;
             color: #000;
         }
 
         .pdf-header { text-align: center; border-bottom: 4px double #003366; padding-bottom: 15px; margin-bottom: 25px; }
         .pdf-header img { height: 80px; margin-bottom: 15px; }
-        .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; color: #003366; }
+        .pdf-header h2 { margin: 0; font-size: 20pt; text-transform: uppercase; color: #003366; }
         .pdf-header p { margin: 5px 0 0 0; font-size: 12pt; }
         
         .pdf-meta { margin-bottom: 30px; width: 100%; font-size: 12pt; border-collapse: collapse; }
@@ -67,6 +67,7 @@
         
         /* KUNCI ANTI-TERPOTONG SAAT DOWNLOAD */
         .avoid-break { page-break-inside: avoid !important; }
+        tr { page-break-inside: avoid !important; }
     </style>
 </head>
 <body>
@@ -123,7 +124,7 @@
                 </div>
 
                 <button id="btn-download-pdf" class="btn btn-full btn-pdf" style="display:none;" onclick="unduhRPP()">
-                    <i class="fa-solid fa-file-pdf"></i> Unduh RPP (PDF)
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)
                 </button>
             </div>
 
@@ -239,7 +240,6 @@
             document.getElementById('slip-gaji').innerText = "Menghitung...";
 
             try {
-                // Tembak koleksi presensi (Ubah 'presensi_logs' sesuai nama koleksimu)
                 const qSesi = query(collection(db, 'presensi_logs'), where('guruUid', '==', guruUid));
                 const snapSesi = await getDocs(qSesi);
                 
@@ -253,7 +253,7 @@
             }
         };
 
-        // 3. GENERATE RPP (LEBIH PANJANG)
+        // 3. GENERATE RPP
         window.generateRPP = async () => {
             const btn = document.getElementById('btn-generate');
             const btnPdf = document.getElementById('btn-download-pdf');
@@ -270,7 +270,7 @@
             document.getElementById('pdf-sem-topik').innerText = `Semester ${semester} - ${topik}`;
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun RPP Detail (Butuh Waktu)...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun RPP Detail...';
             btnPdf.style.display = 'none';
 
             document.getElementById('loading-text').innerText = "AI sedang menyusun CP, TP, dan Skenario...";
@@ -300,34 +300,50 @@
             }
         };
 
-        // 4. UNDUH PDF LANGSUNG (ANTI POTONG)
+        // 4. UNDUH PDF LANGSUNG (ANTI POTONG & ANTI BLANK)
         window.unduhRPP = () => {
             const btn = document.getElementById('btn-download-pdf');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...';
             
-            // Munculkan layar loading sementara
             document.getElementById('loading-text').innerText = "Membuat File PDF...";
             document.getElementById('loading-overlay').style.display = 'flex';
 
             const element = document.getElementById('pdf-wrapper');
+            
+            // HACK: Tampilkan elemen sejenak di bawah layar loading agar html2pdf bisa memotretnya dengan benar
+            element.style.display = 'block';
+            element.style.position = 'absolute';
+            element.style.top = '0';
+            element.style.left = '0';
+            element.style.zIndex = '1';
 
-            // Pengaturan Super untuk mencegah tabel terpotong
             const opt = {
-                margin:       [15, 15, 20, 15], // Margin atas kiri bawah kanan
+                margin:       [15, 15, 20, 15], 
                 filename:     `RPP_${document.getElementById('pdf-mapel').innerText}_Sem${document.getElementById('input-semester').value}.pdf`,
                 image:        { type: 'jpeg', quality: 1 },
                 html2canvas:  { 
                     scale: 2, 
                     useCORS: true,
-                    windowWidth: 800 // Kunci lebar kanvas agar pas A4
+                    windowWidth: 800,
+                    scrollY: 0
                 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] } // KUNCI UTAMA ANTI TERPOTONG
+                pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.avoid-break'] }
             };
 
-            // Proses Download
             html2pdf().set(opt).from(element).save().then(() => {
+                // Kembalikan seperti semula setelah selesai diunduh
+                element.style.display = 'none';
+                element.style.position = 'static';
+                
                 document.getElementById('loading-overlay').style.display = 'none';
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
+            }).catch(err => {
+                element.style.display = 'none';
+                element.style.position = 'static';
+                
+                document.getElementById('loading-overlay').style.display = 'none';
+                alert("Gagal mengunduh. Pastikan data sudah selesai disusun.");
                 btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
             });
         };
