@@ -6,16 +6,15 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        const { judulBuku, babJudul } = req.body;
-        const prompt = `Anda adalah penulis buku teks ahli. Tulislah isi materi secara komprehensif, sangat detail, dan berbobot untuk:
-Buku: "${judulBuku}"
-Fokus Penulisan: "${babJudul}"
+        const { judulBuku, babJudul, jumlahParagraf } = req.body;
+        const prompt = `Anda adalah penulis buku teks ahli. Tulislah isi materi untuk buku "${judulBuku}", fokus pada bab: "${babJudul}".
 
-ATURAN:
-1. Tulisan harus sangat panjang (ribuan kata jika memungkinkan).
-2. Format WAJIB HTML murni (gunakan <h2>, <h3>, <p>, <strong>).
-3. Awali langsung dengan <h2>${babJudul}</h2>, JANGAN ada kata pengantar "Tentu, ini isinya".
-4. Dilarang menggunakan markdown.`;
+ATURAN WAJIB:
+1. Tulis MINIMAL ${jumlahParagraf} paragraf materi yang padat, komprehensif, dan berbobot.
+2. WAJIB sertakan minimal 1 daftar poin/bullet points (menggunakan <ul><li>...</li></ul>) yang ditandai dengan titik/bintang hitam.
+3. WAJIB sertakan minimal 1 tabel data/perbandingan (menggunakan <table><tr><td>...</td></tr></table>). Berikan border pada tabel.
+4. JANGAN gunakan <br> untuk memberi jarak. Gunakan tag <p> biasa.
+5. Balas HANYA format HTML murni. JANGAN sertakan Judul Bab di awal teks (karena sistem PDF akan membuat halaman judul bab secara terpisah). Jangan gunakan markdown.`;
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
