@@ -7,7 +7,10 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
 
     <style>
         :root { --primary: #003366; --accent: #d4af37; --bg: #f4f7f6; }
@@ -45,29 +48,8 @@
         /* LOADING SUPERIOR */
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.3s;}
         
-        /* WADAH PDF DISEMBUNYIKAN SECARA NORMAL (display: none) */
-        #pdf-wrapper { 
-            display: none;
-            width: 800px; 
-            background: white; 
-            padding: 40px; 
-            font-family: 'Times New Roman', serif;
-            color: #000;
-        }
-
-        .pdf-header { text-align: center; border-bottom: 4px double #003366; padding-bottom: 15px; margin-bottom: 25px; }
-        .pdf-header img { height: 80px; margin-bottom: 15px; }
-        .pdf-header h2 { margin: 0; font-size: 20pt; text-transform: uppercase; color: #003366; }
-        .pdf-header p { margin: 5px 0 0 0; font-size: 12pt; }
-        
-        .pdf-meta { margin-bottom: 30px; width: 100%; font-size: 12pt; border-collapse: collapse; }
-        .pdf-meta td { padding: 8px 0; }
-        
-        #ai-result-area { font-size: 11pt; line-height: 1.6; }
-        
-        /* KUNCI ANTI-TERPOTONG SAAT DOWNLOAD */
-        .avoid-break { page-break-inside: avoid !important; }
-        tr { page-break-inside: avoid !important; }
+        /* Area HTML RPP Hasil AI (Tetap Ditampilkan di Layar jika mau, atau disembunyikan) */
+        #ai-result-area { font-size: 11pt; line-height: 1.6; margin-top: 30px; padding: 20px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; display: none;}
     </style>
 </head>
 <body>
@@ -123,6 +105,8 @@
                     </ul>
                 </div>
 
+                <div id="ai-result-area"></div>
+
                 <button id="btn-download-pdf" class="btn btn-full btn-pdf" style="display:none;" onclick="unduhRPP()">
                     <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)
                 </button>
@@ -152,30 +136,9 @@
         </div>
     </div>
 
-    <div id="pdf-wrapper">
-        <div class="pdf-header avoid-break">
-            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
-            <h2>Rancangan Pelaksanaan Pembelajaran (RPP)</h2>
-            <p>Komunitas Literasi Cendekia Aksara</p>
-        </div>
-
-        <table class="pdf-meta avoid-break">
-            <tr>
-                <td width="200"><b>Mata Pelajaran</b></td><td width="20">:</td><td id="pdf-mapel"></td>
-            </tr>
-            <tr>
-                <td><b>Semester / Topik</b></td><td>:</td><td id="pdf-sem-topik"></td>
-            </tr>
-            <tr>
-                <td><b>Nama Pengajar</b></td><td>:</td><td id="pdf-pengajar">-</td>
-            </tr>
-            <tr>
-                <td><b>Durasi Pertemuan</b></td><td>:</td><td>80 Menit</td>
-            </tr>
-        </table>
-
-        <div id="ai-result-area"></div>
-    </div>
+    <span id="pdf-mapel" style="display:none;"></span>
+    <span id="pdf-sem-topik" style="display:none;"></span>
+    <span id="pdf-pengajar" style="display:none;">-</span>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -194,6 +157,22 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        // Helper: Convert Image URL to Base64
+        async function getBase64ImageFromUrl(imageUrl) {
+            try {
+                const response = await fetch(imageUrl, { mode: 'cors' });
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
 
         // 1. AMBIL GURU REALTIME
         onAuthStateChanged(auth, async (user) => {
@@ -264,7 +243,7 @@
             const topik = document.getElementById('input-topik').value || "Pendalaman Materi Lanjutan";
             const guruDipilih = document.getElementById('select-pengajar').value;
 
-            if(!guruDipilih) return alert("Pilih nama Pengajar terlebih dahulu!");
+            if(!guruDipilih) return alert("Pilih nama Pengajar terlebih dahulu agar RPP tercatat atas nama beliau!");
 
             document.getElementById('pdf-mapel').innerText = mapel;
             document.getElementById('pdf-sem-topik').innerText = `Semester ${semester} - ${topik}`;
@@ -272,6 +251,7 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun RPP Detail...';
             btnPdf.style.display = 'none';
+            resultArea.style.display = 'none';
 
             document.getElementById('loading-text').innerText = "AI sedang menyusun CP, TP, dan Skenario...";
             document.getElementById('loading-overlay').style.display = 'flex';
@@ -286,7 +266,9 @@
                 if (!response.ok) throw new Error("Gagal mengambil data dari AI");
                 const data = await response.json();
 
+                // Masukkan hasil HTML ke layar
                 resultArea.innerHTML = data.htmlRpp; 
+                resultArea.style.display = 'block';
                 
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Disusun';
                 btnPdf.style.display = 'flex'; 
@@ -300,62 +282,74 @@
             }
         };
 
-        // 4. UNDUH PDF LANGSUNG (SOLUSI FINAL ANTI BLANK)
-        window.unduhRPP = () => {
+        // 4. UNDUH PDF MURNI TEKS (PDFMAKE)
+        window.unduhRPP = async () => {
             const btn = document.getElementById('btn-download-pdf');
-            const loadingOverlay = document.getElementById('loading-overlay');
-            const element = document.getElementById('pdf-wrapper');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membangun PDF...';
             
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...';
-            document.getElementById('loading-text').innerText = "Membuat File PDF...";
-            
-            // 1. Munculkan loading overlay dengan warna putih solid (agar menutupi PDF yang sedang di-render)
-            loadingOverlay.style.background = '#ffffff';
-            loadingOverlay.style.display = 'flex';
+            try {
+                // Konversi logo
+                const logoBase64 = await getBase64ImageFromUrl("https://i.imgur.com/5Srjyo4.png");
+                
+                // Ambil HTML RPP mentah dari AI dan konversi ke PDFMake format
+                const rawHtml = document.getElementById('ai-result-area').innerHTML;
+                const convertedHtml = htmlToPdfmake(rawHtml);
 
-            // 2. Munculkan elemen PDF tepat di layar tapi bersembunyi di bawah loading overlay
-            element.style.display = 'block';
-            element.style.position = 'absolute';
-            element.style.top = '0';
-            element.style.left = '0';
-            element.style.zIndex = '9990'; // Di bawah loading overlay (yang z-index nya 9999)
-
-            // 3. Beri jeda 0.8 detik agar browser memastikan semua teks dan gambar sudah tampil sempurna di DOM
-            setTimeout(() => {
-                const opt = {
-                    margin:       [15, 15, 20, 15], 
-                    filename:     `RPP_${document.getElementById('pdf-mapel').innerText}_Sem${document.getElementById('input-semester').value}.pdf`,
-                    image:        { type: 'jpeg', quality: 1 },
-                    html2canvas:  { 
-                        scale: 2, 
-                        useCORS: true,
-                        scrollY: 0 // Memastikan html2canvas memotret dari paling atas
-                    },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.avoid-break'] }
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [40, 40, 40, 40],
+                    content: [
+                        // KOP SURAT
+                        {
+                            table: {
+                                widths: ['auto', '*'],
+                                body: [
+                                    [
+                                        logoBase64 ? { image: logoBase64, width: 60, margin: [0, 0, 15, 0], border: [false, false, false, true] } : { text: '', border: [false, false, false, true] },
+                                        {
+                                            stack: [
+                                                { text: 'RANCANGAN PELAKSANAAN PEMBELAJARAN (RPP)', fontSize: 16, bold: true, color: '#003366', margin: [0, 5, 0, 5] },
+                                                { text: 'Komunitas Literasi Cendekia Aksara', fontSize: 12, color: '#d4af37', bold: true }
+                                            ],
+                                            border: [false, false, false, true],
+                                            alignment: 'left'
+                                        }
+                                    ]
+                                ]
+                            },
+                            margin: [0, 0, 0, 20]
+                        },
+                        // META DATA (Mata Pelajaran, Guru, dll)
+                        {
+                            table: {
+                                widths: [120, 'auto', '*'],
+                                body: [
+                                    [{ text: 'Mata Pelajaran', bold: true }, ':', document.getElementById('pdf-mapel').innerText],
+                                    [{ text: 'Semester / Topik', bold: true }, ':', document.getElementById('pdf-sem-topik').innerText],
+                                    [{ text: 'Nama Pengajar', bold: true }, ':', document.getElementById('pdf-pengajar').innerText],
+                                    [{ text: 'Durasi Pertemuan', bold: true }, ':', '80 Menit']
+                                ]
+                            },
+                            layout: 'noBorders',
+                            margin: [0, 0, 0, 25]
+                        },
+                        // HASIL AI (Dikonversi dari HTML)
+                        convertedHtml
+                    ],
+                    styles: {
+                        // html-to-pdfmake akan mewarisi style default ini
+                        html: { fontSize: 11, lineHeight: 1.5, color: '#333' }
+                    }
                 };
 
-                html2pdf().set(opt).from(element).save().then(() => {
-                    // 4. Kembalikan semua ke posisi semula jika sudah sukses
-                    element.style.display = 'none';
-                    element.style.position = 'static';
-                    
-                    loadingOverlay.style.background = 'rgba(255,255,255,0.95)'; // Kembalikan ke warna asli
-                    loadingOverlay.style.display = 'none';
-                    
-                    btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
-                }).catch(err => {
-                    // Jika gagal, kembalikan juga ke posisi semula
-                    element.style.display = 'none';
-                    element.style.position = 'static';
-                    
-                    loadingOverlay.style.background = 'rgba(255,255,255,0.95)';
-                    loadingOverlay.style.display = 'none';
-                    
-                    alert("Gagal mengunduh. Pastikan data sudah selesai disusun.");
-                    btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
-                });
-            }, 800); // 800ms cukup untuk merender hasil AI dengan utuh
+                // Cetak dan Unduh
+                pdfMake.createPdf(docDefinition).download(`RPP_${document.getElementById('pdf-mapel').innerText}.pdf`);
+            } catch (error) {
+                alert("Terjadi kesalahan saat memproses PDF.");
+                console.error(error);
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
+            }
         };
     </script>
 </body>
