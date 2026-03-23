@@ -6,9 +6,10 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        const { judul, target, deskripsi } = req.body;
+        const { judul, target, deskripsi, jumlahBab } = req.body;
         const prompt = `Buatlah kerangka (Daftar Isi) untuk buku teks pendidikan berjudul "${judul}". Target pembaca: ${target}. Deskripsi: ${deskripsi}. 
-Balas HANYA dengan format HTML list (<ul><li>Bab 1: Judul Bab</li></ul>). Berikan minimal 5 Bab yang mendalam. JANGAN ada teks pengantar.`;
+WAJIB buat TEPAT ${jumlahBab} Bab yang mendalam.
+Balas HANYA dengan format HTML list (<ul><li>Bab 1: Judul Bab</li>...</ul>). JANGAN ada teks pengantar atau markdown.`;
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
