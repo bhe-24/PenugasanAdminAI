@@ -318,7 +318,7 @@
             }
         };
 
-        // --- AUTH LISTENER ---
+        // --- AUTH LISTENER (DIPERBAIKI) ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 if(!localStorage.getItem('justRegistered')) {
@@ -327,6 +327,7 @@
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
                     if (snap.exists()) {
+                        // Jika data ditemukan di folder users
                         const data = snap.data();
                         if (data.role === 'admin' || data.role === 'pengajar') {
                             window.location.href = 'admin/index.html';
@@ -334,7 +335,20 @@
                             window.location.href = 'dashboard/index.html';
                         }
                     } else {
-                        hideLoading();
+                        // SOLUSI: Jika siswa login dari Web Penerimaan, datanya tidak ada di 'users'
+                        // Buatkan otomatis profilnya di sini!
+                        await setDoc(doc(db, 'users', user.uid), { 
+                            name: user.displayName || "Siswa Cendekia", 
+                            email: user.email, 
+                            role: 'siswa', 
+                            semester: 1, 
+                            ips: 0, 
+                            status: 'active',
+                            createdAt: new Date().toISOString()
+                        });
+                        
+                        // Setelah dibuatkan, langsung arahkan ke dashboard
+                        window.location.href = 'dashboard/index.html';
                     }
                 } catch (e) {
                     console.error(e); hideLoading();
