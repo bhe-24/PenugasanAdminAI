@@ -310,12 +310,12 @@
 
             const element = document.getElementById('pdf-wrapper');
             
-            // HACK: Tampilkan elemen sejenak di bawah layar loading agar html2pdf bisa memotretnya dengan benar
+            // HACK: Tampilkan elemen di luar layar, agar browser merender DOM tanpa merusak tampilan admin
             element.style.display = 'block';
             element.style.position = 'absolute';
             element.style.top = '0';
             element.style.left = '0';
-            element.style.zIndex = '1';
+            element.style.zIndex = '-10'; 
 
             const opt = {
                 margin:       [15, 15, 20, 15], 
@@ -331,21 +331,26 @@
                 pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.avoid-break'] }
             };
 
-            html2pdf().set(opt).from(element).save().then(() => {
-                // Kembalikan seperti semula setelah selesai diunduh
-                element.style.display = 'none';
-                element.style.position = 'static';
-                
-                document.getElementById('loading-overlay').style.display = 'none';
-                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
-            }).catch(err => {
-                element.style.display = 'none';
-                element.style.position = 'static';
-                
-                document.getElementById('loading-overlay').style.display = 'none';
-                alert("Gagal mengunduh. Pastikan data sudah selesai disusun.");
-                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
-            });
+            // JEDA WAKTU SANGAT PENTING: Beri waktu browser untuk merender elemen yang baru di-display
+            setTimeout(() => {
+                html2pdf().set(opt).from(element).save().then(() => {
+                    // Kembalikan seperti semula setelah selesai diunduh
+                    element.style.display = 'none';
+                    element.style.position = 'static';
+                    element.style.zIndex = 'auto';
+                    
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
+                }).catch(err => {
+                    element.style.display = 'none';
+                    element.style.position = 'static';
+                    element.style.zIndex = 'auto';
+                    
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    alert("Gagal mengunduh. Pastikan data sudah selesai disusun.");
+                    btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
+                });
+            }, 500); // jeda 500 milidetik (0.5 detik)
         };
     </script>
 </body>
