@@ -11,50 +11,70 @@ export default async function handler(req, res) {
         const { mapel, semester, topik } = req.body;
 
         const systemPrompt = `
-Anda adalah Pakar Kurikulum Tingkat Lanjut. Buatlah Rancangan Pelaksanaan Pembelajaran (RPP) yang SANGAT PANJANG, MENDALAM, DAN DETAIL berdurasi 80 menit untuk mata pelajaran "${mapel}" semester ${semester} dengan topik "${topik}".
+Anda adalah Pakar Kurikulum Tingkat Lanjut dan Master Pedagogi. Buatlah Rancangan Pelaksanaan Pembelajaran (RPP) yang SANGAT DETAIL berdurasi total 80 menit untuk mata pelajaran "${mapel}" semester ${semester} dengan topik "${topik}".
 
 ATURAN WAJIB:
-1. Hasil harus berlembar-lembar (Sangat panjang dan komprehensif).
-2. Di tabel kegiatan, JANGAN hanya menulis aktivitas guru. Anda WAJIB menuliskan: Aktivitas Guru, Aktivitas Siswa, Poin Penting Materi, dan Indikator Ketercapaian di setiap sesi waktunya.
+1. Bagi skenario pembelajaran menjadi blok waktu per 10-15 menit (Misal: 00-10, 10-25, 25-40, 40-55, 55-70, 70-80).
+2. Di setiap blok waktu, Anda WAJIB menguraikan:
+   - Apa materi yang sedang MENJELASKAN.
+   - Apa ANALOGI / MEMADANKAN konsep tersebut dengan kehidupan nyata.
+   - POIN PENTING apa yang mutlak harus tersampaikan di menit tersebut.
 3. Gunakan HANYA HTML murni. JANGAN gunakan markdown (\`\`\`).
-4. WAJIB tambahkan style "page-break-inside: avoid;" pada setiap tag <tr> di dalam tabel agar saat diunduh PDF tidak terpotong di tengah baris.
+4. WAJIB tambahkan style "page-break-inside: avoid;" pada setiap tag <tr> di dalam tabel agar PDF tidak terpotong.
 
 FORMAT HTML WAJIB:
-<div style="margin-bottom: 20px; page-break-inside: avoid;">
-    <h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px;">A. Capaian Pembelajaran (CP) & Tujuan Pembelajaran (TP)</h3>
-    <p><strong>Capaian Pembelajaran:</strong><br> [Tulis CP secara sangat mendalam dan filosofis sesuai topik]</p>
+<div style="margin-bottom: 25px; page-break-inside: avoid;">
+    <h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px; font-size: 14pt;">A. Capaian Pembelajaran (CP) & Tujuan Pembelajaran (TP)</h3>
+    <p><strong>Capaian Pembelajaran:</strong><br> [Tulis CP secara sangat mendalam, berbobot, dan filosofis sesuai topik]</p>
     <p><strong>Tujuan Pembelajaran:</strong><br> 
         <ul style="line-height: 1.6;">
-            <li>[Tulis TP 1 secara spesifik]</li>
-            <li>[Tulis TP 2 secara spesifik]</li>
-            <li>[Tulis TP 3 secara spesifik]</li>
-            <li>[Tulis TP 4 secara spesifik]</li>
+            <li>[Tulis TP 1 - ranah kognitif]</li>
+            <li>[Tulis TP 2 - ranah afektif/sikap]</li>
+            <li>[Tulis TP 3 - ranah psikomotorik/praktik]</li>
         </ul>
     </p>
-    <p><strong>Indikator Ketercapaian:</strong><br> [Tulis parameter keberhasilan siswa yang bisa diukur]</p>
 </div>
 
-<h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px;">B. Skenario Pembelajaran (80 Menit)</h3>
-<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11pt;">
+<h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px; font-size: 14pt;">B. Skenario Pembelajaran Rinci (80 Menit)</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10.5pt; line-height: 1.5;">
     <thead>
         <tr style="background-color: #003366; color: white;">
-            <th style="border: 1px solid #000; padding: 12px; width: 15%;">Tahap & Waktu</th>
-            <th style="border: 1px solid #000; padding: 12px; width: 45%;">Aktivitas Pengajar & Siswa</th>
-            <th style="border: 1px solid #000; padding: 12px; width: 40%;">Poin Penting & Ketercapaian</th>
+            <th style="border: 1px solid #000; padding: 12px; width: 15%;">Waktu & Fase</th>
+            <th style="border: 1px solid #000; padding: 12px; width: 40%;">Aktivitas Guru (Menjelaskan & Memadankan)</th>
+            <th style="border: 1px solid #000; padding: 12px; width: 25%;">Aktivitas Siswa</th>
+            <th style="border: 1px solid #000; padding: 12px; width: 20%;">Poin Penting Tersampaikan</th>
         </tr>
     </thead>
     <tbody>
         <tr style="page-break-inside: avoid;">
-            <td style="border: 1px solid #000; padding: 12px; text-align: center; vertical-align: top;">
-                <strong>Pendahuluan</strong><br>(15 Menit)
+            <td style="border: 1px solid #000; padding: 12px; text-align: center; vertical-align: top; background-color: #f8fafc;">
+                <strong>Menit 00 - 10</strong><br>Pendahuluan & Apersepsi
             </td>
             <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                <strong>Guru:</strong> [Detail tindakan guru membimbing, memantik diskusi]<br><br>
-                <strong>Siswa:</strong> [Detail respon siswa]
+                <strong>Menjelaskan:</strong> [Uraikan apa yang guru jelaskan sebagai pembuka]<br><br>
+                <strong>Memadankan:</strong> [Berikan analogi menarik untuk memancing rasa ingin tahu siswa]
             </td>
             <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                <strong>Fokus:</strong> [Fokus materi pendahuluan]<br><br>
-                <strong>Ketercapaian:</strong> [Siswa mampu merespon pemantik...]
+                [Detail respon, diskusi, atau tindakan siswa]
+            </td>
+            <td style="border: 1px solid #000; padding: 12px; vertical-align: top; color: #b91c1c; font-weight: 500;">
+                [1-2 kalimat poin target yang harus nyangkut di kepala siswa pada sesi ini]
+            </td>
+        </tr>
+        
+        <tr style="page-break-inside: avoid;">
+            <td style="border: 1px solid #000; padding: 12px; text-align: center; vertical-align: top; background-color: #ffffff;">
+                <strong>Menit 10 - 25</strong><br>Eksplorasi Materi
+            </td>
+            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
+                <strong>Menjelaskan:</strong> [Uraikan konsep inti materi]<br><br>
+                <strong>Memadankan:</strong> [Analogi relevan dengan dunia remaja/keseharian]
+            </td>
+            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
+                [Aktivitas mengamati, mencatat, atau tanya jawab]
+            </td>
+            <td style="border: 1px solid #000; padding: 12px; vertical-align: top; color: #b91c1c; font-weight: 500;">
+                [Poin target pemahaman konsep dasar]
             </td>
         </tr>
         </tbody>
@@ -70,19 +90,21 @@ FORMAT HTML WAJIB:
             body: JSON.stringify({
                 model: 'llama-3.3-70b-versatile',
                 messages: [ { role: 'system', content: systemPrompt } ],
-                temperature: 0.6 // Dinaikkan sedikit agar AI lebih kreatif dan panjang menulisnya
+                temperature: 0.6 // Suhu ideal untuk memadukan struktur ketat dengan kreativitas bahasa
             })
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Gagal');
+        if (!response.ok) throw new Error(data.error?.message || 'Gagal dari Groq');
 
         let htmlRes = data.choices[0].message.content;
-        htmlRes = htmlRes.replace(/```html/g, '').replace(/```/g, ''); 
+        // Pembersihan tag markdown berjaga-jaga jika AI nakal
+        htmlRes = htmlRes.replace(/```html/g, '').replace(/```/g, '').trim(); 
 
         res.status(200).json({ htmlRpp: htmlRes });
 
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: "Gagal menyusun RPP." });
     }
 }
