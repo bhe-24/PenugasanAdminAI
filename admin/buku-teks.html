@@ -31,12 +31,10 @@
         textarea.form-control { min-height: 100px; resize: vertical; }
         .form-control:focus { border-color: var(--primary); outline: none; }
 
-        /* Tata Letak Responsif (Laptop/Mobile) */
         .flex-row { display: flex; gap: 20px; }
         .flex-col { flex: 1; }
         @media(max-width: 600px) { .flex-row { flex-direction: column; gap: 0; } }
 
-        /* Tombol Cendekia */
         .btn { padding: 12px 25px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; font-family: inherit;}
         .btn-primary { background: var(--primary); }
         .btn-accent { background: var(--accent); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
@@ -55,7 +53,6 @@
         #book-content-preview h1, #book-content-preview h2, #book-content-preview h3 { font-weight: bold; color: var(--primary); }
         #book-content-preview p { margin-bottom: 8px; margin-top: 0; }
         
-        /* Styling Tabel di Preview Web */
         #book-content-preview table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         #book-content-preview th, #book-content-preview td { border: 1px solid #000; padding: 8px; }
         #book-content-preview th { background-color: #003366; color: white; }
@@ -106,7 +103,7 @@
 
         <div id="fase-2" class="panel-card hidden">
             <h3 style="color: var(--primary); margin-top:0;"><i class="fa-solid fa-list-check"></i> Tahap 2: Review Kerangka Buku</h3>
-            <p style="font-size: 0.9rem; color: #666;">AI telah menyusun bab-bab di bawah ini. Anda bisa mengedit teks HTML ini (misal: urutan bab) sebelum AI mulai menulis keseluruhan bukunya.</p>
+            <p style="font-size: 0.9rem; color: #666;">AI telah menyusun bab-bab di bawah ini. Anda bisa mengedit teks HTML ini sebelum AI mulai menulis keseluruhan bukunya.</p>
             
             <div class="form-group">
                 <textarea id="editor-kerangka" class="form-control" style="min-height: 250px; font-family: monospace; font-size: 0.9rem; line-height: 1.4;"></textarea>
@@ -124,7 +121,7 @@
             <h3 style="color: var(--primary); margin-top:0;"><i class="fa-solid fa-gears"></i> Tahap 3: Mesin Penulis AI Cendekia</h3>
             
             <div id="progress-area" class="progress-box">
-                <i class="fa-solid fa-robot fa-bounce" style="font-size: 2.5rem; color: #166534; margin-bottom: 10px;"></i>
+                <i id="ai-icon" class="fa-solid fa-robot fa-bounce" style="font-size: 2.5rem; color: #166534; margin-bottom: 10px;"></i>
                 <h4 id="status-text" style="margin:0;">Menunggu perintah...</h4>
                 <p id="status-detail" style="margin:5px 0 0 0; color:#666; font-size:0.9rem;">-</p>
             </div>
@@ -143,9 +140,8 @@
 
     <script type="module">
         let daftarBabTersimpan = [];
-        window.bookDataArray = []; // Menyimpan data murni per bab untuk PDF
+        window.bookDataArray = [];
 
-        // FASE 1 -> FASE 2
         window.generateKerangka = async () => {
             const btn = document.getElementById('btn-to-fase-2');
             const judul = document.getElementById('input-judul').value;
@@ -176,7 +172,6 @@
             }
         };
 
-        // FASE 2 -> FASE 3 (LOOPING API DENGAN JEDA WAKTU)
         window.mulaiTulisBuku = async () => {
             const htmlTOC = document.getElementById('editor-kerangka').value;
             const judulBuku = document.getElementById('input-judul').value;
@@ -187,7 +182,7 @@
             const listItems = tempDiv.querySelectorAll('li');
             daftarBabTersimpan = Array.from(listItems).map(li => li.innerText);
 
-            if(daftarBabTersimpan.length === 0) return alert("Kerangka tidak valid, pastikan ada elemen <li> di HTML editor.");
+            if(daftarBabTersimpan.length === 0) return alert("Kerangka tidak valid!");
 
             document.getElementById('fase-2').classList.add('hidden');
             document.getElementById('fase-3').classList.remove('hidden');
@@ -195,6 +190,7 @@
             const statusText = document.getElementById('status-text');
             const statusDetail = document.getElementById('status-detail');
             const previewArea = document.getElementById('book-content-preview');
+            const aiIcon = document.getElementById('ai-icon'); // Menggunakan ID yang aman
             
             previewArea.innerHTML = `<h1 style="text-align:center; color:#003366;">${judulBuku}</h1><h2 style="color:#d4af37;">Daftar Isi</h2>${htmlTOC}<hr style="border:2px solid #ddd;">`;
             
@@ -202,16 +198,14 @@
                 { type: 'toc', content: `<h2 style="color:#d4af37;">Daftar Isi</h2>${htmlTOC}` }
             ];
 
-            // TAMPILKAN TOMBOL UNDUH SEJAK AWAL (Fitur Penyelamat)
             document.getElementById('result-actions').classList.remove('hidden');
             document.getElementById('generate-status-title').innerText = 'Buku Sedang Disusun...';
 
-            // SEQUENTIAL LOOP GENERATION PER BAB
             for (let i = 0; i < daftarBabTersimpan.length; i++) {
                 const babJudul = daftarBabTersimpan[i];
                 
-                document.querySelector('.fa-robot').className = "fa-solid fa-robot fa-bounce";
-                document.querySelector('.fa-robot').style.color = "#166534";
+                aiIcon.className = "fa-solid fa-robot fa-bounce";
+                aiIcon.style.color = "#166534";
                 statusText.innerText = `Sedang Menulis Bab ${i + 1} dari ${daftarBabTersimpan.length}...`;
                 statusDetail.innerText = `Menyusun materi, langkah-langkah, dan tabel untuk: "${babJudul}"`;
 
@@ -243,13 +237,13 @@
                     });
                 }
 
-                // JEDA ISTIRAHAT 6 DETIK ANTAR BAB AGAR API TIDAK DIBLOKIR KARENA SPAM
+                // JEDA ISTIRAHAT MENGGUNAKAN ID
                 if (i < daftarBabTersimpan.length - 1) {
                     statusText.innerText = `Jeda Pendinginan Sistem...`;
                     statusDetail.innerText = `Mengistirahatkan mesin AI Gemini selama 6 detik sebelum lanjut ke Bab ${i + 2}.`;
                     
-                    document.querySelector('.fa-robot').className = "fa-solid fa-bed fa-fade";
-                    document.querySelector('.fa-robot').style.color = "#f59e0b"; 
+                    aiIcon.className = "fa-solid fa-bed fa-fade";
+                    aiIcon.style.color = "#f59e0b"; 
                     
                     await new Promise(resolve => setTimeout(resolve, 6000));
                 }
@@ -257,26 +251,22 @@
 
             statusText.innerText = "Buku Teks Cendekia Aksara Selesai!";
             statusDetail.innerText = "Seluruh materi telah disusun padat.";
-            document.querySelector('.fa-robot').className = "fa-solid fa-check";
-            document.querySelector('.fa-robot').style.color = "#166534";
+            aiIcon.className = "fa-solid fa-check";
+            aiIcon.style.color = "#166534";
             document.getElementById('generate-status-title').innerText = 'Buku Selesai Disusun!';
         };
 
-        // FASE UNDUH - PDFMAKE MURNI TANPA FONT CUSTOM (MENGHINDARI ERROR 404)
         window.unduhBukuPDF = () => {
             const btn = document.querySelector('#result-actions .btn');
             const oriText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Tata Letak PDF...';
             btn.disabled = true;
             
-            // Berikan sedikit delay agar UI berubah sebelum PDFMake membekukan browser sementara
             setTimeout(() => {
                 try {
                     const judulUtama = document.getElementById('input-judul').value || "Buku Teks Cendekia";
-
                     let pdfContentDefinition = [];
 
-                    // 1. HALAMAN COVER (Tanpa Logo Gambar untuk menghindari error CORS saat download)
                     pdfContentDefinition.push(
                         { text: 'CENDEKIA AKSARA', style: 'coverPenerbit', alignment: 'center', margin: [0, 200, 0, 15] },
                         { canvas: [{ type: 'line', x1: 100, y1: 0, x2: 400, y2: 0, lineWidth: 2, lineColor: '#d4af37' }], margin: [0, 0, 0, 20], alignment: 'center' },
@@ -284,7 +274,6 @@
                         { text: 'Buku Teks / Pegangan Siswa\nDisusun secara otomatis oleh Sistem Cendekia', style: 'coverSub', alignment: 'center', pageBreak: 'after' }
                     );
 
-                    // 2. MERANGKAI BAB YANG SUDAH JADI
                     window.bookDataArray.forEach(item => {
                         let cleanHtml = item.content
                             .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '') 
@@ -297,21 +286,18 @@
                             pdfContentDefinition.push({ text: '', pageBreak: 'after' }); 
                         } 
                         else if (item.type === 'chapter') {
-                            // HALAMAN JUDUL BAB KHUSUS (Tengah Layar Besar)
                             pdfContentDefinition.push({
                                 text: item.title.toUpperCase(),
                                 style: 'chapterHalamanJudul',
                                 pageBreak: 'after' 
                             });
 
-                            // ISI MATERI BAB
                             let parsedContent = htmlToPdfmake(cleanHtml, { tableAutoSize: true });
                             parsedContent.forEach(el => pdfContentDefinition.push(el));
                             pdfContentDefinition.push({ text: '', pageBreak: 'after' });
                         }
                     });
 
-                    // 3. KONFIGURASI PDF
                     const docDefinition = {
                         pageSize: 'A4',
                         pageMargins: [60, 80, 60, 60],
@@ -328,22 +314,16 @@
                         },
                         footer: function(currentPage, pageCount) {
                             if (currentPage > 1) {
-                                return {
-                                    text: currentPage.toString(),
-                                    alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10
-                                };
+                                return { text: currentPage.toString(), alignment: 'center', margin: [0, 20, 0, 0], fontSize: 10 };
                             }
                         },
                         content: pdfContentDefinition,
-                        // PENGATURAN SPASI RAPAT & RATA KANAN-KIRI
                         styles: {
                             coverPenerbit: { fontSize: 18, color: '#003366', bold: true, letterSpacing: 3 },
                             coverTitle: { fontSize: 36, bold: true, color: '#000000' },
                             coverSub: { fontSize: 14, color: '#666', italics: true },
                             chapterHalamanJudul: { fontSize: 26, bold: true, color: '#003366', alignment: 'center', margin: [0, 250, 0, 0] },
                             pakaian_header: { fontSize: 9, color: '#999', italics: true },
-                            
-                            // SPASI RAPAT
                             html_p: { margin: [0, 0, 0, 5], alignment: 'justify' },
                             html_ul: { margin: [0, 0, 0, 8], marginLeft: 15 },
                             html_ol: { margin: [0, 0, 0, 8], marginLeft: 15 },
@@ -358,7 +338,6 @@
                         defaultStyle: { fontSize: 12, lineHeight: 1.15, color: '#000', alignment: 'justify' }
                     };
 
-                    // 4. Eksekusi Download
                     pdfMake.createPdf(docDefinition).download(`Buku_${judulUtama}_Cendekia.pdf`);
 
                 } catch (e) {
@@ -368,7 +347,7 @@
                     btn.innerHTML = oriText;
                     btn.disabled = false;
                 }
-            }, 100); // Delay 100ms
+            }, 100); 
         };
     </script>
 </body>
