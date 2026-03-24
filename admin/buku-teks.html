@@ -176,7 +176,7 @@
             }
         };
 
-        // FASE 2 -> FASE 3 (LOOPING API)
+        // FASE 2 -> FASE 3 (LOOPING API DENGAN JEDA WAKTU)
         window.mulaiTulisBuku = async () => {
             const htmlTOC = document.getElementById('editor-kerangka').value;
             const judulBuku = document.getElementById('input-judul').value;
@@ -209,8 +209,11 @@
             // SEQUENTIAL LOOP GENERATION PER BAB
             for (let i = 0; i < daftarBabTersimpan.length; i++) {
                 const babJudul = daftarBabTersimpan[i];
+                
+                document.querySelector('.fa-robot').className = "fa-solid fa-robot fa-bounce";
+                document.querySelector('.fa-robot').style.color = "#166534";
                 statusText.innerText = `Sedang Menulis Bab ${i + 1} dari ${daftarBabTersimpan.length}...`;
-                statusDetail.innerText = `Menyusun teks, tabel, dan poin untuk: "${babJudul}"`;
+                statusDetail.innerText = `Menyusun materi, langkah-langkah, dan tabel untuk: "${babJudul}"`;
 
                 try {
                     const response = await fetch('/api/generate-chapter', {
@@ -218,7 +221,7 @@
                         body: JSON.stringify({ judulBuku, babJudul, jumlahParagraf })
                     });
                     
-                    if(!response.ok) throw new Error("Terputus");
+                    if(!response.ok) throw new Error("Terputus dari Vercel/Gemini");
                     const data = await response.json();
                     
                     window.bookDataArray.push({
@@ -232,19 +235,30 @@
                     
                 } catch (e) {
                     console.error(e);
-                    // Tetap lanjutkan ke bab berikutnya, tapi beri penanda gagal di web dan PDF
                     previewArea.innerHTML += `<h2 style="color:red; text-align:center;">Gagal memuat: ${babJudul}</h2>`;
                     window.bookDataArray.push({
                         type: 'chapter',
                         title: babJudul,
-                        content: `<p style="color:red; text-align:center;"><em>Bab ini gagal disusun oleh AI karena gangguan server atau batas waktu habis.</em></p>`
+                        content: `<p style="color:red; text-align:center;"><em>Bab ini gagal disusun oleh AI karena gangguan server atau batas limit waktu tercapai.</em></p>`
                     });
+                }
+
+                // JEDA ISTIRAHAT 6 DETIK ANTAR BAB AGAR API TIDAK DIBLOKIR KARENA SPAM
+                if (i < daftarBabTersimpan.length - 1) {
+                    statusText.innerText = `Jeda Pendinginan Sistem...`;
+                    statusDetail.innerText = `Mengistirahatkan mesin AI Gemini selama 6 detik sebelum lanjut ke Bab ${i + 2}.`;
+                    
+                    document.querySelector('.fa-robot').className = "fa-solid fa-bed fa-fade";
+                    document.querySelector('.fa-robot').style.color = "#f59e0b"; 
+                    
+                    await new Promise(resolve => setTimeout(resolve, 6000));
                 }
             }
 
             statusText.innerText = "Buku Teks Cendekia Aksara Selesai!";
             statusDetail.innerText = "Seluruh materi telah disusun padat.";
-            document.querySelector('.fa-robot').classList.replace('fa-bounce', 'fa-check');
+            document.querySelector('.fa-robot').className = "fa-solid fa-check";
+            document.querySelector('.fa-robot').style.color = "#166534";
             document.getElementById('generate-status-title').innerText = 'Buku Selesai Disusun!';
         };
 
