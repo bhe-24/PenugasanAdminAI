@@ -31,8 +31,8 @@ ATURAN GAYA BAHASA & KONTEN:
 - Alur penjelasan harus RUNUT. DILARANG KERAS mengulang-ulang kalimat atau berputar-putar di ide yang sama.
 - FOKUS PADA "CARA": Jika membahas suatu teknik (misal: cara menulis di Wattpad, cara membuat puisi), jelaskan langkah-langkahnya secara konkret, logis, dan bisa langsung dipraktikkan.
 - CONTOH NYATA & FAKTUAL: WAJIB menggunakan karya Sastra Indonesia atau referensi platform digital (Wattpad, Cabaca, Storial) yang BENAR-BENAR ADA di dunia nyata. 
-  * Sebutkan judul karya dan nama penulis aslinya secara akurat.
-  * JANGAN PERNAH mengarang kutipan palsu atau berhalusinasi. Jika kamu tidak tahu, gunakan fitur Google Search-mu untuk mencari faktanya terlebih dahulu.
+  * Sebutkan judul karya dan nama penulis aslinya secara akurat (Contoh yang bagus: "Dear Nathan" karya Erisca Febriani, "Mariposa", dll).
+  * JANGAN PERNAH mengarang kutipan palsu atau berhalusinasi. 
   * Hindari contoh klise. Gunakan contoh yang segar dan relevan dengan tren saat ini.
 - Tulis MINIMAL ${jumlahParagraf} paragraf yang benar-benar padat gizi.
 
@@ -50,9 +50,7 @@ ATURAN FORMATTING HTML:
 - Balas HANYA dengan format HTML murni. 
 - Gunakan tag <p> untuk paragraf. JANGAN gunakan tag <br> untuk memberi spasi antar paragraf.
 - JANGAN tulis ulang Judul Bab (tag h1/h2) di awal teks, langsung mulai saja dari <h3>${nomorBab}.1.
-- DILARANG menggunakan markdown (\`\`\`).`;
-
-        console.log(`Menulis ${babJudul} menggunakan Gemini 2.5 Flash (with Search)...`);
+- DILARANG menggunakan markdown.`;
         
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
         
@@ -61,14 +59,11 @@ ATURAN FORMATTING HTML:
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                // MENGAKTIFKAN GOOGLE SEARCH AGAR GEMINI MENCARI FAKTA (BUKAN MENGARANG)
-                tools: [
-                    { googleSearch: {} }
-                ],
+                // Parameter tools search dihapus agar terhindar dari Error 500
                 generationConfig: { 
-                    temperature: 0.5, // Suhu dingin agar hasil logis dan faktual
+                    temperature: 0.5, 
                     maxOutputTokens: 8192,
-                    presencePenalty: 0.3 // Mencegah repetisi ide
+                    presencePenalty: 0.3 
                 }
             })
         });
@@ -81,10 +76,9 @@ ATURAN FORMATTING HTML:
         const geminiData = await geminiResponse.json();
         let htmlRes = geminiData.candidates[0].content.parts[0].text;
 
-        // Bersihkan Markdown jika Gemini masih menyertakannya
+        // Bersihkan Markdown
         htmlRes = htmlRes.replace(/```html/g, '').replace(/```/g, '').trim();
 
-        // Return sukses
         return new Response(JSON.stringify({ chapterHtml: htmlRes }), {
             status: 200,
             headers: {
@@ -94,7 +88,6 @@ ATURAN FORMATTING HTML:
         });
 
     } catch (e) { 
-        // Return error
         return new Response(JSON.stringify({ error: e.message }), {
             status: 500,
             headers: {
