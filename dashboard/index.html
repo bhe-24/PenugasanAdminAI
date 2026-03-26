@@ -50,16 +50,21 @@
             margin-top: 5px; font-weight: 400;
         }
 
-        /* --- BADGE STATUS --- */
-        #status-badge {
+        /* --- BADGE STATUS & OSIS --- */
+        .badge-container { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        
+        #status-badge, #osis-badge {
             display: inline-flex; align-items: center; gap: 5px;
-            margin-top: 10px; padding: 5px 12px; border-radius: 20px;
+            padding: 5px 12px; border-radius: 20px;
             font-size: 0.8rem; font-weight: 600; font-family: 'Poppins';
             transition: 0.3s;
         }
         .status-aktif { background: #22c55e; color: white; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); }
         .status-cuti { background: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
         .status-nonaktif { background: #ef4444; color: white; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+        
+        /* Lencana OSIS Emas */
+        #osis-badge { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4); border: 1px solid #fef08a;}
 
         @media (max-width: 480px) {
             .brand-header { padding: 20px; gap: 15px; }
@@ -102,6 +107,9 @@
         .card-bayar { background: linear-gradient(135deg, #f2994a, #f2c94c); }
         .aksabot { background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); } 
         .card-cuti { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+        
+        /* WARNA KARTU OSIS EKSKLUSIF */
+        .card-osis { background: linear-gradient(135deg, #d4af37 0%, #a17f1a 100%); box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);}
 
         /* KARTU DISABLED (ABU-ABU) */
         .disabled-card {
@@ -158,7 +166,11 @@
             <div class="header-info">
                 <h1 class="header-brand-name">Cendekia Aksara</h1>
                 <div id="user-greeting" class="header-greeting"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
-                <div id="status-badge" style="display:none;"></div>
+                
+                <div class="badge-container">
+                    <div id="status-badge" style="display:none;"></div>
+                    <div id="osis-badge" style="display:none;"><i class="fa-solid fa-shield-halved"></i> Pengurus OSIS</div>
+                </div>
             </div>
         </div>
 
@@ -171,6 +183,10 @@
             </a>
             <a href="/kartu-studi" class="dashboard-card kartu-studi"> 
                 <i class="fa-solid fa-file-contract"></i> <h3>Kartu Studi</h3> 
+            </a>
+
+            <a href="/osis/index.html" id="card-osis" class="dashboard-card card-osis" style="display:none;"> 
+                <i class="fa-solid fa-users-viewfinder"></i> <h3>Ruang OSIS</h3> 
             </a>
 
             <a href="/dashboard/aksabot.html" class="dashboard-card aksabot"> 
@@ -257,7 +273,6 @@
 
                 const cleanup = () => {
                     modal.classList.remove('active');
-                    // Reset event listener agar tidak bentrok
                     btnConfirm.replaceWith(btnConfirm.cloneNode(true));
                     btnCancel.replaceWith(btnCancel.cloneNode(true));
                 };
@@ -282,6 +297,14 @@
                 const nickName = userData.name.split(' ')[0];
                 document.getElementById('user-greeting').innerHTML = `${sapaan}, ${nickName} 😊 ${icon}`;
 
+                // ==========================================
+                // FITUR EKSKLUSIF OSIS (MAGIC HAPPENS HERE)
+                // ==========================================
+                if (userData.is_osis === true) {
+                    document.getElementById('osis-badge').style.display = 'inline-flex';
+                    document.getElementById('card-osis').style.display = 'flex';
+                }
+
                 // 2. Setup Logic Status & Pemblokiran
                 let currentStatus = userData.status || 'aktif';
                 const badge = document.getElementById('status-badge');
@@ -289,7 +312,6 @@
 
                 // Cek inaktivitas (2 Bulan 15 Hari = ~75 Hari)
                 if (currentStatus !== 'nonaktif') {
-                    // Pakai last_active, jika tidak ada pakai createdAt, jika tidak ada pakai tanggal sekarang
                     let lastActiveDate = new Date(); 
                     if (userData.last_active && userData.last_active.toDate) {
                         lastActiveDate = userData.last_active.toDate();
@@ -302,7 +324,6 @@
 
                     if (diffDays > 75) {
                         currentStatus = 'nonaktif';
-                        // Kunci di database
                         updateDoc(doc(db, 'users', userData.uid), { status: 'nonaktif' });
                     }
                 }
@@ -312,20 +333,18 @@
                 if (currentStatus === 'aktif') {
                     badge.className = 'status-aktif';
                     badge.innerHTML = '<i class="fa-solid fa-user-check"></i> Status: Aktif';
-                    // Catat kehadiran hari ini di database
                     updateDoc(doc(db, 'users', userData.uid), { last_active: serverTimestamp() });
 
                 } else if (currentStatus === 'cuti') {
                     badge.className = 'status-cuti';
                     badge.innerHTML = '<i class="fa-solid fa-bed"></i> Status: Cuti / Izin';
                     
-                    // Blokir semua kartu kecuali yang punya class "always-on-cuti"
                     allCards.forEach(card => {
                         if (!card.classList.contains('always-on-cuti')) {
                             card.classList.add('disabled-card');
                             card.onclick = (e) => {
                                 e.preventDefault();
-                                window.showModal('Akses Dibatasi', 'Fitur ini tidak dapat digunakan selama Anda dalam masa Cuti/Izin.', false, 'warning');
+                                window.showModal('Akses Dibatasi', 'Fitur ini tidak dapat digunakan selama Anda dalam masa Cuti/Izin. Fokuslah pada istirahat Anda.', false, 'warning');
                             };
                         }
                     });
@@ -334,7 +353,6 @@
                     badge.className = 'status-nonaktif';
                     badge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Status: Dinonaktifkan';
                     
-                    // Blokir SEMUA fitur (termasuk yang always-on-cuti)
                     allCards.forEach(card => {
                         card.classList.add('disabled-card');
                         card.onclick = (e) => {
@@ -343,7 +361,6 @@
                         };
                     });
 
-                    // Tampilkan Pop-Up Otomatis Segera setelah Login
                     setTimeout(() => {
                         window.showModal(
                             'Akun Dinonaktifkan ⚠️', 
