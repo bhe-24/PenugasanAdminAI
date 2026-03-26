@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPH & Kesekretariatan - OSIS Cendekia</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+    <style>
+        :root { --primary: #003366; --gold: #d4af37; --bg-color: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        /* --- HEADER RUANGAN --- */
+        .room-header {
+            background: white; padding: 20px 30px; border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 6px solid var(--gold);
+        }
+        .header-title h2 { margin: 0; color: var(--gold); font-size: 1.5rem; display: flex; align-items: center; gap: 10px;}
+        .header-title p { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--text-gray); }
+        .btn-back { background: #f1f5f9; color: var(--text-gray); padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; border: 1px solid #cbd5e1; }
+        .btn-back:hover { background: #e2e8f0; color: var(--text-dark); }
+
+        /* --- FORMULIR DOKUMEN --- */
+        .doc-form-card {
+            background: white; border-radius: 16px; padding: 35px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
+        }
+        .form-title {
+            font-size: 1.2rem; color: var(--primary); font-weight: 700;
+            margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .form-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+        .form-group { flex: 1; min-width: 250px; display: flex; flex-direction: column; }
+        .form-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; }
+        
+        .form-control {
+            padding: 12px 15px; border: 2px solid #cbd5e1; border-radius: 8px;
+            font-family: 'Poppins', sans-serif; font-size: 0.95rem; outline: none; transition: 0.3s;
+            background: #f8fafc; color: var(--text-dark);
+        }
+        .form-control:focus { border-color: var(--gold); background: white; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 120px; line-height: 1.5; }
+
+        /* --- TOMBOL CETAK --- */
+        .btn-print {
+            width: 100%; background: linear-gradient(135deg, var(--gold), #b45309);
+            color: white; border: none; padding: 15px; border-radius: 10px;
+            font-size: 1.05rem; font-weight: 700; font-family: 'Poppins';
+            cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px;
+            margin-top: 10px; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+        .btn-print:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4); }
+        .btn-print:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* LOADING */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--gold); transition: 0.4s; }
+
+        /* TOAST */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 600; font-size: 0.9rem; border-left: 4px solid var(--gold); }
+        .toast.show { transform: translateX(0); opacity: 1; }
+
+        @media (max-width: 600px) {
+            .room-header { flex-direction: column; text-align: center; gap: 15px; }
+            .doc-form-card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-crown fa-bounce" style="font-size: 3rem; margin-bottom: 15px;"></i>
+        <h3 style="font-family: 'Poppins'; font-size: 1rem; color: #64748b;">Memverifikasi BPH OSIS...</h3>
+    </div>
+
+    <div class="container" style="display: none;" id="main-content">
+        
+        <div class="room-header">
+            <div class="header-title">
+                <h2><i class="fa-solid fa-file-signature"></i> Ruang Kesekretariatan</h2>
+                <p>Pusat penyusunan Proposal Kegiatan, Program Kerja, dan LPJ OSIS.</p>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
+        </div>
+
+        <div class="doc-form-card">
+            <div class="form-title"><i class="fa-solid fa-pen-nib"></i> Draft Dokumen Baru</div>
+            
+            <form id="doc-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Jenis Dokumen</label>
+                        <select id="doc-type" class="form-control" required>
+                            <option value="Proposal Kegiatan / Event">Proposal Kegiatan / Event</option>
+                            <option value="Program Kerja (Proker)">Program Kerja Rutin (Proker)</option>
+                            <option value="Laporan Pertanggungjawaban (LPJ)">Laporan Pertanggungjawaban (LPJ)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tanggal Pelaksanaan / Target</label>
+                        <input type="date" id="doc-date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>Nama Kegiatan / Program</label>
+                    <input type="text" id="doc-title" class="form-control" placeholder="Contoh: Lomba Cipta Puisi Nasional 2026" required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>Latar Belakang / Tujuan Kegiatan</label>
+                    <textarea id="doc-bg" class="form-control" placeholder="Jelaskan secara rinci mengapa kegiatan ini penting untuk dilaksanakan..." required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estimasi Anggaran Dana (Rp)</label>
+                        <input type="number" id="doc-budget" class="form-control" placeholder="Contoh: 1500000" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ketua Pelaksana (Nama Kamu)</label>
+                        <input type="text" id="doc-author" class="form-control" readonly style="background:#e2e8f0; cursor:not-allowed;">
+                    </div>
+                </div>
+
+                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 25px; font-size: 0.85rem; color: #b45309; line-height: 1.5;">
+                    <i class="fa-solid fa-circle-info"></i> <b>Catatan Birokrasi:</b> Dokumen yang dicetak melalui sistem ini akan otomatis menggunakan Format Resmi OSIS Cendekia Aksara. Silakan serahkan file PDF ini kepada Pembina/Admin via WhatsApp untuk disetujui.
+                </div>
+
+                <button type="submit" id="btn-submit" class="btn-print">
+                    <i class="fa-solid fa-file-pdf"></i> Cetak Dokumen PDF
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { auth, checkAuth } from "/js/firebase-config.js";
+
+        let pengurusName = "";
+
+        // Fungsi Notifikasi Toast
+        window.showToast = (message) => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--gold);"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        // Format Uang Rupiah
+        const formatRupiah = (angka) => {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+        };
+
+        // Format Tanggal Indo
+        const formatTanggal = (dateStr) => {
+            const date = new Date(dateStr);
+            const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        };
+
+        // Init Halaman
+        (async () => {
+            const userData = await checkAuth('siswa');
+            
+            if(userData) {
+                if (userData.is_osis !== true) {
+                    alert("Akses Ditolak! Hanya Pengurus OSIS yang diizinkan.");
+                    window.location.href = '/dashboard/index.html';
+                    return;
+                }
+
+                pengurusName = userData.name;
+                document.getElementById('doc-author').value = pengurusName;
+
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+                }, 400);
+            }
+        })();
+
+        // ==============================================
+        // MESIN CETAK PDF PROPOSAL / LPJ OSIS
+        // ==============================================
+        document.getElementById('doc-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            const oriText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Tata Letak PDF...';
+            btn.disabled = true;
+
+            // Ambil Data Form
+            const docType = document.getElementById('doc-type').value;
+            const docDate = formatTanggal(document.getElementById('doc-date').value);
+            const docTitle = document.getElementById('doc-title').value;
+            const docBg = document.getElementById('doc-bg').value;
+            const docBudget = formatRupiah(document.getElementById('doc-budget').value);
+
+            // Ambil Logo (Dengan Timeout Anti-Hang)
+            async function getBase64Logo() {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000);
+                    const response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent("https://i.imgur.com/5Srjyo4.png"), { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) return null;
+                    const blob = await response.blob();
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch(e) { return null; }
+            }
+
+            try {
+                const logoBase64 = await getBase64Logo();
+                const today = formatTanggal(new Date());
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [60, 60, 60, 60],
+                    content: [
+                        // KOP SURAT OSIS
+                        {
+                            columns: [
+                                logoBase64 ? { image: logoBase64, width: 70, margin: [0, 0, 20, 0] } : { text: '' },
+                                {
+                                    stack: [
+                                        { text: 'PENGURUS ORGANISASI SISWA INTRA SEKOLAH (OSIS)', fontSize: 13, bold: true, color: '#003366', alignment: 'center' },
+                                        { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#d4af37', alignment: 'center', margin: [0, 2, 0, 0], letterSpacing: 2 },
+                                        { text: 'Pusat Literasi, Sastra, dan Pengembangan Karakter Siswa', fontSize: 10, color: '#666', alignment: 'center', margin: [0, 2, 0, 0] }
+                                    ],
+                                    width: '*'
+                                }
+                            ]
+                        },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 3, lineColor: '#003366' }], margin: [0, 10, 0, 2] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 1, lineColor: '#003366' }], margin: [0, 0, 0, 30] },
+
+                        // JUDUL DOKUMEN
+                        { text: docType.toUpperCase(), fontSize: 14, bold: true, alignment: 'center', decoration: 'underline' },
+                        { text: `"${docTitle.toUpperCase()}"`, fontSize: 12, bold: true, alignment: 'center', margin: [0, 5, 0, 30] },
+
+                        // ISI PENDAHULUAN
+                        { text: 'A. Latar Belakang & Tujuan', bold: true, margin: [0, 0, 0, 8] },
+                        { text: docBg, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 20] },
+
+                        // RINCIAN KEGIATAN
+                        { text: 'B. Rincian Pelaksanaan', bold: true, margin: [0, 0, 0, 8] },
+                        {
+                            table: {
+                                widths: [150, 10, '*'],
+                                body: [
+                                    [{text: 'Nama Program/Event', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: docTitle, bold: true, border:[false,false,false,false]}],
+                                    [{text: 'Tanggal Pelaksanaan', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: docDate, border:[false,false,false,false]}],
+                                    [{text: 'Estimasi Anggaran Dana', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: docBudget, bold:true, color: '#b45309', border:[false,false,false,false]}],
+                                    [{text: 'Penanggung Jawab', border:[false,false,false,false]}, {text: ':', border:[false,false,false,false]}, {text: pengurusName, border:[false,false,false,false]}]
+                                ]
+                            },
+                            margin: [15, 0, 0, 30]
+                        },
+
+                        // PENUTUP
+                        { text: 'Demikian rancangan dokumen ini kami susun dengan sebenar-benarnya untuk dapat diperiksa, dipertimbangkan, dan disahkan oleh pihak Pembina/Administrator Cendekia Aksara. Atas perhatian dan dukungannya, kami ucapkan terima kasih.', alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 40] },
+
+                        // KOLOM TANDA TANGAN
+                        {
+                            columns: [
+                                {
+                                    stack: [
+                                        { text: 'Mengetahui,\nPembina / Administrator', alignment: 'center', margin: [0, 0, 0, 60] },
+                                        { text: '( .............................................. )', alignment: 'center', bold: true }
+                                    ],
+                                    width: '*'
+                                },
+                                {
+                                    stack: [
+                                        { text: `Magelang, ${today}\nKetua Pelaksana / BPH OSIS`, alignment: 'center', margin: [0, 0, 0, 60] },
+                                        { text: pengurusName, alignment: 'center', bold: true, decoration: 'underline' },
+                                        { text: 'NIP. Siswa Terdaftar', alignment: 'center', fontSize: 9 }
+                                    ],
+                                    width: '*'
+                                }
+                            ]
+                        }
+                    ],
+                    defaultStyle: { font: 'Roboto', fontSize: 11, color: '#222' }
+                };
+
+                const fileName = `${docType.split(' ')[0]}_${docTitle.replace(/\s+/g, '_')}.pdf`;
+                pdfMake.createPdf(docDefinition).download(fileName);
+                
+                window.showToast("Berhasil! PDF Proposal sedang diunduh.");
+                document.getElementById('doc-form').reset();
+                document.getElementById('doc-author').value = pengurusName; // Kembalikan nama
+
+            } catch (error) {
+                alert("Gagal menyusun PDF. Pastikan koneksi stabil.");
+            } finally {
+                btn.innerHTML = oriText;
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
