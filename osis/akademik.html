@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisi Akademik - OSIS Cendekia</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --akademik: #4338ca; --bg-color: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+        /* --- HEADER RUANGAN --- */
+        .room-header {
+            background: white; padding: 20px 30px; border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 6px solid var(--akademik);
+        }
+        .header-title h2 { margin: 0; color: var(--akademik); font-size: 1.5rem; display: flex; align-items: center; gap: 10px;}
+        .header-title p { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--text-gray); }
+        .btn-back { background: #f1f5f9; color: var(--text-gray); padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; border: 1px solid #cbd5e1; }
+        .btn-back:hover { background: #e2e8f0; color: var(--text-dark); }
+
+        /* --- GRID FORMULIR --- */
+        .academic-grid { display: grid; grid-template-columns: 1fr; gap: 30px; }
+        @media (min-width: 768px) { .academic-grid { grid-template-columns: 1fr 1fr; } }
+
+        .form-card {
+            background: white; border-radius: 16px; padding: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
+            display: flex; flex-direction: column;
+        }
+        .form-title {
+            font-size: 1.15rem; color: var(--primary); font-weight: 700;
+            margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .form-group { margin-bottom: 18px; display: flex; flex-direction: column; }
+        .form-group label { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; }
+        
+        .form-control {
+            padding: 12px 15px; border: 2px solid #cbd5e1; border-radius: 8px;
+            font-family: 'Poppins', sans-serif; font-size: 0.95rem; outline: none; transition: 0.3s;
+            background: #f8fafc; color: var(--text-dark); width: 100%; box-sizing: border-box;
+        }
+        .form-control:focus { border-color: var(--akademik); background: white; box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+        /* --- TOMBOL SUBMIT --- */
+        .btn-submit {
+            width: 100%; background: linear-gradient(135deg, var(--akademik), #312e81);
+            color: white; border: none; padding: 12px; border-radius: 10px;
+            font-size: 1rem; font-weight: 700; font-family: 'Poppins'; margin-top: auto;
+            cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px;
+            box-shadow: 0 4px 15px rgba(67, 56, 202, 0.3);
+        }
+        .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(67, 56, 202, 0.4); }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-submit.alt { background: linear-gradient(135deg, #0f766e, #042f2e); box-shadow: 0 4px 15px rgba(15, 118, 110, 0.3); }
+        .btn-submit.alt:hover { box-shadow: 0 8px 25px rgba(15, 118, 110, 0.4); }
+
+        /* LOADING & TOAST */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--akademik); transition: 0.4s; }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 600; font-size: 0.9rem; border-left: 4px solid var(--akademik); }
+        .toast.show { transform: translateX(0); opacity: 1; }
+
+        @media (max-width: 600px) {
+            .room-header { flex-direction: column; text-align: center; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-book-open-reader fa-bounce" style="font-size: 3rem; margin-bottom: 15px;"></i>
+        <h3 style="font-family: 'Poppins'; font-size: 1rem; color: #64748b;">Membuka Ruang Akademik...</h3>
+    </div>
+
+    <div class="container" style="display: none;" id="main-content">
+        
+        <div class="room-header">
+            <div class="header-title">
+                <h2><i class="fa-solid fa-user-graduate"></i> Divisi Pendamping Akademik</h2>
+                <p>Kelola jadwal Klinik Literasi dan perkaya Bank Referensi siswa.</p>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
+        </div>
+
+        <div class="academic-grid">
+            <div class="form-card">
+                <div class="form-title"><i class="fa-solid fa-chalkboard-user"></i> Buat Jadwal Klinik Literasi</div>
+                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
+                    Jadwal ini akan muncul di Dashboard siswa agar mereka bisa ikut kelas *mentoring* menulis.
+                </p>
+                <form id="klinik-form">
+                    <div class="form-group">
+                        <label>Topik Mentoring</label>
+                        <input type="text" id="kl-topic" class="form-control" placeholder="Contoh: Bedah Anatomi Cerpen" required>
+                    </div>
+                    <div style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Tanggal Pelaksanaan</label>
+                            <input type="date" id="kl-date" class="form-control" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Waktu (WIB)</label>
+                            <input type="time" id="kl-time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tautan Ruang Rapat (Zoom/GMeet)</label>
+                        <input type="url" id="kl-link" class="form-control" placeholder="https://meet.google.com/..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mentor Pendamping</label>
+                        <input type="text" id="kl-mentor" class="form-control" readonly style="background:#e2e8f0; cursor:not-allowed;">
+                    </div>
+                    <button type="submit" id="btn-klinik" class="btn-submit">
+                        <i class="fa-solid fa-calendar-plus"></i> Terbitkan Jadwal
+                    </button>
+                </form>
+            </div>
+
+            <div class="form-card">
+                <div class="form-title"><i class="fa-solid fa-book-bookmark"></i> Tambah Bank Referensi</div>
+                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
+                    Sematkan *link* artikel, jurnal, atau karya sastra digital untuk bahan bacaan siswa.
+                </p>
+                <form id="referensi-form">
+                    <div class="form-group">
+                        <label>Judul Referensi</label>
+                        <input type="text" id="ref-title" class="form-control" placeholder="Contoh: Kumpulan Puisi Sapardi (PDF)" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Kategori</label>
+                        <select id="ref-category" class="form-control" required>
+                            <option value="Sastra Modern">Sastra Modern</option>
+                            <option value="Sastra Klasik">Sastra Klasik</option>
+                            <option value="Teori Menulis">Teori & Tips Menulis</option>
+                            <option value="Tata Bahasa">Tata Bahasa (PUEBI)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tautan Akses / URL</label>
+                        <input type="url" id="ref-link" class="form-control" placeholder="https://..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Deskripsi Singkat</label>
+                        <textarea id="ref-desc" class="form-control" placeholder="Jelaskan secara singkat isi dari referensi ini..." required></textarea>
+                    </div>
+                    <button type="submit" id="btn-ref" class="btn-submit alt">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Unggah ke Pustaka
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let pengurusName = "";
+
+        // Fungsi Toast
+        window.showToast = (message, type = "success") => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: ${type === 'success' ? '#4338ca' : '#0f766e'};"></i> <span>${message}</span>`;
+            if (type === 'alt') toast.style.borderLeftColor = '#0f766e';
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        (async () => {
+            const userData = await checkAuth('siswa');
+            
+            if(userData) {
+                if (userData.is_osis !== true) {
+                    alert("Akses Ditolak! Hanya Pengurus OSIS yang diizinkan.");
+                    window.location.href = '/dashboard/index.html';
+                    return;
+                }
+
+                pengurusName = userData.name;
+                document.getElementById('kl-mentor').value = pengurusName;
+
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+                }, 400);
+            }
+        })();
+
+        // --- SUBMIT JADWAL KLINIK ---
+        document.getElementById('klinik-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-klinik');
+            const oriText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+
+            try {
+                // Simpan ke database koleksi 'klinik_literasi'
+                await addDoc(collection(db, 'klinik_literasi'), {
+                    topic: document.getElementById('kl-topic').value,
+                    date: document.getElementById('kl-date').value,
+                    time: document.getElementById('kl-time').value,
+                    link: document.getElementById('kl-link').value,
+                    mentor: pengurusName,
+                    timestamp: serverTimestamp()
+                });
+                
+                window.showToast("Jadwal Klinik Literasi berhasil diterbitkan!");
+                document.getElementById('klinik-form').reset();
+                document.getElementById('kl-mentor').value = pengurusName;
+
+            } catch (error) {
+                alert("Gagal menerbitkan jadwal: " + error.message);
+            } finally {
+                btn.innerHTML = oriText;
+                btn.disabled = false;
+            }
+        };
+
+        // --- SUBMIT BANK REFERENSI ---
+        document.getElementById('referensi-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-ref');
+            const oriText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+
+            try {
+                // Simpan ke database koleksi 'pustaka_referensi'
+                await addDoc(collection(db, 'pustaka_referensi'), {
+                    title: document.getElementById('ref-title').value,
+                    category: document.getElementById('ref-category').value,
+                    link: document.getElementById('ref-link').value,
+                    description: document.getElementById('ref-desc').value,
+                    addedBy: pengurusName,
+                    timestamp: serverTimestamp()
+                });
+                
+                window.showToast("Referensi berhasil ditambahkan ke Pustaka!", "alt");
+                document.getElementById('referensi-form').reset();
+
+            } catch (error) {
+                alert("Gagal menambahkan referensi: " + error.message);
+            } finally {
+                btn.innerHTML = oriText;
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
