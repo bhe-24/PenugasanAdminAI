@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kotak Aspirasi - OSIS Cendekia</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --aspirasi: #dc2626; --bg-color: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        /* --- HEADER RUANGAN --- */
+        .room-header {
+            background: white; padding: 20px 30px; border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 6px solid var(--aspirasi);
+        }
+        .header-title h2 { margin: 0; color: var(--aspirasi); font-size: 1.5rem; display: flex; align-items: center; gap: 10px;}
+        .header-title p { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--text-gray); }
+        .btn-back { background: #f1f5f9; color: var(--text-gray); padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; border: 1px solid #cbd5e1; }
+        .btn-back:hover { background: #e2e8f0; color: var(--text-dark); }
+
+        /* --- GRID ASPIRASI --- */
+        .aspirasi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+
+        .aspirasi-card {
+            background: white; border-radius: 16px; padding: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; transition: 0.3s;
+            position: relative; overflow: hidden;
+        }
+        .aspirasi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(220, 38, 38, 0.1); border-color: #fca5a5; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e2e8f0; }
+        .sender-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .sender-info p { margin: 0; font-size: 0.8rem; color: var(--text-gray); }
+
+        /* BADGE KATEGORI & STATUS */
+        .badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        
+        .cat-akademik { background: #e0e7ff; color: #4338ca; }
+        .cat-fasilitas { background: #ffedd5; color: #b45309; }
+        .cat-osis { background: #fce7f3; color: #be185d; }
+        .cat-lainnya { background: #f1f5f9; color: #475569; }
+
+        .status-pending { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .status-proses { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .status-selesai { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+        .aspirasi-msg { font-size: 0.95rem; color: var(--text-dark); line-height: 1.6; margin-bottom: 20px; font-style: italic; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 3px solid #cbd5e1; }
+
+        /* ACTION BUTTONS */
+        .action-group { display: flex; gap: 10px; margin-top: auto; }
+        .btn-action {
+            flex: 1; border: none; padding: 10px; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; font-family: 'Poppins'; cursor: pointer;
+            transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 5px;
+        }
+        .btn-proses { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .btn-proses:hover { background: #dbeafe; }
+        .btn-selesai { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .btn-selesai:hover { background: #dcfce7; }
+
+        /* LOADING & TOAST */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--aspirasi); transition: 0.4s; }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 600; font-size: 0.9rem; border-left: 4px solid var(--aspirasi); }
+        .toast.show { transform: translateX(0); opacity: 1; }
+
+        @media (max-width: 600px) {
+            .room-header { flex-direction: column; text-align: center; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-box-open fa-bounce" style="font-size: 3rem; margin-bottom: 15px;"></i>
+        <h3 style="font-family: 'Poppins'; font-size: 1rem; color: #64748b;">Membuka Kotak Suara...</h3>
+    </div>
+
+    <div class="container" style="display: none;" id="main-content">
+        
+        <div class="room-header">
+            <div class="header-title">
+                <h2><i class="fa-solid fa-envelope-open-text"></i> Kotak Aspirasi Siswa</h2>
+                <p>Tinjau keluhan, saran, dan masukan dari siswa Cendekia Aksara.</p>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
+        </div>
+
+        <div id="aspirasi-grid" class="aspirasi-grid">
+            <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #94a3b8;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem;"></i><br><br>Memuat data aspirasi...
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, query, orderBy, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Fungsi Toast
+        window.showToast = (message) => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--aspirasi);"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        const formatDate = (dateStr) => {
+            if (!dateStr) return "-";
+            const date = new Date(dateStr.toDate ? dateStr.toDate() : dateStr);
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        };
+
+        (async () => {
+            const userData = await checkAuth('siswa');
+            
+            if(userData) {
+                if (userData.is_osis !== true) {
+                    alert("Akses Ditolak! Hanya Pengurus OSIS yang diizinkan.");
+                    window.location.href = '/dashboard/index.html';
+                    return;
+                }
+
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+                    loadAspirasi();
+                }, 400);
+            }
+        })();
+
+        // MEMUAT DATA ASPIRASI DARI DATABASE
+        async function loadAspirasi() {
+            const container = document.getElementById('aspirasi-grid');
+            try {
+                // Ambil data dari koleksi 'aspirasi'
+                const q = query(collection(db, 'aspirasi'), orderBy('timestamp', 'desc'));
+                const snap = await getDocs(q);
+
+                container.innerHTML = '';
+                
+                if(snap.empty) {
+                    container.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 60px; background: white; border-radius: 16px; border: 2px dashed #cbd5e1;">
+                            <i class="fa-solid fa-box-open" style="font-size: 4rem; color: #e2e8f0; margin-bottom: 15px;"></i>
+                            <h3 style="color: #64748b; margin: 0;">Kotak Aspirasi Kosong</h3>
+                            <p style="color: #94a3b8; font-size: 0.9rem;">Belum ada masukan atau keluhan dari siswa saat ini.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let htmlBuffer = '';
+                snap.forEach(documentSnapshot => {
+                    const data = documentSnapshot.data();
+                    const id = documentSnapshot.id;
+                    
+                    // Setup Status Badge
+                    let statusBadge = '';
+                    let btnHtml = '';
+                    
+                    if (data.status === 'pending' || !data.status) {
+                        statusBadge = `<span class="badge status-pending"><i class="fa-solid fa-circle-exclamation"></i> Belum Diproses</span>`;
+                        btnHtml = `
+                            <button class="btn-action btn-proses" onclick="updateStatus('${id}', 'proses')"><i class="fa-solid fa-spinner"></i> Tandai Diproses</button>
+                            <button class="btn-action btn-selesai" onclick="updateStatus('${id}', 'selesai')"><i class="fa-solid fa-check-double"></i> Tandai Selesai</button>
+                        `;
+                    } else if (data.status === 'proses') {
+                        statusBadge = `<span class="badge status-proses"><i class="fa-solid fa-gears"></i> Sedang Diproses</span>`;
+                        btnHtml = `<button class="btn-action btn-selesai" onclick="updateStatus('${id}', 'selesai')" style="width: 100%;"><i class="fa-solid fa-check-double"></i> Tandai Selesai</button>`;
+                    } else if (data.status === 'selesai') {
+                        statusBadge = `<span class="badge status-selesai"><i class="fa-solid fa-check-circle"></i> Selesai Ditangani</span>`;
+                        btnHtml = `<button class="btn-action" style="width: 100%; background: #f1f5f9; color: #94a3b8; cursor: default;" disabled>Tindakan Selesai</button>`;
+                    }
+
+                    // Setup Kategori Color
+                    let catClass = 'cat-lainnya';
+                    if(data.kategori === 'Akademik/Kurikulum') catClass = 'cat-akademik';
+                    if(data.kategori === 'Fasilitas Web') catClass = 'cat-fasilitas';
+                    if(data.kategori === 'Kritik untuk OSIS') catClass = 'cat-osis';
+
+                    // Cek Anonim
+                    const senderName = data.isAnonim ? 'Siswa Rahasia (Anonim)' : (data.senderName || 'Siswa');
+                    const senderIcon = data.isAnonim ? '<i class="fa-solid fa-user-secret"></i>' : '<i class="fa-solid fa-user"></i>';
+
+                    htmlBuffer += `
+                        <div class="aspirasi-card">
+                            <div class="card-header">
+                                <div class="sender-info">
+                                    <h3>${senderIcon} ${senderName}</h3>
+                                    <p><i class="fa-regular fa-clock"></i> ${formatDate(data.timestamp)}</p>
+                                </div>
+                                <span class="badge ${catClass}">${data.kategori || 'Umum'}</span>
+                            </div>
+                            
+                            <div class="aspirasi-msg">
+                                "${data.pesan}"
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                ${statusBadge}
+                            </div>
+
+                            <div class="action-group">
+                                ${btnHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = htmlBuffer;
+
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #ef4444;">Gagal memuat data aspirasi. Pastikan koneksi internet stabil.</div>`;
+            }
+        }
+
+        // FUNGSI UPDATE STATUS
+        window.updateStatus = async (id, newStatus) => {
+            try {
+                // Update doc di firebase
+                await updateDoc(doc(db, 'aspirasi', id), {
+                    status: newStatus
+                });
+                
+                let toastMsg = newStatus === 'proses' ? "Aspirasi ditandai sedang diproses!" : "Aspirasi ditandai telah selesai ditangani!";
+                window.showToast(toastMsg);
+                
+                // Refresh UI
+                loadAspirasi();
+
+            } catch (e) {
+                alert("Gagal memperbarui status: " + e.message);
+            }
+        };
+    </script>
+</body>
+</html>
