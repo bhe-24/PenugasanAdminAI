@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisi Monitoring - OSIS Cendekia</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --gold: #d4af37; --bg-color: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* --- HEADER RUANGAN --- */
+        .room-header {
+            background: white; padding: 20px 30px; border-radius: 16px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 6px solid #166534; /* Hijau Monitoring */
+        }
+        .header-title h2 { margin: 0; color: #166534; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;}
+        .header-title p { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--text-gray); }
+        .btn-back { background: #f1f5f9; color: var(--text-gray); padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s; border: 1px solid #cbd5e1; }
+        .btn-back:hover { background: #e2e8f0; color: var(--text-dark); }
+
+        /* --- KONTROL TARGET MINGGUAN --- */
+        .control-panel {
+            background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 15px; align-items: center; flex-wrap: wrap;
+        }
+        .control-panel select, .control-panel input {
+            padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Poppins'; font-size: 0.95rem; flex: 1; min-width: 200px; outline: none;
+        }
+        .control-panel select:focus, .control-panel input:focus { border-color: #166534; }
+
+        /* --- KARTU SISWA (RADAR) --- */
+        .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .student-card {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s;
+            border: 1px solid #e2e8f0; position: relative;
+        }
+        .student-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .student-card.alert { border-color: #fca5a5; background: #fef2f2; } /* Merah jika banyak tugas bolong */
+
+        .student-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: var(--primary); }
+        .student-info p { margin: 0 0 15px 0; font-size: 0.85rem; color: var(--text-gray); }
+
+        /* KOTAK-KOTAK TUGAS (TRACKER) */
+        .task-tracker { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+        .task-box {
+            width: 35px; height: 35px; border-radius: 6px; display: flex; justify-content: center; align-items: center;
+            font-size: 0.75rem; font-weight: bold; color: white; cursor: default;
+        }
+        .task-done { background: #22c55e; box-shadow: 0 2px 5px rgba(34, 197, 94, 0.3); } /* Hijau */
+        .task-miss { background: #ef4444; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.3); animation: pulse 2s infinite; } /* Merah */
+        .task-wait { background: #cbd5e1; color: #475569; } /* Abu-abu (Belum Target) */
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        /* TOMBOL WHATSAPP */
+        .btn-wa {
+            width: 100%; background: #25D366; color: white; border: none; padding: 12px;
+            border-radius: 8px; font-family: 'Poppins'; font-weight: bold; font-size: 0.95rem;
+            cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none;
+        }
+        .btn-wa:hover { background: #1ebe57; }
+        .btn-wa.disabled { background: #94a3b8; cursor: not-allowed; }
+
+        /* LOADING */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #166534; transition: 0.4s; }
+
+        @media (max-width: 600px) {
+            .room-header { flex-direction: column; text-align: center; gap: 15px; }
+            .student-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-radar fa-spin" style="font-size: 3rem; margin-bottom: 15px;"></i>
+        <h3 style="font-family: 'Poppins'; font-size: 1rem; color: #64748b;">Memuat Radar Siswa...</h3>
+    </div>
+
+    <div class="container" style="display: none;" id="main-content">
+        
+        <div class="room-header">
+            <div class="header-title">
+                <h2><i class="fa-solid fa-chart-line"></i> Divisi Pelaporan & Monitoring</h2>
+                <p>Radar pemantauan progres akademik siswa Cendekia Aksara.</p>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
+        </div>
+
+        <div class="control-panel">
+            <div style="font-weight: 600; color: var(--primary);"><i class="fa-solid fa-crosshairs"></i> Target Radar:</div>
+            <select id="target-week" onchange="renderRadar()">
+                <option value="1">Sampai Tugas 1</option>
+                <option value="2">Sampai Tugas 2</option>
+                <option value="3">Sampai Tugas 3</option>
+                <option value="4" selected>Sampai Tugas 4 (Sebulan Pertama)</option>
+                <option value="uts">Sampai UTS</option>
+                <option value="5">Sampai Tugas 5</option>
+                <option value="8">Sampai Tugas 8 (Akhir Semester)</option>
+                <option value="uas">Sampai UAS (Selesai)</option>
+            </select>
+            <input type="text" id="search-student" placeholder="Cari nama siswa..." onkeyup="renderRadar()">
+        </div>
+
+        <div id="radar-container" class="student-grid">
+            </div>
+
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let allStudents = [];
+        let pengurusName = "";
+
+        // URUTAN TUGAS UNTUK LOGIKA TRACKER
+        const taskKeys = ['t1', 't2', 't3', 't4', 'uts', 't5', 't6', 't7', 't8', 'uas'];
+        const taskLabels = ['T1', 'T2', 'T3', 'T4', 'UTS', 'T5', 'T6', 'T7', 'T8', 'UAS'];
+
+        (async () => {
+            const userData = await checkAuth('siswa');
+            
+            if(userData) {
+                if (userData.is_osis !== true) {
+                    alert("Akses Ditolak! Hanya Pengurus OSIS yang diizinkan.");
+                    window.location.href = '/dashboard/index.html';
+                    return;
+                }
+
+                pengurusName = userData.name.split(' ')[0]; // Ambil nama panggilan OSIS
+
+                try {
+                    // AMBIL SEMUA DATA SISWA
+                    const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                    const snap = await getDocs(q);
+                    snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                    
+                    // Urutkan A-Z
+                    allStudents.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+                    
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('main-content').style.display = 'block';
+                        renderRadar(); // Render pertama kali
+                    }, 400);
+
+                } catch (e) {
+                    alert("Gagal memuat data siswa.");
+                }
+            }
+        })();
+
+        // FUNGSI UTAMA RENDER RADAR
+        window.renderRadar = () => {
+            const targetVal = document.getElementById('target-week').value;
+            const searchKey = document.getElementById('search-student').value.toLowerCase();
+            const container = document.getElementById('radar-container');
+            container.innerHTML = '';
+
+            // Tentukan index batas target
+            let targetIndex = 0;
+            if(targetVal === 'uts') targetIndex = 4;
+            else if(targetVal === 'uas') targetIndex = 9;
+            else targetIndex = parseInt(targetVal) - 1; // Index array mulai dari 0
+            if (targetIndex >= 5) targetIndex++; // Melewati UTS di array
+
+            let htmlBuffer = '';
+
+            allStudents.forEach(s => {
+                // Filter Pencarian
+                if(searchKey && !(s.name && s.name.toLowerCase().includes(searchKey))) return;
+                
+                // Pengecualian: Jangan tampilkan diri sendiri (Pengurus) di Radar jika tidak perlu, tapi biarkan saja untuk tes.
+                // if(s.is_osis) return;
+
+                let trackerHtml = '';
+                let missingTasks = []; // Daftar nama tugas yang bolong untuk ditulis di WA
+                let hasRedAlert = false;
+
+                // Cek setiap tugas dari T1 sampai UAS
+                taskKeys.forEach((key, index) => {
+                    // Format di database adalah nilai_t1, nilai_uts, dst.
+                    let dbKey = key === 'uts' || key === 'uas' ? `nilai_${key}` : `nilai_t${key.replace('t', '')}`;
+                    
+                    let isFilled = (s[dbKey] !== undefined && s[dbKey] !== null && s[dbKey] !== "");
+                    let isPastTarget = index <= targetIndex;
+
+                    if (isFilled) {
+                        trackerHtml += `<div class="task-box task-done" title="Selesai">${taskLabels[index]}</div>`;
+                    } else if (!isFilled && isPastTarget) {
+                        trackerHtml += `<div class="task-box task-miss" title="Belum Selesai (Lewat Target!)">${taskLabels[index]}</div>`;
+                        missingTasks.push(taskLabels[index]);
+                        hasRedAlert = true;
+                    } else {
+                        trackerHtml += `<div class="task-box task-wait" title="Belum Target">${taskLabels[index]}</div>`;
+                    }
+                });
+
+                // FORMAT NOMOR WHATSAPP (Ubah 08 jadi 628)
+                let noWA = s.no_wa || s.phone || s.telepon || "";
+                let waClean = noWA.replace(/\D/g, ''); // Buang selain angka
+                if (waClean.startsWith('08')) {
+                    waClean = '628' + waClean.substring(2);
+                }
+
+                // GENERATE PESAN WHATSAPP OTOMATIS
+                let btnWaHtml = '';
+                if (hasRedAlert) {
+                    if (waClean.length > 9) {
+                        let pesan = `Halo kak *${s.name}*, perkenalkan aku ${pengurusName} dari Divisi Monitoring OSIS Cendekia Aksara. 👋\n\nAku lihat di sistem, tugas kamu untuk *${missingTasks.join(', ')}* belum masuk nih. Apakah ada kendala atau kesulitan materi? Yuk segera dikerjakan dan dikumpul agar nilai akhirnya aman ya kak! Semangat! 🚀`;
+                        let urlWa = `https://wa.me/${waClean}?text=${encodeURIComponent(pesan)}`;
+                        btnWaHtml = `<a href="${urlWa}" target="_blank" class="btn-wa"><i class="fa-brands fa-whatsapp"></i> Hubungi / Tegur Siswa</a>`;
+                    } else {
+                        btnWaHtml = `<button class="btn-wa disabled" disabled><i class="fa-solid fa-phone-slash"></i> Nomor WA Tidak Valid</button>`;
+                    }
+                } else {
+                    btnWaHtml = `<button class="btn-wa" style="background:#f1f5f9; color:#64748b;" disabled><i class="fa-solid fa-check-double"></i> Tugas Aman / On Track</button>`;
+                }
+
+                // Susun Kartu
+                const cardAlertClass = hasRedAlert ? 'alert' : '';
+                htmlBuffer += `
+                    <div class="student-card ${cardAlertClass}">
+                        <div class="student-info">
+                            <h3>${s.name}</h3>
+                            <p><i class="fa-solid fa-phone"></i> ${noWA || 'Tidak ada nomor'} &nbsp;|&nbsp; Sem: ${s.semester || 1}</p>
+                        </div>
+                        <div class="task-tracker">
+                            ${trackerHtml}
+                        </div>
+                        ${btnWaHtml}
+                    </div>
+                `;
+            });
+
+            if (htmlBuffer === '') {
+                container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">Siswa tidak ditemukan atau data kosong.</div>`;
+            } else {
+                container.innerHTML = htmlBuffer;
+            }
+        };
+    </script>
+</body>
+</html>
