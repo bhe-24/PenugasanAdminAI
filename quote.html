@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suntikan Semangat - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0; padding: 0; font-family: 'Poppins', sans-serif;
+            /* Background Animasi Gradien Premium */
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #4c1d95);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: white; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; position: relative;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Partikel Debu Bercahaya (Efek Sinematik) */
+        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        
+        .quote-container {
+            position: relative; z-index: 2;
+            width: 90%; max-width: 600px; text-align: center;
+            padding: 50px 30px; border-radius: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px); opacity: 0; animation: slideUp 1s ease forwards 0.5s;
+        }
+
+        @keyframes slideUp { to { transform: translateY(0); opacity: 1; } }
+
+        .quote-icon {
+            font-size: 3rem; color: #d4af37; /* Gold */
+            margin-bottom: 20px; opacity: 0.8;
+        }
+
+        .quote-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem; font-weight: 700; font-style: italic;
+            line-height: 1.4; margin: 0 0 30px 0;
+            background: -webkit-linear-gradient(135deg, #ffffff, #e2e8f0);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .quote-author {
+            font-size: 1rem; font-weight: 600; color: #cbd5e1;
+            letter-spacing: 2px; text-transform: uppercase;
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+        }
+
+        .quote-author::before, .quote-author::after {
+            content: ''; height: 2px; width: 40px; background: #d4af37; border-radius: 2px;
+        }
+
+        /* Footer OSIS */
+        .footer-branding {
+            position: absolute; bottom: 30px; left: 0; width: 100%;
+            text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.5);
+            z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .footer-branding img { width: 30px; opacity: 0.7; }
+
+        /* Loader */
+        #loader {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; align-items: center; gap: 15px; color: white;
+        }
+
+        /* Error State */
+        .error-box { display: none; text-align: center; color: #fca5a5; }
+        .error-box i { font-size: 4rem; margin-bottom: 15px; }
+
+        @media (max-width: 600px) {
+            .quote-text { font-size: 1.5rem; }
+            .quote-container { padding: 40px 20px; }
+            .quote-author { font-size: 0.85rem; }
+            .quote-author::before, .quote-author::after { width: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="particles"></div>
+
+    <div id="loader">
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 3rem; color: #d4af37;"></i>
+        <span style="letter-spacing: 2px; font-size: 0.9rem;">MENYIAPKAN PESAN...</span>
+    </div>
+
+    <div class="quote-container" id="quote-container" style="display: none;">
+        <i class="fa-solid fa-quote-right quote-icon"></i>
+        <h1 class="quote-text" id="q-text">"..."</h1>
+        <div class="quote-author" id="q-author">-</div>
+    </div>
+
+    <div class="quote-container error-box" id="error-box">
+        <i class="fa-solid fa-link-slash"></i>
+        <h2 style="font-family: 'Playfair Display'; margin:0 0 10px 0;">Tautan Tidak Valid</h2>
+        <p style="font-size: 0.9rem; color: #e2e8f0;">Kutipan penyemangat ini mungkin telah dihapus atau tautan yang Anda masukkan salah.</p>
+        <a href="/" style="display:inline-block; margin-top:20px; padding:10px 25px; background:white; color:#0f172a; text-decoration:none; border-radius:50px; font-weight:600;">Kembali ke Beranda</a>
+    </div>
+
+    <div class="footer-branding">
+        <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+        <span>Dipersembahkan oleh Divisi Motivasi<br><b>OSIS Cendekia Aksara</b></span>
+    </div>
+
+    <script type="module">
+        import { db } from "/js/firebase-config.js";
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Trik Estetik: Membuat efek partikel bintang kecil di background
+        const particlesContainer = document.querySelector('.particles');
+        for (let i = 0; i < 30; i++) {
+            const star = document.createElement('div');
+            star.style.position = 'absolute';
+            star.style.width = Math.random() * 3 + 'px';
+            star.style.height = star.style.width;
+            star.style.background = 'white';
+            star.style.borderRadius = '50%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.opacity = Math.random() * 0.5 + 0.1;
+            star.style.animation = `pulse ${Math.random() * 3 + 2}s infinite alternate`;
+            particlesContainer.appendChild(star);
+        }
+
+        // FUNGSI UTAMA PENANGKAP URL
+        (async () => {
+            // 1. Ambil ID dari URL (Misal: quote.html?id=ABCDEFG)
+            const urlParams = new URLSearchParams(window.location.search);
+            const quoteId = urlParams.get('id');
+
+            const loader = document.getElementById('loader');
+            const container = document.getElementById('quote-container');
+            const errorBox = document.getElementById('error-box');
+
+            if (!quoteId) {
+                // Jika diakses langsung tanpa ?id=...
+                loader.style.display = 'none';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            try {
+                // 2. Tarik Data dari Firebase berdasarkan ID
+                const docRef = doc(db, 'quotes_motivasi', quoteId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // 3. Masukkan teks ke HTML
+                    document.getElementById('q-text').innerText = `"${data.text}"`;
+                    document.getElementById('q-author').innerText = data.author || "OSIS Cendekia Aksara";
+
+                    // Tampilkan dengan animasi
+                    loader.style.display = 'none';
+                    container.style.display = 'block';
+                } else {
+                    // ID ada, tapi dokumen sudah dihapus di database
+                    loader.style.display = 'none';
+                    errorBox.style.display = 'block';
+                }
+            } catch (error) {
+                console.error("Gagal memuat kutipan:", error);
+                loader.style.display = 'none';
+                errorBox.style.display = 'block';
+            }
+        })();
+    </script>
+</body>
+</html>
