@@ -9,7 +9,7 @@
     
     <style>
         /* --- 1. RESET & GLOBAL --- */
-        :root { --primary: #003366; --accent: #11998e; --bg: #f4f7f6; --text: #333; --danger: #dc3545; --warning: #ff9800; }
+        :root { --primary: #003366; --accent: #11998e; --bg: #f4f7f6; --text: #333; --danger: #dc3545; --warning: #ff9800; --gold: #d4af37; }
         * { box-sizing: border-box; outline: none; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
         
@@ -37,26 +37,34 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             border-left: 6px solid var(--accent);
             display: flex; flex-direction: column; justify-content: space-between;
-            transition: transform 0.2s, box-shadow 0.2s; min-height: 200px;
+            transition: transform 0.2s, box-shadow 0.2s; min-height: 200px; position: relative; overflow: hidden;
         }
         .biodata-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
         
+        /* EFEK KHUSUS KARTU OSIS */
+        .biodata-card.is-osis { border-left-color: var(--gold); }
+        .biodata-card.is-osis::before {
+            content: '\f3ed'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            position: absolute; top: -10px; right: -10px; font-size: 5rem; color: var(--gold); opacity: 0.1;
+        }
+
         /* WARNA KARTU BERDASARKAN STATUS */
         .biodata-card.suspended { border-left-color: var(--warning); background: #fff8f0; }
         .biodata-card.inactive { border-left-color: var(--danger); background: #fef2f2; border: 2px solid #fca5a5; border-left: 6px solid var(--danger); }
 
-        .info-group h3 { margin: 0 0 10px 0; color: #1e293b; font-size: 1.3rem; display: flex; align-items: center; justify-content: space-between; gap: 10px;}
-        .info-group p { margin: 5px 0; color: #64748b; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;}
+        .info-group h3 { margin: 0 0 10px 0; color: #1e293b; font-size: 1.3rem; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 2; position: relative;}
+        .info-group p { margin: 5px 0; color: #64748b; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; z-index: 2; position: relative;}
         
         .status-label { font-weight: bold; font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; }
         .status-active { background: #dcfce7; color: #166534; }
         .status-suspend { background: #fef08a; color: #9a3412; }
         .status-inactive { background: #fee2e2; color: #991b1b; }
+        .badge-osis { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; box-shadow: 0 2px 4px rgba(212,175,55,0.4); border: 1px solid #fef08a;}
 
-        .action-group { display: flex; gap: 10px; margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
+        .action-group { display: flex; gap: 10px; margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 15px; z-index: 2; position: relative; flex-wrap: wrap;}
         
         /* TOMBOL */
-        .btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; min-width: 110px;}
         .btn:active { transform: scale(0.95); }
         .btn-suspend { background: var(--warning); }
         .btn-suspend:hover { background: #e68900; }
@@ -64,6 +72,12 @@
         .btn-activate:hover { background: #0f857b; }
         .btn-delete { background: white; color: var(--danger); border: 2px solid #fca5a5; }
         .btn-delete:hover { background: var(--danger); color: white; }
+
+        /* Tombol OSIS Toggle */
+        .btn-lantik-osis { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+        .btn-lantik-osis:hover { background: #e2e8f0; color: #334155; }
+        .btn-cabut-osis { background: var(--gold); color: white; box-shadow: 0 2px 5px rgba(212,175,55,0.3); border: 1px solid #c5a02e;}
+        .btn-cabut-osis:hover { filter: brightness(1.1); }
 
         .btn-back { background: #f1f5f9; color: #475569; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.2s;}
         .btn-back:hover { background: #e2e8f0; }
@@ -175,7 +189,7 @@
                 
                 const btnOk = document.createElement('button');
                 btnOk.className = isDanger ? 'btn-modal btn-danger-modal' : 'btn-modal btn-primary';
-                btnOk.innerText = isDanger ? 'Ya, Hapus!' : 'Ya, Lanjutkan';
+                btnOk.innerText = isDanger ? 'Ya, Lanjutkan!' : 'Ya, Lanjutkan';
                 btnOk.onclick = () => { overlay.classList.remove('active'); onConfirm(); };
                 
                 actionsContainer.append(btnCancel, btnOk);
@@ -238,13 +252,15 @@
                 if (s.nilai_uts !== undefined && s.nilai_uts !== null && s.nilai_uts !== "") totalTugasTerisi++;
                 if (s.nilai_uas !== undefined && s.nilai_uas !== null && s.nilai_uas !== "") totalTugasTerisi++;
 
-                const isInactive = totalTugasTerisi < 5; // Kurang dari 5 tugas dianggap pasif
+                const isInactive = totalTugasTerisi < 5; 
                 const isSuspended = s.status === 'suspended';
+                const isOsis = s.is_osis === true; // Pengecekan OSIS
 
-                // Tentukan Class dan Badge
+                // Tentukan Class dan Badge Status Utama
                 let cardClass = 'biodata-card';
-                let statusHtml = `<span class="status-label status-active">AKTIF</span>`;
+                if (isOsis) cardClass += ' is-osis'; // Tambahkan class efek emas jika dia OSIS
 
+                let statusHtml = `<span class="status-label status-active">AKTIF</span>`;
                 if (isSuspended) {
                     cardClass += ' suspended';
                     statusHtml = `<span class="status-label status-suspend">DIBEKUKAN</span>`;
@@ -253,6 +269,10 @@
                     statusHtml = `<span class="status-label status-inactive"><i class="fa-solid fa-triangle-exclamation"></i> PASIF (< 5 Tugas)</span>`;
                 }
                 
+                // Badge Tambahan OSIS (Muncul di sebelah status)
+                let osisBadgeHtml = isOsis ? `<span class="badge-osis"><i class="fa-solid fa-shield-halved"></i> OSIS</span>` : '';
+
+                // Tombol-Tombol Aksi
                 const suspendBtn = isSuspended 
                     ? `<button onclick="window.toggleSuspend('${s.id}', false, '${s.name}')" class="btn btn-activate"><i class="fa-solid fa-check"></i> Aktifkan</button>`
                     : `<button onclick="window.toggleSuspend('${s.id}', true, '${s.name}')" class="btn btn-suspend"><i class="fa-solid fa-ban"></i> Bekukan</button>`;
@@ -261,15 +281,21 @@
                     ? `<button onclick="window.deleteSiswa('${s.id}', '${s.name}')" class="btn btn-delete"><i class="fa-solid fa-trash-can"></i> Hapus</button>`
                     : '';
 
+                // Tombol Sakelar Lantik / Cabut OSIS
+                const osisBtn = isOsis
+                    ? `<button onclick="window.toggleOsis('${s.id}', false, '${s.name}')" class="btn btn-cabut-osis"><i class="fa-solid fa-user-minus"></i> Cabut OSIS</button>`
+                    : `<button onclick="window.toggleOsis('${s.id}', true, '${s.name}')" class="btn btn-lantik-osis"><i class="fa-solid fa-user-tie"></i> Lantik OSIS</button>`;
+
                 htmlBuffer += `
                     <div class="${cardClass}">
                         <div class="info-group">
-                            <h3>${s.name} ${statusHtml}</h3>
+                            <h3>${s.name} <div>${osisBadgeHtml} ${statusHtml}</div></h3>
                             <p><i class="fa-regular fa-envelope"></i> ${s.email || 'Tidak ada email'}</p>
                             <p><i class="fa-solid fa-graduation-cap"></i> Semester ${s.semester || 1} &nbsp;|&nbsp; <i class="fa-solid fa-star"></i> IPS: ${parseFloat(s.ips||0).toFixed(2)}</p>
                             <p><i class="fa-solid fa-list-check"></i> Tugas Selesai: <b>${totalTugasTerisi} / 10</b></p>
                         </div>
                         <div class="action-group">
+                            ${osisBtn}
                             ${suspendBtn}
                             ${deleteBtn}
                         </div>
@@ -280,8 +306,27 @@
             container.innerHTML = htmlBuffer;
         }
 
+        // --- FUNGSI BARU: TOGGLE OSIS (LANTIK/CABUT) ---
+        window.toggleOsis = async (id, isPromoting, name) => {
+            const pesan = isPromoting 
+                ? `Apakah Anda yakin ingin melantik ${name} sebagai Pengurus OSIS? Anak ini akan mendapatkan akses eksklusif ke Ruang OSIS.` 
+                : `Apakah Anda yakin ingin mencabut jabatan Pengurus OSIS dari ${name}? Akses Ruang OSIS anak ini akan dikunci.`;
+            
+            showModal('warning', 'Konfirmasi Kepengurusan', pesan, async () => {
+                try {
+                    await updateDoc(doc(db, 'users', id), {
+                        is_osis: isPromoting
+                    });
+                    loadData(); // Refresh tampilan kartu
+                    showModal('success', 'Berhasil', `Status kepengurusan OSIS untuk ${name} berhasil diperbarui.`);
+                } catch(e) { 
+                    showModal('error', 'Gagal', "Terjadi kesalahan: " + e.message); 
+                }
+            });
+        };
+
         window.toggleSuspend = async (id, shouldSuspend, name) => {
-            const actionText = shouldSuspend ? `membekukan akses ujian untuk ${name}` : `mengaktifkan kembali akun ${name}`;
+            const actionText = shouldSuspend ? `membekukan akses sistem untuk ${name}` : `mengaktifkan kembali akun ${name}`;
             
             showModal('warning', 'Konfirmasi Akses', `Apakah Anda yakin ingin ${actionText}?`, async () => {
                 try {
