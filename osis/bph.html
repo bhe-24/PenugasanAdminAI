@@ -32,7 +32,7 @@
         /* --- FORMULIR DOKUMEN --- */
         .doc-form-card {
             background: white; border-radius: 16px; padding: 35px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; margin-bottom: 30px;
         }
         .form-title {
             font-size: 1.2rem; color: var(--primary); font-weight: 700;
@@ -63,6 +63,22 @@
         .btn-print:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4); }
         .btn-print:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
+        /* --- DAFTAR RIWAYAT DOKUMEN --- */
+        .history-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; }
+        .article-list { display: flex; flex-direction: column; gap: 15px; }
+        .article-item {
+            padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc;
+            display: flex; justify-content: space-between; align-items: center; transition: 0.2s; flex-wrap: wrap; gap: 10px;
+        }
+        .article-item:hover { border-color: #cbd5e1; transform: translateX(5px); }
+        .art-info h4 { margin: 0 0 5px 0; color: var(--primary); font-size: 1.05rem; }
+        .art-info p { margin: 0; font-size: 0.85rem; color: var(--text-gray); }
+        
+        .badge { padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-pending { background: #fef08a; color: #9a3412; border: 1px solid #fde68a; }
+        .badge-published { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
         /* LOADING */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--gold); transition: 0.4s; }
 
@@ -74,6 +90,7 @@
         @media (max-width: 600px) {
             .room-header { flex-direction: column; text-align: center; gap: 15px; }
             .doc-form-card { padding: 20px; }
+            .article-item { flex-direction: column; align-items: flex-start; }
         }
     </style>
 </head>
@@ -137,20 +154,29 @@
                 </div>
 
                 <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 25px; font-size: 0.85rem; color: #b45309; line-height: 1.5;">
-                    <i class="fa-solid fa-circle-info"></i> <b>Catatan Birokrasi:</b> Dokumen yang dicetak melalui sistem ini akan otomatis menggunakan Format Resmi OSIS Cendekia Aksara. Silakan serahkan file PDF ini kepada Pembina/Admin via WhatsApp untuk disetujui.
+                    <i class="fa-solid fa-circle-info"></i> <b>Catatan Birokrasi:</b> Dokumen ini akan diunduh sebagai PDF dan <b>otomatis terkirim ke meja Pembina/Admin</b> untuk diperiksa. Pantau status persetujuannya (ACC) di riwayat bawah.
                 </div>
 
                 <button type="submit" id="btn-submit" class="btn-print">
-                    <i class="fa-solid fa-file-pdf"></i> Cetak Dokumen PDF
+                    <i class="fa-solid fa-file-export"></i> Cetak PDF & Ajukan ke Admin
                 </button>
             </form>
+        </div>
+
+        <div class="history-card">
+            <div class="form-title" style="margin-bottom: 15px; border:none; padding:0;"><i class="fa-solid fa-clock-rotate-left"></i> Status Pengajuan Dokumen BPH</div>
+            <div id="arsip-list" class="article-list">
+                <div style="text-align:center; padding:20px; color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat riwayat dokumen...</div>
+            </div>
         </div>
 
     </div>
 
     <script type="module">
-        import { auth, checkAuth } from "/js/firebase-config.js";
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, addDoc, query, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        let currentUser = null;
         let pengurusName = "";
 
         // Fungsi Notifikasi Toast
@@ -174,51 +200,83 @@
 
         // Format Tanggal Indo
         const formatTanggal = (dateStr) => {
-            const date = new Date(dateStr);
+            if (!dateStr) return "Baru Saja";
+            const date = new Date(dateStr.toDate ? dateStr.toDate() : dateStr);
             const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
             return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
         };
 
         // Init Halaman
         (async () => {
-            const userData = await checkAuth('siswa');
+            currentUser = await checkAuth('siswa');
             
-            if(userData) {
-                if (userData.is_osis !== true) {
+            if(currentUser) {
+                if (currentUser.is_osis !== true) {
                     alert("Akses Ditolak! Hanya Pengurus OSIS yang diizinkan.");
                     window.location.href = '/dashboard/index.html';
                     return;
                 }
 
-                pengurusName = userData.name;
+                pengurusName = currentUser.name;
                 document.getElementById('doc-author').value = pengurusName;
 
                 document.getElementById('loading-screen').style.opacity = '0';
                 setTimeout(() => {
                     document.getElementById('loading-screen').style.display = 'none';
                     document.getElementById('main-content').style.display = 'block';
+                    loadMyArsip(); // Panggil riwayat dokumen
                 }, 400);
             }
         })();
 
         // ==============================================
-        // MESIN CETAK PDF PROPOSAL / LPJ OSIS
+        // MESIN CETAK PDF & SIMPAN KE DATABASE
         // ==============================================
         document.getElementById('doc-form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit');
             const oriText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Tata Letak PDF...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun & Mengirim...';
             btn.disabled = true;
 
             // Ambil Data Form
             const docType = document.getElementById('doc-type').value;
-            const docDate = formatTanggal(document.getElementById('doc-date').value);
+            const rawDate = document.getElementById('doc-date').value;
+            const docDate = formatTanggal(rawDate);
             const docTitle = document.getElementById('doc-title').value;
             const docBg = document.getElementById('doc-bg').value;
-            const docBudget = formatRupiah(document.getElementById('doc-budget').value);
+            const rawBudget = document.getElementById('doc-budget').value;
+            const docBudget = formatRupiah(rawBudget);
 
-            // Ambil Logo (Dengan Timeout Anti-Hang)
+            // 1. SIMPAN KE DATABASE FIRESTORE AGAR BISA DIBACA ADMIN
+            try {
+                // Rangkai isi konten agar rapi dibaca Admin di modal preview
+                const adminContent = `TANGGAL PELAKSANAAN: ${docDate}\nESTIMASI ANGGARAN: ${docBudget}\n\nLATAR BELAKANG & TUJUAN:\n${docBg}`;
+
+                await addDoc(collection(db, 'arsip_bph'), {
+                    title: docTitle,
+                    kategori: docType,
+                    content: adminContent,
+                    budget: docBudget,
+                    date: docDate,
+                    addedBy: pengurusName,
+                    authorId: currentUser.uid,
+                    status: 'pending', // Wajib di-ACC admin
+                    timestamp: serverTimestamp()
+                });
+
+                loadMyArsip(); // Refresh daftar riwayat
+                window.showToast("Dokumen berhasil diajukan ke Pembina!");
+
+            } catch (error) {
+                alert("Gagal mengirim dokumen ke database Admin.");
+                console.error(error);
+                btn.innerHTML = oriText;
+                btn.disabled = false;
+                return; // Stop jika database gagal
+            }
+
+            // 2. LANJUTKAN MENCETAK PDF UNTUK SISWA
             async function getBase64Logo() {
                 try {
                     const controller = new AbortController();
@@ -313,17 +371,70 @@
                 const fileName = `${docType.split(' ')[0]}_${docTitle.replace(/\s+/g, '_')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName);
                 
-                window.showToast("Berhasil! PDF Proposal sedang diunduh.");
                 document.getElementById('doc-form').reset();
-                document.getElementById('doc-author').value = pengurusName; // Kembalikan nama
+                document.getElementById('doc-author').value = pengurusName; 
 
             } catch (error) {
-                alert("Gagal menyusun PDF. Pastikan koneksi stabil.");
+                alert("Gagal menyusun PDF.");
             } finally {
                 btn.innerHTML = oriText;
                 btn.disabled = false;
             }
         };
+
+        // ==============================================
+        // MEMUAT RIWAYAT DOKUMEN BPH (Semua Anggota BPH bisa lihat)
+        // ==============================================
+        async function loadMyArsip() {
+            const container = document.getElementById('arsip-list');
+            try {
+                // Tarik semua arsip_bph tanpa `where` authorId, 
+                // agar sesama BPH (Ketua, Wakil, Sekretaris) bisa saling melihat dokumen satu sama lain.
+                const q = query(collection(db, 'arsip_bph'));
+                const snap = await getDocs(q);
+
+                container.innerHTML = '';
+                if(snap.empty) {
+                    container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding: 20px;"><i class="fa-regular fa-folder-open"></i> Belum ada dokumen yang diajukan ke Admin.</div>`;
+                    return;
+                }
+
+                let arsipData = [];
+                snap.forEach(doc => arsipData.push({id: doc.id, ...doc.data()}));
+
+                // Urutkan Javascript
+                arsipData.sort((a, b) => {
+                    const timeA = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+                    const timeB = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
+                    return timeB - timeA;
+                });
+
+                arsipData.forEach(data => {
+                    let badgeClass = 'badge-pending';
+                    let badgeText = 'Menunggu ACC';
+                    let badgeIcon = 'fa-clock';
+
+                    if (data.status === 'approved') {
+                        badgeClass = 'badge-published'; badgeText = 'Disetujui (ACC)'; badgeIcon = 'fa-check-double';
+                    } else if (data.status === 'rejected') {
+                        badgeClass = 'badge-rejected'; badgeText = 'Ditolak/Revisi'; badgeIcon = 'fa-ban';
+                    }
+
+                    container.innerHTML += `
+                        <div class="article-item">
+                            <div class="art-info">
+                                <h4>${data.title}</h4>
+                                <p><span style="font-weight:600; color:#b45309;">${data.kategori}</span> &nbsp;|&nbsp; Oleh: ${data.addedBy}</p>
+                            </div>
+                            <div class="badge ${badgeClass}"><i class="fa-solid ${badgeIcon}"></i> ${badgeText}</div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+                container.innerHTML = `<div style="text-align:center; color:#ef4444;">Gagal memuat riwayat dokumen.</div>`;
+            }
+        }
     </script>
 </body>
 </html>
