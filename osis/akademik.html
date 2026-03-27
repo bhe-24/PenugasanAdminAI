@@ -111,9 +111,6 @@
         <div class="academic-grid">
             <div class="form-card">
                 <div class="form-title"><i class="fa-solid fa-chalkboard-user"></i> Buat Jadwal Klinik Literasi</div>
-                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
-                    Jadwal ini akan muncul di Dashboard siswa agar mereka bisa ikut kelas *mentoring* menulis.
-                </p>
                 <form id="klinik-form">
                     <div class="form-group">
                         <label>Topik Mentoring</label>
@@ -145,9 +142,6 @@
 
             <div class="form-card">
                 <div class="form-title"><i class="fa-solid fa-book-bookmark"></i> Tambah Bank Referensi</div>
-                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
-                    Sematkan *link* artikel, jurnal, atau karya sastra digital untuk bahan bacaan siswa.
-                </p>
                 <form id="referensi-form">
                     <div class="form-group">
                         <label>Judul Referensi</label>
@@ -180,7 +174,9 @@
         <h3 style="color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 40px;">
             <i class="fa-solid fa-address-book"></i> Kontak Pengajar Akademik
         </h3>
-        <p style="font-size: 0.9rem; color: var(--text-gray); margin-top: -5px;">Hubungi pengajar di bawah ini untuk mengingatkan jadwal mengajar atau koordinasi kelas.</p>
+        <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 20px; font-size: 0.85rem; color: #b45309; line-height: 1.5;">
+            <i class="fa-solid fa-circle-info"></i> <b>Info Sistem:</b> Tombol WhatsApp di bawah ini sudah diprogram dengan format resmi. Klik tombol tersebut setiap <b>hari Senin</b> untuk menanyakan kesediaan jadwal pengajar pada pekan tersebut.
+        </div>
         
         <div id="grid-pengajar" class="pengajar-grid">
             <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #94a3b8;">
@@ -196,7 +192,6 @@
 
         let pengurusName = "";
 
-        // Fungsi Toast
         window.showToast = (message, type = "success") => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -210,6 +205,38 @@
                 toast.classList.remove('show');
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
+        };
+
+        // Kalkulator Tanggal Otomatis (Jumat, Sabtu, Minggu di Pekan Ini)
+        const getWeekendDates = () => {
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, dst.
+            
+            // Hitung jarak ke hari Jumat pekan ini
+            let daysUntilFriday = 5 - dayOfWeek;
+            if (dayOfWeek === 6) daysUntilFriday = 6; // Kalau Sabtu, berarti Jumat minggu depannya
+            if (dayOfWeek === 0) daysUntilFriday = 5; // Kalau Minggu, ambil Jumat depannya
+
+            const jumat = new Date(today);
+            jumat.setDate(today.getDate() + daysUntilFriday);
+
+            const sabtu = new Date(jumat);
+            sabtu.setDate(jumat.getDate() + 1);
+
+            const minggu = new Date(jumat);
+            minggu.setDate(jumat.getDate() + 2);
+
+            const format = (date) => {
+                const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+                const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+            };
+
+            return {
+                jumat: format(jumat),
+                sabtu: format(sabtu),
+                minggu: format(minggu)
+            };
         };
 
         (async () => {
@@ -229,7 +256,7 @@
                 setTimeout(() => {
                     document.getElementById('loading-screen').style.display = 'none';
                     document.getElementById('main-content').style.display = 'block';
-                    loadPengajar(); // Panggil data pengajar setelah load
+                    loadPengajar();
                 }, 400);
             }
         })();
@@ -246,19 +273,25 @@
                     return;
                 }
 
-                // Hitung sapaan waktu
                 const jam = new Date().getHours();
                 let sapaan = "Selamat Pagi";
                 if (jam >= 10 && jam < 15) sapaan = "Selamat Siang";
                 else if (jam >= 15 && jam < 18) sapaan = "Selamat Sore";
                 else if (jam >= 18) sapaan = "Selamat Malam";
 
+                const weekendDates = getWeekendDates(); // Ambil tanggal otomatis
+
                 snap.forEach(d => {
                     const data = d.data();
                     let noWA = data.wa.replace(/\D/g, ''); 
                     if (noWA.startsWith('08')) noWA = '628' + noWA.substring(2);
 
-                    let pesanWA = `${sapaan}, Bapak/Ibu ${data.nama}.\n\nPerkenalkan, nama saya ${pengurusName} dari OSIS Divisi Akademik Cendekia Aksara. Saya izin menghubungi Bapak/Ibu untuk mengingatkan terkait jadwal mengajar mata pelajaran *${data.mapel}* untuk Semester ${data.semester}.\n\nMohon arahannya, Bapak/Ibu. Terima kasih. 🙏`;
+                    // LOGIKA SAPAAN L / P
+                    let sapaanTitel = data.gender === 'L' ? 'Bapak' : (data.gender === 'P' ? 'Ibu' : 'Bapak/Ibu');
+
+                    // TEMPLATE CHAT WA LENGKAP & OTOMATIS
+                    let pesanWA = `${sapaan}, ${sapaanTitel} ${data.nama}. 🙏\n\nPerkenalkan, nama saya *${pengurusName}*, perwakilan dari OSIS Divisi Akademik Cendekia Aksara.\n\nMengingat ini adalah awal pekan, saya izin menghubungi ${sapaanTitel} untuk mengkoordinasikan jadwal mengajar mata pelajaran *${data.mapel}* (Semester ${data.semester}) pada pekan ini.\n\nMohon perkenan ${sapaanTitel} untuk memilih salah satu jadwal mengajar berikut:\n1️⃣ ${weekendDates.jumat}\n2️⃣ ${weekendDates.sabtu}\n3️⃣ ${weekendDates.minggu}\n\nBesar harapan kami agar jadwal ini dapat diprioritaskan untuk kelancaran kegiatan belajar mengajar. Mohon konfirmasi kesediaannya dan pilihan harinya ya, ${sapaanTitel}.\n\nTerima kasih banyak atas waktu dan perhatiannya. Sehat selalu! ✨`;
+                    
                     let urlWa = `https://wa.me/${noWA}?text=${encodeURIComponent(pesanWA)}`;
 
                     let imgHtml = data.foto ? `<img src="${data.foto}" class="pengajar-foto">` : `<div class="pengajar-foto-empty"><i class="fa-solid fa-user"></i></div>`;
@@ -272,11 +305,12 @@
                                     <span style="background:#e0e7ff; color:#4338ca; padding:3px 10px; border-radius:6px; font-size:0.7rem; font-weight:bold; display:inline-block; margin-top:5px;">Semester ${data.semester}</span>
                                 </div>
                             </div>
+                            <div style="font-size:0.85rem; color:#475569; margin-bottom:8px;"><i class="fa-solid fa-venus-mars" style="width:20px; color:var(--akademik); text-align:center;"></i> ${data.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</div>
                             <div style="font-size:0.85rem; color:#475569; margin-bottom:8px;"><i class="fa-solid fa-book" style="width:20px; color:var(--akademik); text-align:center;"></i> ${data.mapel}</div>
                             <div style="font-size:0.85rem; color:#475569;"><i class="fa-brands fa-whatsapp" style="width:20px; color:#25D366; text-align:center;"></i> ${data.wa}</div>
                             
                             <a href="${urlWa}" target="_blank" class="btn-wa">
-                                <i class="fa-brands fa-whatsapp"></i> Hubungi Pengajar
+                                <i class="fa-solid fa-paper-plane"></i> Hubungi & Minta Jadwal
                             </a>
                         </div>
                     `;
@@ -303,17 +337,11 @@
                     mentor: pengurusName,
                     timestamp: serverTimestamp()
                 });
-                
                 window.showToast("Jadwal Klinik Literasi berhasil diterbitkan!");
                 document.getElementById('klinik-form').reset();
                 document.getElementById('kl-mentor').value = pengurusName;
-
-            } catch (error) {
-                alert("Gagal menerbitkan jadwal: " + error.message);
-            } finally {
-                btn.innerHTML = oriText;
-                btn.disabled = false;
-            }
+            } catch (error) { alert("Gagal menerbitkan jadwal: " + error.message); } 
+            finally { btn.innerHTML = oriText; btn.disabled = false; }
         };
 
         // --- SUBMIT BANK REFERENSI ---
@@ -333,16 +361,10 @@
                     addedBy: pengurusName,
                     timestamp: serverTimestamp()
                 });
-                
                 window.showToast("Referensi berhasil ditambahkan ke Pustaka!", "alt");
                 document.getElementById('referensi-form').reset();
-
-            } catch (error) {
-                alert("Gagal menambahkan referensi: " + error.message);
-            } finally {
-                btn.innerHTML = oriText;
-                btn.disabled = false;
-            }
+            } catch (error) { alert("Gagal menambahkan referensi: " + error.message); } 
+            finally { btn.innerHTML = oriText; btn.disabled = false; }
         };
     </script>
 </body>
