@@ -28,12 +28,12 @@
 
         /* --- FORM KARTU --- */
         .form-card {
-            background: white; border-radius: 16px; padding: 30px;
+            background: white; border-radius: 16px; padding: 35px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
             display: flex; flex-direction: column; margin-bottom: 40px;
         }
         .form-title {
-            font-size: 1.15rem; color: var(--primary); font-weight: 700;
+            font-size: 1.2rem; color: var(--primary); font-weight: 700;
             margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0;
             display: flex; align-items: center; gap: 10px;
         }
@@ -48,7 +48,6 @@
         }
         .form-control:focus { border-color: var(--akademik); background: white; box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1); }
         
-        /* Select khusus agar panahnya rapi */
         select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 20px; cursor: pointer; }
 
         /* --- TOMBOL SUBMIT --- */
@@ -170,7 +169,7 @@
                 </div>
                 
                 <div style="display: flex; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 18px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <div class="form-group" style="flex: 2; margin-bottom: 0;">
                         <label style="color:#475569;">Nama Pengajar</label>
                         <input type="text" id="kl-pengajar" class="form-control" readonly style="background:#e2e8f0; cursor:not-allowed;" placeholder="Pilih Mapel dulu...">
                     </div>
@@ -192,8 +191,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Tautan Kelas (GMeet/Zoom)</label>
-                    <input type="url" id="kl-link" class="form-control" placeholder="Kosongkan jika Admin belum memberikan tautan.">
+                    <label>Tautan Kelas (GMeet/Zoom) - Terisi Otomatis</label>
+                    <input type="text" id="kl-link" class="form-control" readonly style="background:#e2e8f0; cursor:not-allowed; color:#475569;" placeholder="Menunggu tautan dari Admin...">
                 </div>
                 
                 <button type="submit" id="btn-pengumuman" class="btn-submit">
@@ -222,7 +221,7 @@
         import { collection, addDoc, serverTimestamp, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let pengurusName = "";
-        let dataPengajarMaster = []; // Simpan data dari Firebase untuk dropdown
+        let dataPengajarMaster = []; // Array Penyimpanan Sementara untuk Autocomplete
 
         window.showToast = (message) => {
             const container = document.getElementById('toast-container');
@@ -330,15 +329,16 @@
                 const weekendDates = getWeekendDates(); 
 
                 selectMapel.innerHTML = '<option value="" disabled selected>-- Pilih Mata Pelajaran --</option>';
+                dataPengajarMaster = [];
 
                 snap.forEach(d => {
                     const data = d.data();
-                    dataPengajarMaster.push(data); // Masukkan ke memori lokal
+                    dataPengajarMaster.push(data); // Simpan ke array Master
                     
                     // Masukkan ke Dropdown Mapel
-                    selectMapel.innerHTML += `<option value="${data.mapel}">${data.mapel} (Sem. ${data.semester})</option>`;
+                    selectMapel.innerHTML += `<option value="${data.mapel}">${data.mapel} (Semester ${data.semester})</option>`;
 
-                    // Tampilkan di Grid Kontak
+                    // Tampilkan di Grid Kontak Bawah
                     let noWA = data.wa.replace(/\D/g, ''); 
                     if (noWA.startsWith('08')) noWA = '628' + noWA.substring(2);
 
@@ -373,15 +373,24 @@
             }
         }
 
-        // Otomatis Mengisi Nama Guru dan Semester saat Mapel dipilih
+        // FUNGSI AUTO-FILL SAAT MAPEL DIPILIH
         window.handleMapelChange = () => {
             const selectedMapel = document.getElementById('kl-mapel').value;
             const foundData = dataPengajarMaster.find(d => d.mapel === selectedMapel);
             
             if (foundData) {
                 let sapaanTitel = foundData.gender === 'L' ? 'Bapak' : (foundData.gender === 'P' ? 'Ibu' : '');
+                
                 document.getElementById('kl-pengajar').value = `${sapaanTitel} ${foundData.nama}`;
                 document.getElementById('kl-semester').value = foundData.semester;
+
+                // Handle Link Tautan dari Admin
+                const linkInput = document.getElementById('kl-link');
+                if (foundData.linkMeet && foundData.linkMeet.trim() !== '') {
+                    linkInput.value = foundData.linkMeet;
+                } else {
+                    linkInput.value = "Belum diatur oleh Admin";
+                }
             }
         };
 
@@ -399,9 +408,11 @@
             const dateVal = document.getElementById('kl-date').value;
             const timeVal = document.getElementById('kl-time').value;
             
-            // Cek Link Tautan Admin
+            // Logika Fallback Link
             let rawLink = document.getElementById('kl-link').value.trim();
-            let linkText = (rawLink === "") ? "Menunggu tautan disematkan oleh Admin. Mohon bersabar ya! ⏳" : rawLink;
+            let linkText = (rawLink === "" || rawLink.toLowerCase() === "belum diatur oleh admin") 
+                           ? "Menunggu tautan disematkan oleh Admin. Mohon bersabar ya! ⏳" 
+                           : rawLink;
             
             const formattedDate = formatTanggalIndo(dateVal);
 
@@ -413,21 +424,21 @@
                     pengajar: pengajar,
                     tanggal: formattedDate,
                     jam: timeVal,
-                    link: linkText, // Bisa berisi URL atau teks pemberitahuan
+                    link: linkText,
                     adminOsis: pengurusName,
                     timestamp: serverTimestamp()
                 });
 
-                // 2. Generate Teks WhatsApp yang Premium & Luwes
-                const textPengumuman = `✨ *PENGUMUMAN KELAS AKADEMIK* ✨\n\nHalo, selamat pagi/siang/sore teman-teman hebat Cendekia Aksara (Semester ${semester})! 👋\n\nBagaimana kabarnya? Semoga semuanya dalam keadaan sehat dan semangat ya! Kami dari Divisi Akademik OSIS ingin mengingatkan kembali bahwa *pekan ini kita ada jadwal kelas*, lho!\n\nPastikan teman-teman hadir dan menyiapkan diri pada:\n\n📖 Mata Pelajaran : *${mapel}*\n👨‍🏫 Pengajar        : *${pengajar}*\n📅 Hari, Tanggal    : *${formattedDate}*\n⏰ Waktu Pelaksanaan: *${timeVal} WIB*\n🔗 Tautan Kelas     : ${linkText}\n\n💡 *Catatan Tambahan:*\nMohon berkenan untuk bergabung ke dalam ruang kelas *5 menit sebelum acara dimulai* agar kita bisa memulai pembelajaran dengan tepat waktu. Jangan lupa untuk selalu menyiapkan catatan kalian ya!\n\nJika ada kendala untuk hadir, jangan ragu untuk menginformasikan kepada kami. \n\nMari kita jadikan kelas kali ini bermanfaat dan menyenangkan. Sampai jumpa di kelas, orang-orang hebat! 🚀🎓\n\nSalam hangat,\n*Divisi Pendamping Akademik OSIS*\nCendekia Aksara`;
+                // 2. Generate Teks WhatsApp Premium
+                const textPengumuman = `✨ *PENGUMUMAN KELAS AKADEMIK* ✨\n\nSelamat pagi/siang/sore teman-teman hebat Cendekia Aksara (Semester ${semester})! 👋\n\nBagaimana kabarnya? Semoga semuanya dalam keadaan sehat dan penuh semangat ya! Kami dari Divisi Akademik OSIS ingin menginformasikan bahwa *pekan ini kita ada jadwal kelas*, lho!\n\nPastikan teman-teman hadir dan menyiapkan diri pada:\n\n📖 Mata Pelajaran: *${mapel}*\n👨‍🏫 Pengajar: *${pengajar}*\n📅 Hari, Tanggal: *${formattedDate}*\n⏰ Waktu Pelaksanaan: *${timeVal} WIB*\n🔗 Tautan Kelas: ${linkText}\n\n💡 *Catatan Tambahan:*\nMohon berkenan untuk bergabung ke dalam ruang kelas *5 menit sebelum acara dimulai* agar kita bisa memulai pembelajaran tepat waktu. Jangan lupa siapkan buku catatan kalian!\n\nMari kita jadikan kelas kali ini interaktif dan menyenangkan. Sampai jumpa di kelas, calon penulis hebat! 🚀🎓\n\nSalam semangat,\n*Divisi Pendamping Akademik OSIS*\nCendekia Aksara`;
 
                 // 3. Buka Modal Copy
                 openWAModal(textPengumuman);
                 document.getElementById('pengumuman-form').reset();
                 
-                // Reset manual field readonly
                 document.getElementById('kl-pengajar').value = "";
                 document.getElementById('kl-semester').value = "";
+                document.getElementById('kl-link').value = "";
 
                 window.showToast("Pengumuman berhasil disiapkan dan disimpan di sistem!");
 
