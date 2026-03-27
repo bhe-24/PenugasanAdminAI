@@ -77,6 +77,44 @@
         .btn-wa { width: 100%; background: #25D366; color: white; border: none; padding: 10px; border-radius: 8px; font-family: 'Poppins'; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; margin-top: 15px;}
         .btn-wa:hover { background: #1ebe57; transform: translateY(-2px); }
 
+        /* --- MODAL GENERATOR WA --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10000; opacity: 0; visibility: hidden; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-box {
+            background: white; width: 90%; max-width: 450px; padding: 30px;
+            border-radius: 16px; text-align: center; transform: translateY(20px); transition: 0.3s;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal-overlay.active .modal-box { transform: translateY(0); }
+        
+        .modal-icon { font-size: 3rem; color: #25D366; margin-bottom: 15px; }
+        .modal-title { font-size: 1.3rem; color: var(--primary); font-weight: 700; margin: 0 0 10px 0; }
+        
+        #generated-wa-text {
+            width: 100%; height: 200px; padding: 15px; border: 2px solid #cbd5e1;
+            border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;
+            color: #334155; background: #f8fafc; resize: none; margin-bottom: 20px; outline: none;
+            text-align: left; box-sizing: border-box;
+        }
+
+        .btn-copy {
+            background: #25D366; color: white; border: none; padding: 12px 20px;
+            border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%;
+            font-family: 'Poppins'; font-size: 1rem;
+        }
+        .btn-copy:hover { background: #1ebe57; }
+        
+        .btn-close-modal {
+            background: transparent; color: var(--text-gray); border: none;
+            font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 15px;
+        }
+
         /* LOADING & TOAST */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--akademik); transition: 0.4s; }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
@@ -85,6 +123,7 @@
 
         @media (max-width: 600px) {
             .room-header { flex-direction: column; text-align: center; gap: 15px; }
+            .academic-grid { grid-template-columns: 1fr; }
             .pengajar-grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -98,27 +137,55 @@
         <h3 style="font-family: 'Poppins'; font-size: 1rem; color: #64748b;">Membuka Ruang Akademik...</h3>
     </div>
 
+    <div id="wa-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-brands fa-whatsapp"></i></div>
+            <h3 class="modal-title">Teks Pengumuman Siap!</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin-top: -5px; margin-bottom: 15px;">Salin teks di bawah ini dan kirimkan ke Grup WhatsApp Siswa.</p>
+            
+            <textarea id="generated-wa-text" readonly></textarea>
+            
+            <button class="btn-copy" onclick="copyWAText()"><i class="fa-regular fa-copy"></i> Salin Teks ke Clipboard</button>
+            <button class="btn-close-modal" onclick="closeWAModal()">Tutup Jendela</button>
+        </div>
+    </div>
+
     <div class="container" style="display: none;" id="main-content">
         
         <div class="room-header">
             <div class="header-title">
                 <h2><i class="fa-solid fa-user-graduate"></i> Divisi Pendamping Akademik</h2>
-                <p>Kelola Klinik Literasi, Bank Referensi, dan jadilah asisten Pengajar Akademik.</p>
+                <p>Atur jadwal kelas, sebar pengumuman grup, dan hubungi Pengajar.</p>
             </div>
             <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
         </div>
 
         <div class="academic-grid">
             <div class="form-card">
-                <div class="form-title"><i class="fa-solid fa-chalkboard-user"></i> Buat Jadwal Klinik Literasi</div>
-                <form id="klinik-form">
-                    <div class="form-group">
-                        <label>Topik Mentoring</label>
-                        <input type="text" id="kl-topic" class="form-control" placeholder="Contoh: Bedah Anatomi Cerpen" required>
+                <div class="form-title"><i class="fa-solid fa-bullhorn"></i> Generator Pengumuman Kelas</div>
+                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
+                    Buat teks pengumuman rapi untuk Grup WA. Jadwal ini otomatis tersimpan di database Admin.
+                </p>
+                <form id="pengumuman-form">
+                    <div style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 2;">
+                            <label>Mata Pelajaran</label>
+                            <input type="text" id="kl-mapel" class="form-control" placeholder="Misal: Sastra Indonesia Dasar" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Semester</label>
+                            <input type="number" id="kl-semester" class="form-control" min="1" max="8" required>
+                        </div>
                     </div>
+                    
+                    <div class="form-group">
+                        <label>Nama Pengajar</label>
+                        <input type="text" id="kl-pengajar" class="form-control" placeholder="Misal: Bapak Budi Santoso" required>
+                    </div>
+                    
                     <div style="display: flex; gap: 15px;">
                         <div class="form-group" style="flex: 1;">
-                            <label>Tanggal Pelaksanaan</label>
+                            <label>Tanggal Kelas</label>
                             <input type="date" id="kl-date" class="form-control" required>
                         </div>
                         <div class="form-group" style="flex: 1;">
@@ -126,22 +193,23 @@
                             <input type="time" id="kl-time" class="form-control" required>
                         </div>
                     </div>
+                    
                     <div class="form-group">
-                        <label>Tautan Ruang Rapat (Zoom/GMeet)</label>
-                        <input type="url" id="kl-link" class="form-control" placeholder="https://meet.google.com/..." required>
+                        <label>Tautan Kelas (GMeet/Zoom)</label>
+                        <input type="url" id="kl-link" class="form-control" placeholder="Masukkan link kelas (opsional)">
                     </div>
-                    <div class="form-group">
-                        <label>Mentor Pendamping</label>
-                        <input type="text" id="kl-mentor" class="form-control" readonly style="background:#e2e8f0; cursor:not-allowed;">
-                    </div>
-                    <button type="submit" id="btn-klinik" class="btn-submit">
-                        <i class="fa-solid fa-calendar-plus"></i> Terbitkan Jadwal
+                    
+                    <button type="submit" id="btn-pengumuman" class="btn-submit">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Teks Pengumuman
                     </button>
                 </form>
             </div>
 
             <div class="form-card">
                 <div class="form-title"><i class="fa-solid fa-book-bookmark"></i> Tambah Bank Referensi</div>
+                <p style="font-size: 0.85rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 20px;">
+                    Sematkan *link* artikel, jurnal, atau karya sastra digital untuk bahan bacaan siswa.
+                </p>
                 <form id="referensi-form">
                     <div class="form-group">
                         <label>Judul Referensi</label>
@@ -192,6 +260,7 @@
 
         let pengurusName = "";
 
+        // Fungsi Toast Notification
         window.showToast = (message, type = "success") => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -207,24 +276,45 @@
             }, 3500);
         };
 
-        // Kalkulator Tanggal Otomatis (Jumat, Sabtu, Minggu di Pekan Ini)
+        // Fungsi Format Tanggal Indo (YYYY-MM-DD ke "Senin, 12 Agustus 2026")
+        const formatTanggalIndo = (dateString) => {
+            if (!dateString) return "";
+            const date = new Date(dateString);
+            const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        };
+
+        // FUNGSI MODAL WA
+        window.openWAModal = (text) => {
+            document.getElementById('generated-wa-text').value = text;
+            document.getElementById('wa-modal').classList.add('active');
+        };
+        window.closeWAModal = () => { document.getElementById('wa-modal').classList.remove('active'); };
+        window.copyWAText = () => {
+            const waText = document.getElementById('generated-wa-text');
+            waText.select();
+            waText.setSelectionRange(0, 99999); // Untuk mobile
+            navigator.clipboard.writeText(waText.value).then(() => {
+                const btnCopy = document.querySelector('.btn-copy');
+                btnCopy.innerHTML = '<i class="fa-solid fa-check"></i> Teks Berhasil Disalin!';
+                setTimeout(() => {
+                    btnCopy.innerHTML = '<i class="fa-regular fa-copy"></i> Salin Teks ke Clipboard';
+                }, 2000);
+            });
+        };
+
+        // Kalkulator Tanggal Akhir Pekan
         const getWeekendDates = () => {
             const today = new Date();
-            const dayOfWeek = today.getDay(); // 0 = Minggu, 1 = Senin, dst.
-            
-            // Hitung jarak ke hari Jumat pekan ini
+            const dayOfWeek = today.getDay();
             let daysUntilFriday = 5 - dayOfWeek;
-            if (dayOfWeek === 6) daysUntilFriday = 6; // Kalau Sabtu, berarti Jumat minggu depannya
-            if (dayOfWeek === 0) daysUntilFriday = 5; // Kalau Minggu, ambil Jumat depannya
+            if (dayOfWeek === 6) daysUntilFriday = 6;
+            if (dayOfWeek === 0) daysUntilFriday = 5;
 
-            const jumat = new Date(today);
-            jumat.setDate(today.getDate() + daysUntilFriday);
-
-            const sabtu = new Date(jumat);
-            sabtu.setDate(jumat.getDate() + 1);
-
-            const minggu = new Date(jumat);
-            minggu.setDate(jumat.getDate() + 2);
+            const jumat = new Date(today); jumat.setDate(today.getDate() + daysUntilFriday);
+            const sabtu = new Date(jumat); sabtu.setDate(jumat.getDate() + 1);
+            const minggu = new Date(jumat); minggu.setDate(jumat.getDate() + 2);
 
             const format = (date) => {
                 const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
@@ -232,11 +322,7 @@
                 return `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
             };
 
-            return {
-                jumat: format(jumat),
-                sabtu: format(sabtu),
-                minggu: format(minggu)
-            };
+            return { jumat: format(jumat), sabtu: format(sabtu), minggu: format(minggu) };
         };
 
         (async () => {
@@ -250,7 +336,6 @@
                 }
 
                 pengurusName = userData.name;
-                document.getElementById('kl-mentor').value = pengurusName;
 
                 document.getElementById('loading-screen').style.opacity = '0';
                 setTimeout(() => {
@@ -279,21 +364,18 @@
                 else if (jam >= 15 && jam < 18) sapaan = "Selamat Sore";
                 else if (jam >= 18) sapaan = "Selamat Malam";
 
-                const weekendDates = getWeekendDates(); // Ambil tanggal otomatis
+                const weekendDates = getWeekendDates(); 
 
                 snap.forEach(d => {
                     const data = d.data();
                     let noWA = data.wa.replace(/\D/g, ''); 
                     if (noWA.startsWith('08')) noWA = '628' + noWA.substring(2);
 
-                    // LOGIKA SAPAAN L / P
                     let sapaanTitel = data.gender === 'L' ? 'Bapak' : (data.gender === 'P' ? 'Ibu' : 'Bapak/Ibu');
 
-                    // TEMPLATE CHAT WA LENGKAP & OTOMATIS
                     let pesanWA = `${sapaan}, ${sapaanTitel} ${data.nama}. 🙏\n\nPerkenalkan, nama saya *${pengurusName}*, perwakilan dari OSIS Divisi Akademik Cendekia Aksara.\n\nMengingat ini adalah awal pekan, saya izin menghubungi ${sapaanTitel} untuk mengkoordinasikan jadwal mengajar mata pelajaran *${data.mapel}* (Semester ${data.semester}) pada pekan ini.\n\nMohon perkenan ${sapaanTitel} untuk memilih salah satu jadwal mengajar berikut:\n1️⃣ ${weekendDates.jumat}\n2️⃣ ${weekendDates.sabtu}\n3️⃣ ${weekendDates.minggu}\n\nBesar harapan kami agar jadwal ini dapat diprioritaskan untuk kelancaran kegiatan belajar mengajar. Mohon konfirmasi kesediaannya dan pilihan harinya ya, ${sapaanTitel}.\n\nTerima kasih banyak atas waktu dan perhatiannya. Sehat selalu! ✨`;
                     
                     let urlWa = `https://wa.me/${noWA}?text=${encodeURIComponent(pesanWA)}`;
-
                     let imgHtml = data.foto ? `<img src="${data.foto}" class="pengajar-foto">` : `<div class="pengajar-foto-empty"><i class="fa-solid fa-user"></i></div>`;
 
                     container.innerHTML += `
@@ -320,28 +402,49 @@
             }
         }
 
-        // --- SUBMIT JADWAL KLINIK ---
-        document.getElementById('klinik-form').onsubmit = async (e) => {
+        // --- SUBMIT PENGUMUMAN (GENERATE TEKS WA) ---
+        document.getElementById('pengumuman-form').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btn-klinik');
+            const btn = document.getElementById('btn-pengumuman');
             const oriText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Pengumuman...';
             btn.disabled = true;
 
+            const mapel = document.getElementById('kl-mapel').value;
+            const semester = document.getElementById('kl-semester').value;
+            const pengajar = document.getElementById('kl-pengajar').value;
+            const dateVal = document.getElementById('kl-date').value; // YYYY-MM-DD
+            const timeVal = document.getElementById('kl-time').value;
+            const linkVal = document.getElementById('kl-link').value || "Link menyusul";
+            
+            const formattedDate = formatTanggalIndo(dateVal);
+
             try {
-                await addDoc(collection(db, 'klinik_literasi'), {
-                    topic: document.getElementById('kl-topic').value,
-                    date: document.getElementById('kl-date').value,
-                    time: document.getElementById('kl-time').value,
-                    link: document.getElementById('kl-link').value,
-                    mentor: pengurusName,
+                // 1. Simpan ke Database
+                await addDoc(collection(db, 'kelas_akademik'), {
+                    mapel: mapel,
+                    semester: semester,
+                    pengajar: pengajar,
+                    tanggal: formattedDate,
+                    jam: timeVal,
+                    link: linkVal,
+                    adminOsis: pengurusName,
                     timestamp: serverTimestamp()
                 });
-                window.showToast("Jadwal Klinik Literasi berhasil diterbitkan!");
-                document.getElementById('klinik-form').reset();
-                document.getElementById('kl-mentor').value = pengurusName;
-            } catch (error) { alert("Gagal menerbitkan jadwal: " + error.message); } 
-            finally { btn.innerHTML = oriText; btn.disabled = false; }
+
+                // 2. Generate Teks WhatsApp
+                const textPengumuman = `📚 *PENGUMUMAN KELAS AKADEMIK* 📚\n\nHalo teman-teman Cendekia Aksara Semester ${semester}! 👋\nJangan lupa untuk hadir pada kelas pekan ini ya:\n\n📖 Mata Pelajaran: *${mapel}*\n👨‍🏫 Pengajar: *${pengajar}*\n📅 Tanggal: *${formattedDate}*\n⏰ Pukul: *${timeVal} WIB*\n🔗 Link Kelas: ${linkVal}\n\nDimohon untuk bergabung 5 menit sebelum kelas dimulai. Jangan sampai ketinggalan materi pentingnya!\n\nSemangat belajar! 🚀\n- Divisi Akademik OSIS`;
+
+                // 3. Buka Modal Copy
+                openWAModal(textPengumuman);
+                document.getElementById('pengumuman-form').reset();
+                window.showToast("Pengumuman berhasil disiapkan dan disimpan di sistem!");
+
+            } catch (error) { 
+                alert("Gagal memproses pengumuman: " + error.message); 
+            } finally { 
+                btn.innerHTML = oriText; btn.disabled = false; 
+            }
         };
 
         // --- SUBMIT BANK REFERENSI ---
