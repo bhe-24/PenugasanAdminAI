@@ -49,7 +49,7 @@
         .student-card {
             background: white; border-radius: 12px; padding: 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s;
-            border: 1px solid #e2e8f0; position: relative;
+            border: 1px solid #e2e8f0; position: relative; display: flex; flex-direction: column;
         }
         .student-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
         .student-card.alert { border-color: #fca5a5; background: #fef2f2; }
@@ -61,10 +61,11 @@
         .task-tracker { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
         .task-box {
             width: 35px; height: 35px; border-radius: 6px; display: flex; justify-content: center; align-items: center;
-            font-size: 0.75rem; font-weight: bold; color: white; cursor: help;
+            font-size: 0.75rem; font-weight: bold; color: white; cursor: help; flex-shrink: 0;
         }
         .task-done { background: #22c55e; box-shadow: 0 2px 5px rgba(34, 197, 94, 0.3); } 
         .task-miss { background: #ef4444; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.3); animation: pulse 2s infinite; } 
+        .task-wait { background: #cbd5e1; color: #475569; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
@@ -73,6 +74,7 @@
             width: 100%; background: #25D366; color: white; border: none; padding: 12px;
             border-radius: 8px; font-family: 'Poppins'; font-weight: bold; font-size: 0.95rem;
             cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none;
+            margin-top: auto;
         }
         .btn-wa:hover { background: #1ebe57; }
         .btn-wa.disabled { background: #94a3b8; cursor: not-allowed; }
@@ -98,7 +100,7 @@
         <div class="room-header">
             <div class="header-title">
                 <h2><i class="fa-solid fa-chart-line"></i> Divisi Monitoring</h2>
-                <p>Radar otomatis melacak progres pengumpulan Tugas Harian siswa.</p>
+                <p>Radar otomatis melacak progres pengumpulan Tugas Harian siswa berdasarkan angkatan/semester.</p>
             </div>
             <div class="header-actions">
                 <a href="aspirasi.html" class="btn-aspirasi"><i class="fa-solid fa-box-open"></i> Buka Kotak Aspirasi</a>
@@ -118,7 +120,7 @@
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let allStudents = [];
         let activeTasks = [];
@@ -141,26 +143,25 @@
                     // 1. AMBIL DATA SISWA
                     const qSiswa = query(collection(db, 'users'), where('role', '==', 'siswa'));
                     const snapSiswa = await getDocs(qSiswa);
-                    snapSiswa.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                    snapSiswa.forEach(d => {
+                        const data = d.data();
+                        if(data.is_osis !== true) { // Jangan tampilkan anak OSIS di radar pemantauan
+                            allStudents.push({id: d.id, ...data});
+                        }
+                    });
                     allStudents.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
 
-                    // 2. AMBIL DATA TUGAS HARIAN (Dinamis!)
-                    const snapTasks = await getDocs(collection(db, 'tugas'));
+                    // 2. AMBIL DATA TUGAS DARI KOLEKSI ADMIN (assignments)
+                    const qTasks = query(collection(db, 'assignments'), orderBy('createdAt', 'asc'));
+                    const snapTasks = await getDocs(qTasks);
                     snapTasks.forEach(d => activeTasks.push({id: d.id, ...d.data()}));
                     
-                    // Urutkan tugas berdasarkan waktu dibuat
-                    activeTasks.sort((a,b) => {
-                        let tA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : 0;
-                        let tB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : 0;
-                        return tA - tB;
-                    });
-
-                    // 3. AMBIL DATA PENGUMPULAN (Submissions)
+                    // 3. AMBIL DATA PENGUMPULAN SISWA (submissions)
                     const snapSubs = await getDocs(collection(db, 'submissions'));
-                    snapSubs.forEach(d => allSubmissions.push(d.data()));
+                    snapSubs.forEach(d => allSubmissions.push({id: d.id, ...d.data()}));
 
                     // Update Info Panel
-                    document.getElementById('task-info').innerHTML = `<i class="fa-solid fa-list-check"></i> Terdapat ${activeTasks.length} Tugas Harian Aktif`;
+                    document.getElementById('task-info').innerHTML = `<i class="fa-solid fa-list-check"></i> Terdapat total ${activeTasks.length} Tugas Aktif`;
                     
                     document.getElementById('loading-screen').style.opacity = '0';
                     setTimeout(() => {
@@ -192,27 +193,42 @@
                 let missingTasks = []; 
                 let hasRedAlert = false;
 
-                // Looping HANYA berdasarkan Tugas yang benar-benar ada di database
-                if (activeTasks.length === 0) {
-                    trackerHtml = `<div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">Belum ada tugas yang diberikan Admin.</div>`;
+                // Ambil semester siswa, default 1
+                let studentSemester = parseInt(s.semester) || 1;
+                
+                // Saring tugas yang sesuai dengan semester siswa
+                let studentTasks = activeTasks.filter(t => parseInt(t.semester || 1) === studentSemester);
+
+                if (studentTasks.length === 0) {
+                    trackerHtml = `<div style="font-size:0.8rem; color:#94a3b8; font-style:italic;">Belum ada tugas untuk Semester ${studentSemester}.</div>`;
                 } else {
-                    activeTasks.forEach((task, index) => {
-                        // Nama / Judul Tugas
-                        let taskName = task.judul || task.title || task.nama_tugas || `Tugas ${index + 1}`;
+                    studentTasks.forEach((task, index) => {
+                        let taskName = task.judul || `Tugas ${index + 1}`;
+                        // Buat label singkat T1, T2 untuk di dalam kotak
                         let taskLabel = `T${index + 1}`;
 
-                        // Cek apakah siswa (s.id) sudah mengumpulkan tugas ini
-                        // Pengecekan dibuat fleksibel (userId, siswaId, atau uid)
+                        // Pengecekan apakah siswa sudah mengumpulkan tugas ini
                         let isSubmitted = allSubmissions.some(sub => 
-                            (sub.userId === s.id || sub.siswaId === s.id || sub.uid === s.id) && sub.taskId === task.id
+                            sub.studentUid === s.id && sub.assignmentId === task.id
                         );
 
+                        // Cek apakah sudah lewat deadline
+                        let isPastDeadline = false;
+                        if (task.deadline) {
+                            const deadlineDate = new Date(task.deadline);
+                            if (new Date() > deadlineDate) {
+                                isPastDeadline = true;
+                            }
+                        }
+
                         if (isSubmitted) {
-                            trackerHtml += `<div class="task-box task-done" title="${taskName} (Sudah Dikumpul)">${taskLabel}</div>`;
-                        } else {
-                            trackerHtml += `<div class="task-box task-miss" title="${taskName} (Belum Dikumpul!)">${taskLabel}</div>`;
+                            trackerHtml += `<div class="task-box task-done" title="${taskName} (Selesai)">${taskLabel}</div>`;
+                        } else if (!isSubmitted && isPastDeadline) {
+                            trackerHtml += `<div class="task-box task-miss" title="${taskName} (Terlambat!)">${taskLabel}</div>`;
                             missingTasks.push(taskName);
                             hasRedAlert = true;
+                        } else {
+                            trackerHtml += `<div class="task-box task-wait" title="${taskName} (Belum Deadline)">${taskLabel}</div>`;
                         }
                     });
                 }
@@ -226,17 +242,25 @@
                 let btnWaHtml = '';
                 if (hasRedAlert) {
                     if (waClean.length > 9) {
-                        let pesan = `Halo kak *${s.name}*, perkenalkan aku ${pengurusName} dari OSIS Cendekia Aksara. 👋\n\nBerdasarkan pantauan Radar kami, kamu belum mengumpulkan tugas berikut di sistem:\n- *${missingTasks.join('*\n- *')}*\n\nApakah ada materi yang sulit? Yuk segera dikerjakan agar nilainya aman! Semangat belajarnya! 🚀`;
+                        // Ucapan Salam Sesuai Waktu Real-Time
+                        const jam = new Date().getHours();
+                        let sapaan = "Selamat Pagi";
+                        if (jam >= 10 && jam < 15) sapaan = "Selamat Siang";
+                        else if (jam >= 15 && jam < 18) sapaan = "Selamat Sore";
+                        else if (jam >= 18) sapaan = "Selamat Malam";
+
+                        let pesan = `${sapaan} kak *${s.name}*, perkenalkan aku ${pengurusName} dari Divisi Monitoring OSIS Cendekia Aksara. 👋\n\nBerdasarkan pantauan sistem, kamu belum mengumpulkan tugas berikut:\n- *${missingTasks.join('*\n- *')}*\n\nApakah ada kendala? Yuk segera diselesaikan agar nilainya aman ya kak! Semangat! 🚀`;
+                        
                         let urlWa = `https://wa.me/${waClean}?text=${encodeURIComponent(pesan)}`;
-                        btnWaHtml = `<a href="${urlWa}" target="_blank" class="btn-wa"><i class="fa-brands fa-whatsapp"></i> Hubungi via WA</a>`;
+                        btnWaHtml = `<a href="${urlWa}" target="_blank" class="btn-wa"><i class="fa-brands fa-whatsapp"></i> Ingatkan via WA</a>`;
                     } else {
                         btnWaHtml = `<button class="btn-wa disabled" disabled><i class="fa-solid fa-phone-slash"></i> WA Tidak Valid</button>`;
                     }
                 } else {
-                    if (activeTasks.length === 0) {
-                        btnWaHtml = `<button class="btn-wa" style="background:#f1f5f9; color:#64748b;" disabled><i class="fa-solid fa-mug-hot"></i> Sedang Santai</button>`;
+                    if (studentTasks.length === 0) {
+                        btnWaHtml = `<button class="btn-wa" style="background:#f1f5f9; color:#64748b;" disabled><i class="fa-solid fa-mug-hot"></i> Belum Ada Tugas</button>`;
                     } else {
-                        btnWaHtml = `<button class="btn-wa" style="background:#f1f5f9; color:#64748b;" disabled><i class="fa-solid fa-check-double"></i> Pengumpulan Lengkap</button>`;
+                        btnWaHtml = `<button class="btn-wa" style="background:#f1f5f9; color:#64748b;" disabled><i class="fa-solid fa-check-double"></i> Pengumpulan Aman</button>`;
                     }
                 }
 
@@ -246,7 +270,7 @@
                     <div class="student-card ${cardAlertClass}">
                         <div class="student-info">
                             <h3>${s.name}</h3>
-                            <p><i class="fa-solid fa-phone"></i> ${noWA || 'Tidak ada nomor'} &nbsp;|&nbsp; Sem: ${s.semester || 1}</p>
+                            <p><i class="fa-solid fa-phone"></i> ${noWA || 'Tidak ada nomor'} &nbsp;|&nbsp; Sem: ${studentSemester}</p>
                         </div>
                         <div class="task-tracker">
                             ${trackerHtml}
@@ -257,7 +281,7 @@
             });
 
             if (htmlBuffer === '') {
-                container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">Siswa tidak ditemukan.</div>`;
+                container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">Siswa tidak ditemukan atau belum ada data.</div>`;
             } else {
                 container.innerHTML = htmlBuffer;
             }
