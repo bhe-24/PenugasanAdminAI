@@ -19,9 +19,12 @@
         .btn-back { padding: 10px 18px; background: #f1f5f9; color: #334155; text-decoration: none; border-radius: 8px; font-weight: 600; transition: 0.2s; }
         .btn-back:hover { background: #e2e8f0; }
 
-        .select-box { background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .select-box { background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 15px;}
         select { width: 100%; max-width: 500px; padding: 12px 15px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.2s; }
         select:focus { border-color: var(--primary); }
+        
+        .btn-export { background: #d4af37; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);}
+        .btn-export:hover { background: #b45309; transform: translateY(-2px); }
 
         /* GRID UNTUK CARD AGAR SEJAJAR DI LAYAR LEBAR */
         #list-container {
@@ -77,6 +80,7 @@
             .input-group { flex-direction: column; }
             .score-input { width: 100%; }
             .btn-ai { width: 100%; }
+            .select-box { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -84,15 +88,22 @@
 
     <div class="container">
         <div class="page-header">
-            <h2><i class="fa-solid fa-robot"></i> Asisten Penilaian (AI)</h2>
+            <h2><i class="fa-solid fa-robot"></i> Asisten Penilaian (AI) & Ekspor Antologi</h2>
             <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
         </div>
 
         <div class="select-box">
-            <label style="font-weight:700; display:block; margin-bottom:12px; color:#334155; font-size:1.1rem;">Pilih Ujian Esai / Karya:</label>
-            <select id="exam-select">
-                <option value="">Memuat daftar ujian...</option>
-            </select>
+            <div style="flex: 1; min-width: 250px;">
+                <label style="font-weight:700; display:block; margin-bottom:12px; color:#334155; font-size:1.1rem;">Pilih Ujian Esai / Karya:</label>
+                <select id="exam-select">
+                    <option value="">Memuat daftar ujian...</option>
+                </select>
+            </div>
+            <div id="export-container" style="display: none;">
+                <button onclick="window.exportToWord()" class="btn-export" title="Ekspor seluruh naskah ke format .doc Microsoft Word">
+                    <i class="fa-solid fa-file-word"></i> Unduh Antologi (Word)
+                </button>
+            </div>
         </div>
 
         <div id="list-container">
@@ -112,6 +123,7 @@
         const VERCEL_API_URL = "/api/grade"; 
 
         let currentExamData = null;
+        let currentSubmissions = []; // Simpan semua esai untuk diekspor ke Word
 
         // 1. Load Daftar Ujian tipe 'essay'
         async function loadEssayExams() {
@@ -137,12 +149,16 @@
         }
         loadEssayExams();
 
-        // 2. Load Hasil Siswa
+        // 2. Load Hasil Siswa & Simpan ke Array Antologi
         document.getElementById('exam-select').addEventListener('change', async (e) => {
             const examId = e.target.value;
             const container = document.getElementById('list-container');
+            const exportBtn = document.getElementById('export-container');
+            
             if(!examId) {
                 container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:80px 20px; color:#94a3b8; background:white; border-radius:16px; border:2px dashed #cbd5e1;"><i class="fa-solid fa-layer-group" style="font-size:4rem; margin-bottom:20px; color:#e2e8f0;"></i><p>Silakan pilih ujian.</p></div>';
+                exportBtn.style.display = 'none';
+                currentSubmissions = [];
                 return;
             }
 
@@ -156,13 +172,19 @@
                 const resSnap = await getDocs(qRes);
 
                 if(resSnap.empty) {
+                    exportBtn.style.display = 'none';
+                    currentSubmissions = [];
                     return container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px; background:white; border-radius:12px; border:1px solid #eee;"><h3 style="color:#64748b;">Belum ada siswa yang mengumpulkan.</h3></div>';
                 }
 
                 container.innerHTML = '';
+                currentSubmissions = []; // Reset Array
+
                 resSnap.forEach(d => {
                     const res = d.data();
                     const docId = d.id;
+                    currentSubmissions.push(res); // Masukkan data ke antologi
+
                     const statusBadge = res.score > 0 
                         ? `<span style="background:#dcfce7; color:#166534; padding:6px 12px; border-radius:20px; font-size:0.85rem; font-weight:800; border:1px solid #bbf7d0;">DIPERIKSA (${res.score})</span>`
                         : `<span style="background:#fee2e2; color:#991b1b; padding:6px 12px; border-radius:20px; font-size:0.85rem; font-weight:800; border:1px solid #fecaca;">ANTREAN</span>`;
@@ -207,11 +229,71 @@
                     container.innerHTML += html;
                 });
 
+                // Tampilkan Tombol Download Word jika ada data
+                if (currentSubmissions.length > 0) {
+                    exportBtn.style.display = 'block';
+                }
+
             } catch(err) {
                 console.error(err);
                 container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#ef4444; padding:30px;"><b>Gagal memuat data.</b> Silakan refresh halaman.</div>';
             }
         });
+
+        // FUNGSI UNDUH KE FORMAT MICROSOFT WORD
+        window.exportToWord = () => {
+            if (currentSubmissions.length === 0) return;
+
+            // Header Dokumen Word
+            let content = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Antologi - ${currentExamData.judul}</title>
+                </head>
+                <body style="font-family: 'Aleo', 'Times New Roman', serif;">
+            `;
+
+            // Loop Semua Esai Siswa
+            currentSubmissions.forEach((sub, index) => {
+                let essayContent = sub.jawabanTeks || '';
+                
+                // Format teks ala Novel/Buku: Rata Kanan-Kiri & Indentasi paragraf
+                let formattedText = essayContent.split('\n').map(p => {
+                    if(p.trim() === '') return '<br>';
+                    return `<p style="text-align: justify; text-indent: 36pt; margin: 0 0 6pt 0; line-height: 1.5;">${p}</p>`;
+                }).join('');
+
+                content += `
+                    <div style="text-align: center; margin-bottom: 30pt;">
+                        <h2 style="font-size: 16pt; margin-bottom: 5pt; color: #000; text-transform: uppercase;">${currentExamData.judul}</h2>
+                        <h3 style="font-size: 12pt; font-style: italic; font-weight: normal; color: #333; margin-top: 0;">Oleh: ${sub.studentName}</h3>
+                    </div>
+                    <div>
+                        ${formattedText}
+                    </div>
+                `;
+                
+                // Beri Page Break (Halaman Baru) untuk siswa selanjutnya, kecuali jika ini siswa terakhir
+                if (index < currentSubmissions.length - 1) {
+                    content += `<br clear=all style='mso-special-character:line-break;page-break-before:always'>`;
+                }
+            });
+
+            content += `</body></html>`;
+
+            // Proses Membuat File & Auto-Download
+            const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const filename = `Antologi_${currentExamData.judul.replace(/\s+/g, '_')}.doc`;
+            
+            const downloadLink = document.createElement("a");
+            downloadLink.href = url;
+            downloadLink.download = filename;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        };
 
         // FUNGSI TOGGLE SHOW MORE/LESS TEKS ESAI
         window.toggleText = (docId) => {
@@ -224,12 +306,11 @@
                 btnEl.innerHTML = `Sembunyikan Naskah <i class="fa-solid fa-chevron-up"></i>`;
             } else {
                 btnEl.innerHTML = `Tampilkan Seluruh Naskah <i class="fa-solid fa-chevron-down"></i>`;
-                // Scroll sedikit ke atas biar posisinya enak
                 textEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         };
 
-        // 3. FUNGSI PANGGIL API VERCEL
+        // FUNGSI PANGGIL API VERCEL
         window.generateAI = async (docId) => {
             const btn = document.getElementById(`btn-ai-${docId}`);
             const scoreInput = document.getElementById(`score-${docId}`);
@@ -275,7 +356,7 @@
             }
         };
 
-        // 4. FUNGSI SIMPAN
+        // FUNGSI SIMPAN
         window.saveGrade = async (docId, studentUid) => {
             const scoreVal = parseFloat(document.getElementById(`score-${docId}`).value);
             const feedbackVal = document.getElementById(`feedback-${docId}`).value;
