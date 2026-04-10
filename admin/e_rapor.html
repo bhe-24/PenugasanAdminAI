@@ -54,7 +54,7 @@
         .btn-rapor:hover { background: var(--accent); color: white; }
         .btn-rapor.locked { border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; background: #f8fafc; }
 
-        /* --- CUSTOM MODAL POPUP (MENGGANTIKAN ALERT/CONFIRM) --- */
+        /* --- CUSTOM MODAL POPUP --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 10000; opacity: 0; visibility: hidden; transition: 0.3s; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
         .modal-box { background: white; width: 90%; max-width: 450px; padding: 35px; border-radius: 20px; text-align: center; transform: translateY(20px); transition: 0.3s; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
@@ -81,14 +81,16 @@
         .spinner { font-size: 4rem; color: var(--accent); margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- WRAPPER PDF (HANYA MUNCUL SAAT RENDER) --- */
+        /* --- WRAPPER PDF --- */
         #pdf-wrapper {
             position: absolute;
-            top: -9999px; /* Sembunyikan dari layar, tapi tetap ter-render di DOM */
+            top: -9999px;
             left: 0;
-            width: 700px; /* Ukuran statis agar PDF tidak terpengaruh layar laptop */
+            width: 700px;
             background: white;
             z-index: -1;
+            /* CRITICAL FIX: Ensure the wrapper doesn't have hidden overflows or display issues that truncate content before rendering */
+            overflow: visible; 
         }
 
         /* --- DESAIN HALAMAN RAPOR PDF --- */
@@ -99,8 +101,7 @@
             color: #000;
             background: white;
             box-sizing: border-box;
-            /* Penting untuk mencegah pemotongan elemen */
-            page-break-inside: avoid; 
+            /* Remove manual CSS page breaks; we will handle it in the JS config */
         }
         
         .pdf-header { text-align: center; border-bottom: 4px double #000; padding-bottom: 15px; margin-bottom: 25px; }
@@ -225,7 +226,7 @@
 
         let allStudents = [];
 
-        // FUNGSI CUSTOM MODAL (Pengganti Alert/Confirm)
+        // FUNGSI CUSTOM MODAL
         window.showModal = (type, title, desc, onConfirmCallback = null) => {
             const modal = document.getElementById('custom-modal');
             const icon = document.getElementById('modal-icon');
@@ -243,7 +244,6 @@
             actions.innerHTML = '';
 
             if (onConfirmCallback) {
-                // Mode Konfirmasi (Ada tombol Batal & Lanjut)
                 const btnBatal = document.createElement('button');
                 btnBatal.className = 'btn-modal cancel';
                 btnBatal.innerText = 'Batal';
@@ -260,7 +260,6 @@
                 actions.appendChild(btnBatal);
                 actions.appendChild(btnLanjut);
             } else {
-                // Mode Alert (Hanya tombol Tutup)
                 const btnTutup = document.createElement('button');
                 btnTutup.className = 'btn-modal primary';
                 btnTutup.innerText = 'Mengerti';
@@ -328,7 +327,7 @@
         }
 
         // --- FUNGSI GENERATE TEMPLATE HTML RAPOR ---
-        function buildRaporHTML(studentData, semRapor, name, id, addPageBreak = false) {
+        function buildRaporHTML(studentData, semRapor, name, id) {
             const now = new Date();
             const month = now.getMonth() + 1;
             const year = now.getFullYear();
@@ -361,11 +360,9 @@
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
 
-            // Menambahkan inline style page-break-before jika diminta (untuk batch)
-            const pageBreakStyle = addPageBreak ? 'page-break-before: always; margin-top: 40px;' : '';
-
+            // CRITICAL FIX: Removed manual CSS page break styling. We rely entirely on the page-break class.
             return `
-                <div class="rapor-page" style="${pageBreakStyle}">
+                <div class="rapor-page">
                     <div class="pdf-header">
                         <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
                         <h2>Komunitas Literasi Cendekia Aksara</h2>
@@ -428,7 +425,7 @@
                 const docSnap = await getDoc(doc(db, 'users', id));
                 if(!docSnap.exists()) throw new Error("Data tidak ditemukan");
                 
-                const htmlContent = buildRaporHTML(docSnap.data(), sem, name, id, false);
+                const htmlContent = buildRaporHTML(docSnap.data(), sem, name, id);
                 document.getElementById('pdf-content').innerHTML = htmlContent;
 
                 await new Promise(r => setTimeout(r, 500)); 
@@ -467,7 +464,6 @@
                 return;
             }
 
-            // Gunakan Custom Modal untuk konfirmasi
             window.showModal('info', 'Konfirmasi Cetak Massal', `Ditemukan ${eligibleStudents.length} siswa di Semester ${currentStudentSem}.\n\nSistem akan membuat Rapor Semester ${targetRaporSem} untuk mereka dan menggabungkannya dalam 1 File PDF.\n\nProses ini memakan waktu beberapa detik.`, async () => {
                 
                 const loader = document.getElementById('main-loading');
@@ -480,16 +476,17 @@
                     
                     for(let i=0; i<eligibleStudents.length; i++) {
                         const s = eligibleStudents[i];
-                        // Sisipkan pageBreakStyle = true jika BUKAN halaman pertama
-                        const needsPageBreak = (i !== 0); 
-                        const html = buildRaporHTML(s, targetRaporSem, s.name, s.id, needsPageBreak);
+                        const html = buildRaporHTML(s, targetRaporSem, s.name, s.id);
                         
                         fullHtml += html;
+                        // CRITICAL FIX: Only add the specific class html2pdf uses to trigger page breaks internally
+                        if(i < eligibleStudents.length - 1) {
+                            fullHtml += `<div class="html2pdf__page-break"></div>`;
+                        }
                     }
 
                     document.getElementById('pdf-content').innerHTML = fullHtml;
 
-                    // Tunggu DOM merender gambar logo dll dengan sempurna
                     await new Promise(r => setTimeout(r, 1000)); 
 
                     const opt = {
@@ -498,12 +495,12 @@
                         image:        { type: 'jpeg', quality: 0.98 },
                         html2canvas:  { scale: 2, useCORS: true, logging: false },
                         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        // Hapus configurasi pagebreak html2pdf, biarkan CSS page-break-before bekerja secara native
+                        // CRITICAL FIX: Explicitly tell html2pdf to use the class for pagebreaks
+                        pagebreak: { mode: 'css', before: '.html2pdf__page-break' }
                     };
 
                     await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
                     
-                    // Notifikasi Sukses
                     setTimeout(() => {
                         window.showModal('success', 'Berhasil!', `Dokumen Rekap_Rapor_Sem${targetRaporSem} berhasil diunduh.`);
                     }, 500);
@@ -513,7 +510,6 @@
                     window.showModal('error', 'Gagal Memproses PDF', e.message);
                 } finally {
                     loader.style.display = 'none';
-                    // Bersihkan DOM agar tidak memberatkan memori browser
                     document.getElementById('pdf-content').innerHTML = ''; 
                 }
             });
