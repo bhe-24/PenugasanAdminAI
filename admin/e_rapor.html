@@ -52,7 +52,7 @@
         /* MODE PRINT: AKTIFKAN WRAPPER */
         body.printing-mode #app-content { display: none !important; }
         body.printing-mode #pdf-wrapper { display: flex !important; } 
-        body.printing-mode { background: white !important; overflow: visible; } /* Agar batch render tidak terpotong */
+        body.printing-mode { background: white !important; overflow: visible; }
 
         /* --- DESAIN PDF --- */
         #pdf-content {
@@ -69,10 +69,9 @@
             color: #000;
             background: white;
             box-sizing: border-box;
-            /* Penting: Pastikan tidak ada margin bottom di elemen terakhir agar page break mulus */
         }
         
-        .html2pdf__page-break { height: 0; border: none; margin: 0; padding: 0; } /* Utility Class html2pdf */
+        .html2pdf__page-break { height: 0; border: none; margin: 0; padding: 0; }
 
         .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
         .pdf-header img { height: 75px; margin-bottom: 10px; } 
@@ -127,11 +126,8 @@
                     <button onclick="window.downloadBatch(1)" class="btn-batch">Sem. 1</button>
                     <button onclick="window.downloadBatch(2)" class="btn-batch">Sem. 2</button>
                     <button onclick="window.downloadBatch(3)" class="btn-batch">Sem. 3</button>
-                    <button onclick="window.downloadBatch(4)" class="btn-batch">Sem. 4</button>
-                    <button onclick="window.downloadBatch(5)" class="btn-batch">Sem. 5</button>
-                    <button onclick="window.downloadBatch(6)" class="btn-batch">Sem. 6</button>
                 </div>
-                <p style="font-size: 0.8rem; color: #888; margin-top: 10px; margin-bottom: 0;">*Hanya mengunduh siswa yang sudah mencapai atau melewati semester tersebut.</p>
+                <p style="font-size: 0.8rem; color: #888; margin-top: 10px; margin-bottom: 0;">*Hanya mengunduh siswa yang saat ini sedang berada di semester yang dipilih.</p>
             </div>
 
             <div class="search-box">
@@ -202,7 +198,7 @@
                 let raporButtons = '';
                 const safeName = (s.name || "Siswa").replace(/'/g, "\\'"); 
 
-                for(let i=1; i<=6; i++) { 
+                for(let i=1; i<=3; i++) { 
                     if(i <= currentSem) {
                         raporButtons += `<button onclick="window.downloadSinglePdf('${s.id}', ${i}, '${safeName}')" class="btn-rapor"><i class="fa-solid fa-file-pdf"></i> Sem ${i}</button>`;
                     } else {
@@ -324,7 +320,7 @@
                 document.getElementById('pdf-content').innerHTML = htmlContent;
 
                 document.body.classList.add('printing-mode');
-                await new Promise(r => setTimeout(r, 800)); // Render Wait
+                await new Promise(r => setTimeout(r, 800)); 
 
                 const opt = {
                     margin:       [10, 10, 10, 10],
@@ -345,15 +341,15 @@
 
         // --- UNDUH KOLEKTIF (BATCH) ---
         window.downloadBatch = async (targetSem) => {
-            // Saring siswa yang semesternya sudah mencapai target
-            const eligibleStudents = allStudents.filter(s => (parseInt(s.semester) || 1) >= targetSem);
+            // PERBAIKAN: Hanya saring siswa yang SAAT INI persis berada di semester yang diklik (==)
+            const eligibleStudents = allStudents.filter(s => (parseInt(s.semester) || 1) === targetSem);
             
             if(eligibleStudents.length === 0) {
-                alert(`Belum ada siswa yang mencapai Semester ${targetSem}.`);
+                alert(`Tidak ada siswa yang saat ini berada di Semester ${targetSem}.`);
                 return;
             }
 
-            if(!confirm(`Ditemukan ${eligibleStudents.length} siswa untuk Semester ${targetSem}.\nSistem akan menggabungkan semua rapor menjadi 1 file PDF.\n\nProses ini mungkin memakan waktu beberapa saat. Lanjutkan?`)) return;
+            if(!confirm(`Ditemukan ${eligibleStudents.length} siswa di Semester ${targetSem}.\nSistem akan menggabungkan semua rapor menjadi 1 file PDF.\n\nProses ini mungkin memakan waktu beberapa saat. Lanjutkan?`)) return;
 
             const loader = document.getElementById('main-loading');
             const loadText = document.getElementById('loading-text');
@@ -366,11 +362,9 @@
                 
                 for(let i=0; i<eligibleStudents.length; i++) {
                     const s = eligibleStudents[i];
-                    // Gunakan data dari array memori (allStudents) untuk mempercepat tanpa hit DB berulang
                     const html = buildRaporHTML(s, targetSem, s.name, s.id);
                     
                     fullHtml += html;
-                    // Sisipkan pemisah halaman (Page Break) antar siswa, kecuali siswa terakhir
                     if(i < eligibleStudents.length - 1) {
                         fullHtml += `<div class="html2pdf__page-break"></div>`;
                     }
@@ -379,7 +373,6 @@
                 document.getElementById('pdf-content').innerHTML = fullHtml;
 
                 document.body.classList.add('printing-mode');
-                // Tunggu render sedikit lebih lama karena isinya banyak
                 await new Promise(r => setTimeout(r, 1500)); 
 
                 const opt = {
