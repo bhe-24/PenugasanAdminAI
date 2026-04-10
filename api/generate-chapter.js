@@ -3,7 +3,29 @@ export const config = {
 };
 
 export default async function handler(req) {
-    // ... CORS handling sama ...
+    if (req.method === 'OPTIONS') {
+        return new Response(null, {
+            status: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'OPTIONS,POST',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+            },
+        });
+    }
+
+    if (req.method !== 'POST') {
+        return new Response(
+            JSON.stringify({ error: 'Method not allowed', success: false }), 
+            { 
+                status: 405,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            }
+        );
+    }
 
     const callGeminiWithRetry = async (maxRetries = 3) => {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -12,10 +34,16 @@ export default async function handler(req) {
                 const data = JSON.parse(body);
                 const { judulBuku, babJudul, jumlahParagraf = 15 } = data;
                 
+                if (!judulBuku || !babJudul) {
+                    return new Response(
+                        JSON.stringify({ error: 'judulBuku dan babJudul wajib diisi', success: false }),
+                        { status: 400, headers: { 'Content-Type': 'application/json' } }
+                    );
+                }
+
                 const matchBab = babJudul.match(/Bab\s*(\d+)/i);
                 const nomorBab = matchBab ? matchBab[1] : '1'; 
 
-                // PROMPT LENGKAP DAN DETAIL (yang di atas)
                 const prompt = `Kamu adalah penulis buku teks pendidikan ahli dan instruktur literasi dari Cendekia Aksara. 
 Tulislah isi materi untuk buku berjudul "${judulBuku}", dengan fokus eksklusif pada bab: "${babJudul}".
 
@@ -45,11 +73,94 @@ ATURAN FORMATTING HTML YANG SANGAT KERAS:
 - JANGAN tulis ulang Judul Bab (tag h1/h2) di awal teks, langsung mulai saja dari <h3>${nomorBab}.1.
 - TABEL WAJIB: <table border="1" style="border-collapse: collapse; width:100%;"> dengan <th> dan <td>
 - DILARANG MENGGUNAKAN markdown (\`**, *, #, dll).
-- SEMUA paragraf dalam tag <p></p>`; 
+- SEMUA paragraf dalam tag <p></p>`;
 
-                // ... sisa kode fetch dan response sama persis ...
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+                
+                const response = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { 
+                            temperature: 0.3, 
+                            maxOutputTokens: 6000,
+                            topP: 0.8,
+                            topK: 40
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    
+                    if (response.status === 503 || response.status === 429) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        if (attempt < maxRetries) {
+                            console.log(`Attempt ${attempt} failed (${response.status}), retrying in ${delay}ms`);
+                            await new Promise(r => setTimeout(r, delay));
+                            continue;
+                        }
+                    }
+                    
+                    return new Response(
+                        JSON.stringify({ 
+                            error: `Gemini API Error ${response.status}: ${errText.slice(0, 200)}`, 
+                            success: false,
+                            retryable: response.status === 503 || response.status === 429
+                        }), 
+                        { 
+                            status: response.status,
+                            headers: { 'Content-Type': 'application/json' }
+                        }
+                    );
+                }
+
+                const geminiData = await response.json();
+                
+                if (!geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    throw new Error('Invalid Gemini response structure');
+                }
+                
+                let htmlRes = geminiData.candidates[0].content.parts[0].text
+                    .replace(/```html\s*/g, '')
+                    .replace(/```\s*/g, '')
+                    .replace(/^\s*[\r\n]/gm, '')
+                    .trim();
+
+                return new Response(
+                    JSON.stringify({ 
+                        chapterHtml: htmlRes,
+                        success: true,
+                        babJudul: babJudul
+                    }), 
+                    {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Access-Control-Allow-Origin': '*',
+                            'Cache-Control': 'no-store'
+                        }
+                    }
+                );
+
             } catch (error) {
-                // ... error handling sama ...
+                if (attempt === maxRetries) {
+                    console.error('Final error after retries:', error);
+                    return new Response(
+                        JSON.stringify({ 
+                            error: `Failed after ${maxRetries} attempts: ${error.message}`, 
+                            success: false 
+                        }), 
+                        {
+                            status: 500,
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Access-Control-Allow-Origin': '*'
+                            }
+                        }
+                    );
+                }
             }
         }
     };
