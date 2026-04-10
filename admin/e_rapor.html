@@ -6,14 +6,15 @@
     <title>Arsip E-Rapor Siswa - Admin</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
         :root { --primary: #003366; --accent: #d63384; --bg: #f4f7f6; --text: #333; }
         * { box-sizing: border-box; outline: none; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
         
-        /* --- WRAPPER APLIKASI --- */
+        /* --- WRAPPER APLIKASI UNTUK LAPTOP FULL WIDTH --- */
         #app-content { display: block; }
         .container { max-width: 1400px; width: 95%; margin: 0 auto; padding: 30px 20px; }
 
@@ -81,59 +82,43 @@
         .spinner { font-size: 4rem; color: var(--accent); margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- WRAPPER PDF (ISOLASI) --- */
+        /* --- WRAPPER PDF (PERBAIKAN ABSOLUT) --- */
         #pdf-wrapper {
-            display: none; 
-            background: white;
-            width: 100%;
-            min-height: 100vh;
-            padding: 0;
-            box-sizing: border-box;
-            align-items: flex-start;
-            justify-content: center;
+            position: absolute;
+            top: -9999px; 
+            left: 0;
+            z-index: -1;
+            /* Container ini dibuat agar browser bisa membacanya tanpa menampilkannya ke user */
+            overflow: visible !important;
         }
 
-        /* MODE PRINT: MENYEMBUNYIKAN UI DAN MENAMPILKAN PDF WRAPPER */
-        body.printing-mode #app-content { display: none !important; }
-        body.printing-mode #pdf-wrapper { display: flex !important; } 
-        body.printing-mode { background: white !important; overflow: visible; } 
-
-        /* --- DESAIN PDF KEMBALI KE ASLI --- */
+        /* INI ADALAH BINGKAI A4 MURNI. SETIAP RAPOR AKAN DIMASUKKAN KE SINI SATU PER SATU */
         #pdf-content {
-            width: 700px; 
-            margin: 0 auto;
+            width: 800px;
+            height: 1131px; /* Rasio A4 persis (800 x 1.414) */
             background: white;
+            padding: 40px 50px;
             box-sizing: border-box;
-        }
-
-        .rapor-page {
-            padding: 20px;
             font-family: 'Times New Roman', serif;
             color: #000;
-            background: white;
-            box-sizing: border-box;
         }
         
-        /* Elemen pemisah halaman untuk html2pdf */
-        .html2pdf__page-break { height: 0; border: none; margin: 0; padding: 0; display: block; }
-
-        .pdf-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .pdf-header img { height: 75px; margin-bottom: 10px; } 
-        .pdf-header h2 { margin: 0; font-size: 16pt; text-transform: uppercase; } 
-        .pdf-header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
+        .pdf-header { text-align: center; border-bottom: 4px double #000; padding-bottom: 15px; margin-bottom: 25px; }
+        .pdf-header img { height: 80px; margin-bottom: 10px; } 
+        .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; font-weight: bold;} 
+        .pdf-header p { margin: 5px 0 0 0; font-size: 11pt; font-style: italic; }
         
-        .pdf-meta { width: 100%; margin-bottom: 20px; font-size: 11pt; border-collapse: collapse; }
-        .pdf-meta td { padding: 4px 0; vertical-align: top; }
+        .pdf-meta { width: 100%; margin-bottom: 25px; font-size: 12pt; border-collapse: collapse; }
+        .pdf-meta td { padding: 5px 0; vertical-align: top; }
         
-        /* Tabel Nilai */
-        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; }
-        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 6px 8px; }
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12pt; }
+        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 8px 10px; }
         .pdf-table th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
         
-        .pdf-summary { border: 2px solid #000; padding: 10px; width: 100%; max-width: 300px; margin-bottom: 40px; font-size: 11pt; box-sizing: border-box;}
-        .pdf-sig { display: flex; justify-content: space-between; margin-top: 40px; font-size: 11pt; }
-        .sig-block { text-align: center; width: 200px; }
-        .sig-space { height: 60px; }
+        .pdf-summary { border: 2px solid #000; padding: 15px; width: 100%; max-width: 300px; margin-bottom: 50px; font-size: 12pt; box-sizing: border-box; background: #fafafa;}
+        .pdf-sig { display: flex; justify-content: space-between; margin-top: 50px; font-size: 12pt; }
+        .sig-block { text-align: center; width: 220px; }
+        .sig-space { height: 80px; }
 
         @media (max-width: 768px) {
             .filter-group { flex-direction: column; align-items: stretch; }
@@ -155,8 +140,7 @@
             <div id="modal-icon" class="modal-icon info"><i class="fa-solid fa-circle-info"></i></div>
             <h3 id="modal-title" class="modal-title">Judul Modal</h3>
             <p id="modal-desc" class="modal-desc">Deskripsi pesan akan muncul di sini.</p>
-            <div id="modal-actions" class="modal-actions">
-                </div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
 
@@ -344,7 +328,7 @@
             container.innerHTML = htmlBuffer;
         }
 
-        // --- FUNGSI GENERATE TEMPLATE HTML RAPOR ---
+        // --- FUNGSI GENERATE ISI RAPOR (TANPA WRAPPER DIV) ---
         function buildRaporHTML(studentData, semRapor, name, id) {
             const now = new Date();
             const month = now.getMonth() + 1;
@@ -378,60 +362,59 @@
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
 
+            // Mengembalikan struktur tabel dan header saja
             return `
-                <div class="rapor-page">
-                    <div class="pdf-header">
-                        <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
-                        <h2>Komunitas Literasi Cendekia Aksara</h2>
-                        <h3 style="margin:5px 0; font-size:14pt; font-weight:normal;">KARTU HASIL STUDI (KHS)</h3>
-                        <p>Cendekia Aksara, Kabupaten Temanggung, Indonesia | Telp: 08895615630</p>
+                <div class="pdf-header">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
+                    <h2>Komunitas Literasi Cendekia Aksara</h2>
+                    <h3 style="margin:5px 0; font-size:14pt; font-weight:normal;">KARTU HASIL STUDI (KHS)</h3>
+                    <p>Cendekia Aksara, Kabupaten Temanggung, Indonesia | Telp: 08895615630</p>
+                </div>
+                <table class="pdf-meta">
+                    <tr>
+                        <td width="120"><b>Nama Siswa</b></td><td width="10">:</td><td>${name}</td>
+                        <td width="90"><b>Semester</b></td><td width="10">:</td><td>${semRapor}</td>
+                    </tr>
+                    <tr>
+                        <td><b>ID Siswa</b></td><td>:</td><td>${id.substring(0,8).toUpperCase()}</td>
+                        <td><b>Th. Ajaran</b></td><td>:</td><td>${tahunAjaran}</td>
+                    </tr>
+                    <tr>
+                        <td><b>Program</b></td><td>:</td><td>Sastra</td>
+                        <td></td><td></td><td></td>
+                    </tr>
+                </table>
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th width="30">No</th>
+                            <th>Komponen Penilaian</th>
+                            <th width="60">Angka</th>
+                            <th width="60">Huruf</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="pdf-summary">
+                    <strong>IPS: <span style="font-size:1.2rem;">${ips}</span></strong><br>
+                    <span>Predikat: ${predikat}</span>
+                </div>
+                <div class="pdf-sig">
+                    <div class="sig-block">
+                        <p>Mengetahui,<br>Orang Tua/Wali</p>
+                        <div class="sig-space"></div>
+                        <p>( ........................... )</p>
                     </div>
-                    <table class="pdf-meta">
-                        <tr>
-                            <td width="120"><b>Nama Siswa</b></td><td width="10">:</td><td>${name}</td>
-                            <td width="90"><b>Semester</b></td><td width="10">:</td><td>${semRapor}</td>
-                        </tr>
-                        <tr>
-                            <td><b>ID Siswa</b></td><td>:</td><td>${id.substring(0,8).toUpperCase()}</td>
-                            <td><b>Th. Ajaran</b></td><td>:</td><td>${tahunAjaran}</td>
-                        </tr>
-                        <tr>
-                            <td><b>Program</b></td><td>:</td><td>Sastra</td>
-                            <td></td><td></td><td></td>
-                        </tr>
-                    </table>
-                    <table class="pdf-table">
-                        <thead>
-                            <tr>
-                                <th width="30">No</th>
-                                <th>Komponen Penilaian</th>
-                                <th width="60">Angka</th>
-                                <th width="60">Huruf</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                    <div class="pdf-summary">
-                        <strong>IPS: <span style="font-size:1.2rem;">${ips}</span></strong><br>
-                        <span>Predikat: ${predikat}</span>
-                    </div>
-                    <div class="pdf-sig">
-                        <div class="sig-block">
-                            <p>Mengetahui,<br>Orang Tua/Wali</p>
-                            <div class="sig-space"></div>
-                            <p>( ........................... )</p>
-                        </div>
-                        <div class="sig-block">
-                            <p>Temanggung, <span>${tanggalCetak}</span><br>Kepala Cendekia Aksara</p>
-                            <div class="sig-space"></div>
-                            <p><b>M. Bayu Aji Tolafudin</b><br>NIP. -</p>
-                        </div>
+                    <div class="sig-block">
+                        <p>Temanggung, <span>${tanggalCetak}</span><br>Kepala Cendekia Aksara</p>
+                        <div class="sig-space"></div>
+                        <p><b>M. Bayu Aji Tolafudin</b><br>NIP. -</p>
                     </div>
                 </div>
             `;
         }
 
-        // --- UNDUH SATUAN ---
+        // --- UNDUH SATUAN (MENGGUNAKAN JSPDF + HTML2CANVAS MURNI) ---
         window.downloadSinglePdf = async (id, sem, name) => {
             const loader = document.getElementById('main-loading');
             const loadText = document.getElementById('loading-text');
@@ -439,35 +422,44 @@
             loader.style.display = 'flex';
 
             try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+
                 const docSnap = await getDoc(doc(db, 'users', id));
                 if(!docSnap.exists()) throw new Error("Data tidak ditemukan");
                 
-                const htmlContent = buildRaporHTML(docSnap.data(), sem, name, id);
-                document.getElementById('pdf-content').innerHTML = htmlContent;
+                // Masukkan isi rapor ke dalam bingkai A4 (#pdf-content)
+                const contentBox = document.getElementById('pdf-content');
+                contentBox.innerHTML = buildRaporHTML(docSnap.data(), sem, name, id);
 
-                document.body.classList.add('printing-mode');
-                await new Promise(r => setTimeout(r, 800)); 
+                // Tunggu sebentar agar gambar logo ter-render di browser
+                await new Promise(r => setTimeout(r, 400)); 
 
-                const opt = {
-                    margin:       [10, 10, 10, 10], // Kembalikan ke margin aslimu
-                    filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, logging: false },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
+                // Ambil "foto" dari bingkai A4 tersebut
+                const canvas = await html2canvas(contentBox, { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false 
+                });
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                
+                // Tempel foto tersebut ke PDF
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 
-                await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
             } catch(e) {
                 console.error(e); 
                 window.showModal('error', 'Gagal', e.message);
             } finally {
-                document.body.classList.remove('printing-mode');
                 loader.style.display = 'none';
                 document.getElementById('pdf-content').innerHTML = '';
             }
         };
 
-        // --- UNDUH KOLEKTIF (CUSTOM PINTAR) ---
+        // --- UNDUH KOLEKTIF MURNI (ANTI-POTONG, ANTI-ERROR PIKSEL) ---
         window.downloadBatchCustom = async () => {
             const targetRaporSem = parseInt(document.getElementById('batch-rapor-sem').value);
             const currentStudentSem = parseInt(document.getElementById('batch-current-sem').value);
@@ -477,7 +469,6 @@
                 return;
             }
 
-            // Saring siswa secara unik
             const uniqueStudentsMap = new Map();
             allStudents.forEach(s => {
                 if ((parseInt(s.semester) || 1) === currentStudentSem) {
@@ -491,53 +482,62 @@
                 return;
             }
 
-            window.showModal('info', 'Konfirmasi Cetak Massal', `Ditemukan ${eligibleStudents.length} siswa di Semester ${currentStudentSem}.\n\nSistem akan membuat Rapor Semester ${targetRaporSem} untuk mereka dan menggabungkannya dalam 1 File PDF.\n\nProses ini memakan waktu beberapa detik.`, async () => {
+            window.showModal('info', 'Konfirmasi Cetak Massal', `Ditemukan ${eligibleStudents.length} siswa di Semester ${currentStudentSem}.\n\nSistem akan membuat Rapor Semester ${targetRaporSem} untuk mereka dan menggabungkannya dalam 1 File PDF.\n\nProses ini memakan waktu beberapa detik (jangan ditutup).`, async () => {
                 
                 const loader = document.getElementById('main-loading');
                 const loadText = document.getElementById('loading-text');
-                loadText.innerText = `Menyatukan ${eligibleStudents.length} Rapor. Mohon tunggu...`;
                 loader.style.display = 'flex';
 
                 try {
-                    let fullHtml = "";
+                    // Deklarasi jsPDF
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
                     
+                    const contentBox = document.getElementById('pdf-content');
+
+                    // LOOPING SATU PER SATU
                     for(let i=0; i<eligibleStudents.length; i++) {
                         const s = eligibleStudents[i];
-                        const html = buildRaporHTML(s, targetRaporSem, s.name, s.id);
-                        fullHtml += html;
                         
-                        // Menambahkan penanda Halaman Baru khusus untuk html2pdf
-                        if(i < eligibleStudents.length - 1) {
-                            fullHtml += `<div class="html2pdf__page-break"></div>`;
+                        loadText.innerText = `Menyusun rapor ${i+1} dari ${eligibleStudents.length}...`;
+                        
+                        // 1. Kosongkan & Isi bingkai dengan data siswa yang sedang diloop
+                        contentBox.innerHTML = buildRaporHTML(s, targetRaporSem, s.name, s.id);
+                        
+                        // 2. Beri jeda kecil agar DOM & Logo selesai merender
+                        await new Promise(r => setTimeout(r, 200)); 
+
+                        // 3. Foto bingkai A4 tersebut
+                        const canvas = await html2canvas(contentBox, { 
+                            scale: 2, 
+                            useCORS: true, 
+                            logging: false 
+                        });
+                        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+                        // 4. Jika ini bukan siswa pertama, tambahkan halaman baru ke PDF
+                        if (i > 0) {
+                            pdf.addPage();
                         }
+
+                        // 5. Tempel foto rapor siswa ini ke halaman yang sedang aktif
+                        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                     }
 
-                    document.getElementById('pdf-content').innerHTML = fullHtml;
-
-                    document.body.classList.add('printing-mode');
-                    await new Promise(r => setTimeout(r, 1500)); 
-
-                    const opt = {
-                        margin:       [10, 10, 10, 10], // Margin yang benar
-                        filename:     `Rekap_Rapor_Sem${targetRaporSem}_(UntukSiswaSem${currentStudentSem}).pdf`,
-                        image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: false },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        // FITUR UTAMA UNTUK MENCEGAH TERPOTONG
-                        pagebreak:    { mode: 'css', before: '.html2pdf__page-break' }
-                    };
-
-                    await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
+                    // Selesai looping, simpan PDF utuh
+                    loadText.innerText = "Menyimpan file PDF...";
+                    pdf.save(`Rekap_Rapor_Sem${targetRaporSem}_(SiswaSem${currentStudentSem}).pdf`);
                     
                     setTimeout(() => {
-                        window.showModal('success', 'Berhasil!', `Dokumen Rekap_Rapor_Sem${targetRaporSem} berhasil diunduh.`);
+                        window.showModal('success', 'Berhasil!', `Dokumen Rekap berhasil diunduh secara sempurna.`);
                     }, 500);
 
                 } catch(e) {
                     console.error(e); 
                     window.showModal('error', 'Gagal Memproses PDF', e.message);
                 } finally {
-                    document.body.classList.remove('printing-mode');
                     loader.style.display = 'none';
                     document.getElementById('pdf-content').innerHTML = ''; 
                 }
