@@ -82,14 +82,17 @@
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* --- WRAPPER PDF FIX --- */
+        /* PERBAIKAN: Elemen ini harus tetap 'ada' agar library bisa merendernya, tapi tidak mengganggu tampilan web */
         #pdf-wrapper {
             position: absolute;
-            top: -9999px; /* Move offscreen */
-            left: 0;
-            width: 750px; /* Fixed width to guarantee uniform rendering */
+            left: -9999px; /* Jauhkan dari layar */
+            top: 0;
+            width: 794px; /* Lebar standar A4 pada 96 DPI */
             background: white;
             z-index: -1;
-            overflow: visible !important; /* MUST BE VISIBLE FOR HTML2CANVAS */
+            /* Penting agar tidak terpotong saat rendering */
+            overflow: visible; 
+            height: auto;
         }
 
         #pdf-content {
@@ -99,41 +102,44 @@
         }
 
         /* --- DESAIN HALAMAN RAPOR PDF --- */
+        /* PERBAIKAN: Memastikan ukuran A4 Proporsional (210mm x 297mm) */
         .rapor-page {
-            width: 100%;
-            padding: 30px;
+            width: 794px; 
+            height: 1122px; /* Tinggi standar A4 pada 96 DPI */
+            padding: 40px 50px; /* Jarak aman dari tepi kertas */
             font-family: 'Times New Roman', serif;
             color: #000;
             background: white;
             box-sizing: border-box;
-            /* Remove manual breaks; we use the specific div class below */
+            
+            /* PERBAIKAN PAGE BREAK CSS MURNI */
+            page-break-after: always;
+            break-after: page;
         }
         
-        /* The specific class html2pdf uses to cut pages cleanly */
-        .html2pdf__page-break { 
-            display: block;
-            height: 0; 
-            border: none; 
-            margin: 0; 
-            padding: 0; 
+        /* Menghilangkan margin pada elemen terakhir agar tidak tumpah ke halaman berikutnya */
+        .rapor-page:last-child {
+            page-break-after: auto;
+            break-after: auto;
         }
 
-        .pdf-header { text-align: center; border-bottom: 4px double #000; padding-bottom: 15px; margin-bottom: 25px; }
-        .pdf-header img { height: 80px; margin-bottom: 10px; } 
-        .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; font-weight: bold;} 
-        .pdf-header p { margin: 5px 0 0 0; font-size: 11pt; font-style: italic; }
+        /* UKURAN ELEMEN DI DALAM PDF DISESUAIKAN */
+        .pdf-header { text-align: center; border-bottom: 4px double #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .pdf-header img { height: 70px; margin-bottom: 8px; } 
+        .pdf-header h2 { margin: 0; font-size: 16pt; text-transform: uppercase; font-weight: bold;} 
+        .pdf-header p { margin: 5px 0 0 0; font-size: 10pt; font-style: italic; }
         
-        .pdf-meta { width: 100%; margin-bottom: 25px; font-size: 12pt; border-collapse: collapse; }
-        .pdf-meta td { padding: 5px 0; vertical-align: top; }
+        .pdf-meta { width: 100%; margin-bottom: 20px; font-size: 11pt; border-collapse: collapse; }
+        .pdf-meta td { padding: 4px 0; vertical-align: top; }
         
-        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12pt; }
-        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 8px 10px; }
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11pt; }
+        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 6px 8px; }
         .pdf-table th { background-color: #f0f0f0; text-align: center; font-weight: bold; }
         
-        .pdf-summary { border: 2px solid #000; padding: 15px; width: 100%; max-width: 300px; margin-bottom: 50px; font-size: 12pt; box-sizing: border-box; background: #fafafa;}
-        .pdf-sig { display: flex; justify-content: space-between; margin-top: 50px; font-size: 12pt; }
+        .pdf-summary { border: 2px solid #000; padding: 10px 15px; width: 100%; max-width: 250px; margin-bottom: 30px; font-size: 11pt; box-sizing: border-box; background: #fafafa;}
+        .pdf-sig { display: flex; justify-content: space-between; margin-top: 30px; font-size: 11pt; }
         .sig-block { text-align: center; width: 220px; }
-        .sig-space { height: 80px; }
+        .sig-space { height: 70px; }
 
         @media (max-width: 768px) {
             .filter-group { flex-direction: column; align-items: stretch; }
@@ -155,8 +161,7 @@
             <div id="modal-icon" class="modal-icon info"><i class="fa-solid fa-circle-info"></i></div>
             <h3 id="modal-title" class="modal-title">Judul Modal</h3>
             <p id="modal-desc" class="modal-desc">Deskripsi pesan akan muncul di sini.</p>
-            <div id="modal-actions" class="modal-actions">
-                </div>
+            <div id="modal-actions" class="modal-actions"></div>
         </div>
     </div>
 
@@ -295,7 +300,7 @@
                 const snap = await getDocs(q);
                 allStudents = [];
                 snap.forEach(d => {
-                    // Hanya memproses dan menyimpan id agar tidak ada duplikasi aneh
+                    // Memastikan tidak ada duplikasi data
                     if (!allStudents.some(s => s.id === d.id)) {
                         allStudents.push({id: d.id, ...d.data()});
                     }
@@ -379,6 +384,7 @@
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
 
+            // STRUKTUR HTML UNTUK 1 HALAMAN (Diberi class rapor-page)
             return `
                 <div class="rapor-page">
                     <div class="pdf-header">
@@ -449,7 +455,7 @@
                 await new Promise(r => setTimeout(r, 500)); 
 
                 const opt = {
-                    margin:       [10, 10, 10, 10],
+                    margin:       0, // Nolkan margin karena sudah diatur via padding CSS
                     filename:     `Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
                     image:        { type: 'jpeg', quality: 0.98 },
                     html2canvas:  { scale: 2, useCORS: true, logging: false },
@@ -476,7 +482,7 @@
                 return;
             }
 
-            // CRITICAL FIX: Ensure we only get unique students based on ID to prevent duplicates
+            // Saring siswa secara ketat dan unik (mencegah double data)
             const uniqueStudentsMap = new Map();
             allStudents.forEach(s => {
                 if ((parseInt(s.semester) || 1) === currentStudentSem) {
@@ -503,20 +509,17 @@
                     for(let i=0; i<eligibleStudents.length; i++) {
                         const s = eligibleStudents[i];
                         const html = buildRaporHTML(s, targetRaporSem, s.name, s.id);
-                        
                         fullHtml += html;
-                        // Use the exact class required by html2pdf for manual page breaks
-                        if(i < eligibleStudents.length - 1) {
-                            fullHtml += `<div class="html2pdf__page-break"></div>`;
-                        }
                     }
 
                     document.getElementById('pdf-content').innerHTML = fullHtml;
 
+                    // Beri waktu browser untuk merender gambar dan font
                     await new Promise(r => setTimeout(r, 1000)); 
 
+                    // KONFIGURASI PDF (PENTING)
                     const opt = {
-                        margin:       [10, 10, 10, 10],
+                        margin:       0, // Margin PDF di-set 0, kita pakai padding CSS di .rapor-page
                         filename:     `Rekap_Rapor_Sem${targetRaporSem}_(UntukSiswaSem${currentStudentSem}).pdf`,
                         image:        { type: 'jpeg', quality: 0.98 },
                         html2canvas:  { 
@@ -524,9 +527,8 @@
                             useCORS: true, 
                             logging: false 
                         },
-                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        // EXPLICIT PAGEBREAK CONFIGURATION
-                        pagebreak:    { mode: 'css', before: '.html2pdf__page-break' }
+                        jsPDF:        { unit: 'px', format: [794, 1122], orientation: 'portrait' } 
+                        // Menggunakan dimensi ukuran A4 secara spesifik dalam piksel (96dpi)
                     };
 
                     await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
