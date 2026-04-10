@@ -175,89 +175,114 @@
             }
         };
 
-        window.mulaiTulisBuku = async function() {
-            var htmlTOC = document.getElementById('editor-kerangka').value;
-            var judulBuku = document.getElementById('input-judul').value;
-            var jumlahParagraf = document.getElementById('input-jumlah-paragraf').value;
+       window.mulaiTulisBuku = async function() {
+    var htmlTOC = document.getElementById('editor-kerangka').value;
+    var judulBuku = document.getElementById('input-judul').value;
+    var jumlahParagraf = parseInt(document.getElementById('input-jumlah-paragraf').value) || 15;
 
-            var tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlTOC;
-            var listItems = tempDiv.querySelectorAll('li');
-            daftarBabTersimpan = Array.from(listItems).map(function(li) { return li.textContent.trim(); });
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlTOC;
+    var listItems = tempDiv.querySelectorAll('li');
+    daftarBabTersimpan = Array.from(listItems).map(function(li) { 
+        return li.textContent.trim(); 
+    });
 
-            if (daftarBabTersimpan.length === 0) { alert("Kerangka tidak valid!"); return; }
+    if (daftarBabTersimpan.length === 0) { 
+        alert("Kerangka tidak valid!"); 
+        return; 
+    }
 
-            document.getElementById('fase-2').classList.add('hidden');
-            document.getElementById('fase-3').classList.remove('hidden');
+    document.getElementById('fase-2').classList.add('hidden');
+    document.getElementById('fase-3').classList.remove('hidden');
 
-            var statusText  = document.getElementById('status-text');
-            var statusDetail = document.getElementById('status-detail');
-            var previewArea = document.getElementById('book-content-preview');
-            var aiIcon      = document.getElementById('ai-icon');
+    var statusText  = document.getElementById('status-text');
+    var statusDetail = document.getElementById('status-detail');
+    var previewArea = document.getElementById('book-content-preview');
+    var aiIcon      = document.getElementById('ai-icon');
 
-            previewArea.innerHTML = '<h1 style="text-align:center; color:#003366;">' + judulBuku + '</h1><h2 style="color:#d4af37;">Daftar Isi</h2>' + htmlTOC + '<hr style="border:2px solid #ddd;">';
+    previewArea.innerHTML = '<h1 style="text-align:center; color:#003366;">' + judulBuku + '</h1><h2 style="color:#d4af37;">Daftar Isi</h2>' + htmlTOC + '<hr style="border:2px solid #ddd;">';
 
-            window.bookDataArray = [
-                { type: 'toc', content: '<h2 style="color:#d4af37;">Daftar Isi</h2>' + htmlTOC }
-            ];
+    window.bookDataArray = [
+        { type: 'toc', content: '<h2 style="color:#d4af37;">Daftar Isi</h2>' + htmlTOC }
+    ];
 
-            document.getElementById('result-actions').classList.remove('hidden');
-            document.getElementById('generate-status-title').innerText = 'Buku Sedang Disusun...';
+    document.getElementById('result-actions').classList.remove('hidden');
+    document.getElementById('generate-status-title').innerText = 'Buku Sedang Disusun...';
 
-            for (var i = 0; i < daftarBabTersimpan.length; i++) {
-                var babJudul = daftarBabTersimpan[i];
+    for (var i = 0; i < daftarBabTersimpan.length; i++) {
+        var babJudul = daftarBabTersimpan[i];
 
-                aiIcon.className = 'fa-solid fa-robot fa-bounce';
-                aiIcon.style.color = '#166534';
-                statusText.innerText = 'Sedang Menulis Bab ' + (i + 1) + ' dari ' + daftarBabTersimpan.length + '...';
-                statusDetail.innerText = 'Menyusun materi, langkah-langkah, dan tabel untuk: "' + babJudul + '"';
+        aiIcon.className = 'fa-solid fa-robot fa-bounce';
+        aiIcon.style.color = '#166534';
+        statusText.innerText = `Sedang Menulis Bab ${i + 1} dari ${daftarBabTersimpan.length}...`;
+        statusDetail.innerText = `Menyusun materi untuk: "${babJudul}"`;
 
-                try {
-                    var chapResponse = await fetch('/api/generate-chapter', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ judulBuku: judulBuku, babJudul: babJudul, jumlahParagraf: jumlahParagraf })
-                    });
+        try {
+            var chapResponse = await fetch('/api/generate-chapter', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    judulBuku: judulBuku, 
+                    babJudul: babJudul, 
+                    jumlahParagraf: jumlahParagraf 
+                })
+            });
 
-                    if (!chapResponse.ok) throw new Error("Terputus dari Vercel/Gemini, status: " + chapResponse.status);
-                    var chapData = await chapResponse.json();
+            var chapData = await chapResponse.json();
 
-                    window.bookDataArray.push({
-                        type: 'chapter',
-                        title: babJudul,
-                        content: chapData.chapterHtml
-                    });
-
-                    previewArea.innerHTML += '<h2 style="color:#003366; text-align:center; margin-top:50px; font-size:24pt;">' + babJudul + '</h2><div>' + chapData.chapterHtml + '</div><hr style="border:1px dashed #ddd; margin: 30px 0;">';
-                    previewArea.scrollTop = previewArea.scrollHeight;
-
-                } catch (e) {
-                    console.error(e);
-                    previewArea.innerHTML += '<h2 style="color:red; text-align:center;">Gagal memuat: ' + babJudul + '</h2>';
-                    window.bookDataArray.push({
-                        type: 'chapter',
-                        title: babJudul,
-                        content: '<p style="color:red; text-align:center;"><em>Bab ini gagal disusun oleh AI karena gangguan server atau batas limit waktu tercapai.</em></p>'
-                    });
-                }
-
-                // Jeda pendinginan antar bab
-                if (i < daftarBabTersimpan.length - 1) {
-                    statusText.innerText = 'Jeda Pendinginan Sistem...';
-                    statusDetail.innerText = 'Mengistirahatkan mesin AI Gemini selama 6 detik sebelum lanjut ke Bab ' + (i + 2) + '.';
-                    aiIcon.className = 'fa-solid fa-bed fa-fade';
-                    aiIcon.style.color = '#f59e0b';
-                    await new Promise(function(resolve) { setTimeout(resolve, 6000); });
-                }
+            if (!chapResponse.ok || !chapData.success) {
+                throw new Error(chapData.error || `API Error: ${chapResponse.status}`);
             }
 
-            statusText.innerText = 'Buku Teks Cendekia Aksara Selesai!';
-            statusDetail.innerText = 'Seluruh materi telah disusun padat.';
-            aiIcon.className = 'fa-solid fa-check';
-            aiIcon.style.color = '#166534';
-            document.getElementById('generate-status-title').innerText = 'Buku Selesai Disusun!';
-        };
+            window.bookDataArray.push({
+                type: 'chapter',
+                title: babJudul,
+                content: chapData.chapterHtml
+            });
 
+            previewArea.innerHTML += `
+                <h2 style="color:#003366; text-align:center; margin-top:50px; font-size:24pt;">${babJudul}</h2>
+                <div>${chapData.chapterHtml}</div>
+                <hr style="border:1px dashed #ddd; margin: 30px 0;">
+            `;
+            previewArea.scrollTop = previewArea.scrollHeight;
+
+        } catch (e) {
+            console.error('Chapter Error:', e);
+            statusText.innerText = 'Error pada bab ini, melanjutkan...';
+            previewArea.innerHTML += `
+                <h2 style="color:#dc2626; text-align:center; margin-top:50px;">⚠️ Gagal: ${babJudul}</h2>
+                <p style="color:#dc2626; text-align:center; background:#fef2f2; padding:15px; border-radius:8px;">
+                    <strong>Alasan:</strong> ${e.message}<br>
+                    <em>Bab ini akan dilanjutkan secara manual atau coba lagi nanti.</em>
+                </p>
+                <hr style="border:1px dashed #ddd; margin: 30px 0;">`;
+                
+            window.bookDataArray.push({
+                type: 'chapter',
+                title: babJudul,
+                content: `<p style="color:#dc2626; text-align:center;"><em>Bab gagal disusun: ${e.message}</em></p>`
+            });
+        }
+
+        // Jeda antar bab
+        if (i < daftarBabTersimpan.length - 1) {
+            statusText.innerText = '⏸️ Jeda Pendinginan...';
+            statusDetail.innerText = `Istirahat 6 detik sebelum Bab ${i + 2}`;
+            aiIcon.className = 'fa-solid fa-bed fa-fade';
+            aiIcon.style.color = '#f59e0b';
+            await new Promise(resolve => setTimeout(resolve, 6000));
+        }
+    }
+
+    statusText.innerText = '✅ Buku Selesai Disusun!';
+    statusDetail.innerText = `${daftarBabTersimpan.length} bab telah diproses.`;
+    aiIcon.className = 'fa-solid fa-check-circle fa-bounce';
+    aiIcon.style.color = '#166534';
+    document.getElementById('generate-status-title').innerText = 'Buku Siap Diunduh!';
+};
         window.unduhBukuPDF = function() {
             var btn = document.getElementById('btn-unduh-pdf');
             var oriText = btn.innerHTML;
