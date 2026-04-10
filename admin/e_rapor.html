@@ -81,29 +81,43 @@
         .spinner { font-size: 4rem; color: var(--accent); margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* --- WRAPPER PDF --- */
+        /* --- WRAPPER PDF FIX --- */
         #pdf-wrapper {
             position: absolute;
-            top: -9999px;
+            top: -9999px; /* Move offscreen */
             left: 0;
-            width: 700px;
+            width: 750px; /* Fixed width to guarantee uniform rendering */
             background: white;
             z-index: -1;
-            /* CRITICAL FIX: Ensure the wrapper doesn't have hidden overflows or display issues that truncate content before rendering */
-            overflow: visible; 
+            overflow: visible !important; /* MUST BE VISIBLE FOR HTML2CANVAS */
+        }
+
+        #pdf-content {
+            width: 100%;
+            margin: 0;
+            padding: 0;
         }
 
         /* --- DESAIN HALAMAN RAPOR PDF --- */
         .rapor-page {
-            width: 700px;
+            width: 100%;
             padding: 30px;
             font-family: 'Times New Roman', serif;
             color: #000;
             background: white;
             box-sizing: border-box;
-            /* Remove manual CSS page breaks; we will handle it in the JS config */
+            /* Remove manual breaks; we use the specific div class below */
         }
         
+        /* The specific class html2pdf uses to cut pages cleanly */
+        .html2pdf__page-break { 
+            display: block;
+            height: 0; 
+            border: none; 
+            margin: 0; 
+            padding: 0; 
+        }
+
         .pdf-header { text-align: center; border-bottom: 4px double #000; padding-bottom: 15px; margin-bottom: 25px; }
         .pdf-header img { height: 80px; margin-bottom: 10px; } 
         .pdf-header h2 { margin: 0; font-size: 18pt; text-transform: uppercase; font-weight: bold;} 
@@ -280,7 +294,12 @@
                 const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
                 const snap = await getDocs(q);
                 allStudents = [];
-                snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                snap.forEach(d => {
+                    // Hanya memproses dan menyimpan id agar tidak ada duplikasi aneh
+                    if (!allStudents.some(s => s.id === d.id)) {
+                        allStudents.push({id: d.id, ...d.data()});
+                    }
+                });
                 allStudents.sort((a,b) => (a.name||"").localeCompare(b.name||""));
                 render(allStudents);
             } catch(e) {
@@ -360,7 +379,6 @@
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
 
-            // CRITICAL FIX: Removed manual CSS page break styling. We rely entirely on the page-break class.
             return `
                 <div class="rapor-page">
                     <div class="pdf-header">
@@ -444,6 +462,7 @@
                 window.showModal('error', 'Gagal', e.message);
             } finally {
                 loader.style.display = 'none';
+                document.getElementById('pdf-content').innerHTML = '';
             }
         };
 
@@ -457,7 +476,14 @@
                 return;
             }
 
-            const eligibleStudents = allStudents.filter(s => (parseInt(s.semester) || 1) === currentStudentSem);
+            // CRITICAL FIX: Ensure we only get unique students based on ID to prevent duplicates
+            const uniqueStudentsMap = new Map();
+            allStudents.forEach(s => {
+                if ((parseInt(s.semester) || 1) === currentStudentSem) {
+                    uniqueStudentsMap.set(s.id, s);
+                }
+            });
+            const eligibleStudents = Array.from(uniqueStudentsMap.values());
             
             if(eligibleStudents.length === 0) {
                 window.showModal('warning', 'Data Kosong', `Saat ini tidak ada satupun siswa yang berstatus Semester ${currentStudentSem} di sistem.`);
@@ -479,7 +505,7 @@
                         const html = buildRaporHTML(s, targetRaporSem, s.name, s.id);
                         
                         fullHtml += html;
-                        // CRITICAL FIX: Only add the specific class html2pdf uses to trigger page breaks internally
+                        // Use the exact class required by html2pdf for manual page breaks
                         if(i < eligibleStudents.length - 1) {
                             fullHtml += `<div class="html2pdf__page-break"></div>`;
                         }
@@ -493,10 +519,14 @@
                         margin:       [10, 10, 10, 10],
                         filename:     `Rekap_Rapor_Sem${targetRaporSem}_(UntukSiswaSem${currentStudentSem}).pdf`,
                         image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 2, useCORS: true, logging: false },
+                        html2canvas:  { 
+                            scale: 2, 
+                            useCORS: true, 
+                            logging: false 
+                        },
                         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        // CRITICAL FIX: Explicitly tell html2pdf to use the class for pagebreaks
-                        pagebreak: { mode: 'css', before: '.html2pdf__page-break' }
+                        // EXPLICIT PAGEBREAK CONFIGURATION
+                        pagebreak:    { mode: 'css', before: '.html2pdf__page-break' }
                     };
 
                     await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
