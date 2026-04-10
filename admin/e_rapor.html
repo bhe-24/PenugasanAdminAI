@@ -74,6 +74,8 @@
             color: #000;
             background: white;
             box-sizing: border-box;
+            break-inside: avoid; /* Mencegah elemen ini terpotong */
+            page-break-after: always; /* Memaksa elemen selanjutnya ke halaman baru */
         }
         
         .html2pdf__page-break { height: 0; border: none; margin: 0; padding: 0; }
@@ -367,13 +369,11 @@
             const targetRaporSem = parseInt(document.getElementById('batch-rapor-sem').value);
             const currentStudentSem = parseInt(document.getElementById('batch-current-sem').value);
 
-            // Validasi Logika: Tidak mungkin mencetak Rapor Sem 2 untuk siswa yang masih di Sem 1
             if (targetRaporSem > currentStudentSem) {
                 alert(`Logika Error: Tidak dapat mengunduh Rapor Semester ${targetRaporSem} untuk anak yang masih duduk di Semester ${currentStudentSem}.`);
                 return;
             }
 
-            // Saring siswa yang SAAT INI berada di semester yang dipilih (==)
             const eligibleStudents = allStudents.filter(s => (parseInt(s.semester) || 1) === currentStudentSem);
             
             if(eligibleStudents.length === 0) {
@@ -394,11 +394,11 @@
                 
                 for(let i=0; i<eligibleStudents.length; i++) {
                     const s = eligibleStudents[i];
-                    // Gunakan targetRaporSem agar tulisan di PDF sesuai yang diminta
                     const html = buildRaporHTML(s, targetRaporSem, s.name, s.id);
                     
                     fullHtml += html;
                     if(i < eligibleStudents.length - 1) {
+                        // Sisipkan kelas page-break bawaan dari html2pdf
                         fullHtml += `<div class="html2pdf__page-break"></div>`;
                     }
                 }
@@ -412,8 +412,18 @@
                     margin:       [10, 10, 10, 10],
                     filename:     `Rekap_Rapor_Sem${targetRaporSem}_(UntukSiswaSem${currentStudentSem}).pdf`,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    html2canvas:  { 
+                        scale: 2, 
+                        useCORS: true, 
+                        logging: false, // Tambahan untuk meminimalisir delay
+                        scrollY: 0 
+                    },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    // PENAMBAHAN PENTING: Konfigurasi Pagebreak
+                    pagebreak: { 
+                        mode: ['avoid-all', 'css', 'legacy'],
+                        before: '.html2pdf__page-break' 
+                    }
                 };
 
                 await html2pdf().set(opt).from(document.getElementById('pdf-content')).save();
