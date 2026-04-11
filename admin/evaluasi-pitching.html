@@ -331,7 +331,7 @@
             });
         }
 
-        // --- 3. BUKA WORKSPACE EVALUASI (MODAL) ---
+       // --- 3. BUKA WORKSPACE EVALUASI (MODAL) ---
         window.openEvalModal = (id) => {
             activeProposalId = id;
             activeProposalData = allProposals.find(p => p.id === id);
@@ -379,17 +379,33 @@
             const btnRev = document.getElementById('btn-minta-revisi');
             const btnAcc = document.getElementById('btn-acc');
             const btnAi = document.getElementById('btn-ai');
+            const actionContainer = document.querySelector('.action-buttons');
+
+            // Hapus tombol Unlock lama jika ada
+            const oldUnlockBtn = document.getElementById('btn-unlock');
+            if(oldUnlockBtn) oldUnlockBtn.remove();
 
             // Reset tombol AI
             btnAi.disabled = false;
             btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Naskah dengan AI';
 
+            // REVISI FITUR UNLOCK:
             if (data.status === 'acc') {
-                btnRev.disabled = true;
-                btnAcc.disabled = true;
-                btnAi.disabled = true;
-                btnAcc.innerHTML = '<i class="fa-solid fa-check-double"></i> Dokumen Sudah Terkunci (ACC)';
+                btnRev.style.display = 'none';
+                btnAcc.style.display = 'none';
+                
+                // Tambahkan tombol UNLOCK khusus saat status ACC
+                const unlockBtn = document.createElement('button');
+                unlockBtn.id = 'btn-unlock';
+                unlockBtn.className = 'btn-decision';
+                unlockBtn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+                unlockBtn.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i> Buka Kunci Dokumen (Ubah ke Revisi)';
+                unlockBtn.onclick = () => confirmUnlock();
+                actionContainer.appendChild(unlockBtn);
+
             } else {
+                btnRev.style.display = 'flex';
+                btnAcc.style.display = 'flex';
                 btnRev.disabled = false;
                 btnAcc.disabled = false;
                 btnRev.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Minta Revisi';
@@ -406,6 +422,24 @@
             activeProposalData = null;
         };
 
+        // --- FUNGSI UNLOCK KHUSUS ---
+        window.confirmUnlock = () => {
+            Swal.fire({
+                title: 'Buka Kunci Dokumen?',
+                text: "Status proposal ini akan diubah kembali menjadi 'Revisi'. Siswa akan dapat mengedit form pengajuannya lagi.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Buka Kunci',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    submitDecision('revisi');
+                }
+            });
+        };
+
         // --- 4. FITUR INTEGRASI API AI (GEMINI) ---
         window.analyzeWithAI = async () => {
             if(!activeProposalData) return;
@@ -413,17 +447,13 @@
             const btnAi = document.getElementById('btn-ai');
             const feedbackInput = document.getElementById('mentor-feedback');
             
-            // UI Loading State
             btnAi.disabled = true;
             btnAi.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> AI Sedang Membaca...';
             
-            // Simpan teks feedback lama jika ada, agar tidak hilang tertimpa langsung
             const oldFeedback = feedbackInput.value.trim();
             feedbackInput.value = "Tunggu sebentar, AksaBot sedang membedah naskah dan mencari plot hole...";
 
             try {
-                // Tembak ke API backend node.js/vercel kamu
-                // Pastikan endpoint '/api/analisis-proposal' sudah dibuat dan di-deploy sesuai instruksi sebelumnya
                 const response = await fetch('/api/analisis-proposal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -434,7 +464,6 @@
 
                 const result = await response.json();
                 
-                // Gabungkan hasil AI dengan catatan lama (jika ada)
                 const finalFeedback = oldFeedback ? `${oldFeedback}\n\n--- Catatan Tambahan (AI): ---\n${result.analisis_teks}` : result.analisis_teks;
                 
                 feedbackInput.value = finalFeedback;
@@ -449,7 +478,7 @@
 
             } catch (error) {
                 console.error(error);
-                feedbackInput.value = oldFeedback; // Kembalikan teks lama jika error
+                feedbackInput.value = oldFeedback; 
                 Swal.fire('Koneksi Gagal', 'AI gagal merespons. Pastikan file backend API sudah di-deploy dengan benar.', 'error');
             } finally {
                 btnAi.disabled = false;
@@ -457,7 +486,7 @@
             }
         };
 
-        // --- 5. SUBMIT KEPUTUSAN & CETAK PDF VIA APPS SCRIPT ---
+        // --- 5. SUBMIT KEPUTUSAN & CETAK PDF (DENGAN FALLBACK) ---
         window.submitDecision = async (decisionType) => {
             const feedback = document.getElementById('mentor-feedback').value.trim();
             
@@ -469,9 +498,12 @@
             // UI Loading Lock
             const btnRev = document.getElementById('btn-minta-revisi');
             const btnAcc = document.getElementById('btn-acc');
-            btnRev.disabled = true; btnAcc.disabled = true;
+            const btnUnlock = document.getElementById('btn-unlock');
+            if(btnRev) btnRev.disabled = true; 
+            if(btnAcc) btnAcc.disabled = true;
+            if(btnUnlock) btnUnlock.disabled = true;
             
-            const loadingSwal = Swal.fire({
+            Swal.fire({
                 title: 'Mencetak Keputusan...',
                 html: 'Sistem sedang membuat dokumen PDF resmi ke Google Drive dan memperbarui database...',
                 allowOutsideClick: false,
@@ -479,38 +511,46 @@
             });
 
             try {
-                // Siapkan Payload untuk Apps Script (Kirim data yang persis dengan fungsi `submit_siswa` ditambah parameter evaluasi)
-                const payloadGAS = {
-                    actionType: decisionType === 'acc' ? "acc_admin" : "revisi_admin",
-                    studentName: activeProposalData.studentName,
-                    judul: activeProposalData.judul,
-                    genre: activeProposalData.genre,
-                    target_kata: activeProposalData.target_kata,
-                    logline: activeProposalData.logline,
-                    sinopsis: activeProposalData.sinopsis,
-                    outline: activeProposalData.outline, // Array
-                    catatan_mentor: feedback,
-                    nama_mentor: adminInfo ? adminInfo.name : "Admin Cendekia Aksara" // Auto deteksi nama admin yg login
-                };
-
-                // 1. Tembak ke Google Apps Script untuk bikin PDF Final/Revisi
-                const responseGAS = await fetch(GAS_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payloadGAS),
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } // Hindari preflight CORS error
-                });
-                
-                const resultGAS = await responseGAS.json();
-                
                 let linkPdfAdmin = activeProposalData.link_pdf_admin || null;
-                if (resultGAS.status === "success") {
-                    // Update dengan link PDF terbaru (yang ada centang ACC/Tolak-nya)
-                    linkPdfAdmin = resultGAS.pdfUrl; 
-                } else {
-                    console.warn("Gagal Cetak PDF via GAS:", resultGAS.message);
+                let pdfSuccess = false;
+                let errorMessage = "";
+
+                // --- LANGKAH 1: COBA CETAK PDF KE GOOGLE DRIVE ---
+                try {
+                    const payloadGAS = {
+                        actionType: decisionType === 'acc' ? "acc_admin" : "revisi_admin",
+                        studentName: activeProposalData.studentName,
+                        judul: activeProposalData.judul,
+                        genre: activeProposalData.genre,
+                        target_kata: activeProposalData.target_kata,
+                        logline: activeProposalData.logline,
+                        sinopsis: activeProposalData.sinopsis,
+                        outline: activeProposalData.outline, 
+                        catatan_mentor: feedback,
+                        nama_mentor: adminInfo ? adminInfo.name : "Admin Cendekia Aksara" 
+                    };
+
+                    const responseGAS = await fetch(GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payloadGAS),
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                    });
+                    
+                    const resultGAS = await responseGAS.json();
+                    
+                    if (resultGAS.status === "success") {
+                        linkPdfAdmin = resultGAS.pdfUrl; 
+                        pdfSuccess = true;
+                    } else {
+                        errorMessage = resultGAS.message;
+                        console.warn("GAS Error:", errorMessage);
+                    }
+                } catch (gasErr) {
+                    console.error("Gagal koneksi ke Apps Script:", gasErr);
+                    errorMessage = "Gagal menghubungi Google Drive.";
                 }
 
-                // 2. Simpan Keputusan ke Firestore Database
+                // --- LANGKAH 2: SIMPAN KEPUTUSAN KE FIRESTORE (PASTI JALAN) ---
                 await setDoc(doc(db, 'pitching_projects', activeProposalId), {
                     status: decisionType,
                     feedback_mentor: feedback,
@@ -518,20 +558,35 @@
                     updatedAt: serverTimestamp()
                 }, { merge: true });
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Evaluasi Diterbitkan!',
-                    text: decisionType === 'acc' ? 'Proposal disetujui. Dokumen ACC (PDF) telah dikirim ke Dashboard Siswa dan Drive Admin.' : 'Permintaan revisi dan dokumen PDF hasil review telah dikirim ke siswa.',
-                    confirmButtonColor: '#003366'
-                }).then(() => {
-                    closeEvalModal();
-                    loadProposals(); // Reload data tabel di layar belakang
-                });
+                // --- LANGKAH 3: NOTIFIKASI HASIL ---
+                if (pdfSuccess) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Evaluasi Berhasil!',
+                        text: decisionType === 'acc' ? 'Proposal di-ACC dan Dokumen PDF telah tersimpan di Drive.' : 'Permintaan revisi dan PDF review telah dikirim.',
+                        confirmButtonColor: '#003366'
+                    }).then(() => {
+                        closeEvalModal();
+                        loadProposals();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Database Terupdate, Tapi PDF Gagal!',
+                        text: `Status berhasil diubah menjadi ${decisionType.toUpperCase()}, tapi sistem gagal mencetak PDF ke Google Drive. Error: ${errorMessage}`,
+                        confirmButtonColor: '#f59e0b'
+                    }).then(() => {
+                        closeEvalModal();
+                        loadProposals();
+                    });
+                }
 
             } catch (error) {
                 console.error("Error Submit Decision:", error);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyimpan keputusan. Cek koneksi Anda.', 'error');
-                btnRev.disabled = false; btnAcc.disabled = false;
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyimpan keputusan ke Database.', 'error');
+                if(btnRev) btnRev.disabled = false; 
+                if(btnAcc) btnAcc.disabled = false;
+                if(btnUnlock) btnUnlock.disabled = false;
             }
         };
 
