@@ -41,15 +41,14 @@ Ketentuan Review:
 1. Sapa ${data.studentName}, apresiasi idenya.
 2. Bedah Judul, Genre, dan Target Kata.
 3. Berikan KRITIKAN TAJAM pada Logline/Sinopsis/Outline. Cari celah plot hole atau bagian yang klise.
-4. Gunakan "\\n\\n" untuk enter (baris baru).
-5. Boleh pakai Markdown (**teks**) untuk penekanan.
+4. Gunakan "\\n\\n" untuk enter (baris baru) antar paragraf agar enak dipandang.
+5. Gunakan Markdown (**teks**) untuk menebalkan poin-poin penting.
 
-PENTING: Jangan gunakan karakter newline (tombol enter) di dalam string JSON. Gunakan "\\n" sebagai ganti enter. Jangan gunakan tanda kutip ganda (") di dalam teks review, gunakan tanda kutip tunggal (') saja agar JSON tidak rusak.
+PENTING: Jangan gunakan karakter newline asli (tombol enter) di dalam string JSON. Gunakan "\\n" sebagai ganti enter. Jangan gunakan tanda kutip ganda (") di dalam teks review, gunakan tanda kutip tunggal (') saja agar JSON tidak rusak.
 `;
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-3-flash-preview",
-            // Gunakan Response MIME Type JSON jika didukung oleh versi SDK-mu
+            model: "gemini-3-flash-preview", // Menggunakan model stabil untuk produksi
             generationConfig: { 
                 responseMimeType: "application/json",
                 temperature: 0.7, 
@@ -60,30 +59,41 @@ PENTING: Jangan gunakan karakter newline (tombol enter) di dalam string JSON. Gu
         const result = await model.generateContent(promptText);
         let textResponse = result.response.text();
 
-        // --- PROSES PEMBERSIHAN EKSTRA (ANTI-ERROR) ---
-        // 1. Bersihkan pembungkus markdown jika ada
+        // --- PROSES PEMBERSIHAN EKSTRA (PEMBERSIHAN TOTAL) ---
+        // 1. Bersihkan pembungkus markdown JSON jika ada
         textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
         
-        // 2. Escape karakter newline terlarang yang mungkin lolos
-        // Ini sering jadi penyebab "Unterminated String"
-        const sanitizedResponse = textResponse.replace(/\n/g, "\\n").replace(/\r/g, "\\r");
+        // 2. Bersihkan karakter kontrol yang sering merusak JSON parse
+        // Menghapus karakter non-printable tapi mempertahankan \n yang sudah di-escape
+        let cleanText = textResponse.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
 
         try {
-            const finalResult = JSON.parse(sanitizedResponse);
+            // Parsing JSON
+            const finalResult = JSON.parse(cleanText);
+            
+            // Mengirimkan hasil yang sudah bersih
             res.status(200).json({
                 analisis_teks: finalResult.feedback
             });
         } catch (parseError) {
-            console.error("JSON Parse failed after sanitization:", textResponse);
-            // Jika parsing gagal, kita kirim teks mentahnya saja tapi dibersihkan dari struktur JSON
-            const fallbackText = textResponse.replace(/^{.*"feedback":\s*"/, '').replace(/"\s*}$/, '');
-            res.status(200).json({ analisis_teks: fallbackText });
+            console.error("Gagal Parse JSON, mencoba ekstraksi manual...");
+            
+            // FALLBACK: Jika JSON tetap rusak, kita ekstrak isi di antara quotes "feedback":"..."
+            const match = textResponse.match(/"feedback"\s*:\s*"([\s\S]*)"/);
+            if (match && match[1]) {
+                let resultText = match[1]
+                    .replace(/\\n/g, "\n") // Kembalikan newline agar enak dibaca
+                    .replace(/\\"/g, '"'); // Perbaiki quotes
+                res.status(200).json({ analisis_teks: resultText });
+            } else {
+                throw new Error("Format output AI tidak dapat dikenali.");
+            }
         }
 
     } catch (error) {
         console.error("AI Error (Analisis Pitching):", error);
         res.status(500).json({ 
-            analisis_teks: "Aduh, AksaBot lagi pusing bacanya. Coba kirim ulang atau hubungi teknisi ya!" 
+            analisis_teks: "Aduh, AksaBot lagi pusing bacanya. Coba klik analisis sekali lagi ya!" 
         });
     }
 }
