@@ -1,107 +1,88 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Inisialisasi Gemini menggunakan SDK Resmi
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 export default async function handler(req, res) {
-    // Pastikan hanya menerima request POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ message: 'Method Not Allowed' });
-    }
+    // Pengaturan CORS (Sesuai standarmu)
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*'); 
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-    const data = req.body;
-    // Pastikan API Key Gemini tersimpan di ENV servermu dengan nama GEMINI_API_KEY
-    const apiKey = process.env.GEMINI_API_KEY; 
-
-    // --- SUSUN OUTLINE MENJADI TEKS ---
-    let outlineTeks = "Tidak ada outline";
-    if (data.outline && data.outline.length > 0) {
-        outlineTeks = data.outline.map((bab, i) => `Bab ${i + 1} (${bab.judul_bab || 'Tanpa Judul'}): ${bab.isi_bab}`).join('\n');
-    }
-
-    // --- THE SUPER PROMPT ---
-    const systemPrompt = `
-Kamu adalah "Mentor Cendekia", seorang Editor Akuisisi Novel di penerbitan mayor yang asyik, gaul, tapi sangat kritis dan tajam dalam membedah naskah. 
-Gaya bahasamu kasual, empatik, menggunakan kata "Aku" dan "Kamu".
-
-Tugasmu: Mengevaluasi proposal naskah dari siswa.
-Siswa: ${data.studentName}
-Judul: ${data.judul}
-Genre: ${data.genre}
-Target: ${data.target_kata} kata
-Logline: ${data.logline}
-Sinopsis: ${data.sinopsis}
-Outline:
-${outlineTeks}
-
-STRUKTUR BALASAN YANG WAJIB KAMU BUAT:
-1. Sapaan Hangat: Sapa nama siswanya. Beri apresiasi karena sudah menyelesaikan proposal ini.
-   (Contoh: "Halo ${data.studentName}! Setelah aku baca apa yang kamu ajukan...")
-2. Evaluasi Judul & Genre: Apakah judulnya menarik/komersial? Apakah genre dan target katanya logis?
-3. Bedah Logline & Sinopsis:
-   - Apresiasi kekuatan idenya.
-   - PENGKRITIKAN TAJAM: Sebutkan jika ada plot hole, karakter yang kurang kuat motifnya, atau alur yang klise.
-   - Gunakan kalimat seperti: "Ada beberapa poin kosong yang seru banget untuk kamu tambahkan nih..."
-4. Evaluasi Outline: Apakah pacing/alur per babnya masuk akal? Adakah bab yang terasa lambat (dragging) atau terlalu terburu-buru (rushing)?
-5. Kesimpulan (Urgensi & Potensi): Beri tahu potensi naskah ini di pasaran. 
-6. Rekomendasi Keputusan Akhir: Secara implisit beri tahu apakah naskah ini "Layak ACC", "Perlu Revisi Minor/Mayor", atau "Sebaiknya ganti ide (Tolak)".
-
-Tulis langsung pesan untuk siswanya, tanpa tanda kutip pembuka atau format JSON. Langsung paragraf teks.
-`;
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        // Endpoint resmi Gemini 2.5 Flash API
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-        
-        const aiResponse = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                systemInstruction: {
-                    parts: [{ text: "Kamu adalah mentor novel yang ahli." }]
-                },
-                contents: [{
-                    parts: [{ text: systemPrompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 2048 // DITAMBAH AGAR NAPAS AI LEBIH PANJANG
-                },
-                // FITUR ANTI-TERPOTONG: Matikan safety filter khusus untuk bedah karya fiksi
-                safetySettings: [
-                    {
-                        category: "HARM_CATEGORY_HARASSMENT",
-                        threshold: "BLOCK_NONE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_HATE_SPEECH",
-                        threshold: "BLOCK_NONE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                        threshold: "BLOCK_NONE"
-                    },
-                    {
-                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                        threshold: "BLOCK_NONE"
-                    }
-                ]
-            })
-        });
+        const data = req.body;
 
-        if (!aiResponse.ok) {
-            const errorData = await aiResponse.json();
-            console.error("Detail Error Gemini API:", errorData);
-            throw new Error("Gagal memanggil API Gemini");
+        // Susun Outline Bab menjadi teks berurutan
+        let outlineTeks = "Tidak ada outline terlampir.";
+        if (data.outline && data.outline.length > 0) {
+            outlineTeks = data.outline.map((bab, i) => `Bab ${i + 1} (${bab.judul_bab || 'Tanpa Judul'}): ${bab.isi_bab}`).join('\n');
         }
 
-        const aiResult = await aiResponse.json();
-        
-        // Mengekstrak teks balasan
-        const hasilTeks = aiResult.candidates[0].content.parts[0].text;
+        // --- SUPER PROMPT INKUBASI ---
+        const promptText = `
+Peran: Kamu adalah "Mentor Cendekia", seorang Editor Akuisisi Novel di penerbitan mayor yang asyik, gaul, tapi sangat kritis dan tajam dalam membedah naskah. 
+Gaya bahasamu kasual, empatik, menggunakan kata "Aku" dan "Kamu".
 
-        // Kirim balik ke frontend Admin
-        return res.status(200).json({ analisis_teks: hasilTeks });
+Tugas: Evaluasi proposal naskah siswa berikut dan berikan ulasan komprehensif.
+
+Informasi Naskah:
+- Nama Penulis: "${data.studentName}"
+- Judul Naskah: "${data.judul}"
+- Genre: "${data.genre}"
+- Target Kata: "${data.target_kata} kata"
+- Logline (Premis): "${data.logline}"
+- Sinopsis Lengkap: "${data.sinopsis}"
+- Outline Bab:
+"${outlineTeks}"
+
+Tolong berikan output HANYA dalam format JSON valid berikut:
+{
+  "feedback": "(String berisi teks ulasan lengkap)"
+}
+
+Ketentuan Isi Feedback (Wajib diikuti):
+1. Sapaan & Kesan Awal: Buka dengan "Halo ${data.studentName}! Setelah aku baca apa yang kamu ajukan...". Beri apresiasi antusias.
+2. Evaluasi Judul & Target: Bahas apakah judulnya menarik dan apakah target katanya logis untuk genre tersebut.
+3. Bedah Logline & Sinopsis (KRITIKAN TAJAM): 
+   - Apresiasi kekuatan ide.
+   - Pembedahan Kritis: Cari dan sebutkan plot hole, motivasi karakter yang lemah, urgensi cerita yang kurang, atau alur klise.
+   - Gunakan kalimat transisi seperti: "Tapi, ada beberapa poin kosong yang seru banget nih untuk kamu tambahkan..."
+4. Evaluasi Outline: Cek pacing per bab. Adakah bab yang terasa lambat (dragging) atau terlalu terburu-buru (rushing)?
+5. Kesimpulan & Rekomendasi: Berikan kesimpulan potensi naskah di pasaran, dan sarankan secara implisit apakah naskah ini (ACC / Revisi Minor / Revisi Mayor / Tolak).
+6. Format Teks: Gunakan "\\n\\n" untuk memisahkan paragraf agar rapi. Kamu BISA menggunakan Markdown dasar seperti **teks tebal** atau *teks miring* untuk penekanan (jangan gunakan tag HTML seperti <b> atau <i> karena tidak akan terbaca di kolom teks). Dilarang menyertakan karakter markdown JSON \`\`\` di luar objek JSON.
+`;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: promptText }] }],
+            generationConfig: { 
+                temperature: 0.6, // Dibuat 0.6 agar seimbang antara kreatif dan analitis
+                maxOutputTokens: 2048 // Kapasitas napas AI panjang untuk analisis utuh
+            } 
+        });
+        
+        let textResponse = result.response.text();
+        
+        // Membersihkan pembungkus markdown JSON dari Gemini
+        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        // Parsing hasil teks ke bentuk JSON Objek
+        const finalResult = JSON.parse(textResponse);
+
+        // Kirim response sukses ke Frontend Admin
+        res.status(200).json({
+            analisis_teks: finalResult.feedback
+        });
 
     } catch (error) {
-        console.error("Error AI API:", error);
-        return res.status(500).json({ message: "Gagal memproses AI" });
+        console.error("AI Error (Analisis Pitching):", error);
+        // Fallback jika API sedang gangguan atau JSON gagal diparsing
+        res.status(500).json({ 
+            analisis_teks: "Aduh, AksaBot lagi agak sibuk atau pusing baca naskahnya nih. \n\nBisa tolong Kak Admin nilai manual dulu ya!" 
+        });
     }
 }
