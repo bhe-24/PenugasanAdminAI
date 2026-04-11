@@ -48,7 +48,7 @@ PENTING: Jangan gunakan karakter newline (tombol enter) di dalam string JSON. Gu
 `;
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             // Gunakan Response MIME Type JSON jika didukung oleh versi SDK-mu
             generationConfig: { 
                 responseMimeType: "application/json",
