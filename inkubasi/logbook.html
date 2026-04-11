@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logbook Mingguan - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #003366; --accent: #10b981; --bg: #f8fafc; --text: #334155; --warning: #f59e0b; --danger: #ef4444; }
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
+        
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        /* HEADER */
+        .page-header { background: white; padding: 25px 30px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--accent); }
+        .page-header h2 { margin: 0; color: var(--primary); font-size: 1.6rem; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif;}
+        .btn-back { background: #f1f5f9; color: #475569; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: 0.2s; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 8px;}
+        .btn-back:hover { background: #e2e8f0; color: var(--primary); }
+
+        /* BLOKIR JIKA BELUM ACC */
+        .blocker-panel { background: #fef2f2; border: 1px solid #f87171; border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px; display: none; }
+        .blocker-panel i { font-size: 3rem; color: var(--danger); margin-bottom: 15px; }
+        .blocker-panel h3 { color: #991b1b; margin: 0 0 10px 0; }
+        .blocker-panel p { color: #b91c1c; margin: 0; }
+
+        /* FORM LOGBOOK */
+        .form-card { background: white; border-radius: 16px; padding: 35px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; margin-bottom: 30px; display: none; }
+        .form-card h3 { margin: 0 0 25px 0; color: var(--primary); font-size: 1.4rem; border-bottom: 2px dashed #e2e8f0; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
+        
+        .form-row { display: flex; gap: 20px; }
+        .form-group { margin-bottom: 20px; flex: 1; }
+        .form-group label { display: block; font-weight: 600; color: #1e293b; margin-bottom: 8px; font-size: 0.95rem; }
+        .form-group .help-text { display: block; font-size: 0.8rem; color: #64748b; margin-bottom: 8px; }
+        
+        .form-control { width: 100%; padding: 14px 18px; border: 2px solid #cbd5e1; border-radius: 10px; font-family: inherit; font-size: 0.95rem; transition: 0.3s; background: #f8fafc; }
+        .form-control:focus { border-color: var(--accent); background: white; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+        .btn-submit { background: linear-gradient(135deg, var(--accent), #047857); color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 10px;}
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.2); }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* RIWAYAT LOGBOOK */
+        .history-section h3 { margin: 0 0 20px 0; color: var(--primary); font-size: 1.3rem; }
+        .history-container { display: flex; flex-direction: column; gap: 15px; }
+        
+        .history-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; border-left: 5px solid var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .history-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;}
+        .history-card-header h4 { margin: 0; color: var(--primary); font-size: 1.1rem; }
+        .history-meta { font-size: 0.85rem; color: #64748b; font-weight: 600; display: flex; gap: 15px;}
+        
+        .history-body p { margin: 0 0 10px 0; font-size: 0.95rem; line-height: 1.5; color: #334155;}
+        .history-body strong { color: #1e293b; }
+        
+        .mentor-feedback { background: #f0fdfa; border-radius: 8px; padding: 15px; margin-top: 15px; border: 1px solid #ccfbf1; }
+        .mentor-feedback h5 { margin: 0 0 5px 0; color: #0d9488; font-size: 0.9rem; }
+        .mentor-feedback p { margin: 0; color: #0f766e; font-size: 0.9rem; font-style: italic;}
+
+        .empty-state { text-align: center; padding: 40px; background: white; border-radius: 12px; border: 2px dashed #cbd5e1; color: #94a3b8; }
+
+        /* OVERLAY LOADING & MODAL */
+        #main-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(4px); }
+        .spinner { font-size: 3.5rem; color: var(--accent); margin-bottom: 15px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 31, 63, 0.6); backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 10000; opacity: 0; visibility: hidden; transition: 0.3s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-box { background: white; width: 90%; max-width: 420px; padding: 35px; border-radius: 20px; text-align: center; transform: scale(0.9); transition: 0.3s; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .modal-icon.warning { color: #f59e0b; }
+        .modal-icon.error { color: #ef4444; }
+        .modal-icon.success { color: #10b981; }
+        .modal-title { font-size: 1.4rem; color: var(--primary); font-weight: 800; margin: 0 0 10px 0; }
+        .modal-desc { font-size: 0.95rem; color: #64748b; line-height: 1.6; margin-bottom: 25px; }
+        .btn-modal { padding: 12px 30px; border-radius: 50px; font-weight: 700; font-size: 1rem; cursor: pointer; border: none; background: var(--primary); color: white; transition: 0.2s; width: 100%;}
+        .btn-modal:hover { background: #002244; }
+
+        @media (max-width: 600px) {
+            .page-header { flex-direction: column; gap: 15px; align-items: flex-start; }
+            .form-row { flex-direction: column; gap: 0; }
+            .history-card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-loading">
+        <i class="fa-solid fa-circle-notch spinner"></i>
+        <h2 style="font-size: 1.3rem; color: #003366; margin: 0;">Memuat Jurnal...</h2>
+    </div>
+
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-icon" class="modal-icon success"><i class="fa-solid fa-circle-check"></i></div>
+            <h3 id="modal-title" class="modal-title">Sukses</h3>
+            <p id="modal-desc" class="modal-desc">Pesan berhasil.</p>
+            <button class="btn-modal" onclick="document.getElementById('custom-modal').classList.remove('active');">Mengerti</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h2><i class="fa-solid fa-book-journal-whills"></i> Logbook Bimbingan</h2>
+            <a href="/dashboard/inkubasi.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        </div>
+
+        <div class="blocker-panel" id="blocker-panel">
+            <i class="fa-solid fa-lock"></i>
+            <h3>Akses Terkunci</h3>
+            <p>Anda belum bisa menyetor draf novel. Proposal pengajuan ide Anda di <b>Pitching Room</b> belum disetujui (ACC) oleh Mentor.</p>
+        </div>
+
+        <div class="form-card" id="form-card">
+            <h3>Setor Draf Mingguan <span style="font-size: 0.8rem; background: #e2e8f0; padding: 5px 12px; border-radius: 20px; color: #475569; font-family: 'Poppins';"><i class="fa-solid fa-fire"></i> Terus Semangat!</span></h3>
+            
+            <form id="logbook-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Laporan Minggu Ke-</label>
+                        <select id="minggu_ke" class="form-control" required>
+                            <option value="">Pilih Minggu...</option>
+                            <option value="1">Minggu 1</option>
+                            <option value="2">Minggu 2</option>
+                            <option value="3">Minggu 3</option>
+                            <option value="4">Minggu 4</option>
+                            <option value="5">Minggu 5</option>
+                            <option value="6">Minggu 6</option>
+                            <option value="7">Minggu 7</option>
+                            <option value="8">Minggu 8</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tambahan Kata Minggu Ini</label>
+                        <input type="number" id="word_count_added" class="form-control" placeholder="Contoh: 2500" min="1" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tautan Draf (Google Docs)</label>
+                    <span class="help-text">Pastikan link bisa diedit/dikomentari (Editor/Commenter) oleh Mentor.</span>
+                    <input type="url" id="link_draf" class="form-control" placeholder="https://docs.google.com/..." required>
+                </div>
+
+                <div class="form-group">
+                    <label>Catatan & Kendala untuk Mentor</label>
+                    <span class="help-text">Ceritakan kesulitanmu (writer's block, bingung alur, dll) agar mentor bisa memberi solusi.</span>
+                    <textarea id="kendala" class="form-control" placeholder="Tuliskan unek-unekmu di sini..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit" id="btn-submit">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Simpan Logbook & Perbarui Progres
+                </button>
+            </form>
+        </div>
+
+        <div class="history-section" id="history-section" style="display: none;">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Bimbingan</h3>
+            <div class="history-container" id="history-container">
+                </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, doc, addDoc, getDoc, getDocs, query, where, orderBy, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let currentUser = null;
+
+        // FUNGSI CUSTOM MODAL
+        window.showModal = (type, title, desc) => {
+            const modal = document.getElementById('custom-modal');
+            const icon = document.getElementById('modal-icon');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            
+            icon.className = `modal-icon ${type}`;
+            if(type === 'warning') icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            else if(type === 'error') icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+            else if(type === 'success') icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            
+            modal.classList.add('active');
+        };
+
+        // INISIALISASI HALAMAN
+        (async () => {
+            currentUser = await checkAuth('siswa');
+            if(currentUser) {
+                if ((parseInt(currentUser.semester) || 1) < 3) {
+                    window.location.href = '/dashboard/index.html';
+                    return;
+                }
+                await checkPitchingStatus();
+            }
+        })();
+
+        // 1. CEK STATUS PITCHING (Apakah sudah ACC?)
+        async function checkPitchingStatus() {
+            try {
+                const pitchRef = doc(db, 'pitching_projects', currentUser.uid);
+                const pitchSnap = await getDoc(pitchRef);
+
+                const blockerPanel = document.getElementById('blocker-panel');
+                const formCard = document.getElementById('form-card');
+                const historySection = document.getElementById('history-section');
+
+                if (!pitchSnap.exists() || pitchSnap.data().status !== 'acc') {
+                    // Blokir Akses
+                    blockerPanel.style.display = 'block';
+                    formCard.style.display = 'none';
+                    historySection.style.display = 'none';
+                    document.getElementById('main-loading').style.display = 'none';
+                } else {
+                    // Buka Akses
+                    blockerPanel.style.display = 'none';
+                    formCard.style.display = 'block';
+                    historySection.style.display = 'block';
+                    await loadLogbookHistory();
+                }
+            } catch (error) {
+                console.error("Error checking pitch:", error);
+                window.showModal('error', 'Gagal Verifikasi', 'Terjadi kesalahan sistem. Silakan muat ulang.');
+            }
+        }
+
+        // 2. MUAT RIWAYAT LOGBOOK
+        async function loadLogbookHistory() {
+            try {
+                const q = query(
+                    collection(db, 'logbook_entries'), 
+                    where('uid', '==', currentUser.uid),
+                    orderBy('timestamp', 'desc')
+                );
+                const snap = await getDocs(q);
+                const container = document.getElementById('history-container');
+
+                if (snap.empty) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 10px; color: #cbd5e1;"></i>
+                            <p>Belum ada riwayat bimbingan. Ayo kumpulkan draf pertamamu!</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        const dateStr = data.timestamp ? data.timestamp.toDate().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Baru saja';
+                        
+                        let mentorReply = '';
+                        if (data.feedback_mentor) {
+                            mentorReply = `
+                                <div class="mentor-feedback">
+                                    <h5><i class="fa-solid fa-reply"></i> Balasan Mentor:</h5>
+                                    <p>"${data.feedback_mentor}"</p>
+                                </div>
+                            `;
+                        }
+
+                        html += `
+                            <div class="history-card">
+                                <div class="history-card-header">
+                                    <h4>Laporan Minggu Ke-${data.minggu_ke}</h4>
+                                    <div class="history-meta">
+                                        <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
+                                        <span style="color:var(--accent);"><i class="fa-solid fa-pen-nib"></i> +${data.word_count.toLocaleString('id-ID')} Kata</span>
+                                    </div>
+                                </div>
+                                <div class="history-body">
+                                    <p><strong>Kendala:</strong> ${data.kendala}</p>
+                                    <p><strong>Tautan Draf:</strong> <a href="${data.link_draf}" target="_blank" style="color:var(--primary);"><i class="fa-solid fa-link"></i> Buka Google Docs</a></p>
+                                    ${mentorReply}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            } catch (error) {
+                console.error("Error loading history:", error);
+                document.getElementById('history-container').innerHTML = '<p style="color:red; text-align:center;">Gagal memuat riwayat.</p>';
+            } finally {
+                document.getElementById('main-loading').style.display = 'none';
+            }
+        }
+
+        // 3. SUBMIT LOGBOOK BARU
+        document.getElementById('logbook-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btnSubmit = document.getElementById('btn-submit');
+            const originalText = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan & Mengupdate Progress...';
+
+            try {
+                const addedWords = parseInt(document.getElementById('word_count_added').value) || 0;
+
+                const logData = {
+                    uid: currentUser.uid,
+                    studentName: currentUser.name,
+                    minggu_ke: document.getElementById('minggu_ke').value,
+                    word_count: addedWords,
+                    link_draf: document.getElementById('link_draf').value,
+                    kendala: document.getElementById('kendala').value,
+                    timestamp: serverTimestamp()
+                };
+
+                // A. Simpan ke koleksi logbook_entries
+                await addDoc(collection(db, 'logbook_entries'), logData);
+
+                // B. Update total word_count di profil utama siswa (Agar Progress Bar Dashboard jalan)
+                const userRef = doc(db, 'users', currentUser.uid);
+                await updateDoc(userRef, {
+                    word_count: increment(addedWords)
+                });
+
+                window.showModal('success', 'Setoran Berhasil!', `Laporan Minggu ke-${logData.minggu_ke} tersimpan. Progress naskahmu bertambah ${addedWords} kata!`);
+                
+                // Reset form & Reload data
+                document.getElementById('logbook-form').reset();
+                setTimeout(() => { window.location.reload(); }, 2000);
+
+            } catch (error) {
+                console.error("Error saving logbook:", error);
+                window.showModal('error', 'Gagal Disimpan', error.message);
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = originalText;
+            }
+        });
+    </script>
+</body>
+</html>
