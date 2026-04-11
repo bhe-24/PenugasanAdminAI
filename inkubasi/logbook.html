@@ -483,8 +483,18 @@
                     throw new Error(gasData.message || 'Gagal menghapus file di Google Drive.');
                 }
 
-                // 2. Hapus dokumen dari Firestore
+                // 2. Hapus dokumen dari Firestore & kurangi word_count di users
+                const chapSnap = await getDoc(doc(db, 'chapters', docId));
+                const deletedWords = chapSnap.exists() ? (parseInt(chapSnap.data().jumlah_kata) || 0) : 0;
+
                 await deleteDoc(doc(db, 'chapters', docId));
+
+                // Kurangi word_count agar progress bar di inkubasi.html otomatis turun
+                if (deletedWords > 0) {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        word_count: increment(-deletedWords)
+                    });
+                }
 
                 // 3. Hapus card dari DOM langsung (tanpa reload penuh)
                 const card = document.getElementById('card-' + docId);
