@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluasi Proposal Naskah - Admin Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <style>
+        :root { --primary: #003366; --accent: #d4af37; --bg: #f1f5f9; --text: #334155; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --ai-color: #8b5cf6; }
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; color: var(--text); display: flex; height: 100vh; overflow: hidden;}
+        
+        /* --- SIDEBAR MINI ADMIN --- */
+        .sidebar { width: 250px; background: var(--primary); color: white; display: flex; flex-direction: column; padding: 20px; box-shadow: 2px 0 15px rgba(0,0,0,0.1); z-index: 10; }
+        .brand { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; color: var(--accent); }
+        .nav-item { color: #cbd5e1; text-decoration: none; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; transition: 0.2s; font-weight: 500; font-size: 0.95rem;}
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: white; }
+        
+        /* --- MAIN CONTENT AREA --- */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { background: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); z-index: 5;}
+        .topbar h2 { margin: 0; font-size: 1.3rem; color: var(--primary); font-family: 'Playfair Display', serif;}
+        
+        .content-body { padding: 30px; overflow-y: auto; flex: 1; }
+
+        /* TABEL DATA PROPOSAL */
+        .data-card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;}
+        .filter-btn { padding: 8px 18px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 50px; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #64748b; transition: 0.2s; }
+        .filter-btn:hover { background: #e2e8f0; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0,51,102,0.2);}
+
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px;}
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+        tr:hover { background: #f8fafc; }
+        .td-judul { font-weight: 600; color: var(--primary); }
+        .td-nama { font-weight: 600; color: #334155; }
+        
+        .badge { padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+        .badge.menunggu { background: #fef3c7; color: #d97706; }
+        .badge.revisi { background: #fee2e2; color: #dc2626; }
+        .badge.acc { background: #d1fae5; color: #059669; }
+
+        .btn-action { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px;}
+        .btn-action:hover { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);}
+
+        /* --- MODAL EVALUASI (FULLSCREEN WORKSPACE) --- */
+        .eval-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 1000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .eval-modal.active { transform: translateY(0); }
+        
+        .eval-header { background: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .eval-header h2 { margin: 0; font-size: 1.3rem; color: var(--primary); display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif;}
+        .btn-close-modal { background: white; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; color: #64748b; transition: 0.2s; display: flex; align-items: center; gap: 6px;}
+        .btn-close-modal:hover { background: #fee2e2; color: var(--danger); border-color: #fca5a5;}
+
+        .eval-body { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Bagian Kiri: Dokumen Siswa */
+        .doc-viewer { flex: 2; padding: 40px; overflow-y: auto; background: white; border-right: 1px solid #e2e8f0; }
+        .doc-header-info { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px dashed #e2e8f0;}
+        .doc-header-info h1 { margin: 0 0 5px 0; color: var(--primary); font-size: 2.2rem; font-family: 'Playfair Display', serif; line-height: 1.2;}
+        .doc-header-info p { margin: 0; color: #64748b; font-size: 1rem; }
+        .info-pill { display: inline-block; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #475569; margin-right: 10px;}
+
+        .doc-section { margin-bottom: 35px; }
+        .doc-section h4 { margin: 0 0 12px 0; color: #64748b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;}
+        .doc-content { font-size: 1rem; line-height: 1.8; color: #334155; background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; white-space: pre-wrap;}
+        .doc-content.highlight { border-left: 4px solid var(--accent); background: #fffbeb; }
+
+        /* Outline Timeline */
+        .timeline { border-left: 3px solid #cbd5e1; margin-left: 20px; padding-left: 25px; margin-top: 10px;}
+        .timeline-item { margin-bottom: 25px; position: relative; }
+        .timeline-item::before { content: ''; position: absolute; left: -34px; top: 0; width: 16px; height: 16px; background: white; border: 4px solid var(--primary); border-radius: 50%; }
+        .timeline-title { font-weight: 700; color: var(--primary); margin-bottom: 8px; font-size: 1.05rem;}
+        .timeline-desc { font-size: 0.95rem; color: #475569; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;}
+
+        /* Bagian Kanan: Panel Keputusan & AI */
+        .decision-panel { flex: 1; min-width: 400px; padding: 30px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;}
+        
+        /* Panel AI Gemini */
+        .ai-panel { background: linear-gradient(135deg, #f3e8ff, #ede9fe); border: 1px solid #ddd6fe; padding: 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.05);}
+        .ai-panel h3 { margin: 0 0 10px 0; color: #6d28d9; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif;}
+        .ai-desc { font-size: 0.9rem; color: #5b21b6; margin-bottom: 20px; line-height: 1.5;}
+        .btn-ai { background: linear-gradient(135deg, var(--ai-color), #6d28d9); color: white; border: none; padding: 12px 15px; width: 100%; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; font-size: 0.95rem;}
+        .btn-ai:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(139, 92, 246, 0.4); }
+        .btn-ai:disabled { background: #a78bfa; cursor: not-allowed; transform: none; box-shadow: none;}
+
+        /* Form Feedback */
+        .feedback-form { background: white; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.02); flex: 1; display: flex; flex-direction: column;}
+        .feedback-form h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 1.1rem; display: flex; align-items: center; gap: 8px;}
+        textarea.feedback-input { flex: 1; width: 100%; padding: 20px; border: 2px solid #cbd5e1; border-radius: 10px; font-family: inherit; font-size: 0.95rem; line-height: 1.6; resize: none; margin-bottom: 20px; background: #f8fafc; transition: 0.3s;}
+        textarea.feedback-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(0,51,102,0.1); }
+
+        /* Tombol Aksi Final */
+        .action-buttons { display: flex; gap: 15px; }
+        .btn-decision { flex: 1; padding: 15px; border: none; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; color: white; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit;}
+        .btn-revisi { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .btn-revisi:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(245, 158, 11, 0.3);}
+        .btn-acc { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-acc:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);}
+        .btn-decision:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none;}
+
+        /* LOADING FULLSCREEN */
+        #main-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(4px);}
+        .spinner { font-size: 3.5rem; color: var(--primary); margin-bottom: 15px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Link PDF Khusus Admin */
+        .pdf-link-btn { display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; color: #475569; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; text-decoration: none; border: 1px solid #cbd5e1; transition: 0.2s;}
+        .pdf-link-btn:hover { background: white; color: var(--danger); border-color: var(--danger);}
+
+        @media (max-width: 992px) {
+            .eval-body { flex-direction: column; overflow-y: auto;}
+            .doc-viewer { flex: none; border-right: none; border-bottom: 1px solid #e2e8f0; }
+            .decision-panel { flex: none; min-width: auto; }
+            .sidebar { width: 80px; padding: 20px 10px; align-items: center;}
+            .brand { font-size: 0; }
+            .nav-item { padding: 15px; justify-content: center;}
+            .nav-item span { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-loading">
+        <i class="fa-solid fa-circle-notch spinner"></i>
+        <h2 style="font-size: 1.3rem; color: #003366; margin: 0; font-family: 'Playfair Display', serif;">Memuat Data Proposal...</h2>
+    </div>
+
+    <div class="sidebar">
+        <div class="brand"><img src="https://i.imgur.com/5Srjyo4.png" width="35"> <span>Admin CA</span></div>
+        <a href="index.html" class="nav-item"><i class="fa-solid fa-house"></i> <span>Dasbor Utama</span></a>
+        <a href="#" class="nav-item active"><i class="fa-solid fa-lightbulb"></i> <span>Evaluasi Ide Naskah</span></a>
+        <a href="sidang.html" class="nav-item"><i class="fa-solid fa-gavel"></i> <span>Jadwal Sidang</span></a>
+    </div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <h2>Daftar Pengajuan Proposal (Semester 3)</h2>
+            <div style="font-size: 0.9rem; color: #64748b; font-weight: 500;"><i class="fa-solid fa-user-shield"></i> Ruang Evaluasi Mentor</div>
+        </div>
+
+        <div class="content-body">
+            <div class="data-card">
+                <div class="filter-bar">
+                    <button class="filter-btn active" onclick="filterTable('semua', this)">Semua Pengajuan</button>
+                    <button class="filter-btn" onclick="filterTable('menunggu', this)">Perlu Tindakan (Menunggu)</button>
+                    <button class="filter-btn" onclick="filterTable('revisi', this)">Sedang Direvisi Siswa</button>
+                    <button class="filter-btn" onclick="filterTable('acc', this)">Telah Disetujui (ACC)</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nama Penulis</th>
+                                <th>Judul Naskah</th>
+                                <th>Target Kata</th>
+                                <th>Status</th>
+                                <th>Berkas</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="eval-modal" id="eval-modal">
+        <div class="eval-header">
+            <h2><i class="fa-solid fa-microscope"></i> Workspace Evaluasi Naskah</h2>
+            <button class="btn-close-modal" onclick="closeEvalModal()"><i class="fa-solid fa-xmark"></i> Tutup Evaluasi</button>
+        </div>
+        
+        <div class="eval-body">
+            <div class="doc-viewer" id="doc-viewer">
+                <div class="doc-header-info">
+                    <div>
+                        <h1 id="v-judul">Judul Naskah</h1>
+                        <p>Karya: <b style="color: #334155;" id="v-nama">Nama Siswa</b></p>
+                        <div style="margin-top: 15px;">
+                            <span class="info-pill"><i class="fa-solid fa-bullseye"></i> <span id="v-target">0</span> Kata</span>
+                            <span class="info-pill"><i class="fa-solid fa-masks-theater"></i> Genre: <span id="v-genre">-</span></span>
+                        </div>
+                    </div>
+                    <div id="v-badge-container"></div>
+                </div>
+
+                <div class="doc-section">
+                    <h4><i class="fa-solid fa-bolt"></i> Logline (Premis Utama)</h4>
+                    <div class="doc-content highlight" id="v-logline">...</div>
+                </div>
+
+                <div class="doc-section">
+                    <h4><i class="fa-solid fa-book-open"></i> Sinopsis Lengkap</h4>
+                    <div class="doc-content" id="v-sinopsis">...</div>
+                </div>
+
+                <div class="doc-section">
+                    <h4><i class="fa-solid fa-list-ol"></i> Outline / Garis Besar Bab</h4>
+                    <div class="timeline" id="v-outline">
+                        </div>
+                </div>
+            </div>
+
+            <div class="decision-panel">
+                
+                <div class="ai-panel">
+                    <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Asisten Analisis AI</h3>
+                    <p class="ai-desc">AI akan membaca seluruh naskah dan merumuskan draf catatan mentor secara otomatis berdasarkan standar penerbitan.</p>
+                    <button class="btn-ai" id="btn-ai" onclick="analyzeWithAI()">
+                        <i class="fa-solid fa-robot"></i> Analisis Naskah dengan AI
+                    </button>
+                </div>
+
+                <div class="feedback-form">
+                    <h3><i class="fa-solid fa-comment-medical"></i> Catatan Evaluasi Mentor</h3>
+                    <textarea class="feedback-input" id="mentor-feedback" placeholder="Tuliskan kritikan, apresiasi, atau alasan penolakan/persetujuan di sini... (Wajib diisi jika minta revisi)"></textarea>
+                    
+                    <div class="action-buttons">
+                        <button class="btn-decision btn-revisi" id="btn-minta-revisi" onclick="submitDecision('revisi')">
+                            <i class="fa-solid fa-pen-to-square"></i> Minta Revisi
+                        </button>
+                        <button class="btn-decision btn-acc" id="btn-acc" onclick="submitDecision('acc')">
+                            <i class="fa-solid fa-check-double"></i> Setujui (ACC)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, getDocs, doc, setDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let allProposals = [];
+        let activeProposalId = null;
+        let activeProposalData = null;
+        let adminInfo = null;
+        
+        // URL GOOGLE APPS SCRIPT
+        const GAS_URL = "https://script.google.com/macros/s/AKfycby_RVOM2MJUu5gP6kPlZ6wYluvYVtnZ4y6TtF9hLhRdXvKE7t3yeqRSvIVFOv36-1LbpA/exec";
+
+        (async () => {
+            adminInfo = await checkAuth('admin'); // Anggap function ini return data admin yang sedang login
+            if (adminInfo) {
+                await loadProposals();
+            }
+        })();
+
+        // --- 1. LOAD DATA PROPOSAL DARI FIRESTORE ---
+        async function loadProposals() {
+            try {
+                const q = query(collection(db, 'pitching_projects'), orderBy('timestamp', 'desc'));
+                const snap = await getDocs(q);
+                allProposals = [];
+                
+                snap.forEach(doc => {
+                    allProposals.push({ id: doc.id, ...doc.data() });
+                });
+                
+                renderTable(allProposals);
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal', 'Tidak dapat memuat data proposal dari database.', 'error');
+            } finally {
+                document.getElementById('main-loading').style.display = 'none';
+            }
+        }
+
+        // --- 2. RENDER TABLE & FILTERING ---
+        window.filterTable = (status, btnElement) => {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            
+            if(status === 'semua') {
+                renderTable(allProposals);
+            } else {
+                const filtered = allProposals.filter(p => p.status === status);
+                renderTable(filtered);
+            }
+        };
+
+        function renderTable(dataArray) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if(dataArray.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:40px;">Tidak ada data proposal ditemukan.</td></tr>';
+                return;
+            }
+
+            dataArray.forEach(p => {
+                // Konfigurasi Badge Status
+                let badgeHTML = '';
+                if(p.status === 'menunggu') badgeHTML = '<span class="badge menunggu"><i class="fa-solid fa-hourglass-half"></i> Menunggu Review</span>';
+                else if(p.status === 'revisi') badgeHTML = '<span class="badge revisi"><i class="fa-solid fa-pen-to-square"></i> Sedang Direvisi</span>';
+                else if(p.status === 'acc') badgeHTML = '<span class="badge acc"><i class="fa-solid fa-check"></i> Disetujui (ACC)</span>';
+
+                // Tautan PDF Berkas (Jika ada dari Google Drive)
+                let pdfLinkHTML = '-';
+                if(p.link_pdf_admin) {
+                    pdfLinkHTML = `<a href="${p.link_pdf_admin}" target="_blank" class="pdf-link-btn" title="Buka PDF Asli"><i class="fa-solid fa-file-pdf"></i> Buka PDF</a>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="td-nama">${p.studentName}</td>
+                    <td class="td-judul">${p.judul}</td>
+                    <td>${p.target_kata ? p.target_kata.toLocaleString('id-ID') : '-'}</td>
+                    <td>${badgeHTML}</td>
+                    <td>${pdfLinkHTML}</td>
+                    <td>
+                        <button class="btn-action" onclick="openEvalModal('${p.id}')">
+                            <i class="fa-solid fa-folder-open"></i> Evaluasi
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 3. BUKA WORKSPACE EVALUASI (MODAL) ---
+        window.openEvalModal = (id) => {
+            activeProposalId = id;
+            activeProposalData = allProposals.find(p => p.id === id);
+            const data = activeProposalData;
+
+            // Scroll to top viewer
+            document.getElementById('doc-viewer').scrollTop = 0;
+
+            // Isi Data Dokumen Kiri
+            document.getElementById('v-judul').innerText = data.judul;
+            document.getElementById('v-nama').innerText = data.studentName;
+            document.getElementById('v-target').innerText = data.target_kata ? data.target_kata.toLocaleString('id-ID') : '-';
+            document.getElementById('v-genre').innerText = data.genre;
+            document.getElementById('v-logline').innerText = data.logline;
+            document.getElementById('v-sinopsis').innerText = data.sinopsis;
+
+            // Render Status Badge di Header Dokumen
+            let bHTML = '';
+            if(data.status === 'menunggu') bHTML = '<span class="badge menunggu" style="font-size:0.9rem; padding:8px 15px;"><i class="fa-solid fa-hourglass-half"></i> Menunggu Review</span>';
+            else if(data.status === 'revisi') bHTML = '<span class="badge revisi" style="font-size:0.9rem; padding:8px 15px;"><i class="fa-solid fa-pen-to-square"></i> Sedang Direvisi</span>';
+            else if(data.status === 'acc') bHTML = '<span class="badge acc" style="font-size:0.9rem; padding:8px 15px;"><i class="fa-solid fa-check"></i> Disetujui (ACC)</span>';
+            document.getElementById('v-badge-container').innerHTML = bHTML;
+
+            // Render Outline Timeline
+            const outlineContainer = document.getElementById('v-outline');
+            outlineContainer.innerHTML = '';
+            if (data.outline && Array.isArray(data.outline) && data.outline.length > 0) {
+                data.outline.forEach((bab, index) => {
+                    const titleStr = bab.judul_bab ? `Bab ${index+1}: ${bab.judul_bab}` : `Bab ${index+1}`;
+                    outlineContainer.innerHTML += `
+                        <div class="timeline-item">
+                            <div class="timeline-title">${titleStr}</div>
+                            <div class="timeline-desc">${bab.isi_bab}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                outlineContainer.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Tidak ada outline terlampir.</p>';
+            }
+
+            // Isi Kolom Feedback (jika sudah pernah dinilai)
+            document.getElementById('mentor-feedback').value = data.feedback_mentor || '';
+            
+            // Atur Kondisi Tombol Aksi berdasarkan Status
+            const btnRev = document.getElementById('btn-minta-revisi');
+            const btnAcc = document.getElementById('btn-acc');
+            const btnAi = document.getElementById('btn-ai');
+
+            // Reset tombol AI
+            btnAi.disabled = false;
+            btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Naskah dengan AI';
+
+            if (data.status === 'acc') {
+                btnRev.disabled = true;
+                btnAcc.disabled = true;
+                btnAi.disabled = true;
+                btnAcc.innerHTML = '<i class="fa-solid fa-check-double"></i> Dokumen Sudah Terkunci (ACC)';
+            } else {
+                btnRev.disabled = false;
+                btnAcc.disabled = false;
+                btnRev.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Minta Revisi';
+                btnAcc.innerHTML = '<i class="fa-solid fa-check-double"></i> Setujui (ACC)';
+            }
+
+            // Tampilkan Modal dengan animasi naik
+            document.getElementById('eval-modal').classList.add('active');
+        };
+
+        window.closeEvalModal = () => {
+            document.getElementById('eval-modal').classList.remove('active');
+            activeProposalId = null;
+            activeProposalData = null;
+        };
+
+        // --- 4. FITUR INTEGRASI API AI (GEMINI) ---
+        window.analyzeWithAI = async () => {
+            if(!activeProposalData) return;
+            
+            const btnAi = document.getElementById('btn-ai');
+            const feedbackInput = document.getElementById('mentor-feedback');
+            
+            // UI Loading State
+            btnAi.disabled = true;
+            btnAi.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> AI Sedang Membaca...';
+            
+            // Simpan teks feedback lama jika ada, agar tidak hilang tertimpa langsung
+            const oldFeedback = feedbackInput.value.trim();
+            feedbackInput.value = "Tunggu sebentar, AksaBot sedang membedah naskah dan mencari plot hole...";
+
+            try {
+                // Tembak ke API backend node.js/vercel kamu
+                // Pastikan endpoint '/api/analisis-proposal' sudah dibuat dan di-deploy sesuai instruksi sebelumnya
+                const response = await fetch('/api/analisis-proposal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(activeProposalData)
+                });
+
+                if (!response.ok) throw new Error('Gagal menghubungi server AI (Cek Endpoint Vercel/Node)');
+
+                const result = await response.json();
+                
+                // Gabungkan hasil AI dengan catatan lama (jika ada)
+                const finalFeedback = oldFeedback ? `${oldFeedback}\n\n--- Catatan Tambahan (AI): ---\n${result.analisis_teks}` : result.analisis_teks;
+                
+                feedbackInput.value = finalFeedback;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Analisis Selesai!',
+                    text: 'Draf catatan dari AI sudah siap. Silakan sesuaikan sebelum mengirim ke siswa.',
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+
+            } catch (error) {
+                console.error(error);
+                feedbackInput.value = oldFeedback; // Kembalikan teks lama jika error
+                Swal.fire('Koneksi Gagal', 'AI gagal merespons. Pastikan file backend API sudah di-deploy dengan benar.', 'error');
+            } finally {
+                btnAi.disabled = false;
+                btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Naskah dengan AI';
+            }
+        };
+
+        // --- 5. SUBMIT KEPUTUSAN & CETAK PDF VIA APPS SCRIPT ---
+        window.submitDecision = async (decisionType) => {
+            const feedback = document.getElementById('mentor-feedback').value.trim();
+            
+            if (decisionType === 'revisi' && feedback === '') {
+                Swal.fire('Peringatan', 'Harap isi Catatan Evaluasi jika Anda meminta siswa melakukan revisi!', 'warning');
+                return;
+            }
+
+            // UI Loading Lock
+            const btnRev = document.getElementById('btn-minta-revisi');
+            const btnAcc = document.getElementById('btn-acc');
+            btnRev.disabled = true; btnAcc.disabled = true;
+            
+            const loadingSwal = Swal.fire({
+                title: 'Mencetak Keputusan...',
+                html: 'Sistem sedang membuat dokumen PDF resmi ke Google Drive dan memperbarui database...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                // Siapkan Payload untuk Apps Script (Kirim data yang persis dengan fungsi `submit_siswa` ditambah parameter evaluasi)
+                const payloadGAS = {
+                    actionType: decisionType === 'acc' ? "acc_admin" : "revisi_admin",
+                    studentName: activeProposalData.studentName,
+                    judul: activeProposalData.judul,
+                    genre: activeProposalData.genre,
+                    target_kata: activeProposalData.target_kata,
+                    logline: activeProposalData.logline,
+                    sinopsis: activeProposalData.sinopsis,
+                    outline: activeProposalData.outline, // Array
+                    catatan_mentor: feedback,
+                    nama_mentor: adminInfo ? adminInfo.name : "Admin Cendekia Aksara" // Auto deteksi nama admin yg login
+                };
+
+                // 1. Tembak ke Google Apps Script untuk bikin PDF Final/Revisi
+                const responseGAS = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payloadGAS),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } // Hindari preflight CORS error
+                });
+                
+                const resultGAS = await responseGAS.json();
+                
+                let linkPdfAdmin = activeProposalData.link_pdf_admin || null;
+                if (resultGAS.status === "success") {
+                    // Update dengan link PDF terbaru (yang ada centang ACC/Tolak-nya)
+                    linkPdfAdmin = resultGAS.pdfUrl; 
+                } else {
+                    console.warn("Gagal Cetak PDF via GAS:", resultGAS.message);
+                }
+
+                // 2. Simpan Keputusan ke Firestore Database
+                await setDoc(doc(db, 'pitching_projects', activeProposalId), {
+                    status: decisionType,
+                    feedback_mentor: feedback,
+                    link_pdf_admin: linkPdfAdmin,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Evaluasi Diterbitkan!',
+                    text: decisionType === 'acc' ? 'Proposal disetujui. Dokumen ACC (PDF) telah dikirim ke Dashboard Siswa dan Drive Admin.' : 'Permintaan revisi dan dokumen PDF hasil review telah dikirim ke siswa.',
+                    confirmButtonColor: '#003366'
+                }).then(() => {
+                    closeEvalModal();
+                    loadProposals(); // Reload data tabel di layar belakang
+                });
+
+            } catch (error) {
+                console.error("Error Submit Decision:", error);
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyimpan keputusan. Cek koneksi Anda.', 'error');
+                btnRev.disabled = false; btnAcc.disabled = false;
+            }
+        };
+
+    </script>
+</body>
+</html>
