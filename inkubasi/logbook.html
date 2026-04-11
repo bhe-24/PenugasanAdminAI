@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <style>
-        :root { --primary: #003366; --accent: #10b981; --bg: #f8fafc; --text: #334155; --border: #e2e8f0; }
+        :root { --primary: #003366; --accent: #10b981; --bg: #f8fafc; --text: #334155; --border: #e2e8f0; --danger: #ef4444; }
         * { box-sizing: border-box; outline: none; }
         body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; font-size: 14px; scroll-behavior: smooth;}
         
@@ -44,7 +44,7 @@
         .toolbar-btn { background: white; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: #475569; transition: 0.2s; font-size: 0.9rem; }
         .toolbar-btn:hover { background: #e2e8f0; color: var(--primary); }
         
-        /* CONTENT EDITABLE (AREA MENULIS) */
+        /* CONTENT EDITABLE */
         .editor-area { min-height: 400px; border: 1px solid var(--border); border-radius: 0 0 8px 8px; padding: 20px; font-family: 'Georgia', serif; font-size: 1.1rem; line-height: 1.8; color: #1e293b; overflow-y: auto; background: #fffcf8; }
         .editor-area:focus { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 2px rgba(0, 51, 102, 0.05); }
         .editor-area[placeholder]:empty:before { content: attr(placeholder); color: #94a3b8; font-style: italic; pointer-events: none; display: block; }
@@ -70,10 +70,15 @@
         .chapter-card:hover { border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
         .chapter-info h4 { margin: 0 0 5px 0; font-size: 0.95rem; color: #1e293b; }
         .chapter-meta { margin: 0; font-size: 0.8rem; color: #64748b; display: flex; gap: 10px; }
-        .btn-preview { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.2s;}
-        .btn-preview:hover { background: #3b82f6; color: white; }
 
-        /* PANEL PENGGABUNGAN (SETELAH TAMAT) */
+        /* TOMBOL AKSI BAB */
+        .btn-preview { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px;}
+        .btn-preview:hover { background: #3b82f6; color: white; }
+        .btn-hapus { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px;}
+        .btn-hapus:hover { background: #dc2626; color: white; border-color: #dc2626; }
+        .chapter-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* PANEL PENGGABUNGAN */
         .merge-panel { background: #f0fdf4; border: 2px dashed #86efac; border-radius: 12px; padding: 25px; text-align: center; margin-top: 25px; display: none; }
         .merge-panel h3 { margin: 0 0 10px 0; color: #166534; font-size: 1.2rem;}
         .merge-panel p { color: #15803d; font-size: 0.9rem; margin-bottom: 20px;}
@@ -102,7 +107,8 @@
         @media (max-width: 480px) {
             .btn-group { flex-direction: column; }
             .chapter-card { flex-direction: column; align-items: flex-start; gap: 10px; }
-            .btn-preview { width: 100%; text-align: center; }
+            .chapter-actions { width: 100%; }
+            .btn-preview, .btn-hapus { flex: 1; justify-content: center; }
         }
     </style>
 </head>
@@ -113,6 +119,7 @@
         <h3 style="color: #003366; margin: 0;">Memuat Studio...</h3>
     </div>
 
+    <!-- MODAL REGISTRASI PENULIS -->
     <div id="author-modal" class="modal-overlay">
         <div class="modal-box">
             <h3><i class="fa-solid fa-file-signature"></i> Registrasi Hak Cipta</h3>
@@ -137,6 +144,7 @@
         </div>
     </div>
 
+    <!-- MODAL PENGAJUAN TAMAT -->
     <div id="tamat-modal" class="modal-overlay">
         <div class="modal-box">
             <h3><i class="fa-solid fa-flag-checkered"></i> Pengajuan Naskah Tamat</h3>
@@ -152,7 +160,7 @@
                     <label class="check-item"><input type="checkbox" required> <span>Jumlah kata telah mendekati atau memenuhi target awal.</span></label>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button type="button" class="btn-back" style="flex:1; justify-content:center;" onclick="document.getElementById('tamat-modal').classList.remove('active');">Batal</button>
+                    <button type="button" class="btn-back" style="flex:1; padding:10px; text-align:center;" onclick="document.getElementById('tamat-modal').classList.remove('active');">Batal</button>
                     <button type="submit" class="btn-tamat" style="flex:2;">Selesai & Kunci Naskah</button>
                 </div>
             </form>
@@ -165,12 +173,14 @@
             <a href="/dashboard/inkubasi.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dasbor</a>
         </div>
 
+        <!-- PANEL BLOKIR -->
         <div class="blocker-panel" id="blocker-panel">
             <i class="fa-solid fa-lock"></i>
             <h3>Akses Terkunci</h3>
             <p>Studio Menulis belum tersedia. Pastikan proposal Anda di <b>Pitching Room</b> sudah disetujui (ACC) oleh Mentor.</p>
         </div>
 
+        <!-- EDITOR UTAMA -->
         <div class="studio-card" id="studio-card">
             <h1 class="novel-title" id="display-judul">Memuat Judul...</h1>
             <div class="novel-meta">
@@ -213,10 +223,12 @@
             </form>
         </div>
 
+        <!-- RIWAYAT BAB -->
         <div class="history-section" id="history-section">
             <h3><i class="fa-solid fa-layer-group"></i> Naskah Tersimpan (<span id="total-chapters">0</span> Bab)</h3>
             <div id="history-container"></div>
 
+            <!-- PANEL GABUNG NASKAH -->
             <div class="merge-panel" id="merge-panel">
                 <h3><i class="fa-solid fa-file-word"></i> Persiapan Sidang Akhir</h3>
                 <p>Naskahmu telah dinyatakan tamat! Klik tombol di bawah untuk menyatukan seluruh bab menjadi satu file Google Docs utuh secara otomatis.</p>
@@ -229,35 +241,47 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script type="module">
+    <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, updateDoc, increment, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            doc, setDoc, getDoc, getDocs, collection, 
+            query, where, orderBy, updateDoc, increment, 
+            serverTimestamp, addDoc, deleteDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
-        let pitchData = null;
+        let pitchData   = null;
         let chapterCount = 0;
         let isTamat = false;
 
-        // --- KONFIGURASI URL APPS SCRIPT ---
+        // --- URL APPS SCRIPT ---
         const GAS_URL_STUDIO = "https://script.google.com/macros/s/AKfycbxhnEISuowiQsAXqFTNDkalNXAT36rDFcwsvV1sGYShakSjhsW4NQQIahx2SDaHWmisTw/exec";
-    
+
+        // ============================================================
+        // FORMAT TEKS (TOOLBAR)
+        // ============================================================
         window.formatText = (command) => {
             document.execCommand(command, false, null);
             document.getElementById('editor').focus();
         };
 
-        const editorDiv = document.getElementById('editor');
+        // ============================================================
+        // WORD COUNTER
+        // ============================================================
+        const editorDiv   = document.getElementById('editor');
         const countDisplay = document.getElementById('word-count');
-
         editorDiv.addEventListener('input', () => {
-            const text = editorDiv.innerText || "";
-            const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+            const text  = editorDiv.innerText || "";
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0);
             countDisplay.innerText = words.length.toLocaleString('id-ID');
         });
 
+        // ============================================================
+        // INIT — CEK AUTH & PITCHING
+        // ============================================================
         (async () => {
             currentUser = await checkAuth('siswa');
-            if(currentUser) {
+            if (currentUser) {
                 if ((parseInt(currentUser.semester) || 1) < 3) {
                     window.location.href = '/dashboard/index.html';
                     return;
@@ -266,27 +290,26 @@
             }
         })();
 
+        // ============================================================
+        // CEK STATUS PITCHING & PROFIL PENULIS
+        // ============================================================
         async function checkPitchingAndAuthorData() {
             try {
-                const pitchRef = doc(db, 'pitching_projects', currentUser.uid);
+                const pitchRef  = doc(db, 'pitching_projects', currentUser.uid);
                 const pitchSnap = await getDoc(pitchRef);
 
-                const blockerPanel = document.getElementById('blocker-panel');
-                const studioCard = document.getElementById('studio-card');
-                const historySection = document.getElementById('history-section');
-
                 if (!pitchSnap.exists() || pitchSnap.data().status !== 'acc') {
-                    blockerPanel.style.display = 'block';
-                    document.getElementById('main-loading').style.display = 'none';
-                    return; 
+                    document.getElementById('blocker-panel').style.display = 'block';
+                    document.getElementById('main-loading').style.display  = 'none';
+                    return;
                 }
 
                 pitchData = pitchSnap.data();
-                document.getElementById('display-judul').innerText = pitchData.judul;
-                document.getElementById('display-genre').innerText = pitchData.genre;
+                document.getElementById('display-judul').innerText  = pitchData.judul;
+                document.getElementById('display-genre').innerText  = pitchData.genre;
                 document.getElementById('display-target').innerText = pitchData.target_kata.toLocaleString('id-ID');
 
-                const authorRef = doc(db, 'author_profiles', currentUser.uid);
+                const authorRef  = doc(db, 'author_profiles', currentUser.uid);
                 const authorSnap = await getDoc(authorRef);
 
                 if (!authorSnap.exists()) {
@@ -302,23 +325,25 @@
             }
         }
 
+        // ============================================================
+        // SUBMIT FORM REGISTRASI PENULIS
+        // ============================================================
         document.getElementById('author-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat Folder...';
-            btn.disabled = true;
+            btn.disabled  = true;
 
             try {
                 const authorData = {
-                    uid: currentUser.uid,
-                    real_name: currentUser.name,
-                    pen_name: document.getElementById('pen_name').value,
-                    email: document.getElementById('author_email').value,
+                    uid       : currentUser.uid,
+                    real_name : currentUser.name,
+                    pen_name  : document.getElementById('pen_name').value,
+                    email     : document.getElementById('author_email').value,
                     novel_title: pitchData.judul,
-                    is_tamat: false,
-                    createdAt: serverTimestamp()
+                    is_tamat  : false,
+                    createdAt : serverTimestamp()
                 };
-                
                 await setDoc(doc(db, 'author_profiles', currentUser.uid), authorData);
                 document.getElementById('author-modal').classList.remove('active');
                 Swal.fire('Berhasil!', 'Profil penulis diamankan. Selamat menulis!', 'success');
@@ -326,34 +351,42 @@
             } catch (error) {
                 console.error(error);
                 btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-folder-plus"></i> Simpan & Buat Arsip Naskah';
             }
         });
 
+        // ============================================================
+        // BUKA STUDIO
+        // ============================================================
         async function bukaStudio() {
-            document.getElementById('blocker-panel').style.display = 'none';
-            document.getElementById('studio-card').style.display = 'block';
+            document.getElementById('blocker-panel').style.display  = 'none';
+            document.getElementById('studio-card').style.display    = 'block';
             document.getElementById('history-section').style.display = 'block';
-            document.getElementById('main-loading').style.display = 'none';
-            
-            if(isTamat) {
+            document.getElementById('main-loading').style.display   = 'none';
+
+            if (isTamat) {
                 document.getElementById('editor-form').style.display = 'none';
                 document.getElementById('merge-panel').style.display = 'block';
             }
             await loadHistory();
         }
 
+        // ============================================================
+        // LOAD RIWAYAT BAB
+        // ============================================================
         async function loadHistory() {
             try {
-                const q = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
+                const q    = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
                 const snap = await getDocs(q);
                 const container = document.getElementById('history-container');
-                
+
                 chapterCount = snap.size;
                 document.getElementById('total-chapters').innerText = chapterCount;
 
-                const btnTamat = document.getElementById('btn-ajukan-tamat');
-                if(chapterCount >= 10 && !isTamat) {
-                    btnTamat.disabled = false;
+                // Aktifkan tombol tamat jika sudah >= 10 bab
+                if (chapterCount >= 10 && !isTamat) {
+                    document.getElementById('btn-ajukan-tamat').disabled = false;
+                    document.getElementById('btn-ajukan-tamat').removeAttribute('title');
                 }
 
                 if (snap.empty) {
@@ -361,28 +394,42 @@
                     return;
                 }
 
-                let html = '';
+                let html   = '';
                 let urutan = 1;
-                snap.forEach((doc) => {
-                    const data = doc.data();
-                    // Fallback jika tanggal gagal dimuat dari server
+                snap.forEach((chapDoc) => {
+                    const data = chapDoc.data();
                     let dateStr = 'Tersimpan';
                     if (data.timestamp && data.timestamp.toDate) {
-                         dateStr = data.timestamp.toDate().toLocaleDateString('id-ID');
+                        dateStr = data.timestamp.toDate().toLocaleDateString('id-ID');
                     }
-                    
+
+                    // Simpan fileId sebagai data attribute agar aman dari karakter aneh
                     html += `
-                        <div class="chapter-card">
+                        <div class="chapter-card" id="card-${chapDoc.id}">
                             <div class="chapter-info">
                                 <h4>Bab ${urutan}: ${data.judul_bab || 'Tanpa Judul'}</h4>
                                 <p class="chapter-meta">
-                                    <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span> 
-                                    <span style="color:var(--accent);"><i class="fa-solid fa-font"></i> ${data.jumlah_kata || 0} Kata</span>
+                                    <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
+                                    <span style="color:var(--accent);"><i class="fa-solid fa-font"></i> ${(data.jumlah_kata || 0).toLocaleString('id-ID')} Kata</span>
                                 </p>
                             </div>
-                            <div style="display:flex; gap: 8px;">
-                                <a href="${data.link_pdf || '#'}" target="_blank" class="btn-preview" style="background:#fef2f2; color:#ef4444; border-color:#fca5a5;"><i class="fa-solid fa-file-pdf"></i> PDF</a>
-                                <a href="${data.link_word || '#'}" target="_blank" class="btn-preview" style="background:#eff6ff; color:#3b82f6; border-color:#bfdbfe;"><i class="fa-solid fa-file-word"></i> Docs</a>
+                            <div class="chapter-actions">
+                                <a href="${data.link_pdf || '#'}" target="_blank" class="btn-preview" style="background:#fef2f2; color:#ef4444; border-color:#fca5a5;">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </a>
+                                <a href="${data.link_word || '#'}" target="_blank" class="btn-preview">
+                                    <i class="fa-solid fa-file-word"></i> Docs
+                                </a>
+                                ${!isTamat ? `
+                                <button 
+                                    class="btn-hapus" 
+                                    data-doc-id="${chapDoc.id}"
+                                    data-file-word="${data.fileId_word || ''}"
+                                    data-file-pdf="${data.fileId_pdf || ''}"
+                                    data-judul="${data.judul_bab || 'Bab ini'}"
+                                    onclick="hapusBab(this)">
+                                    <i class="fa-solid fa-trash"></i> Hapus
+                                </button>` : ''}
                             </div>
                         </div>
                     `;
@@ -394,53 +441,145 @@
             }
         }
 
+        // ============================================================
+        // HAPUS BAB
+        // ============================================================
+        window.hapusBab = async (btnEl) => {
+            const docId      = btnEl.dataset.docId;
+            const fileIdWord = btnEl.dataset.fileWord;
+            const fileIdPdf  = btnEl.dataset.filePdf;
+            const judulBab   = btnEl.dataset.judul;
+
+            const confirm = await Swal.fire({
+                title  : `Hapus "${judulBab}"?`,
+                html   : 'File Google Docs & PDF di Drive akan dipindahkan ke <b>Sampah</b>. Data bab ini juga akan dihapus dari sistem.',
+                icon   : 'warning',
+                showCancelButton : true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonText : 'Batal',
+                confirmButtonText: '<i class="fa-solid fa-trash"></i> Ya, Hapus!'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            // Tampilkan loading pada tombol
+            btnEl.disabled   = true;
+            btnEl.innerHTML  = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                // 1. Hapus file dari Google Drive via GAS
+                const gasRes = await fetch(GAS_URL_STUDIO, {
+                    method : 'POST',
+                    body   : JSON.stringify({
+                        actionType  : 'delete_chapter',
+                        fileIdWord  : fileIdWord,
+                        fileIdPdf   : fileIdPdf
+                    }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+
+                const gasData = await gasRes.json();
+                if (gasData.status !== 'success') {
+                    throw new Error(gasData.message || 'Gagal menghapus file di Google Drive.');
+                }
+
+                // 2. Hapus dokumen dari Firestore
+                await deleteDoc(doc(db, 'chapters', docId));
+
+                // 3. Hapus card dari DOM langsung (tanpa reload penuh)
+                const card = document.getElementById('card-' + docId);
+                if (card) card.remove();
+
+                // 4. Update counter
+                chapterCount--;
+                document.getElementById('total-chapters').innerText = chapterCount;
+
+                // Nonaktifkan kembali tombol tamat jika kurang dari 10 bab
+                if (chapterCount < 10) {
+                    const btnTamat = document.getElementById('btn-ajukan-tamat');
+                    btnTamat.disabled = true;
+                    btnTamat.title    = 'Minimal 10 Bab untuk mengajukan tamat';
+                }
+
+                // Tampilkan pesan kosong jika sudah tidak ada bab
+                if (chapterCount === 0) {
+                    document.getElementById('history-container').innerHTML =
+                        '<p style="text-align:center; color:#94a3b8; font-style:italic; padding:20px;">Belum ada bab yang ditulis.</p>';
+                }
+
+                Swal.fire({
+                    title : 'Terhapus!',
+                    text  : `"${judulBab}" berhasil dihapus dari sistem dan Drive.`,
+                    icon  : 'success',
+                    timer : 2000,
+                    showConfirmButton: false
+                });
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal Menghapus', error.message, 'error');
+                // Kembalikan tombol
+                btnEl.disabled  = false;
+                btnEl.innerHTML = '<i class="fa-solid fa-trash"></i> Hapus';
+            }
+        };
+
+        // ============================================================
+        // SUBMIT FORM SIMPAN BAB
+        // ============================================================
         document.getElementById('editor-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isiTeks = editorDiv.innerText.trim();
-            const words = isiTeks.split(/\s+/).filter(word => word.length > 0).length;
+            const words   = isiTeks.split(/\s+/).filter(w => w.length > 0).length;
 
             if (words < 100) {
                 Swal.fire('Terlalu Singkat', 'Minimal 100 kata agar bisa disimpan.', 'warning');
                 return;
             }
 
-            const btnSave = document.getElementById('btn-save-chapter');
-            const originalText = btnSave.innerHTML;
+            const btnSave    = document.getElementById('btn-save-chapter');
+            const origText   = btnSave.innerHTML;
             btnSave.disabled = true;
             btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim ke Drive...';
 
             try {
                 const chapterData = {
-                    uid: currentUser.uid,
-                    studentName: currentUser.name,
-                    judul_novel: pitchData.judul,
-                    judul_bab: document.getElementById('chapter-title').value,
-                    isi_html: editorDiv.innerHTML, 
-                    isi_teks: isiTeks, 
-                    jumlah_kata: words,
-                    kendala: document.getElementById('kendala').value,
-                    timestamp: serverTimestamp()
+                    uid         : currentUser.uid,
+                    studentName : currentUser.name,
+                    judul_novel : pitchData.judul,
+                    judul_bab   : document.getElementById('chapter-title').value,
+                    isi_html    : editorDiv.innerHTML,
+                    isi_teks    : isiTeks,
+                    jumlah_kata : words,
+                    kendala     : document.getElementById('kendala').value,
+                    actionType  : 'save_chapter',
+                    timestamp   : serverTimestamp()
                 };
 
-                const gasResponse = await fetch(GAS_URL_STUDIO, { 
-                    method: 'POST', 
-                    body: JSON.stringify(chapterData),
+                const gasRes  = await fetch(GAS_URL_STUDIO, {
+                    method : 'POST',
+                    body   : JSON.stringify(chapterData),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
-                
-                const gasData = await gasResponse.json();
-                
-                if (gasData.status === "success") {
-                    chapterData.link_word = gasData.wordUrl;
-                    chapterData.link_pdf = gasData.pdfUrl;
+                const gasData = await gasRes.json();
+
+                if (gasData.status === 'success') {
+                    // Simpan fileId agar tombol hapus bisa bekerja
+                    chapterData.link_word   = gasData.wordUrl;
+                    chapterData.link_pdf    = gasData.pdfUrl;
+                    chapterData.fileId_word = gasData.wordFileId;
+                    chapterData.fileId_pdf  = gasData.pdfFileId;
+
                     await addDoc(collection(db, 'chapters'), chapterData);
                     await updateDoc(doc(db, 'users', currentUser.uid), { word_count: increment(words) });
-                    Swal.fire('Bab Tersimpan!', `Berhasil mencetak dokumen di Drive.`, 'success');
-                    
+
+                    Swal.fire('Bab Tersimpan!', 'Berhasil mencetak dokumen di Drive.', 'success');
+
+                    // Reset form
                     document.getElementById('editor-form').reset();
                     editorDiv.innerHTML = '';
                     document.getElementById('word-count').innerText = '0';
-                    
+
                     await loadHistory();
                 } else {
                     throw new Error(gasData.message);
@@ -448,11 +587,14 @@
             } catch (error) {
                 Swal.fire('Gagal Menyimpan', error.message, 'error');
             } finally {
-                btnSave.disabled = false;
-                btnSave.innerHTML = originalText;
+                btnSave.disabled  = false;
+                btnSave.innerHTML = origText;
             }
         });
 
+        // ============================================================
+        // MODAL TAMAT
+        // ============================================================
         window.bukaModalTamat = () => {
             document.getElementById('tamat-modal').classList.add('active');
         };
@@ -467,39 +609,45 @@
                     document.getElementById('editor-form').style.display = 'none';
                     document.getElementById('merge-panel').style.display = 'block';
                     document.getElementById('merge-panel').scrollIntoView({ behavior: 'smooth' });
+                    // Sembunyikan tombol hapus setelah tamat
+                    document.querySelectorAll('.btn-hapus').forEach(btn => btn.remove());
                 });
             } catch (error) {
                 console.error(error);
+                Swal.fire('Gagal', 'Terjadi kesalahan saat mengunci naskah.', 'error');
             }
         });
 
+        // ============================================================
+        // GABUNGKAN NASKAH
+        // ============================================================
         window.gabungkanNaskah = async () => {
             const btnMerge = document.getElementById('btn-merge');
             btnMerge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyatukan... (Mohon Tunggu)';
-            btnMerge.disabled = true;
+            btnMerge.disabled  = true;
 
             try {
                 const mergeData = {
-                    studentName: currentUser.name,
-                    judul_novel: pitchData.judul
+                    actionType  : 'merge_chapters',
+                    studentName : currentUser.name,
+                    judul_novel : pitchData.judul
                 };
 
-                const response = await fetch(GAS_URL_MERGE, {
-                    method: 'POST',
-                    body: JSON.stringify(mergeData),
+                const response = await fetch(GAS_URL_STUDIO, {
+                    method : 'POST',
+                    body   : JSON.stringify(mergeData),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
-
                 const result = await response.json();
 
-                if (result.status === "success") {
+                if (result.status === 'success') {
                     await updateDoc(doc(db, 'pitching_projects', currentUser.uid), {
                         link_naskah_lengkap: result.masterUrl
                     });
                     btnMerge.innerHTML = '<i class="fa-solid fa-gavel"></i> Lanjutkan ke Sidang Naskah';
                     btnMerge.style.background = '#25D366';
                     btnMerge.disabled = false;
-                    btnMerge.onclick = () => { window.location.href = '/inkubasi/sidang.html'; };
+                    btnMerge.onclick  = () => { window.location.href = '/inkubasi/sidang.html'; };
                     Swal.fire('Berhasil!', 'Naskah utuh telah siap di Google Drive.', 'success');
                 } else {
                     throw new Error(result.message);
@@ -507,9 +655,10 @@
             } catch (error) {
                 Swal.fire('Gagal Menggabungkan', error.message, 'error');
                 btnMerge.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Gabungkan Seluruh Naskah (Docs)';
-                btnMerge.disabled = false;
+                btnMerge.disabled  = false;
             }
         };
+
     </script>
 </body>
 </html>
