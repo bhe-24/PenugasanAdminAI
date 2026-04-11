@@ -318,7 +318,7 @@
             }
         };
 
-        // --- AUTH LISTENER (DIPERBAIKI) ---
+        // --- AUTH LISTENER (ROUTING SEMESTER 3) ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 if(!localStorage.getItem('justRegistered')) {
@@ -327,16 +327,21 @@
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
                     if (snap.exists()) {
-                        // Jika data ditemukan di folder users
                         const data = snap.data();
+                        const semester = parseInt(data.semester) || 1;
+
                         if (data.role === 'admin' || data.role === 'pengajar') {
                             window.location.href = 'admin/index.html';
                         } else {
-                            window.location.href = 'dashboard/index.html';
+                            // Cek Semester Siswa untuk Routing Dasbor Inkubasi
+                            if (semester >= 3) {
+                                window.location.href = 'dashboard/inkubasi.html';
+                            } else {
+                                window.location.href = 'dashboard/index.html';
+                            }
                         }
                     } else {
-                        // SOLUSI: Jika siswa login dari Web Penerimaan, datanya tidak ada di 'users'
-                        // Buatkan otomatis profilnya di sini!
+                        // Jika siswa login dari Web Penerimaan, buat profilnya
                         await setDoc(doc(db, 'users', user.uid), { 
                             name: user.displayName || "Siswa Cendekia", 
                             email: user.email, 
@@ -346,8 +351,6 @@
                             status: 'active',
                             createdAt: new Date().toISOString()
                         });
-                        
-                        // Setelah dibuatkan, langsung arahkan ke dashboard
                         window.location.href = 'dashboard/index.html';
                     }
                 } catch (e) {
