@@ -1,5 +1,5 @@
-// Menggunakan fetch ke Google Gemini API (gemini-2.5-flash)
 export default async function handler(req, res) {
+    // Pastikan hanya menerima request POST
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
@@ -45,7 +45,7 @@ Tulis langsung pesan untuk siswanya, tanpa tanda kutip pembuka atau format JSON.
 `;
 
     try {
-        // Endpoint resmi Gemini API
+        // Endpoint resmi Gemini 2.5 Flash API
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
         const aiResponse = await fetch(endpoint, {
@@ -62,8 +62,27 @@ Tulis langsung pesan untuk siswanya, tanpa tanda kutip pembuka atau format JSON.
                 }],
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 800
-                }
+                    maxOutputTokens: 2048 // DITAMBAH AGAR NAPAS AI LEBIH PANJANG
+                },
+                // FITUR ANTI-TERPOTONG: Matikan safety filter khusus untuk bedah karya fiksi
+                safetySettings: [
+                    {
+                        category: "HARM_CATEGORY_HARASSMENT",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_HATE_SPEECH",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        threshold: "BLOCK_NONE"
+                    },
+                    {
+                        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        threshold: "BLOCK_NONE"
+                    }
+                ]
             })
         });
 
@@ -75,7 +94,7 @@ Tulis langsung pesan untuk siswanya, tanpa tanda kutip pembuka atau format JSON.
 
         const aiResult = await aiResponse.json();
         
-        // Mengekstrak teks balasan dari struktur JSON spesifik Gemini
+        // Mengekstrak teks balasan
         const hasilTeks = aiResult.candidates[0].content.parts[0].text;
 
         // Kirim balik ke frontend Admin
