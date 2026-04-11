@@ -229,7 +229,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script type="module">
+  <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, setDoc, getDoc, getDocs, collection, query, where, orderBy, updateDoc, increment, serverTimestamp, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -299,7 +299,7 @@
                 }
             } catch (error) {
                 console.error(error);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem memuat data.', 'error');
             }
         }
 
@@ -363,22 +363,35 @@
                 }
 
                 let html = '';
-                snap.forEach((doc, index) => {
+                let urutan = 1;
+                snap.forEach((doc) => {
                     const data = doc.data();
-                    const dateStr = data.timestamp ? data.timestamp.toDate().toLocaleDateString('id-ID') : 'Baru saja';
+                    // Fallback jika tanggal gagal dimuat dari server
+                    let dateStr = 'Tersimpan';
+                    if (data.timestamp && data.timestamp.toDate) {
+                         dateStr = data.timestamp.toDate().toLocaleDateString('id-ID');
+                    }
+                    
                     html += `
                         <div class="chapter-card">
                             <div class="chapter-info">
-                                <h4>${index + 1}. ${data.judul_bab}</h4>
-                                <p class="chapter-meta"><span><i class="fa-regular fa-calendar"></i> ${dateStr}</span> <span style="color:var(--accent);"><i class="fa-solid fa-font"></i> ${data.jumlah_kata} Kata</span></p>
+                                <h4>Bab ${urutan}: ${data.judul_bab || 'Tanpa Judul'}</h4>
+                                <p class="chapter-meta">
+                                    <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span> 
+                                    <span style="color:var(--accent);"><i class="fa-solid fa-font"></i> ${data.jumlah_kata || 0} Kata</span>
+                                </p>
                             </div>
-                            <a href="${data.link_pdf || '#'}" target="_blank" class="btn-preview"><i class="fa-solid fa-file-pdf"></i> Preview (PDF)</a>
+                            <div style="display:flex; gap: 8px;">
+                                <a href="${data.link_pdf || '#'}" target="_blank" class="btn-preview" style="background:#fef2f2; color:#ef4444; border-color:#fca5a5;"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+                                <a href="${data.link_word || '#'}" target="_blank" class="btn-preview" style="background:#eff6ff; color:#3b82f6; border-color:#bfdbfe;"><i class="fa-solid fa-file-word"></i> Docs</a>
+                            </div>
                         </div>
                     `;
+                    urutan++;
                 });
                 container.innerHTML = html;
             } catch (error) {
-                console.error(error);
+                console.error("Gagal load history:", error);
             }
         }
 
@@ -423,9 +436,12 @@
                     chapterData.link_pdf = gasData.pdfUrl;
                     await addDoc(collection(db, 'chapters'), chapterData);
                     await updateDoc(doc(db, 'users', currentUser.uid), { word_count: increment(words) });
-                    Swal.fire('Bab Tersimpan!', `Berhasil mencetak PDF di Drive.`, 'success');
+                    Swal.fire('Bab Tersimpan!', `Berhasil mencetak dokumen di Drive.`, 'success');
+                    
                     document.getElementById('editor-form').reset();
                     editorDiv.innerHTML = '';
+                    document.getElementById('word-count').innerText = '0';
+                    
                     await loadHistory();
                 } else {
                     throw new Error(gasData.message);
