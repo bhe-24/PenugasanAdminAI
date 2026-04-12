@@ -52,9 +52,6 @@
         .student-info .npm { color: var(--accent); font-family: monospace; font-size: 1rem; font-weight: 700; background: #f8fafc; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);}
         
         .status-badge { padding: 6px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
-        .status-badge.pending { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
-        .status-badge.approved { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
-        .status-badge.rejected { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
 
         /* BERKAS & LINK */
         .berkas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid var(--border);}
@@ -63,6 +60,7 @@
         .btn-link { background: white; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--navy-light); font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;}
         .btn-link:hover { border-color: var(--navy-light); background: #eff6ff;}
         .btn-link.disabled { opacity: 0.5; pointer-events: none; color: #94a3b8; }
+        .btn-link.final-ttd { background: #d1fae5; border-color: #10b981; color: #065f46; }
 
         /* METADATA TAMBAHAN */
         .meta-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.85rem; color: #475569;}
@@ -110,20 +108,19 @@
     </nav>
 
     <div class="container">
-        
         <div class="panel-header">
             <div class="panel-title">
                 <h2>Validasi Berkas Sidang</h2>
-                <p>Kelola dan evaluasi pengajuan dossier sidang akhir siswa.</p>
+                <p>Kelola evaluasi 2 tahap: Berkas Awal & Dokumen Final (TTD).</p>
             </div>
             <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('pending_admin')">
+                <button class="tab-btn active" onclick="switchTab('antrean')">
                     <i class="fa-solid fa-inbox"></i> Antrean <span class="tab-badge" id="count-pending">0</span>
                 </button>
                 <button class="tab-btn" onclick="switchTab('approved')">
                     <i class="fa-solid fa-check-double"></i> Disetujui <span style="margin-left:5px; color:#10b981;" id="count-approved">0</span>
                 </button>
-                <button class="tab-btn" onclick="switchTab('rejected')">
+                <button class="tab-btn" onclick="switchTab('revisi')">
                     <i class="fa-solid fa-rotate-left"></i> Revisi
                 </button>
             </div>
@@ -131,23 +128,20 @@
 
         <div class="data-grid" id="data-container">
             </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
-        // Sesuaikan path import dengan struktur folder admin kamu
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, getDocs, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, getDocs, doc, updateDoc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
         let allApplications = [];
-        let currentTab = 'pending_admin';
+        let currentTab = 'antrean';
 
-        // INISIALISASI HALAMAN
+        // 1. INISIALISASI
         window.onload = async () => {
             try {
-                // Pastikan yang masuk adalah admin
                 currentUser = await checkAuth('admin');
                 if(!currentUser) {
                     Swal.fire('Akses Ditolak', 'Halaman khusus Redaksi.', 'error').then(()=> window.location.href = '../login.html');
@@ -162,7 +156,7 @@
             }
         };
 
-        // TARIK DATA DARI FIRESTORE
+        // 2. TARIK DATA & NORMALISASI
         async function fetchApplications() {
             try {
                 const q = query(collection(db, 'sidang_applications'), orderBy('timestamp', 'desc'));
@@ -174,18 +168,18 @@
 
                 querySnapshot.forEach((docSnap) => {
                     const data = docSnap.data();
-                    data.id = docSnap.id; // Menyimpan UID dokumen
+                    data.id = docSnap.id; 
                     
-                    // KITA TANGKAP SEMUA STATUS: Baik versi lama maupun versi baru
-                    if (data.status === 'pending' || data.status === 'pending_admin' || data.status === 'approved' || data.status === 'acc' || data.status === 'rejected') {
-                        
-                        // Normalisasi (Ubah status lama agar cocok dengan sistem tab Admin yang baru)
-                        if(data.status === 'acc') data.status = 'approved';
-                        if(data.status === 'pending') data.status = 'pending_admin';
-                        
+                    // Normalisasi status hantu/lama ke status 2-Tahap baru
+                    if(data.status === 'acc') data.status = 'approved';
+                    if(data.status === 'pending' || data.status === 'pending_admin') data.status = 'pending_tahap1';
+                    if(data.status === 'rejected') data.status = 'revisi_tahap1';
+                    
+                    // Filter hanya yang berkepentingan
+                    if (['pending_tahap1', 'pending_tahap2', 'menunggu_ttd', 'approved', 'revisi_tahap1', 'revisi_tahap2'].includes(data.status)) {
                         allApplications.push(data);
                         
-                        if (data.status === 'pending_admin') pendingCount++;
+                        if (['pending_tahap1', 'pending_tahap2', 'menunggu_ttd'].includes(data.status)) pendingCount++;
                         if (data.status === 'approved') approvedCount++;
                     }
                 });
@@ -197,9 +191,9 @@
             } catch (error) {
                 console.error("Gagal tarik data:", error);
             }
-        } // --> BAGIAN YANG TER-COPY DUA KALI SUDAH DIHAPUS DI SINI <--
+        }
 
-        // RENDER KARTU SISWA BERDASARKAN TAB
+        // 3. LOGIKA TABS
         window.switchTab = function(tabName) {
             currentTab = tabName;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -207,86 +201,95 @@
             renderData();
         }
 
+        // 4. RENDER UI
         function renderData() {
             const container = document.getElementById('data-container');
             container.innerHTML = '';
 
-            const filteredData = allApplications.filter(app => app.status === currentTab);
+            const filteredData = allApplications.filter(app => {
+                if(currentTab === 'antrean') return ['pending_tahap1', 'pending_tahap2', 'menunggu_ttd'].includes(app.status);
+                if(currentTab === 'approved') return app.status === 'approved';
+                if(currentTab === 'revisi') return ['revisi_tahap1', 'revisi_tahap2'].includes(app.status);
+            });
 
             if (filteredData.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fa-solid fa-folder-open"></i>
                         <h3>Tidak ada data</h3>
-                        <p>Belum ada pengajuan dengan status ini.</p>
+                        <p>Belum ada pengajuan untuk kategori ini.</p>
                     </div>`;
                 return;
             }
 
             filteredData.forEach(app => {
-                const dateSubmit = app.submitted_final_at ? app.submitted_final_at.toDate().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : 'Tanggal tidak diketahui';
-                
-                let statusBadge = '';
-                if(app.status === 'pending_admin') statusBadge = `<span class="status-badge pending"><i class="fa-solid fa-clock"></i> Perlu Direview</span>`;
-                else if(app.status === 'approved') statusBadge = `<span class="status-badge approved"><i class="fa-solid fa-check"></i> Disetujui</span>`;
-                else if(app.status === 'rejected') statusBadge = `<span class="status-badge rejected"><i class="fa-solid fa-xmark"></i> Dikembalikan</span>`;
-
-                // Tombol Aksi (Hanya muncul di tab Antrean)
+                let statusBadge = ''; 
                 let actionButtons = '';
-                if (app.status === 'pending_admin') {
+                
+                // Konfigurasi Badge & Tombol berdasarkan Status
+                if(app.status === 'pending_tahap1') {
+                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Cek Berkas Awal</span>`;
                     actionButtons = `
                         <div class="action-bar">
-                            <button class="btn-action btn-reject" onclick="rejectApplication('${app.id}')"><i class="fa-solid fa-pen-to-square"></i> Tolak / Kembalikan</button>
-                            <button class="btn-action btn-acc" onclick="approveApplication('${app.id}')"><i class="fa-solid fa-check-double"></i> ACC & Jadwalkan</button>
-                        </div>
-                    `;
-                } else if (app.status === 'approved' && app.jadwal_sidang) {
+                            <button class="btn-action btn-reject" onclick="tolakApplication('${app.id}', 1)"><i class="fa-solid fa-xmark"></i> Tolak Berkas</button>
+                            <button class="btn-action btn-acc" onclick="accTahap1('${app.id}')"><i class="fa-solid fa-check"></i> ACC & Minta TTD</button>
+                        </div>`;
+                } 
+                else if(app.status === 'menunggu_ttd') {
+                    statusBadge = `<span class="status-badge" style="background:#e0e7ff; color:#1e40af; border:1px solid #bfdbfe;">Menunggu Siswa TTD</span>`;
+                }
+                else if(app.status === 'pending_tahap2') {
+                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Cek Tanda Tangan Final</span>`;
+                    actionButtons = `
+                        <div class="action-bar">
+                            <button class="btn-action btn-reject" onclick="tolakApplication('${app.id}', 2)"><i class="fa-solid fa-xmark"></i> Tolak TTD</button>
+                            <button class="btn-action btn-acc" onclick="accFinal('${app.id}')"><i class="fa-solid fa-check-double"></i> ACC Final & Jadwalkan</button>
+                        </div>`;
+                }
+                else if(app.status === 'approved') {
+                    statusBadge = `<span class="status-badge" style="background:#d1fae5; color:#059669; border:1px solid #a7f3d0;">LULUS SIDANG</span>`;
                     actionButtons = `
                         <div style="background:#eff6ff; padding:15px; border-radius:8px; border:1px solid #bfdbfe; margin-top:15px;">
                             <p style="margin:0 0 5px; color:var(--primary); font-weight:700;"><i class="fa-regular fa-calendar-check"></i> Dijadwalkan: ${app.jadwal_sidang}</p>
                             <a href="${app.link_meet}" target="_blank" style="font-size:0.85rem; font-weight:600; color:#2563eb; text-decoration:none;"><i class="fa-solid fa-video"></i> Buka Link Google Meet</a>
-                        </div>
-                    `;
-                } else if (app.status === 'rejected') {
+                        </div>`;
+                }
+                else if(app.status.includes('revisi')) {
+                    statusBadge = `<span class="status-badge" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca;">DIKEMBALIKAN</span>`;
                     actionButtons = `
                         <div style="background:#fef2f2; padding:15px; border-radius:8px; border:1px solid #fecaca; margin-top:15px;">
                             <p style="margin:0; font-size:0.85rem; color:#991b1b;"><strong>Alasan Ditolak:</strong><br>${app.reject_reason || 'Tidak ada alasan.'}</p>
-                        </div>
-                    `;
+                        </div>`;
                 }
 
-                // Amankan Link Drive (Jika ada yang kosong/gagal upload)
-                const linkFoto = app.url_foto ? `<a href="${app.url_foto}" target="_blank" class="btn-link"><i class="fa-solid fa-image"></i> Pas Foto</a>` : `<span class="btn-link disabled">Kosong</span>`;
-                const linkKHS = app.url_khs ? `<a href="${app.url_khs}" target="_blank" class="btn-link"><i class="fa-solid fa-file-pdf"></i> File KHS</a>` : `<span class="btn-link disabled">Kosong</span>`;
-                const linkKuitansi = app.url_kuitansi ? `<a href="${app.url_kuitansi}" target="_blank" class="btn-link"><i class="fa-solid fa-receipt"></i> Kuitansi</a>` : `<span class="btn-link disabled">Kosong</span>`;
-                const linkPerjanjian = app.url_perjanjian ? `<a href="${app.url_perjanjian}" target="_blank" class="btn-link"><i class="fa-solid fa-file-signature"></i> Perjanjian</a>` : `<span class="btn-link disabled">Kosong</span>`;
-                const linkSK = app.url_sk ? `<a href="${app.url_sk}" target="_blank" class="btn-link"><i class="fa-solid fa-file-contract"></i> SK Sidang</a>` : `<span class="btn-link disabled">Kosong</span>`;
+                // Amankan Tautan Drive (Tahap 1 & Tahap 2)
+                const linkFoto = app.url_foto ? `<a href="${app.url_foto}" target="_blank" class="btn-link">Foto</a>` : `<span class="btn-link disabled">Kosong</span>`;
+                const linkKHS = app.url_khs ? `<a href="${app.url_khs}" target="_blank" class="btn-link">KHS</a>` : `<span class="btn-link disabled">Kosong</span>`;
+                const linkKuitansi = app.url_kuitansi ? `<a href="${app.url_kuitansi}" target="_blank" class="btn-link">Kuitansi</a>` : `<span class="btn-link disabled">Kosong</span>`;
+                
+                // Berkas TTD (Jika sudah diupload siswa di Tahap 2)
+                const linkTTD1 = app.url_perjanjian_final ? `<a href="${app.url_perjanjian_final}" target="_blank" class="btn-link final-ttd"><i class="fa-solid fa-signature"></i> Perjanjian (TTD)</a>` : `<span class="btn-link disabled">Perjanjian</span>`;
+                const linkTTD2 = app.url_sk_final ? `<a href="${app.url_sk_final}" target="_blank" class="btn-link final-ttd"><i class="fa-solid fa-signature"></i> SK (TTD)</a>` : `<span class="btn-link disabled">SK Sidang</span>`;
 
                 const cardHTML = `
                     <div class="student-card">
                         <div class="card-header">
                             <div class="student-info">
                                 <h3>${app.judul_naskah || 'Judul Tidak Tersedia'}</h3>
-                                <p><i class="fa-solid fa-user"></i> ${app.nama_lengkap || '-'} &nbsp;|&nbsp; <span class="npm">${app.npm || app.id.substring(0,8)}</span></p>
-                                <p style="font-size:0.8rem; color:#94a3b8; margin-top:5px;"><i class="fa-regular fa-clock"></i> Dikirim pada: ${dateSubmit}</p>
+                                <p><i class="fa-solid fa-user"></i> ${app.nama_lengkap || '-'} &nbsp;|&nbsp; <span class="npm">${app.npm || app.id.substring(0,8).toUpperCase()}</span></p>
                             </div>
                             <div>${statusBadge}</div>
                         </div>
 
                         <div class="meta-details">
                             <div class="meta-box"><strong>Paket Penerbitan:</strong> ${app.paket || '-'}</div>
-                            <div class="meta-box"><strong>Komunitas/Instansi:</strong> ${app.instansi || '-'}</div>
-                            <div class="meta-box" style="grid-column: 1 / -1;"><strong>Strategi Promosi:</strong> ${app.promosi || '-'}</div>
+                            <div class="meta-box"><strong>Komunitas:</strong> ${app.instansi || '-'}</div>
                         </div>
 
                         <div>
-                            <p style="font-size:0.85rem; font-weight:700; color:var(--navy-light); margin-bottom:10px;"><i class="fa-brands fa-google-drive"></i> BERKAS GOOGLE DRIVE:</p>
+                            <p style="font-size:0.85rem; font-weight:700; color:var(--navy-light); margin-bottom:10px;"><i class="fa-brands fa-google-drive"></i> AKSES BERKAS DRIVE:</p>
                             <div class="berkas-grid">
-                                <div class="berkas-item"><span class="berkas-label">Identitas</span>${linkFoto}</div>
-                                <div class="berkas-item"><span class="berkas-label">Akademik</span>${linkKHS}</div>
-                                <div class="berkas-item"><span class="berkas-label">Keuangan</span>${linkKuitansi}</div>
-                                <div class="berkas-item"><span class="berkas-label">Legalitas 1</span>${linkPerjanjian}</div>
-                                <div class="berkas-item"><span class="berkas-label">Legalitas 2</span>${linkSK}</div>
+                                ${linkFoto} ${linkKHS} ${linkKuitansi} ${linkTTD1} ${linkTTD2}
                             </div>
                         </div>
 
@@ -298,111 +301,71 @@
         }
 
         // ==========================================
-        // FUNGSI AKSI ADMIN: TERIMA / TOLAK
+        // 5. FUNGSI AKSI ADMIN
         // ==========================================
 
-        // FUNGSI ACC (SETUJUI)
-        window.approveApplication = async function(uid) {
-            const { value: formValues } = await Swal.fire({
-                title: 'Setujui & Jadwalkan Sidang',
-                html: `
-                    <div style="text-align:left;">
-                        <label style="font-size:0.9rem; font-weight:600; color:#333; margin-bottom:5px; display:block;">Jadwal Sidang Lengkap</label>
-                        <input id="swal-jadwal" class="swal2-input" placeholder="Misal: Sabtu, 15 Mei 2026 - 10:00 WIB" style="width:100%; margin:0 0 15px 0;">
-                        
-                        <label style="font-size:0.9rem; font-weight:600; color:#333; margin-bottom:5px; display:block;">Link Google Meet</label>
-                        <input id="swal-meet" type="url" class="swal2-input" placeholder="https://meet.google.com/..." style="width:100%; margin:0;">
-                    </div>
-                `,
-                focusConfirm: false,
+        window.accTahap1 = async function(uid) {
+            Swal.fire({
+                title: 'Setujui Berkas Awal?',
+                text: "Siswa akan diminta untuk mengunduh dan menandatangani draf PDF.",
+                icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#94a3b8',
-                confirmButtonText: '<i class="fa-solid fa-check"></i> Konfirmasi Lulus',
-                cancelButtonText: 'Batal',
+                confirmButtonText: 'Ya, ACC'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses...', didOpen: () => Swal.showLoading() });
+                    await updateDoc(doc(db, 'sidang_applications', uid), { status: 'menunggu_ttd' });
+                    Swal.fire('Sukses', 'Status diperbarui ke Menunggu Tanda Tangan.', 'success').then(() => fetchApplications());
+                }
+            });
+        };
+
+        window.accFinal = async function(uid) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Luluskan & Jadwalkan Sidang',
+                html: `
+                    <div style="text-align:left;">
+                        <label style="font-size:0.9rem; font-weight:600;">Jadwal Sidang Lengkap</label>
+                        <input id="swal-jadwal" class="swal2-input" placeholder="Misal: Sabtu, 15 Mei 2026 - 10:00 WIB" style="width:100%; margin:0 0 15px 0;">
+                        <label style="font-size:0.9rem; font-weight:600;">Link Google Meet</label>
+                        <input id="swal-meet" type="url" class="swal2-input" placeholder="https://meet.google.com/..." style="width:100%; margin:0;">
+                    </div>
+                `,
+                focusConfirm: false, showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonText: 'Batal',
                 preConfirm: () => {
-                    const jadwal = document.getElementById('swal-jadwal').value;
-                    const meet = document.getElementById('swal-meet').value;
-                    if (!jadwal || !meet) {
-                        Swal.showValidationMessage('Jadwal dan Link Meet wajib diisi!');
-                        return false;
-                    }
-                    return { jadwal: jadwal, meet: meet }
+                    const j = document.getElementById('swal-jadwal').value; const m = document.getElementById('swal-meet').value;
+                    if (!j || !m) { Swal.showValidationMessage('Jadwal & Link wajib diisi!'); return false; }
+                    return { jadwal: j, meet: m }
                 }
             });
 
             if (formValues) {
-                try {
-                    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-                    
-                    await updateDoc(doc(db, 'sidang_applications', uid), {
-                        status: 'approved', // Sistem siswa membaca ini
-                        jadwal_sidang: formValues.jadwal,
-                        link_meet: formValues.meet,
-                        approved_at: serverTimestamp()
-                    });
-
-                    Swal.fire('Berhasil!', 'Siswa telah diluluskan dan jadwal sudah terkirim ke dasbor mereka.', 'success')
-                        .then(() => {
-                            // Update data lokal agar tidak perlu refresh halaman
-                            const index = allApplications.findIndex(app => app.id === uid);
-                            if(index !== -1) {
-                                allApplications[index].status = 'approved';
-                                allApplications[index].jadwal_sidang = formValues.jadwal;
-                                allApplications[index].link_meet = formValues.meet;
-                            }
-                            fetchApplications(); // Render ulang badge angka
-                        });
-
-                } catch (error) {
-                    console.error(error);
-                    Swal.fire('Error', 'Gagal menyimpan persetujuan.', 'error');
-                }
+                Swal.fire({ title: 'Memproses...', didOpen: () => Swal.showLoading() });
+                await updateDoc(doc(db, 'sidang_applications', uid), {
+                    status: 'approved', jadwal_sidang: formValues.jadwal, link_meet: formValues.meet, approved_at: serverTimestamp()
+                });
+                Swal.fire('LULUS!', 'Jadwal dan Kartu Sidang telah dikirim ke dasbor siswa.', 'success').then(() => fetchApplications());
             }
         };
 
-        // FUNGSI TOLAK (REJECT)
-        window.rejectApplication = async function(uid) {
+        window.tolakApplication = async function(uid, tahap) {
             const { value: reason } = await Swal.fire({
-                title: 'Kembalikan Berkas (Revisi)',
+                title: `Tolak Berkas (Tahap ${tahap})`,
                 input: 'textarea',
-                inputLabel: 'Tuliskan alasan spesifik agar siswa bisa memperbaiki:',
-                inputPlaceholder: 'Contoh: File kuitansi tidak terbaca, mohon foto ulang dengan jelas...',
-                inputAttributes: { 'aria-label': 'Alasan penolakan' },
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444',
-                cancelButtonColor: '#94a3b8',
-                confirmButtonText: '<i class="fa-solid fa-paper-plane"></i> Kirim Revisi',
-                cancelButtonText: 'Batal',
-                inputValidator: (value) => {
-                    if (!value) return 'Anda wajib menuliskan alasan penolakan!'
-                }
+                inputLabel: 'Tuliskan alasan penolakan untuk diperbaiki siswa:',
+                inputPlaceholder: 'Contoh: Tanda tangan kurang jelas...',
+                showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Kirim Revisi',
+                inputValidator: (value) => { if (!value) return 'Wajib menulis alasan!' }
             });
 
             if (reason) {
-                try {
-                    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-                    
-                    await updateDoc(doc(db, 'sidang_applications', uid), {
-                        status: 'rejected',
-                        reject_reason: reason,
-                        rejected_at: serverTimestamp()
-                    });
-
-                    Swal.fire('Terkirim!', 'Status dikembalikan ke siswa. Mereka akan diminta mengisi ulang formulir.', 'success')
-                        .then(() => {
-                            const index = allApplications.findIndex(app => app.id === uid);
-                            if(index !== -1) {
-                                allApplications[index].status = 'rejected';
-                                allApplications[index].reject_reason = reason;
-                            }
-                            fetchApplications(); 
-                        });
-
-                } catch (error) {
-                    console.error(error);
-                    Swal.fire('Error', 'Gagal mengirim revisi.', 'error');
-                }
+                Swal.fire({ title: 'Memproses...', didOpen: () => Swal.showLoading() });
+                await updateDoc(doc(db, 'sidang_applications', uid), {
+                    status: `revisi_tahap${tahap}`, reject_reason: reason, rejected_at: serverTimestamp()
+                });
+                Swal.fire('Terkirim!', 'Permintaan revisi sudah masuk ke akun siswa.', 'success').then(() => fetchApplications());
             }
         };
     </script>
