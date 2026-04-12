@@ -253,389 +253,95 @@
     </div>
 
     <script type="module">
-        import { db, checkAuth } from "/js/firebase-config.js";
-        import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let currentUser = null;
-        let base64Files = { foto: null, khs: null, kuitansi: null, perjanjian: null, sk: null };
-        let nodeSelesaiCount = 0;
+import { db, checkAuth } from "./js/firebase-config.js";
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } 
+from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // SAFE HELPER FUNCTION
-        const setValSafely = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.value = val || '';
-        };
+let currentUser = null;
 
-        // ======================== INITIAL LOAD ========================
-        (async () => {
-            try {
-                // FALLBACK: Always hide loading after 5 seconds to prevent eternal blank screen
-                const safetyTimer = setTimeout(() => {
-                    const loader = document.getElementById('loading-overlay');
-                    if (loader) loader.style.display = 'none';
-                }, 5000);
+console.log("MODULE JALAN");
 
-                currentUser = await checkAuth('siswa');
-                if (!currentUser) {
-                    window.location.href = '/login.html';
-                    return; // Stop execution if not logged in
-                }
-                
-                await loadDataAwal();
-                clearTimeout(safetyTimer); // Clear if successful
+// ================= INIT =================
+(async () => {
 
-            } catch (error) {
-                console.error("Auth/Init error:", error);
-                Swal.fire('Error', 'Gagal memuat data awal.', 'error');
-            } finally {
-                const loader = document.getElementById('loading-overlay');
-                if (loader) loader.style.display = 'none';
-            }
-        })();
+    const loader = document.getElementById('loading-overlay');
 
-        async function loadDataAwal() {
-            try {
-                const [pitchSnap, authorSnap, userSnap, sidangSnap] = await Promise.all([
-                    getDoc(doc(db, 'pitching_projects', currentUser.uid)).catch(() => null),
-                    getDoc(doc(db, 'author_profiles', currentUser.uid)).catch(() => null),
-                    getDoc(doc(db, 'users', currentUser.uid)).catch(() => null),
-                    getDoc(doc(db, 'sidang_applications', currentUser.uid)).catch(() => null)
-                ]);
+    try {
 
-                // Fallbacks if data doesn't exist to prevent crashes
-                const pitchData = pitchSnap && pitchSnap.exists() ? pitchSnap.data() : {};
-                const authorData = authorSnap && authorSnap.exists() ? authorSnap.data() : {};
-                const userData = userSnap && userSnap.exists() ? userSnap.data() : {};
+        // ===== SAFETY TIMER (ANTI FREEZE) =====
+        setTimeout(() => {
+            if (loader) loader.style.display = "none";
+        }, 5000);
 
-                // Determine name
-                let namaValid = "Siswa Cendekia";
-                if (authorData.real_name) namaValid = authorData.real_name;
-                else if (userData.name) namaValid = userData.name;
-                else if (currentUser.displayName) namaValid = currentUser.displayName;
+        // ===== AUTH =====
+        currentUser = await checkAuth('siswa');
 
-                let emailValid = currentUser.email || authorData.email || userData.email || "-";
-                let judulNaskah = pitchData.judul || "Belum Ada Judul";
-                let penName = authorData.pen_name || "Belum Ada Nama Pena";
-
-                if (!sidangSnap || !sidangSnap.exists()) {
-                    // SHOW FORM
-                    const formSection = document.getElementById('fase-formulir');
-                    if(formSection) formSection.style.display = 'block';
-                    
-                    setValSafely('f_uid', currentUser.uid);
-                    setValSafely('f_nama', namaValid);
-                    setValSafely('f_email', emailValid);
-                    setValSafely('f_judul', judulNaskah);
-                    setValSafely('f_penname', penName);
-                    return;
-                }
-
-                // HAS DATA -> SHOW STATUS/TIMELINE
-                const data = sidangSnap.data();
-                const status = data.status;
-
-                if (status === 'draft_form') {
-                    const tlSection = document.getElementById('fase-timeline');
-                    if(tlSection) tlSection.style.display = 'block';
-                    
-                    const elNama = document.getElementById('id_nama');
-                    if(elNama) elNama.innerText = data.nama_lengkap || namaValid;
-                    
-                    const elJudul = document.getElementById('id_judul');
-                    if(elJudul) elJudul.innerText = data.judul_naskah || judulNaskah;
-                    
-                    const elNpm = document.getElementById('id_npm');
-                    if(elNpm) elNpm.innerText = currentUser.uid.substring(0,8).toUpperCase();
-                    
-                    const elTahun = document.getElementById('id_tahun');
-                    if(elTahun) elTahun.innerText = new Date().getFullYear();
-                    
-                    if (data.url_foto) {
-                        const img = document.getElementById('id_foto_render');
-                        const placeholder = document.getElementById('id_foto_placeholder');
-                        if (img) { img.src = data.url_foto; img.style.display = 'block'; }
-                        if (placeholder) placeholder.style.display = 'none';
-                    }
-
-                    if (data.url_perjanjian) { 
-                        const n1 = document.getElementById('node-1');
-                        if(n1) n1.classList.add('completed'); 
-                        nodeSelesaiCount++; 
-                    }
-                    if (data.url_sk) { 
-                        const n2 = document.getElementById('node-2');
-                        if(n2) n2.classList.add('completed'); 
-                        nodeSelesaiCount++; 
-                    }
-                    if (nodeSelesaiCount >= 2) { 
-                        const n3 = document.getElementById('node-3');
-                        if(n3) n3.classList.remove('locked-node'); 
-                    }
-                } 
-                else if (status === 'pending_admin') {
-                    const pw = document.getElementById('panel-waiting');
-                    if(pw) pw.style.display = 'block';
-                }
-                else if (status === 'rejected') {
-                    const pr = document.getElementById('panel-rejected');
-                    if(pr) pr.style.display = 'block';
-                    const rr = document.getElementById('reject-reason');
-                    if(rr) rr.innerText = data.reject_reason || 'Terdapat kesalahan pada dokumen Anda. Silakan perbaiki.';
-                }
-                else if (status === 'acc' || status === 'approved') {
-                    const tlSection = document.getElementById('fase-timeline');
-                    if(tlSection) tlSection.style.display = 'block';
-                    
-                    ['node-1', 'node-2'].forEach(id => {
-                        const node = document.getElementById(id);
-                        if(node) node.classList.add('completed');
-                    });
-                    
-                    const n3 = document.getElementById('node-3');
-                    if(n3) n3.classList.remove('locked-node');
-                    
-                    const elNama = document.getElementById('id_nama');
-                    if(elNama) elNama.innerText = data.nama_lengkap || namaValid;
-                    
-                    const elJudul = document.getElementById('id_judul');
-                    if(elJudul) elJudul.innerText = data.judul_naskah || judulNaskah;
-                    
-                    const elNpm = document.getElementById('id_npm');
-                    if(elNpm) elNpm.innerText = currentUser.uid.substring(0,8).toUpperCase();
-                    
-                    const elTahun = document.getElementById('id_tahun');
-                    if(elTahun) elTahun.innerText = new Date().getFullYear();
-                    
-                    if (data.url_foto) {
-                        const img = document.getElementById('id_foto_render');
-                        const placeholder = document.getElementById('id_foto_placeholder');
-                        if (img) { img.src = data.url_foto; img.style.display = 'block'; }
-                        if (placeholder) placeholder.style.display = 'none';
-                    }
-                    Swal.fire('Selamat! 🎉', 'Pendaftaran sidang Anda telah disetujui oleh Redaksi.', 'success');
-                }
-
-            } catch (err) {
-                console.error("loadDataAwal error:", err);
-                Swal.fire('Error', 'Terjadi kesalahan saat memuat data.', 'error');
-            }
+        if (!currentUser) {
+            Swal.fire("Belum Login", "Silakan login dulu", "warning");
+            return;
         }
 
-        // ======================== FILE LISTENER (BASE64) ========================
-        function setupFileListener(inputId, boxId, fileKey) {
-            const input = document.getElementById(inputId);
-            if (!input) return;
-            
-            input.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                if (file.size > 5 * 1024 * 1024) {
-                    Swal.fire('File Terlalu Besar', 'Maksimal 5MB', 'warning');
-                    this.value = '';
-                    return;
-                }
-                
-                const nameSpan = document.getElementById(`name-${inputId}`);
-                if (nameSpan) {
-                    nameSpan.innerText = "✓ " + file.name;
-                    nameSpan.style.display = "block";
-                }
-                
-                const box = document.getElementById(boxId);
-                if(box) box.style.borderColor = 'var(--success)';
+        await loadDataAwal();
 
-                const reader = new FileReader();
-                reader.onload = (ev) => { 
-                    base64Files[fileKey] = ev.target.result; 
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-        setupFileListener('f_foto', 'box-foto', 'foto');
-        setupFileListener('f_khs', 'box-khs', 'khs');
-        setupFileListener('f_kuitansi', 'box-kuitansi', 'kuitansi');
-        setupFileListener('f_perjanjian', 'box-perjanjian', 'perjanjian');
-        setupFileListener('f_sk', 'box-sk', 'sk');
+    } catch (error) {
+        console.error("INIT ERROR:", error);
 
-        // ======================== NAVIGASI MULTI-STEP ========================
-        window.nextStep = function(current) {
-            const card = document.getElementById(`step-${current}`);
-            if(!card) return;
+        Swal.fire("Error", "Gagal memuat sistem", "error");
 
-            const inputs = card.querySelectorAll('input[required], textarea[required], select[required]');
-            let valid = true;
-            
-            inputs.forEach(inp => {
-                if (inp.type !== 'file' && !inp.value.trim()) {
-                    inp.style.borderColor = 'var(--danger)';
-                    valid = false;
-                } else {
-                    inp.style.borderColor = '#eee';
-                }
-            });
-            
-            if (!valid) return Swal.fire('Belum Lengkap', 'Harap isi semua kolom bertanda bintang (*).', 'error');
-            if (current === 1 && !base64Files.foto) return Swal.fire('Foto Belum Dipilih', 'Harap unggah pas foto.', 'error');
-            if (current === 3 && (!base64Files.khs || !base64Files.kuitansi)) return Swal.fire('Berkas Belum Lengkap', 'Harap pilih file KHS dan Kuitansi.', 'error');
-            
-            card.classList.remove('active');
-            const nextCard = document.getElementById(`step-${current + 1}`);
-            if(nextCard) nextCard.classList.add('active');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+        // 🔥 TETAP TAMPILKAN FORM BIAR GA BLANK
+        const form = document.getElementById("fase-formulir");
+        if (form) form.style.display = "block";
 
-        window.prevStep = function(current) {
-            const card = document.getElementById(`step-${current}`);
-            if(card) card.classList.remove('active');
-            
-            const prevCard = document.getElementById(`step-${current - 1}`);
-            if(prevCard) prevCard.classList.add('active');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
+    } finally {
+        if (loader) loader.style.display = "none";
+    }
 
-        // ======================== SUBMIT FORM (FASE 1) ========================
-        document.getElementById('sidang-form')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const check1 = document.getElementById('check-legal-1')?.checked;
-            const check2 = document.getElementById('check-legal-2')?.checked;
-            if (!check1 || !check2) return Swal.fire('Pernyataan Belum Disetujui', 'Harap centang semua pernyataan legalitas.', 'warning');
-            
-            const btn = document.getElementById('btn-submit-form');
-            if(btn) {
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
-                btn.disabled = true;
-            }
+})();
 
-            try {
-                // We are storing the base64 string directly for now to ensure it works.
-                // Later, this can be swapped to send to GAS.
-                const formPayload = {
-                    uid: currentUser.uid,
-                    status: 'draft_form',
-                    timestamp: serverTimestamp(),
-                    nama_lengkap: document.getElementById('f_nama')?.value || "",
-                    email: document.getElementById('f_email')?.value || "",
-                    tempat_lahir: document.getElementById('f_tempat_lahir')?.value || "",
-                    tgl_lahir: document.getElementById('f_tgl_lahir')?.value || "",
-                    judul_naskah: document.getElementById('f_judul')?.value || "",
-                    pen_name: document.getElementById('f_penname')?.value || "",
-                    blurb: document.getElementById('f_blurb')?.value || "",
-                    instansi: document.getElementById('f_instansi')?.value || "",
-                    paket: document.getElementById('f_paket')?.value || "",
-                    promosi: document.getElementById('f_promosi')?.value || "",
-                    url_foto: base64Files.foto || "",
-                    url_khs: base64Files.khs || "", 
-                    url_kuitansi: base64Files.kuitansi || "",
-                };
-                
-                await setDoc(doc(db, 'sidang_applications', currentUser.uid), formPayload);
-                await Swal.fire({ icon: 'success', title: 'Data Tersimpan!', text: 'Lanjutkan ke proses tanda tangan dokumen.', confirmButtonColor: '#003366' });
-                window.location.reload();
-            } catch (error) {
-                console.error("Submit Error:", error);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat menyimpan.', 'error');
-                if(btn) {
-                    btn.innerHTML = '<i class="fa-solid fa-upload"></i> Unggah & Simpan';
-                    btn.disabled = false;
-                }
-            }
-        });
 
-        // ======================== TIMELINE NODE ========================
-        window.selesaikanNode = async function(nodeNumber) {
-            const fileKey = nodeNumber === 1 ? 'perjanjian' : 'sk';
-            if (!base64Files[fileKey]) return Swal.fire('Peringatan', 'Anda belum memilih file hasil tanda tangan!', 'warning');
-            
-            try {
-                const updateData = {};
-                // Store base64 string directly for now to ensure functionality
-                if (nodeNumber === 1) updateData.url_perjanjian = base64Files.perjanjian;
-                if (nodeNumber === 2) updateData.url_sk = base64Files.sk;
-                updateData.updated_at = serverTimestamp();
-                
-                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), updateData);
-                
-                const node = document.getElementById(`node-${nodeNumber}`);
-                if(node) node.classList.add('completed');
-                
-                nodeSelesaiCount++;
-                if (nodeSelesaiCount >= 2) {
-                    const node3 = document.getElementById('node-3');
-                    if(node3) node3.classList.remove('locked-node');
-                    Swal.fire({ icon: 'success', title: 'Pemberkasan Lengkap!', text: 'Kartu Sidang Virtual Anda sudah aktif.', confirmButtonColor: '#003366' });
-                } else {
-                    Swal.fire({ icon: 'success', title: 'Tersimpan', text: 'File berhasil disimpan.', timer: 1500, showConfirmButton: false });
-                }
-            } catch (e) {
-                console.error("Node Error:", e);
-                Swal.fire('Error', 'Gagal menyimpan file. Coba lagi.', 'error');
-            }
-        };
+// ================= LOAD DATA =================
+async function loadDataAwal() {
 
-        const checkFinal = document.getElementById('check-final');
-        if(checkFinal) {
-            checkFinal.addEventListener('change', function(e) {
-                const btn = document.getElementById('btn-ajukan-final');
-                if (btn) btn.disabled = !(nodeSelesaiCount >= 2 && e.target.checked);
-            });
+    try {
+
+        const sidangSnap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
+
+        // ===== JIKA BELUM ADA DATA =====
+        if (!sidangSnap.exists()) {
+
+            document.getElementById('fase-formulir').style.display = 'block';
+
+            document.getElementById('f_uid').value = currentUser.uid;
+            document.getElementById('f_email').value = currentUser.email || "-";
+            document.getElementById('f_nama').value = currentUser.displayName || "User";
+
+            return;
         }
 
-        window.ajukanSidangAkhir = async function() {
-            if (nodeSelesaiCount < 2) return Swal.fire('Belum Lengkap', 'Selesaikan semua dokumen terlebih dahulu.', 'warning');
-            
-            const konfirmasi = await Swal.fire({
-                title: 'Ajukan Sidang?', text: 'Pastikan semua berkas sudah benar. Pengajuan tidak dapat dibatalkan.', icon: 'question',
-                showCancelButton: true, confirmButtonColor: '#003366', confirmButtonText: 'Ya, Ajukan!'
-            });
-            
-            if (!konfirmasi.isConfirmed) return;
-            
-            try {
-                const btn = document.getElementById('btn-ajukan-final');
-                if(btn) {
-                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> MENGIRIM...';
-                    btn.disabled = true;
-                }
-                
-                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
-                    status: 'pending_admin',
-                    submitted_final_at: serverTimestamp()
-                });
-                
-                Swal.fire({ icon: 'success', title: 'Dossier Terkirim!', text: 'Berkas Anda sedang dikurasi oleh Tim Redaksi.', confirmButtonColor: '#003366' }).then(() => location.reload());
-            } catch (e) {
-                console.error("Submit final error:", e);
-                Swal.fire('Error', 'Gagal mengajukan pendaftaran sidang.', 'error');
-            }
-        };
+        // ===== ADA DATA =====
+        const data = sidangSnap.data();
 
-        window.resetForm = async function() {
-            const konfirmasi = await Swal.fire({
-                title: 'Perbaiki Berkas?', text: 'Aksi ini akan menghapus draf pendaftaran sebelumnya dan Anda harus mengisi dari awal.', icon: 'warning',
-                showCancelButton: true, confirmButtonColor: '#003366', cancelButtonColor: '#dc3545', confirmButtonText: 'Ya, Perbaiki'
-            });
-            
-            if (konfirmasi.isConfirmed) {
-                try {
-                    await deleteDoc(doc(db, 'sidang_applications', currentUser.uid));
-                    window.location.reload();
-                } catch(e) {
-                    console.error("Reset Error:", e);
-                    Swal.fire('Error', 'Gagal menghapus draf. Coba lagi.', 'error');
-                }
-            }
-        };
+        if (data.status === "draft_form") {
+            document.getElementById('fase-timeline').style.display = 'block';
+        }
+        else if (data.status === "pending_admin") {
+            document.getElementById('panel-waiting').style.display = 'block';
+        }
+        else if (data.status === "rejected") {
+            document.getElementById('panel-rejected').style.display = 'block';
+        }
 
-        window.cetakKartuSidang = function() {
-            const element = document.getElementById('kartu-sidang-print');
-            if(!element) return;
-            html2pdf().set({ margin: 10, filename: `KartuSidang_${currentUser.uid.substring(0,8)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, jsPDF: { unit: 'mm', format: 'a6', orientation: 'portrait' } }).from(element).save();
-        };
+    } catch (err) {
+        console.error("LOAD ERROR:", err);
 
-        window.downloadDraf = function(jenis) {
-            Swal.fire('Info', 'Fungsi unduh draf akan terhubung ke file template asli.', 'info');
-        };
-    </script>
+        Swal.fire("Error", "Gagal ambil data", "error");
+
+        // 🔥 fallback tampil
+        document.getElementById('fase-formulir').style.display = 'block';
+    }
+}
+
+</script>
 </body>
 </html>
