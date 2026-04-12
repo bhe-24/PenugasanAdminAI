@@ -222,7 +222,7 @@
     </div>
 
     <nav class="navbar">
-        <div class="nav-brand"><img src="https://imgur.com/5Srjyo4.png" alt="Logo" onerror="this.style.display='none'"><h1>Ruang <span>Sidang</span></h1></div>
+        <div class="nav-brand"><img src="https://imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous" onerror="this.style.display='none'"><h1>Ruang <span>Sidang</span></h1></div>
         <a href="/dashboard/inkubasi.html" class="btn-kembali"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </nav>
 
@@ -279,14 +279,13 @@
                 </div>
             </div>
 
-            <!-- KARTU SIDANG -->
             <div class="kartu-wrapper" id="kartu-wrapper">
                 <p class="kartu-label"><i class="fa-solid fa-id-card"></i> &nbsp;Kartu Peserta Sidang Anda</p>
                 <div id="kartu-sidang-container">
                     <div id="kartu-print-area">
 
                         <div class="kartu-topbar">
-                            <img class="kartu-topbar-logo" id="kartu-logo" src="https://imgur.com/5Srjyo4.png" alt="Logo">
+                            <img class="kartu-topbar-logo" id="kartu-logo" src="https://imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
                             <div class="kartu-topbar-text">
                                 <span class="kartu-org-name">Cendekia Aksara</span>
                                 <span class="kartu-card-type">Kartu Peserta Sidang</span>
@@ -299,7 +298,7 @@
                                 <div class="kartu-foto-placeholder" id="kartu-foto-placeholder">
                                     <i class="fa-solid fa-user"></i>
                                 </div>
-                                <img id="card-foto" src="" alt="Foto" style="display:none;">
+                                <img id="card-foto" src="" alt="Foto" style="display:none;" crossorigin="anonymous">
                             </div>
 
                             <div class="kartu-info">
@@ -333,7 +332,6 @@
             </button>
         </div>
 
-        <!-- FORM SECTION -->
         <div id="form-section" class="form-section show">
             <div class="revisi-banner" id="revisi-banner">
                 <h4><i class="fa-solid fa-triangle-exclamation"></i> Ada Catatan Revisi dari Admin</h4>
@@ -739,34 +737,23 @@
         }
 
         // ==========================================================
-        // FUNGSI UNDUH KARTU - FIX TOTAL GAMBAR BLANK
+        // FUNGSI UNDUH KARTU - FIX TOTAL GAMBAR & PROPORSI
         // ==========================================================
         window.cetakKartuPNG = async function() {
-            const printArea = document.getElementById('kartu-print-area');
             const container = document.getElementById('kartu-sidang-container');
-            
-            if (!printArea || !container) return Swal.fire('Error', 'Elemen kartu tidak ditemukan.', 'error');
+            if (!container) return Swal.fire('Error', 'Elemen kartu tidak ditemukan.', 'error');
 
-            const currentW = container.offsetWidth || 480;
-            const currentH = container.offsetHeight || Math.round(currentW * 54 / 85.6);
-            
             Swal.fire({
                 title: 'Memproses Kartu...',
-                html: 'Mengambil data gambar untuk hasil terbaik.<br>Mohon tunggu sebentar.',
+                html: 'Sedang menyiapkan gambar dengan resolusi tinggi.<br>Mohon tunggu...',
                 allowOutsideClick: false,
                 showConfirmButton: false,
                 willOpen: () => Swal.showLoading()
             });
 
             try {
-                // 1. Clone node
-                const clone = printArea.cloneNode(true);
-                clone.style.position = 'fixed'; clone.style.left = '-9999px'; clone.style.top = '0';
-                clone.style.width = currentW + 'px'; clone.style.height = currentH + 'px';
-                clone.style.backgroundColor = '#020617'; // ensure bg
-                document.body.appendChild(clone);
-
-                // Helper: Convert any URL to Base64 via Fetch & Blob
+                // 1. Fungsi Helper untuk konversi URL gambar langsung ke format Base64
+                // Ini akan mem-bypass blokir CORS dari server secara total saat di-render html2canvas
                 const toBase64 = async (url) => {
                     if (!url || url.startsWith('data:')) return url;
                     try {
@@ -779,57 +766,45 @@
                             reader.readAsDataURL(blob);
                         });
                     } catch (e) {
-                        console.warn("Gagal konversi gambar:", url, e);
-                        return null;
+                        console.warn("CORS fetch gagal, tetap menggunakan url asli:", e);
+                        return null; // biarkan aslinya jika server menolak
                     }
                 };
 
-                // 2. Fix Logo
-                const logoEl = clone.querySelector('#kartu-logo') || clone.querySelector('.kartu-topbar-logo');
-                if (logoEl) {
-                    const b64 = await toBase64(logoEl.src);
-                    if (b64) logoEl.src = b64;
+                // 2. Terapkan konversi Base64 LANGSUNG pada elemen DOM asli
+                const logoEl = document.getElementById('kartu-logo');
+                if (logoEl && !logoEl.src.startsWith('data:')) {
+                    const b64Logo = await toBase64(logoEl.src);
+                    if (b64Logo) logoEl.src = b64Logo;
                 }
 
-                // 3. Fix Foto
-                const fotoEl = clone.querySelector('#card-foto');
-                if (fotoEl && fotoEl.style.display !== 'none') {
-                    const b64 = await toBase64(fotoEl.src);
-                    if (b64) fotoEl.src = b64;
+                const fotoEl = document.getElementById('card-foto');
+                if (fotoEl && fotoEl.style.display !== 'none' && !fotoEl.src.startsWith('data:')) {
+                    const b64Foto = await toBase64(fotoEl.src);
+                    if (b64Foto) fotoEl.src = b64Foto;
                 }
 
-                // 4. Wait for render
-                await new Promise(r => setTimeout(r, 500));
+                // Beri jeda sangat singkat agar browser selesai me-render base64 ke layar
+                await new Promise(r => setTimeout(r, 400));
 
-                // 5. html2canvas
-                const canvas = await html2canvas(clone, {
-                    scale: 2.5, // High quality
+                // 3. Render html2canvas dari Container Asli. 
+                // Tidak lagi menggunakan Clone/Canvas pembantu yang menyebabkan gambar gepeng!
+                const canvas = await html2canvas(container, {
+                    scale: 3, // Perbesar kualitas ke resolusi HD langsung dari rasio aslinya
                     useCORS: true,
                     allowTaint: true,
-                    backgroundColor: '#020617',
-                    width: currentW,
-                    height: currentH,
-                    logging: false
+                    backgroundColor: null, // Agar efek melengkung (border-radius) tetap transparan di luarnya
+                    width: container.offsetWidth,
+                    height: container.offsetHeight
                 });
 
-                // Remove clone
-                document.body.removeChild(clone);
-
-                // 6. Create output
-                const OUTPUT_W = 1011; const OUTPUT_H = 638;
-                const outCanvas = document.createElement('canvas');
-                outCanvas.width = OUTPUT_W; outCanvas.height = OUTPUT_H;
-                const ctx = outCanvas.getContext('2d');
-                ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, OUTPUT_W, OUTPUT_H);
-                ctx.drawImage(canvas, 0, 0, OUTPUT_W, OUTPUT_H);
-
-                // 7. Download
+                // 4. Unduh hasil
                 const link = document.createElement('a');
-                link.download = 'Kartu_Sidang_' + currentUser.uid.substring(0,8).toUpperCase() + '.png';
-                link.href = outCanvas.toDataURL('image/png', 1.0);
+                link.download = 'Kartu_Sidang_' + (currentUser ? currentUser.uid.substring(0,8).toUpperCase() : 'CENDEKIA') + '.png';
+                link.href = canvas.toDataURL('image/png', 1.0);
                 link.click();
 
-                Swal.fire('Berhasil!', 'Kartu sidang berhasil diunduh dengan gambar utuh.', 'success');
+                Swal.fire('Berhasil!', 'Kartu sidang berhasil diunduh dengan rapi.', 'success');
 
             } catch (err) {
                 console.error(err);
