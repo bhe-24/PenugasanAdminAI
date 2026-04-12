@@ -222,7 +222,7 @@
     </div>
 
     <nav class="navbar">
-        <div class="nav-brand"><img src="https://imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous" onerror="this.style.display='none'"><h1>Ruang <span>Sidang</span></h1></div>
+        <div class="nav-brand"><img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous" onerror="this.style.display='none'"><h1>Ruang <span>Sidang</span></h1></div>
         <a href="/dashboard/inkubasi.html" class="btn-kembali"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </nav>
 
@@ -285,7 +285,7 @@
                     <div id="kartu-print-area">
 
                         <div class="kartu-topbar">
-                            <img class="kartu-topbar-logo" id="kartu-logo" src="https://imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
+                            <img class="kartu-topbar-logo" id="kartu-logo" src="https://i.imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
                             <div class="kartu-topbar-text">
                                 <span class="kartu-org-name">Cendekia Aksara</span>
                                 <span class="kartu-card-type">Kartu Peserta Sidang</span>
@@ -723,13 +723,23 @@
             } catch(e) { Swal.fire('Error', e.message, 'error'); btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim'; btn.disabled = false; }
         };
 
-        // Load Foto
+        // Load Foto Menggunakan Proxy CORS
         function loadFotoKeKartu(url) {
-            const img = new Image(); img.crossOrigin = 'anonymous';
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+            
+            const img = new Image(); 
+            img.crossOrigin = 'anonymous';
+            
             img.onload = () => fotoSudahSiap(img.src);
-            img.onerror = () => fetch(url).then(r => r.blob()).then(blob => fotoSudahSiap(URL.createObjectURL(blob))).catch(() => console.warn('Gagal load foto'));
-            img.src = url;
+            img.onerror = () => {
+                console.warn('Gagal load pakai proxy, mencoba fallback url asli...');
+                fetch(url).then(r => r.blob())
+                          .then(blob => fotoSudahSiap(URL.createObjectURL(blob)))
+                          .catch(() => console.warn('Tetap gagal load foto'));
+            };
+            img.src = proxyUrl;
         }
+
         function fotoSudahSiap(src) {
             const el = document.getElementById('card-foto');
             el.src = src; el.style.display = 'block';
@@ -752,12 +762,14 @@
             });
 
             try {
-                // 1. Fungsi Helper untuk konversi URL gambar langsung ke format Base64
-                // Ini akan mem-bypass blokir CORS dari server secara total saat di-render html2canvas
+                // 1. Fungsi Helper untuk konversi URL gambar langsung ke format Base64 Menggunakan Proxy
                 const toBase64 = async (url) => {
                     if (!url || url.startsWith('data:')) return url;
+                    
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+                    
                     try {
-                        const response = await fetch(url);
+                        const response = await fetch(proxyUrl);
                         const blob = await response.blob();
                         return new Promise((resolve, reject) => {
                             const reader = new FileReader();
@@ -766,8 +778,8 @@
                             reader.readAsDataURL(blob);
                         });
                     } catch (e) {
-                        console.warn("CORS fetch gagal, tetap menggunakan url asli:", e);
-                        return null; // biarkan aslinya jika server menolak
+                        console.warn("Proxy/CORS fetch gagal, mencoba fallback fetch lokal:", e);
+                        return null; 
                     }
                 };
 
@@ -788,7 +800,6 @@
                 await new Promise(r => setTimeout(r, 400));
 
                 // 3. Render html2canvas dari Container Asli. 
-                // Tidak lagi menggunakan Clone/Canvas pembantu yang menyebabkan gambar gepeng!
                 const canvas = await html2canvas(container, {
                     scale: 3, // Perbesar kualitas ke resolusi HD langsung dari rasio aslinya
                     useCORS: true,
