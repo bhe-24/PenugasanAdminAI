@@ -162,7 +162,7 @@
             }
         };
 
-        // TARIK DATA DARI FIRESTORE
+        // TARIK DATA DARI FIRESTORE (SUDAH DIPERBAIKI UNTUK NANGKAP DATA LAMA)
         async function fetchApplications() {
             try {
                 const q = query(collection(db, 'sidang_applications'), orderBy('timestamp', 'desc'));
@@ -176,11 +176,12 @@
                     const data = docSnap.data();
                     data.id = docSnap.id; // Menyimpan UID dokumen
                     
-                    // Kita hanya tarik data yang sudah di-submit final oleh siswa
-                    if (data.status === 'pending_admin' || data.status === 'approved' || data.status === 'acc' || data.status === 'rejected') {
+                    // KITA TANGKAP SEMUA STATUS: Baik versi lama maupun versi baru
+                    if (data.status === 'pending' || data.status === 'pending_admin' || data.status === 'approved' || data.status === 'acc' || data.status === 'rejected') {
                         
-                        // Normalisasi status acc menjadi approved agar mudah difilter
+                        // Normalisasi (Ubah status lama agar cocok dengan sistem tab Admin yang baru)
                         if(data.status === 'acc') data.status = 'approved';
+                        if(data.status === 'pending') data.status = 'pending_admin'; // <--- Ini penawar Ghost Data nya!
                         
                         allApplications.push(data);
                         
@@ -189,6 +190,14 @@
                     }
                 });
 
+                document.getElementById('count-pending').innerText = pendingCount;
+                document.getElementById('count-approved').innerText = approvedCount;
+
+                renderData();
+            } catch (error) {
+                console.error("Gagal tarik data:", error);
+            }
+        }
                 document.getElementById('count-pending').innerText = pendingCount;
                 document.getElementById('count-approved').innerText = approvedCount;
 
