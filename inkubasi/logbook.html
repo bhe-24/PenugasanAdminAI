@@ -468,8 +468,8 @@
             }
         }
 
-        // ============================================================
-        // HUBUNGI PEMBIMBING (WA INTEGRATION)
+       // ============================================================
+        // HUBUNGI PEMBIMBING (WA INTEGRATION) - REVISI
         // ============================================================
         window.hubungiPembimbing = async () => {
             const btnWa = document.getElementById('btn-wa');
@@ -477,20 +477,21 @@
             btnWa.disabled = true;
 
             try {
-                // Ambil link naskah chapter terbaru
-                const q = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'desc'), limit(1));
+                // PERBAIKAN 1: Pakai query 'asc' (agar tidak minta index baru di Firebase)
+                // lalu kita ambil array elemen yang paling akhir (bab terbaru).
+                const q = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
                 const snap = await getDocs(q);
                 let linkNaskah = "Belum ada naskah yang dikerjakan.";
                 
                 if (!snap.empty) {
-                    const latestData = snap.docs[0].data();
+                    const latestData = snap.docs[snap.docs.length - 1].data();
                     linkNaskah = latestData.link_word || latestData.link_pdf || "Link tidak ditemukan";
                 }
 
-                // Cek dan kurangi token di database
+                // PERBAIKAN 2: Beri nilai default (|| 0) jika data bimbingan_token kosong/undefined
                 const authorRef = doc(db, 'author_profiles', currentUser.uid);
                 const docSnap = await getDoc(authorRef);
-                let currentTokens = docSnap.data().bimbingan_token;
+                let currentTokens = docSnap.data().bimbingan_token || 0; 
 
                 if (currentTokens > 0) {
                     await updateDoc(authorRef, {
@@ -507,12 +508,18 @@
                     
                     window.open(waUrl, '_blank');
                 } else {
-                     setupBimbingan(authorData); // Auto disable jika 0
+                     Swal.fire('Token Habis', 'Mohon maaf, token bimbingan kamu sudah habis.', 'info');
+                     setupBimbingan(authorData); 
                 }
             } catch (error) {
-                console.error(error);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat memproses token.', 'error');
+                console.error("Detail Error:", error);
+                // Tambahkan error.message agar kita tahu kalau gagal lagi, masalahnya ada di mana
+                Swal.fire('Gagal', 'Sistem error: ' + error.message, 'error'); 
                 setupBimbingan(authorData);
+            } finally {
+                // Kembalikan tombol ke keadaan semula
+                btnWa.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Chat Pembimbing Sekarang';
+                btnWa.disabled = false;
             }
         };
 
