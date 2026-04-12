@@ -443,23 +443,27 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script type="module">
-        import { db, checkAuth } from "../js/firebase-config.js";
+        import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const GAS_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbx2KsvsG0pKI7LuNF6y7CvrRk4IH6VS9F5JXOA7F68Hcivm-nFzO3UOEY-xrM-8KC7EAA/exec";
 
         let currentUser = null;
         let base64Data = { foto: null, khs: null, kuitansi: null, surat1: null, surat2: null };
+        let pitchData = null;
 
-        // INIT
+        // INIT UTAMA
         (async () => {
             try {
+                // Di sini currentUser SUDAH MEMBAWA data nama, email, role dll dari database 'users' (Kunci Master Cendekia)
                 currentUser = await checkAuth('siswa');
+                
                 if(currentUser) {
                     await loadDataAwal();
                 } else {
-                    window.location.href = '/index.html';
+                    document.getElementById('inline-loading').style.display = 'none';
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
@@ -468,67 +472,53 @@
         })();
 
         // ==============================================================
-        // FUNGSI PENARIKAN DATA KEBAL ERROR (BULLETPROOF)
+        // FUNGSI PENARIKAN DATA MENGGUNAKAN LOGIKA ASLI CENDEKIA
         // ==============================================================
         async function loadDataAwal() {
             try {
-                // Tarik data satu per satu agar jika 1 tabel kosong, tidak merusak sistem
-                let pitchData = null;
-                try {
-                    const pitchSnap = await getDoc(doc(db, 'pitching_projects', currentUser.uid));
-                    if(pitchSnap.exists()) pitchData = pitchSnap.data();
-                } catch(e) { console.log("Pitching belum ada."); }
+                // 1. Cek Pitching (Persis seperti Logbook)
+                const pitchRef  = doc(db, 'pitching_projects', currentUser.uid);
+                const pitchSnap = await getDoc(pitchRef);
 
-                if (!pitchData || pitchData.status !== 'acc') {
+                if (!pitchSnap.exists() || pitchSnap.data().status !== 'acc') {
+                    document.getElementById('inline-loading').style.display = 'none';
                     Swal.fire('Akses Ditolak', 'Data Naskah Anda belum lengkap atau belum di-ACC Mentor.', 'warning');
                     setTimeout(() => window.location.href = '/dashboard/inkubasi.html', 2000);
                     return;
                 }
 
-                let authorData = null;
-                try {
-                    const authorSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
-                    if(authorSnap.exists()) authorData = authorSnap.data();
-                } catch(e) { console.log("Author Profil belum ada."); }
+                pitchData = pitchSnap.data();
 
-                let userData = null;
-                try {
-                    const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
-                    if(userSnap.exists()) userData = userSnap.data();
-                } catch(e) { console.log("Data Users tidak lengkap."); }
+                // 2. Ambil Profil Penulis (Opsional, untuk nama pena)
+                const authorRef  = doc(db, 'author_profiles', currentUser.uid);
+                const authorSnap = await getDoc(authorRef);
+                const authorData = authorSnap.exists() ? authorSnap.data() : {};
 
-                let sidangData = null;
-                try {
-                    const sidangSnap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
-                    if(sidangSnap.exists()) sidangData = sidangSnap.data();
-                } catch(e) { console.log("Belum mendaftar sidang."); }
+                // 3. Cek Status Sidang
+                const sidangSnap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
 
-                // Sembunyikan Loading
+                // Loading selesai
                 document.getElementById('inline-loading').style.display = 'none';
 
                 // =======================================================
-                // LOGIKA PENGAMBILAN NAMA (Pasti Terisi)
+                // VARIABEL NAMA LANGSUNG DARI CURRENT USER
                 // =======================================================
-                let namaValid = "Nama Siswa";
-                if (userData && userData.name) namaValid = userData.name;
-                else if (authorData && authorData.real_name) namaValid = authorData.real_name;
-                else if (currentUser.name || currentUser.displayName) namaValid = currentUser.name || currentUser.displayName;
-
-                let emailValid = currentUser.email || "";
-                if (userData && userData.email) emailValid = userData.email;
+                const namaSiswa = currentUser.name || authorData.real_name || "Siswa Cendekia";
+                const emailSiswa = currentUser.email || authorData.email || "";
+                const penName = authorData.pen_name || "-";
 
                 // =======================================================
-                // ROUTING TAMPILAN BERDASARKAN STATUS
+                // ROUTING TAMPILAN BERDASARKAN STATUS SIDANG
                 // =======================================================
-                if (sidangData) {
+                if (sidangSnap.exists()) {
+                    const sidangData = sidangSnap.data();
                     const status = sidangData.status;
                     
                     if (status === 'draft_form') {
-                        // Masuk Timeline
                         document.getElementById('view-form').classList.remove('active');
                         document.getElementById('view-timeline').classList.add('active');
                         
-                        document.getElementById('id_nama').innerText = sidangData.nama_lengkap || namaValid;
+                        document.getElementById('id_nama').innerText = sidangData.nama_lengkap || namaSiswa;
                         document.getElementById('id_judul').innerText = sidangData.judul_naskah || pitchData.judul;
                         document.getElementById('id_npm').innerText = currentUser.uid.substring(0, 8).toUpperCase();
                         document.getElementById('id_tahun').innerText = new Date().getFullYear();
@@ -552,20 +542,20 @@
                         document.getElementById('node-2').classList.add('completed');
                         document.getElementById('node-3').style.opacity = '1';
                         
-                        document.getElementById('id_nama').innerText = sidangData.nama_lengkap || namaValid;
+                        document.getElementById('id_nama').innerText = sidangData.nama_lengkap || namaSiswa;
                         document.getElementById('id_judul').innerText = sidangData.judul_naskah || pitchData.judul;
                         document.getElementById('id_npm').innerText = currentUser.uid.substring(0, 8).toUpperCase();
                         document.getElementById('id_tahun').innerText = new Date().getFullYear();
                         document.getElementById('id_foto_render').src = sidangData.link_foto || "https://i.imgur.com/5Srjyo4.png";
                     }
                 } else {
-                    // Buka Form Baru
+                    // Jika belum pernah mendaftar sama sekali -> Buka Form Baru
                     document.getElementById('view-form').classList.add('active');
                     document.getElementById('f_uid').value = currentUser.uid.substring(0, 8).toUpperCase();
-                    document.getElementById('f_nama').value = namaValid;
-                    document.getElementById('f_email').value = emailValid;
-                    document.getElementById('f_judul').value = pitchData.judul || "Judul Belum Diatur";
-                    document.getElementById('f_penname').value = (authorData && authorData.pen_name) ? authorData.pen_name : "-";
+                    document.getElementById('f_nama').value = namaSiswa;
+                    document.getElementById('f_email').value = emailSiswa;
+                    document.getElementById('f_judul').value = pitchData.judul || "";
+                    document.getElementById('f_penname').value = penName;
                 }
             } catch (error) {
                 console.error("Kesalahan Utama: ", error);
@@ -577,7 +567,7 @@
         // =========================================
         function setupFileInput(inputId, keyData, labelId, isImageOnly = false) {
             const fileInput = document.getElementById(inputId);
-            if(!fileInput) return; // Mencegah error jika id tidak ketemu
+            if(!fileInput) return;
 
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -588,7 +578,6 @@
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     if (isImageOnly && file.type.startsWith('image/')) {
-                        // Kompres Foto Canvas
                         const img = new Image();
                         img.onload = function() {
                             const canvas = document.getElementById('foto-canvas');
@@ -601,7 +590,6 @@
                         }
                         img.src = event.target.result;
                     } else {
-                        // File PDF
                         const b64 = event.target.result;
                         base64Data[keyData] = {
                             name: file.name,
@@ -708,7 +696,7 @@
             } catch (error) {
                 console.error(error);
                 Swal.fire('Gagal', 'Terjadi kesalahan jaringan saat mengunggah.', 'error');
-                btn.innerHTML = 'Simpan & Lanjut <i class="fa-solid fa-paper-plane"></i>'; btn.disabled = false;
+                btn.innerHTML = 'Simpan & Lanjut <i class="fa-solid fa-check"></i>'; btn.disabled = false;
             }
         });
 
@@ -769,7 +757,7 @@
                     window.location.reload();
                 });
             } catch(e) {
-                Swal.fire('Error', 'Gagal mengajukan pendaftaran.', 'error');
+                Swal.fire('Error', 'Gagal mengajukan pendaftaran sidang.', 'error');
             }
         };
 
