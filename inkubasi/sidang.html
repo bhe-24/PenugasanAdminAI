@@ -320,8 +320,9 @@
         import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ⚠️ GANTI DENGAN URL GAS KAMU
-        const GAS_URL = "URL_APPS_SCRIPT_KAMU_DISINI"; 
+        // ⚠️ PASTIKAN URL INI SUDAH DIGANTI DENGAN URL APPS SCRIPT-MU YANG ASLI
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwyLOayneYVg1s7suayQFghRjch7wamNagERpr4puzWApBA0sgpjsJ1zQIonl1uxLq4/exec"; 
+        
         let currentUser = null;
         let base64Files = { foto: null, khs: null, kuitansi: null, ttd_perjanjian: null, ttd_sk: null };
 
@@ -358,17 +359,14 @@
         // ==========================================
         window.onload = async () => {
             try {
-                // Tarik UID & Tembak ke DB Author Profile untuk ambil email permanen
                 currentUser = await checkAuth('siswa');
                 if(!currentUser) return window.location.href = '/login.html';
                 
                 document.getElementById('f_uid').value = currentUser.uid;
 
-                // Mengambil Data Profil Author (Untuk Email)
                 const authorRef = doc(db, 'author_profiles', currentUser.uid);
                 const authorSnap = await getDoc(authorRef);
                 if (authorSnap.exists()) {
-                    // Panggil email dan nama pena dari database
                     document.getElementById('f_email').value = authorSnap.data().email || currentUser.email || "-";
                     document.getElementById('f_penname').value = authorSnap.data().pen_name || "";
                 }
@@ -441,23 +439,44 @@
         }
 
         // ==========================================
-        // MANAJEMEN FILE
+        // MANAJEMEN FILE & KOMPRESI OTOMATIS
         // ==========================================
         window.handleFileSelect = function(inputId, boxId) {
             const input = document.getElementById(inputId);
             if (!input.files[0]) return;
-            if (input.files[0].size > 3 * 1024 * 1024) {
+            const file = input.files[0];
+
+            if (file.size > 3 * 1024 * 1024) {
                 Swal.fire('File Terlalu Besar', 'Maksimal 3MB per file.', 'warning');
                 input.value = ''; return;
             }
-            document.getElementById(`name-${inputId}`).innerText = "✓ " + input.files[0].name;
+
+            document.getElementById(`name-${inputId}`).innerText = "✓ " + file.name;
             document.getElementById(`name-${inputId}`).style.display = 'block';
             document.getElementById(boxId).style.borderColor = 'var(--success)';
             
             const reader = new FileReader();
             const fileKey = inputId.replace('f_', '');
-            reader.onload = (e) => { base64Files[fileKey] = e.target.result; };
-            reader.readAsDataURL(input.files[0]);
+            
+            reader.onload = (e) => { 
+                // Kompresi khusus untuk FOTO agar upload cepat
+                if (fileKey === 'foto' && file.type.startsWith('image/')) {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById('foto-canvas');
+                        const ctx = canvas.getContext('2d');
+                        let w = img.width; let h = img.height;
+                        if (w > 600) { h = Math.round((h *= 600 / w)); w = 600; }
+                        canvas.width = w; canvas.height = h;
+                        ctx.drawImage(img, 0, 0, w, h);
+                        base64Files.foto = canvas.toDataURL('image/jpeg', 0.7); // Kompres
+                    };
+                    img.src = e.target.result;
+                } else {
+                    base64Files[fileKey] = e.target.result; 
+                }
+            };
+            reader.readAsDataURL(file);
         };
 
         // ==========================================
@@ -465,24 +484,32 @@
         // ==========================================
         document.getElementById('sidang-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            btnSubmit1.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim Berkas...'; btnSubmit1.disabled = true;
+            btnSubmit1.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim Berkas...'; 
+            btnSubmit1.disabled = true;
             
-            // Logika Tarik Nilai Strategi Promosi
-            const promoRadio = document.querySelector('input[name="f_promosi_radio"]:checked').value;
-            const strategiFinal = (promoRadio === 'Lainnya') ? document.getElementById('f_promosi_lain').value : promoRadio;
-
             try {
-                // Kirim data essensial & File ke Apps Script
+                // Semua logika pencarian data diletakkan di DALAM try, agar jika error tombol bisa di-reset
+                const promoRadio = document.querySelector('input[name="f_promosi_radio"]:checked');
+                const paketRadio = document.querySelector('input[name="f_paket"]:checked');
+                
+                if (!paketRadio) throw new Error("Paket Penerbitan belum dipilih.");
+                if (!promoRadio) throw new Error("Strategi Promosi belum dipilih.");
+                if (!base64Files.foto || !base64Files.khs || !base64Files.kuitansi) throw new Error("Ada file wajib yang belum terunggah.");
+
+                const strategiFinal = (promoRadio.value === 'Lainnya') ? document.getElementById('f_promosi_lain').value : promoRadio.value;
+
                 const payload = {
                     tahap: 1, uid: currentUser.uid, npm: currentUser.uid.substring(0,8).toUpperCase(),
                     nama_lengkap: document.getElementById('f_nama').value,
                     judul_naskah: document.getElementById('f_judul').value,
                     file_foto: base64Files.foto, file_khs: base64Files.khs, file_kuitansi: base64Files.kuitansi
                 };
+
                 const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }});
                 const responseGAS = await res.json();
                 
-                // Simpan SEMUA data formulir lengkap ke Firebase
+                if (responseGAS.status !== 'success') throw new Error("Google Script menolak permintaan: " + (responseGAS.message || "Unknown error"));
+
                 await setDoc(doc(db, 'sidang_applications', currentUser.uid), {
                     uid: currentUser.uid, 
                     email: document.getElementById('f_email').value,
@@ -493,7 +520,7 @@
                     pen_name: document.getElementById('f_penname').value,
                     blurb: document.getElementById('f_blurb').value,
                     instansi: document.getElementById('f_instansi').value,
-                    paket: document.querySelector('input[name="f_paket"]:checked').value,
+                    paket: paketRadio.value,
                     promosi: strategiFinal,
                     status: 'pending_tahap1', 
                     timestamp: serverTimestamp(),
@@ -503,8 +530,15 @@
                     draf_perjanjian: responseGAS.urls.draf_perjanjian, 
                     draf_sk: responseGAS.urls.draf_sk
                 });
-                Swal.fire('Terkirim!', 'Berkas awal sedang diperiksa.', 'success').then(()=>window.location.reload());
-            } catch (err) { Swal.fire('Error', 'Gagal kirim data. Cek koneksi.', 'error'); btnSubmit1.innerHTML = '<i class="fa-solid fa-paper-plane"></i> KIRIM BERKAS AWAL SEKARANG'; btnSubmit1.disabled = false; }
+                
+                Swal.fire('Terkirim!', 'Berkas awal sedang diperiksa oleh Tim Redaksi.', 'success').then(()=>window.location.reload());
+                
+            } catch (err) { 
+                console.error(err);
+                Swal.fire('Kesalahan Pengiriman', err.message || 'Gagal terhubung ke server.', 'error'); 
+                btnSubmit1.innerHTML = '<i class="fa-solid fa-paper-plane"></i> KIRIM BERKAS AWAL SEKARANG'; 
+                btnSubmit1.disabled = false; 
+            }
         });
 
         // ==========================================
@@ -521,16 +555,25 @@
                     tahap: 2, uid: currentUser.uid, npm: currentUser.uid.substring(0,8).toUpperCase(), nama_lengkap: nama,
                     file_perjanjian_ttd: base64Files.ttd_perjanjian, file_sk_ttd: base64Files.ttd_sk
                 };
+                
                 const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }});
                 const responseGAS = await res.json();
                 
+                if (responseGAS.status !== 'success') throw new Error("Gagal di proses Drive");
+
                 await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
                     status: 'pending_tahap2',
                     url_perjanjian_final: responseGAS.urls.ttd_perjanjian,
                     url_sk_final: responseGAS.urls.ttd_sk
                 });
                 Swal.fire('Terkirim!', 'Menunggu verifikasi TTD Final dari Admin.', 'success').then(()=>window.location.reload());
-            } catch(e) { Swal.fire('Error', 'Gagal kirim TTD', 'error'); btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim Dokumen Final'; btn.disabled = false; }
+                
+            } catch(e) { 
+                console.error(e);
+                Swal.fire('Error', 'Gagal mengirim dokumen TTD. Coba ulangi.', 'error'); 
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim Dokumen Final'; 
+                btn.disabled = false; 
+            }
         };
 
         window.resetForm = async function() {
