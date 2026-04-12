@@ -4,1356 +4,554 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ruang Sidang - Cendekia Aksara</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
-        /* ============================================================
-           VARIABEL & RESET
-        ============================================================ */
+        /* --- TEMA STANDAR CENDEKIA --- */
         :root {
-            --primary: #003366;
-            --primary-light: #005a9c;
-            --accent: #d4af37;
-            --accent-soft: rgba(212, 175, 55, 0.15);
-            --bg: #f4f6f9;
-            --white: #ffffff;
-            --border: #dde3ec;
-            --text: #1e293b;
-            --muted: #64748b;
+            --primary: #003366; 
+            --accent: #eab308; 
+            --success: #28a745;
             --danger: #dc3545;
-            --success: #10b981;
-            --radius: 14px;
-            --shadow: 0 8px 30px rgba(0,51,102,0.09);
+            --bg: #f4f7f6;
+            --text: #333333;
+            --border: #e0e0e0;
         }
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        * { box-sizing: border-box; outline: none; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        
+        body { 
+            background-color: var(--bg); 
+            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+            color: var(--text); 
+            min-height: 100vh; 
+            padding-bottom: 50px;
         }
 
-        /* ============================================================
-           HEADER
-        ============================================================ */
-        .top-header {
-            width: 100%;
-            background: linear-gradient(135deg, var(--primary) 0%, #001a40 100%);
-            padding: 0 24px;
-            height: 64px;
+        .navbar {
+            background: var(--primary);
+            padding: 12px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             position: sticky;
             top: 0;
-            z-index: 100;
-            border-bottom: 2px solid var(--accent);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            border-bottom: 3px solid var(--accent);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        
+        .nav-brand { display: flex; align-items: center; gap: 15px; }
+        .nav-brand img { width: 45px; height: 45px; background: white; border-radius: 50%; padding: 2px; }
+        .nav-brand h1 { font-family: 'Playfair Display', serif; color: white; font-size: 1.5rem; margin: 0; letter-spacing: 0.5px;}
+        .nav-brand h1 span { color: var(--accent); }
+        
+        .btn-kembali {
+            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600;
+            display: flex; align-items: center; gap: 6px; transition: 0.2s;
         }
+        .btn-kembali:hover { background: rgba(255,255,255,0.2); }
 
-        .header-logo {
-            width: 38px; height: 38px;
-            border-radius: 50%;
-            border: 2px solid var(--accent);
-            background: white;
-            padding: 3px;
-            object-fit: cover;
+        .container { max-width: 800px; margin: 30px auto; padding: 0 15px; }
+
+        .card { 
+            background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+            padding: 30px; margin-bottom: 20px; border: 1px solid var(--border); display: none;
+            animation: slideUp 0.4s ease;
         }
-
-        .header-title {
-            font-family: 'Playfair Display', serif;
-            color: white;
-            font-size: 1.15rem;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-        }
-
-        .header-title span { color: var(--accent); }
-
-        .btn-back {
-            display: flex; align-items: center; gap: 6px;
-            color: rgba(255,255,255,0.85);
-            font-size: 0.82rem;
-            font-weight: 500;
-            text-decoration: none;
-            padding: 7px 14px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px;
-            transition: 0.25s;
-            cursor: pointer;
-            background: transparent;
-        }
-        .btn-back:hover { background: rgba(255,255,255,0.12); color: white; }
-
-        /* ============================================================
-           LAYOUT WRAPPER
-        ============================================================ */
-        .page-wrap {
-            width: 100%;
-            max-width: 640px;
-            padding: 28px 16px 60px;
-            flex: 1;
-        }
-
-        /* ============================================================
-           PROGRESS BAR (hanya di form)
-        ============================================================ */
-        .progress-wrap {
-            display: flex;
-            align-items: center;
-            gap: 0;
-            margin-bottom: 28px;
-        }
-
-        .prog-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            position: relative;
-        }
-
-        .prog-step:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            width: 100%;
-            height: 2px;
-            background: var(--border);
-            z-index: 0;
-            transition: background 0.4s;
-        }
-
-        .prog-step.done:not(:last-child)::after { background: var(--success); }
-        .prog-step.active:not(:last-child)::after { background: var(--border); }
-
-        .prog-dot {
-            width: 32px; height: 32px;
-            border-radius: 50%;
-            border: 2px solid var(--border);
-            background: white;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--muted);
-            position: relative;
-            z-index: 1;
-            transition: 0.3s;
-        }
-
-        .prog-step.active .prog-dot {
-            border-color: var(--primary);
-            color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(0,51,102,0.1);
-        }
-
-        .prog-step.done .prog-dot {
-            border-color: var(--success);
-            background: var(--success);
-            color: white;
-        }
-
-        .prog-label {
-            font-size: 0.65rem;
-            color: var(--muted);
-            margin-top: 5px;
-            text-align: center;
-            font-weight: 500;
-        }
-
-        .prog-step.active .prog-label { color: var(--primary); font-weight: 600; }
-
-        /* ============================================================
-           CARD / CONTAINER
-        ============================================================ */
-        .card {
-            background: var(--white);
-            border-radius: var(--radius);
-            padding: 28px 24px;
-            box-shadow: var(--shadow);
-            border-top: 4px solid var(--primary);
-            animation: fadeUp 0.35s ease;
-        }
-
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        .card-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.3rem;
-            color: var(--primary);
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .card-sub {
-            font-size: 0.8rem;
-            color: var(--muted);
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px dashed var(--border);
-        }
-
-        /* ============================================================
-           FORM ELEMENTS
-        ============================================================ */
-        .form-group { margin-bottom: 16px; }
-
-        .form-label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #475569;
-            margin-bottom: 6px;
-        }
-
-        .req { color: var(--danger); }
-
-        .form-control {
-            width: 100%;
-            padding: 11px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.88rem;
-            background: #f9fafb;
-            color: var(--text);
-            transition: 0.25s;
-            appearance: none;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: white;
-            box-shadow: 0 0 0 4px rgba(0,51,102,0.08);
-        }
-
-        .form-control.locked {
-            background: #eef1f6;
-            color: var(--muted);
-            cursor: not-allowed;
-            border-color: transparent;
-        }
-
-        .form-control.error { border-color: var(--danger); }
-
-        textarea.form-control { resize: vertical; min-height: 100px; }
-
-        select.form-control {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 14px center;
-            padding-right: 36px;
-        }
-
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
-
-        /* FILE UPLOAD */
-        .file-box {
-            border: 2px dashed var(--border);
-            border-radius: 10px;
-            padding: 18px 14px;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: 0.25s;
-            background: #f9fafb;
-        }
-
-        .file-box:hover { border-color: var(--primary); background: #f0f4fb; }
-        .file-box.has-file { border-color: var(--success); background: #f0fdf4; }
-
-        .file-box input[type="file"] {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            opacity: 0; cursor: pointer;
-        }
-
-        .file-icon { font-size: 22px; margin-bottom: 6px; }
-        .file-hint { font-size: 0.75rem; color: var(--muted); }
-        .file-chosen { font-size: 0.75rem; color: var(--success); font-weight: 600; margin-top: 6px; display: none; }
-        .file-box.has-file .file-chosen { display: block; }
-        .file-box.has-file .file-hint { display: none; }
-
-        canvas { display: none; }
-
-        /* ============================================================
-           BUTTONS
-        ============================================================ */
-        .btn-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 24px;
-            justify-content: flex-end;
-        }
-
-        .btn-row.between { justify-content: space-between; }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            padding: 11px 22px;
-            border-radius: 10px;
-            border: none;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.25s;
-            white-space: nowrap;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,51,102,0.25);
-        }
-
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,51,102,0.3); }
-        .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
-
-        .btn-ghost {
-            background: white;
-            border: 1.5px solid var(--border);
-            color: var(--muted);
-        }
-
-        .btn-ghost:hover { background: var(--bg); color: var(--text); }
-
-        .btn-success-solid {
-            background: linear-gradient(135deg, #059669, #10b981);
-            color: white;
-            box-shadow: 0 4px 12px rgba(16,185,129,0.25);
-        }
-
-        .btn-success-solid:hover { transform: translateY(-2px); }
-        .btn-success-solid:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-
-        .btn-full { width: 100%; }
-
-        @media (max-width: 480px) {
-            .btn-row { flex-direction: column-reverse; }
-            .btn { width: 100%; }
-        }
-
-        /* ============================================================
-           ALERT / WARNING BOX
-        ============================================================ */
-        .alert {
-            padding: 14px 16px;
-            border-radius: 10px;
-            font-size: 0.82rem;
-            line-height: 1.6;
-            margin-bottom: 18px;
-        }
-
-        .alert-danger {
-            background: #fff1f2;
-            border-left: 4px solid var(--danger);
-            color: #991b1b;
-        }
-
-        .alert-info {
-            background: #eff6ff;
-            border-left: 4px solid var(--primary);
-            color: #1d4ed8;
-        }
-
-        /* ============================================================
-           CHECKBOX ROW
-        ============================================================ */
-        .check-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 13px;
-            background: #f9fafb;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-        }
-
-        .check-row input[type="checkbox"] { margin-top: 2px; accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
-        .check-row span { font-size: 0.82rem; line-height: 1.5; }
-
-        /* ============================================================
-           VIEW SECTIONS
-        ============================================================ */
-        .view { display: none; }
-        .view.active { display: block; animation: fadeUp 0.35s ease; }
-
-        /* ============================================================
-           TIMELINE
-        ============================================================ */
-        .timeline { position: relative; padding-left: 28px; margin-top: 6px; }
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 10px; top: 0; bottom: 0;
-            width: 2px;
-            background: linear-gradient(to bottom, var(--primary), var(--border));
-        }
-
-        .tl-item {
-            position: relative;
-            margin-bottom: 24px;
-            transition: opacity 0.3s;
-        }
-
-        .tl-dot {
-            position: absolute;
-            left: -23px; top: 4px;
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            background: white;
-            border: 2.5px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 9px;
-            color: transparent;
-            transition: 0.3s;
-            z-index: 2;
-        }
-
-        .tl-item.done .tl-dot {
-            background: var(--success);
-            border-color: var(--success);
-            color: white;
-        }
-
-        .tl-item.locked { opacity: 0.4; pointer-events: none; }
-
-        .tl-card {
-            background: white;
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            padding: 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-
-        .tl-card.done { border-color: rgba(16,185,129,0.3); background: #fafffe; }
-
-        .tl-card h3 { font-size: 0.92rem; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
-        .tl-card p { font-size: 0.77rem; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
-
-        .upload-zone { background: #f9fafb; border-radius: 8px; padding: 12px; border: 1px dashed var(--border); }
-
-        .download-btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 0.78rem; font-weight: 600;
-            color: var(--primary-light);
-            text-decoration: none;
-            padding: 7px 12px;
-            border: 1.5px solid var(--primary-light);
-            border-radius: 7px;
-            margin-bottom: 10px;
-            transition: 0.2s;
-        }
-
-        .download-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--primary); }
-
-        /* ============================================================
-           KARTU SIDANG (ID CARD)
-        ============================================================ */
-        .id-card {
-            background: linear-gradient(135deg, var(--primary) 0%, #001a40 100%);
-            border-radius: 16px;
-            overflow: hidden;
-            border: 2px solid var(--accent);
-            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
-            max-width: 420px;
-            margin: 0 auto;
-            color: white;
-            position: relative;
-        }
-
-        .id-card-header {
-            display: flex; align-items: center; gap: 10px;
-            padding: 13px 16px;
-            background: rgba(0,0,0,0.3);
-            border-bottom: 1px solid rgba(212,175,55,0.4);
-        }
-
-        .id-card-header img { width: 32px; height: 32px; border-radius: 50%; background: white; padding: 2px; }
-        .id-card-header h3 { font-family: 'Playfair Display', serif; color: var(--accent); font-size: 1rem; margin: 0; }
-        .id-card-header span { font-size: 0.6rem; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase; display: block; }
-
-        .id-card-body {
-            display: flex; gap: 16px; padding: 18px 16px;
-            background-image: radial-gradient(circle at 80% 20%, rgba(212,175,55,0.06) 0%, transparent 60%);
-        }
-
-        .id-photo {
-            width: 82px; height: 108px;
-            border: 2px solid var(--accent);
-            border-radius: 8px;
-            overflow: hidden;
-            background: rgba(255,255,255,0.1);
-            flex-shrink: 0;
-        }
-
+        .card.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .step-header { display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px; }
+        .step-header h2 { color: var(--primary); font-size: 1.2rem; margin: 0; font-weight: 700; }
+        .step-header span { color: #888; font-size: 0.9rem; font-weight: 600; margin-top: 5px;}
+
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-weight: 600; font-size: 0.85rem; color: #444; margin-bottom: 6px; }
+        .form-label .req { color: var(--danger); }
+        .form-control { width: 100%; padding: 12px 15px; border: 2px solid #eee; border-radius: 8px; font-size: 0.95rem; transition: 0.3s; }
+        .form-control:focus { border-color: var(--primary); background: #f8fbff; }
+        .form-control.locked { background: #f1f5f9; color: #666; cursor: not-allowed; font-weight: 600; border-color: #e2e8f0; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+        .file-upload-box { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 8px; background: #f8fafc; transition: 0.3s; cursor: pointer; position: relative;}
+        .file-upload-box:hover { border-color: var(--primary); background: #f0f4f8; }
+        .file-upload-box input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-upload-box i { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
+        .file-name-display { font-size: 0.8rem; color: var(--success); font-weight: 600; margin-top: 10px; display: none;}
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; gap: 10px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.95rem; transition: 0.2s; }
+        .btn-outline { background: white; border: 2px solid #e0e0e0; color: #555; }
+        .btn-outline:hover { background: var(--bg); border-color: #ccc;}
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #002244; transform: translateY(-2px); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #218838; transform: translateY(-2px); }
+
+        .id-card { background: #fff; border-radius: 12px; padding: 0; color: var(--text); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid var(--primary); width: 100%; max-width: 400px; margin: 0 auto;}
+        .id-header { background: var(--primary); padding: 15px; display: flex; align-items: center; gap: 15px; color: white;}
+        .id-header img { width: 40px; height: 40px; }
+        .id-header h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; margin: 0;}
+        .id-header span { font-size: 0.6rem; color: var(--accent); font-weight: 600; letter-spacing: 1px;}
+        
+        .id-body { padding: 20px 15px; display: flex; gap: 15px; background: url('https://www.transparenttextures.com/patterns/cubes.png');}
+        .id-photo { width: 80px; height: 110px; background: #eee; border: 2px solid var(--primary); border-radius: 6px; overflow: hidden; flex-shrink: 0;}
         .id-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .id-label { font-size: 0.65rem; color: #666; text-transform: uppercase; font-weight: 700; margin-bottom: 2px; }
+        .id-value { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; color: var(--primary);}
+        .id-value.highlight { color: #d97706; font-family: 'Playfair Display', serif; font-size: 1.1rem; }
 
-        .id-info { flex: 1; }
-        .id-lbl { font-size: 0.57rem; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 2px; }
-        .id-val { font-size: 0.88rem; font-weight: 600; margin-bottom: 9px; color: white; }
-        .id-val.gold { color: var(--accent); font-family: 'Playfair Display', serif; font-size: 0.95rem; font-style: italic; }
+        .timeline { margin-top: 15px; border-left: 2px solid #ccc; padding-left: 20px; margin-left: 10px;}
+        .tl-item { position: relative; margin-bottom: 25px; background: white; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .tl-dot { position: absolute; left: -29px; top: 15px; width: 16px; height: 16px; background: white; border: 3px solid #ccc; border-radius: 50%; }
+        .tl-item.completed { border-color: var(--success); background: #f0fdf4;}
+        .tl-item.completed .tl-dot { background: var(--success); border-color: var(--success); }
+        .tl-item h4 { color: var(--primary); font-size: 1rem; margin-bottom: 5px;}
+        .tl-item p { font-size: 0.85rem; color: #666; margin-bottom: 10px;}
 
-        .id-card-footer {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 16px;
-            border-top: 1px dashed rgba(255,255,255,0.15);
-        }
-
-        .id-badge {
-            background: var(--accent);
-            color: var(--primary);
-            font-size: 0.65rem;
-            font-weight: 800;
-            padding: 3px 9px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-        }
-
-        .id-year { font-size: 0.78rem; color: var(--accent); font-weight: 700; font-family: 'Playfair Display', serif; }
-
-        /* ============================================================
-           STATUS VIEW
-        ============================================================ */
-        .status-box {
-            text-align: center;
-            padding: 50px 20px;
-        }
-
-        .status-icon {
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            background: var(--accent-soft);
-            border: 2px solid var(--accent);
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 32px;
-            color: var(--accent);
-        }
-
-        .status-box h2 {
-            font-family: 'Playfair Display', serif;
-            color: var(--primary);
-            font-size: 1.4rem;
-            margin-bottom: 10px;
-        }
-
-        .status-box p {
-            font-size: 0.85rem;
-            color: var(--muted);
-            line-height: 1.7;
-            max-width: 380px;
-            margin: 0 auto 28px;
-        }
-
-        /* ============================================================
-           LOADING
-        ============================================================ */
-        #loading-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--primary);
-        }
-
-        #loading-state i { font-size: 2.5rem; margin-bottom: 14px; display: block; }
-        #loading-state p { font-size: 0.85rem; color: var(--muted); }
-
-        /* TOAST */
-        .toast {
-            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
-            background: var(--text); color: white;
-            padding: 12px 22px; border-radius: 10px;
-            font-size: 0.83rem; font-weight: 500;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            z-index: 9999;
-            opacity: 0;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-
-        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        .toast.success { background: var(--success); }
-        .toast.error { background: var(--danger); }
-
-        /* FOOTER */
-        .footer {
-            text-align: center;
-            font-size: 0.72rem;
-            color: var(--muted);
-            padding: 20px;
-        }
+        .status-box { text-align: center; padding: 40px 20px; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e0e0e0;}
+        .status-box h2 { color: var(--primary); margin: 15px 0; }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
-    <div class="top-header">
-        <div class="header-brand">
-            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" class="header-logo">
-            <div class="header-title">Ruang <span>Sidang</span></div>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="https://imgur.com/5Srjyo4.png" alt="Logo Cendekia">
+            <h1>Ruang <span>Sidang</span></h1>
         </div>
-        <button class="btn-back" onclick="window.history.back()">
-            <i class="fa-solid fa-arrow-left"></i> Kembali
-        </button>
-    </div>
+        <a href="/dashboard/inkubasi.html" class="btn-kembali"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+    </nav>
 
-    <div class="page-wrap">
-
-        <!-- LOADING -->
-        <div id="loading-state">
-            <i class="fa-solid fa-circle-notch fa-spin" style="color:var(--accent);"></i>
-            <p>Memuat data...</p>
-        </div>
-
-        <!-- ======================================================
-             VIEW 1: FORM PENDAFTARAN (5 langkah)
-        ====================================================== -->
-        <div class="view" id="view-form">
-
-            <!-- Progress Bar -->
-            <div class="progress-wrap" id="progress-bar">
-                <div class="prog-step active" id="ps-1">
-                    <div class="prog-dot">1</div>
-                    <div class="prog-label">Identitas</div>
-                </div>
-                <div class="prog-step" id="ps-2">
-                    <div class="prog-dot">2</div>
-                    <div class="prog-label">Naskah</div>
-                </div>
-                <div class="prog-step" id="ps-3">
-                    <div class="prog-dot">3</div>
-                    <div class="prog-label">Berkas</div>
-                </div>
-                <div class="prog-step" id="ps-4">
-                    <div class="prog-dot">4</div>
-                    <div class="prog-label">Evaluasi</div>
-                </div>
-                <div class="prog-step" id="ps-5">
-                    <div class="prog-dot">5</div>
-                    <div class="prog-label">Konfirmasi</div>
-                </div>
-            </div>
-
-            <div class="card">
-
-                <!-- Step 1 -->
-                <div id="step-1">
-                    <div class="card-title">Identitas Penulis</div>
-                    <div class="card-sub">Data terkunci otomatis berdasarkan profil Anda.</div>
-
-                    <div class="form-group">
-                        <label class="form-label">ID Siswa</label>
-                        <input id="f_uid" class="form-control locked" readonly placeholder="Memuat...">
+    <div class="container">
+        
+        <div id="fase-formulir">
+            <form id="sidang-form">
+                
+                <div class="card active" id="step-1">
+                    <div class="step-header">
+                        <h2>Data Identitas Penulis</h2>
+                        <span>1/5</span>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Nama Lengkap</label>
-                        <input id="f_nama" class="form-control locked" readonly>
+                        <label class="form-label">ID Siswa (Otomatis)</label>
+                        <input type="text" id="f_uid" class="form-control locked" value="Memuat data..." readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input id="f_email" class="form-control locked" readonly type="email">
+                        <label class="form-label">Nama Lengkap (Sesuai Profil)</label>
+                        <input type="text" id="f_nama" class="form-control locked" value="Memuat data..." readonly>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">Tempat Lahir <span class="req">*</span></label>
-                            <input id="f_tempat" class="form-control" placeholder="Yogyakarta">
+                            <input type="text" id="f_tempat_lahir" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Tanggal Lahir <span class="req">*</span></label>
-                            <input id="f_tgl" class="form-control" type="date">
+                            <input type="date" id="f_tgl_lahir" class="form-control" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Pas Foto Formal <span class="req">*</span></label>
-                        <div class="file-box" id="box-foto">
-                            <div class="file-icon" style="color:var(--accent)"><i class="fa-solid fa-camera-retro"></i></div>
-                            <div class="file-hint">Ketuk untuk pilih foto. Maks 2MB.</div>
-                            <div class="file-chosen" id="chosen-foto">✓ Foto dipilih</div>
-                            <input type="file" id="f_foto" accept="image/*">
-                            <canvas id="foto-canvas"></canvas>
+                        <div class="file-upload-box" id="box-foto">
+                            <i class="fa-solid fa-camera"></i>
+                            <p style="margin:0; font-weight:600; color:#444;">Ketuk untuk memilih foto dari Galeri/File</p>
+                            <input type="file" id="f_foto" accept="image/*" required onchange="handleFileSelect('f_foto', 'box-foto')">
+                            <div class="file-name-display" id="name-f_foto"></div>
                         </div>
                     </div>
-
-                    <div class="btn-row">
-                        <button class="btn btn-primary" onclick="goStep(1,2)">
-                            Selanjutnya <i class="fa-solid fa-arrow-right"></i>
-                        </button>
+                    <div class="nav-buttons" style="justify-content: flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="nextStep(1)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
                     </div>
                 </div>
 
-                <!-- Step 2 -->
-                <div id="step-2" style="display:none;">
-                    <div class="card-title">Metadata Naskah</div>
-                    <div class="card-sub">Informasi karya yang akan disidangkan.</div>
-
+                <div class="card" id="step-2">
+                    <div class="step-header">
+                        <h2>Metadata Naskah</h2>
+                        <span>2/5</span>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Judul Naskah Final</label>
-                        <input id="f_judul" class="form-control locked" readonly>
+                        <input type="text" id="f_judul" class="form-control locked" value="Memuat data..." readonly>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Nama Pena</label>
-                        <input id="f_penname" class="form-control locked" readonly>
+                        <input type="text" id="f_penname" class="form-control locked" value="Memuat data..." readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Sinopsis / Blurb <span class="req">*</span></label>
-                        <textarea id="f_blurb" class="form-control" placeholder="Tuliskan sinopsis menarik untuk buku Anda..."></textarea>
+                        <label class="form-label">Sinopsis / Blurb Buku <span class="req">*</span></label>
+                        <textarea id="f_blurb" class="form-control" rows="4" placeholder="Tuliskan sinopsis belakang buku..." required></textarea>
                     </div>
-
-                    <div class="btn-row between">
-                        <button class="btn btn-ghost" onclick="goStep(2,1)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
-                        <button class="btn btn-primary" onclick="goStep(2,3)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-outline" onclick="prevStep(2)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
                     </div>
                 </div>
 
-                <!-- Step 3 -->
-                <div id="step-3" style="display:none;">
-                    <div class="card-title">Pemberkasan Akademik</div>
-                    <div class="card-sub">Upload berkas dalam format PDF atau JPG.</div>
-
+                <div class="card" id="step-3">
+                    <div class="step-header">
+                        <h2>Unggah Berkas Fisik</h2>
+                        <span>3/5</span>
+                    </div>
                     <div class="form-group">
-                        <label class="form-label">Kartu Hasil Studi (KHS) <span class="req">*</span></label>
-                        <div class="file-box" id="box-khs">
-                            <div class="file-icon" style="color:var(--danger)"><i class="fa-solid fa-file-pdf"></i></div>
-                            <div class="file-hint">Ketuk untuk pilih file KHS.</div>
-                            <div class="file-chosen" id="chosen-khs">✓ File dipilih</div>
-                            <input type="file" id="f_khs" accept=".pdf,image/*">
+                        <label class="form-label">Asal Komunitas / Institusi <span class="req">*</span></label>
+                        <input type="text" id="f_instansi" class="form-control" placeholder="Contoh: Cendekia Aksara Regional..." required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Unggah Kartu Hasil Studi (KHS) <span class="req">*</span></label>
+                        <div class="file-upload-box" id="box-khs">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <p style="margin:0; font-weight:600; color:#444;">Ketuk untuk memilih File KHS (PDF/JPG)</p>
+                            <input type="file" id="f_khs" accept="application/pdf,image/*" required onchange="handleFileSelect('f_khs', 'box-khs')">
+                            <div class="file-name-display" id="name-f_khs"></div>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Bukti Kuitansi <span class="req">*</span></label>
-                        <div class="file-box" id="box-kuitansi">
-                            <div class="file-icon" style="color:var(--success)"><i class="fa-solid fa-receipt"></i></div>
-                            <div class="file-hint">Ketuk untuk pilih file Kuitansi.</div>
-                            <div class="file-chosen" id="chosen-kuitansi">✓ File dipilih</div>
-                            <input type="file" id="f_kuitansi" accept=".pdf,image/*">
+                        <label class="form-label">Unggah Bukti Kuitansi <span class="req">*</span></label>
+                        <div class="file-upload-box" id="box-kuitansi">
+                            <i class="fa-solid fa-receipt"></i>
+                            <p style="margin:0; font-weight:600; color:#444;">Ketuk untuk memilih File Kuitansi (PDF/JPG)</p>
+                            <input type="file" id="f_kuitansi" accept="application/pdf,image/*" required onchange="handleFileSelect('f_kuitansi', 'box-kuitansi')">
+                            <div class="file-name-display" id="name-f_kuitansi"></div>
                         </div>
                     </div>
 
-                    <div class="btn-row between">
-                        <button class="btn btn-ghost" onclick="goStep(3,2)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
-                        <button class="btn btn-primary" onclick="goStep(3,4)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-outline" onclick="prevStep(3)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(3)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
                     </div>
                 </div>
 
-                <!-- Step 4 -->
-                <div id="step-4" style="display:none;">
-                    <div class="card-title">Evaluasi & Promosi</div>
-                    <div class="card-sub">Strategi Anda setelah buku dicetak.</div>
-
+                <div class="card" id="step-4">
+                    <div class="step-header">
+                        <h2>Strategi Penerbitan</h2>
+                        <span>4/5</span>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Paket Penerbitan <span class="req">*</span></label>
-                        <select id="f_paket" class="form-control">
+                        <select id="f_paket" class="form-control" required>
                             <option value="">Pilih Paket...</option>
-                            <option value="Reguler">Paket Reguler (Softcover)</option>
-                            <option value="Eksklusif">Paket Eksklusif (Hardcover)</option>
-                            <option value="Digital">Paket Digital (E-Book)</option>
+                            <option value="Reguler">Reguler (Buku Cetak Standar)</option>
+                            <option value="Eksklusif">Eksklusif (Hardcover)</option>
+                            <option value="Digital">Digital (E-Book)</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Strategi Promosi Pribadi <span class="req">*</span></label>
-                        <textarea id="f_promosi" class="form-control" placeholder="Contoh: Promosi via TikTok, Pre-Order ke 20 teman..."></textarea>
+                        <label class="form-label">Strategi Promosi <span class="req">*</span></label>
+                        <textarea id="f_promosi" class="form-control" rows="3" placeholder="Rencana promosi karya Anda..." required></textarea>
                     </div>
-
-                    <div class="btn-row between">
-                        <button class="btn btn-ghost" onclick="goStep(4,3)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
-                        <button class="btn btn-primary" onclick="goStep(4,5)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
-                    </div>
-                </div>
-
-                <!-- Step 5 -->
-                <div id="step-5" style="display:none;">
-                    <div class="card-title">Konfirmasi & Persetujuan</div>
-                    <div class="card-sub">Harap baca dengan cermat sebelum melanjutkan.</div>
-
-                    <div class="alert alert-danger">
-                        <b>⚠ PERINGATAN:</b> Cendekia Aksara tidak memiliki legalitas hukum institusi negara. Segala berkas yang dilampirkan tetap menjadi hak pribadi siswa. Tim Cendekia tidak akan menyalahgunakan data tanpa persetujuan pribadi siswa.
-                    </div>
-
-                    <label class="check-row">
-                        <input type="checkbox" id="chk-orisinal">
-                        <span>Saya menyatakan data dan naskah ini 100% orisinal dan merupakan karya saya sendiri.</span>
-                    </label>
-
-                    <label class="check-row">
-                        <input type="checkbox" id="chk-setuju">
-                        <span>Saya telah membaca dan menyetujui semua ketentuan yang berlaku.</span>
-                    </label>
-
-                    <div class="btn-row between">
-                        <button class="btn btn-ghost" onclick="goStep(5,4)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
-                        <button class="btn btn-primary" id="btn-submit" onclick="submitForm()">
-                            Lanjut Pemberkasan <i class="fa-solid fa-check"></i>
-                        </button>
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-outline" onclick="prevStep(4)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(4)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
                     </div>
                 </div>
 
-            </div>
+                <div class="card" id="step-5">
+                    <div class="step-header">
+                        <h2>Pernyataan Legalitas</h2>
+                        <span>5/5</span>
+                    </div>
+                    
+                    <div style="background: #fef2f2; border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="color: #b91c1c; font-size: 0.9rem; margin-bottom: 5px;"><i class="fa-solid fa-scale-unbalanced"></i> Peringatan Legalitas</h4>
+                        <p style="color: #991b1b; font-size: 0.8rem; line-height: 1.5; margin: 0;">Cendekia Aksara adalah komunitas literasi non-formal yang tidak memiliki legalitas hukum institusi negara. Segala bentuk berkas yang dilampirkan tetap menjadi hak pribadi siswa.</p>
+                    </div>
+
+                    <div style="margin-bottom: 25px;">
+                        <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 10px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;">
+                            <input type="checkbox" required style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--primary);">
+                            <span style="font-size: 0.85rem; line-height: 1.4;">Saya menjamin bahwa seluruh data dan file yang diunggah adalah asli.</span>
+                        </label>
+                        <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 10px; background: var(--bg); border-radius: 8px;">
+                            <input type="checkbox" required style="margin-top: 3px; width: 16px; height: 16px; accent-color: var(--primary);">
+                            <span style="font-size: 0.85rem; line-height: 1.4;">Naskah ini 100% orisinal, bebas plagiasi, dan saya mematuhi aturan Cendekia Aksara.</span>
+                        </label>
+                    </div>
+
+                    <div class="nav-buttons">
+                        <button type="button" class="btn btn-outline" onclick="prevStep(5)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-form"><i class="fa-solid fa-upload"></i> Unggah File & Simpan</button>
+                    </div>
+                </div>
+            </form>
         </div>
 
-        <!-- ======================================================
-             VIEW 2: TIMELINE PEMBERKASAN
-        ====================================================== -->
-        <div class="view" id="view-timeline">
-            <div class="card" style="margin-bottom: 20px;">
-                <div class="card-title">Timeline Pemberkasan</div>
-                <div class="card-sub">Unduh draf surat → tanda tangani → unggah kembali ke sistem.</div>
-
+        <div id="fase-timeline" style="display:none;">
+            <div class="card active">
+                <h2 style="color: var(--primary); margin-bottom: 10px;"><i class="fa-solid fa-file-signature"></i> Finalisasi Dokumen</h2>
                 <div class="timeline">
-
-                    <!-- Node 1 -->
                     <div class="tl-item" id="node-1">
-                        <div class="tl-dot"><i class="fa-solid fa-check"></i></div>
-                        <div class="tl-card" id="tl-card-1">
-                            <h3>1. Surat Perjanjian</h3>
-                            <p>Surat pernyataan hak cipta naskah yang akan diterbitkan.</p>
-                            <div class="upload-zone">
-                                <a href="https://docs.google.com/document/d/GANTI_ID_SURAT_PERJANJIAN/export?format=pdf" target="_blank" class="download-btn">
-                                    <i class="fa-solid fa-file-arrow-down"></i> Unduh Draf Surat
-                                </a>
-                                <div class="file-box" id="box-surat1" style="margin-bottom:10px;">
-                                    <div class="file-icon" style="color:var(--primary-light); font-size:16px;"><i class="fa-solid fa-file-signature"></i></div>
-                                    <div class="file-hint" style="font-size:0.73rem;">Ketuk untuk unggah surat yang telah ditandatangani</div>
-                                    <div class="file-chosen" id="chosen-surat1">✓ File dipilih</div>
-                                    <input type="file" id="f_surat1" accept=".pdf,image/*">
-                                </div>
-                                <button class="btn btn-primary btn-full" id="btn-upload-1" onclick="uploadSurat(1)" style="font-size:0.82rem; padding:9px;">
-                                    <i class="fa-solid fa-upload"></i> Unggah Surat Perjanjian
-                                </button>
+                        <div class="tl-dot"></div>
+                        <h4>1. Surat Perjanjian Penerbitan</h4>
+                        <div class="tl-actions">
+                            <a href="#" class="btn btn-outline" style="font-size: 0.8rem; padding: 8px 12px;"><i class="fa-solid fa-download"></i> Unduh Draf</a>
+                            <div class="file-upload-box" id="box-perjanjian" style="padding: 10px; flex:1; margin:0;">
+                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-upload"></i> Pilih File Tertanda Tangan</span>
+                                <input type="file" id="f_perjanjian" accept="application/pdf,image/*" onchange="handleFileSelect('f_perjanjian', 'box-perjanjian')">
+                                <div class="file-name-display" id="name-f_perjanjian"></div>
                             </div>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 8px 12px;" onclick="selesaikanNode(1)">Simpan</button>
                         </div>
                     </div>
 
-                    <!-- Node 2 -->
                     <div class="tl-item" id="node-2">
-                        <div class="tl-dot"><i class="fa-solid fa-check"></i></div>
-                        <div class="tl-card" id="tl-card-2">
-                            <h3>2. Surat Keputusan Sidang</h3>
-                            <p>Surat yang menyatakan siswa layak mengikuti sidang akhir.</p>
-                            <div class="upload-zone">
-                                <a href="https://docs.google.com/document/d/GANTI_ID_SURAT_SK/export?format=pdf" target="_blank" class="download-btn">
-                                    <i class="fa-solid fa-file-arrow-down"></i> Unduh Draf SK
-                                </a>
-                                <div class="file-box" id="box-surat2" style="margin-bottom:10px;">
-                                    <div class="file-icon" style="color:var(--primary-light); font-size:16px;"><i class="fa-solid fa-file-signature"></i></div>
-                                    <div class="file-hint" style="font-size:0.73rem;">Ketuk untuk unggah SK yang telah ditandatangani</div>
-                                    <div class="file-chosen" id="chosen-surat2">✓ File dipilih</div>
-                                    <input type="file" id="f_surat2" accept=".pdf,image/*">
-                                </div>
-                                <button class="btn btn-primary btn-full" id="btn-upload-2" onclick="uploadSurat(2)" style="font-size:0.82rem; padding:9px;">
-                                    <i class="fa-solid fa-upload"></i> Unggah SK Sidang
-                                </button>
+                        <div class="tl-dot"></div>
+                        <h4>2. Surat Keputusan Kelayakan</h4>
+                        <div class="tl-actions">
+                            <a href="#" class="btn btn-outline" style="font-size: 0.8rem; padding: 8px 12px;"><i class="fa-solid fa-download"></i> Unduh Draf</a>
+                            <div class="file-upload-box" id="box-sk" style="padding: 10px; flex:1; margin:0;">
+                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-upload"></i> Pilih File SK Tertanda Tangan</span>
+                                <input type="file" id="f_sk" accept="application/pdf,image/*" onchange="handleFileSelect('f_sk', 'box-sk')">
+                                <div class="file-name-display" id="name-f_sk"></div>
                             </div>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 8px 12px;" onclick="selesaikanNode(2)">Simpan</button>
                         </div>
                     </div>
 
-                    <!-- Node 3: Kartu Sidang -->
-                    <div class="tl-item locked" id="node-3">
-                        <div class="tl-dot"><i class="fa-solid fa-check"></i></div>
-                        <div class="tl-card" id="tl-card-3">
-                            <h3 style="margin-bottom:16px;">3. Kartu Sidang Virtual</h3>
-                            <div class="id-card" id="kartu-sidang">
-                                <div class="id-card-header">
-                                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+                    <div class="tl-item" id="node-3" style="opacity: 0.5; pointer-events: none;">
+                        <div class="tl-dot"></div>
+                        <h4 style="margin-bottom: 15px;">3. Kartu Sidang Virtual</h4>
+                        <div class="id-card" id="kartu-sidang-print">
+                            <div class="id-header">
+                                <div class="id-brand">
+                                    <img src="https://imgur.com/5Srjyo4.png" alt="Logo">
                                     <div>
                                         <h3>Cendekia Aksara</h3>
-                                        <span>Kartu Sidang Akhir</span>
+                                        <span>KARTU SIDANG KELAYAKAN</span>
                                     </div>
                                 </div>
-                                <div class="id-card-body">
-                                    <div class="id-photo">
-                                        <img id="id-foto" src="https://i.imgur.com/5Srjyo4.png" alt="Foto">
+                            </div>
+                            <div class="id-body">
+                                <div class="id-photo"><img id="id_foto_render" src="" alt="Foto"></div>
+                                <div class="id-details">
+                                    <div class="id-label">Nama Penulis</div>
+                                    <div class="id-value" id="id_nama">-</div>
+                                    <div class="id-label">Judul Naskah</div>
+                                    <div class="id-value highlight" id="id_judul">-</div>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc;">
+                                        <div><div class="id-label">ID / NPM</div><div class="id-value" style="font-size: 0.85rem;" id="id_npm">-</div></div>
+                                        <div style="text-align:right;"><div class="id-label">Tahun</div><div class="id-value highlight" style="font-size: 1rem;" id="id_tahun">-</div></div>
                                     </div>
-                                    <div class="id-info">
-                                        <div class="id-lbl">Nama Siswa</div>
-                                        <div class="id-val" id="id-nama">—</div>
-                                        <div class="id-lbl">Judul Naskah</div>
-                                        <div class="id-val gold" id="id-judul">—</div>
-                                    </div>
-                                </div>
-                                <div class="id-card-footer">
-                                    <div>
-                                        <div class="id-lbl">ID Siswa</div>
-                                        <div class="id-val" style="font-size:0.75rem; margin-bottom:0;" id="id-npm">—</div>
-                                    </div>
-                                    <div class="id-badge">PESERTA SIDANG</div>
-                                    <div class="id-year" id="id-tahun">2026</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                 </div>
-            </div>
 
-            <!-- Ajukan Sidang -->
-            <div class="card">
-                <label class="check-row">
-                    <input type="checkbox" id="chk-final" onchange="toggleBtnFinal()">
-                    <span>Seluruh proses pemberkasan telah saya lakukan dengan jujur dan benar.</span>
-                </label>
-                <button class="btn btn-success-solid btn-full" id="btn-ajukan" onclick="ajukanSidang()" disabled style="font-size:0.95rem;">
-                    AJUKAN SIDANG AKHIR <i class="fa-solid fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- ======================================================
-             VIEW 3: STATUS MENUNGGU
-        ====================================================== -->
-        <div class="view" id="view-status">
-            <div class="card">
-                <div class="status-box">
-                    <div class="status-icon">
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                    </div>
-                    <h2>Berkas Sedang Direview</h2>
-                    <p>Pendaftaran Anda telah masuk ke meja redaksi. Tim akan menghubungi Anda melalui WhatsApp atau Email untuk jadwal sidang via Google Meet.</p>
-                    <button class="btn btn-ghost" onclick="window.history.back()">
-                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Dasbor
+                <div style="margin-top: 30px; text-align: center;">
+                    <label style="display: flex; gap: 10px; justify-content: center; cursor: pointer; margin-bottom: 15px;">
+                        <input type="checkbox" id="check-final" style="width: 18px; height: 18px; accent-color: var(--success);">
+                        <span style="font-size: 0.9rem; font-weight: 600;">Seluruh pemberkasan telah saya selesaikan.</span>
+                    </label>
+                    <button class="btn btn-success" id="btn-ajukan-final" style="width: 100%; font-size: 1.05rem;" onclick="ajukanSidangAkhir()" disabled>
+                        <i class="fa-solid fa-gavel"></i> AJUKAN SIDANG KE REDAKSI
                     </button>
                 </div>
             </div>
         </div>
 
+        <div class="status-box" id="panel-waiting" style="display:none;">
+            <i class="fa-solid fa-hourglass-half" style="font-size: 50px; color: var(--accent);"></i>
+            <h2>Dossier Sedang Divalidasi</h2>
+        </div>
+
+        <div class="status-box" id="panel-rejected" style="display:none;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size: 50px; color: var(--danger);"></i>
+            <h2 style="color: var(--danger);">Berkas Dikembalikan</h2>
+            <p id="reject-reason" style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px dashed #fca5a5; font-weight: 500; color: #991b1b; margin-bottom: 20px;">Terdapat kesalahan pada file unggahan Anda.</p>
+            <button class="btn btn-primary" onclick="resetForm()"><i class="fa-solid fa-pen-to-square"></i> Perbaiki & Unggah Ulang</button>
+        </div>
+
     </div>
 
-    <!-- TOAST -->
-    <div class="toast" id="toast"></div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <div class="footer">
-        &copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.
-    </div>
+        const GAS_UPLOAD_URL = "URL_APPS_SCRIPT_UPLOAD_KAMU_NANTI";
+        let currentUser = null;
+        let base64Files = { foto: null, khs: null, kuitansi: null, perjanjian: null, sk: null };
 
-    <script>
-    // ================================================================
-    //  KONFIGURASI — GANTI NILAI INI SESUAI MILIKMU
-    // ================================================================
-    const CONFIG = {
-        // URL Google Apps Script kamu (setelah deploy as Web App)
-        GAS_URL: "https://script.google.com/macros/s/AKfycbwoAs6zpcuypmRMZQwsJBdqjhwDguPlJ1HM2hV043WE529ZQvi8CvCD2-lp4tXTLRwz/execc",
-
-        // ID Google Sheet untuk menyimpan data form
-        SHEET_ID: "1ojCfdFUMzLpbg4H1bMtTw59FJ-TzAeoqBmZrowEwZy4",
-
-        // Nama-nama sheet tab
-        SHEET_FORM:     "SidangApplications",
-        SHEET_BERKAS:   "BerkasUpload",
-
-        // (Opsional) Nama folder Google Drive untuk file upload
-        DRIVE_FOLDER:   "Berkas_Sidang_Cendekia"
-    };
-
-    // ================================================================
-    //  DATA SISWA (DEMO — ganti dgn data nyata dari auth sistem kamu)
-    // ================================================================
-    const STUDENT = {
-        uid:     "CND-2026-00123",
-        nama:    "Sari Dewi Rahayu",
-        email:   "sari.dewi@email.com",
-        judul:   "Di Bawah Langit Yang Sama",
-        penname: "Seruni Purnama"
-    };
-
-    // ================================================================
-    //  STATE APLIKASI
-    // ================================================================
-    let appState = {
-        currentStep: 1,
-        fotoBase64:     null,   // string base64 (compressed)
-        khsFile:        null,   // { name, mimeType, data }
-        kuitansiFile:   null,
-        surat1File:     null,
-        surat2File:     null,
-        nodesDone:      0,
-        sidangStatus:   null    // null | 'draft_form' | 'pending_admin' | 'acc'
-    };
-
-    // ================================================================
-    //  INIT
-    // ================================================================
-    window.addEventListener('DOMContentLoaded', () => {
-        // Isi data locked dari profil siswa
-        document.getElementById('f_uid').value    = STUDENT.uid;
-        document.getElementById('f_nama').value   = STUDENT.nama;
-        document.getElementById('f_email').value  = STUDENT.email;
-        document.getElementById('f_judul').value  = STUDENT.judul;
-        document.getElementById('f_penname').value = STUDENT.penname;
-
-        // Cek status di Apps Script
-        checkStatus();
-    });
-
-    // ================================================================
-    //  CHECK STATUS SIDANG (GET ke GAS)
-    // ================================================================
-    async function checkStatus() {
-        showLoading(true);
-        try {
-            const res = await fetch(`${CONFIG.GAS_URL}?action=getStatus&uid=${STUDENT.uid}`);
-            const data = await res.json();
-
-            showLoading(false);
-
-            if (!data.status) {
-                // Belum ada data → tampilkan form
-                showView('view-form');
-            } else if (data.status === 'draft_form') {
-                // Isi kartu sidang
-                fillKartuSidang(data);
-                showView('view-timeline');
-            } else if (data.status === 'pending_admin' || data.status === 'acc') {
-                showView('view-status');
-            } else {
-                showView('view-form');
+        (async () => {
+            try {
+                currentUser = await checkAuth('siswa');
+                if(currentUser) await loadDataAwal();
+            } catch (error) {
+                console.error("Auth error:", error);
             }
-        } catch (err) {
-            // Jika GAS belum dikonfigurasi, tampilkan form demo
-            console.warn('GAS belum terkonfigurasi, mode demo aktif:', err.message);
-            showLoading(false);
-            showView('view-form');
-        }
-    }
+        })();
 
-    // ================================================================
-    //  HELPER UI
-    // ================================================================
-    function showLoading(show) {
-        document.getElementById('loading-state').style.display = show ? 'block' : 'none';
-    }
+        async function loadDataAwal() {
+            try {
+                const pitchSnap = await getDoc(doc(db, 'pitching_projects', currentUser.uid));
+                const authorSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
+                const userSnap = await getDoc(doc(db, 'users', currentUser.uid)); 
+                const sidangSnap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
 
-    function showView(viewId) {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        const el = document.getElementById(viewId);
-        if (el) el.classList.add('active');
-    }
-
-    function showToast(msg, type = '') {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.className = `toast ${type} show`;
-        setTimeout(() => t.classList.remove('show'), 3000);
-    }
-
-    function fillKartuSidang(data) {
-        document.getElementById('id-nama').textContent  = data.nama_lengkap || STUDENT.nama;
-        document.getElementById('id-judul').textContent = data.judul_naskah || STUDENT.judul;
-        document.getElementById('id-npm').textContent   = (STUDENT.uid).substring(0,10).toUpperCase();
-        document.getElementById('id-tahun').textContent = new Date().getFullYear();
-        if (data.link_foto) document.getElementById('id-foto').src = data.link_foto;
-    }
-
-    // ================================================================
-    //  FILE INPUT HANDLER
-    // ================================================================
-    function setupFile(inputId, boxId, chosenId, stateKey, compress = false) {
-        document.getElementById(inputId).addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) return;
-
-            const box    = document.getElementById(boxId);
-            const chosen = document.getElementById(chosenId);
-            chosen.textContent = `✓ ${file.name}`;
-            box.classList.add('has-file');
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                if (compress && file.type.startsWith('image/')) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvas = document.getElementById('foto-canvas');
-                        let w = img.width, h = img.height, MAX = 400;
-                        if (w > MAX) { h = h * MAX / w; w = MAX; }
-                        canvas.width = w; canvas.height = h;
-                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        appState[stateKey] = canvas.toDataURL('image/jpeg', 0.78);
-                    };
-                    img.src = e.target.result;
-                } else {
-                    const b64 = e.target.result.split('base64,')[1];
-                    appState[stateKey] = { name: file.name, mimeType: file.type, data: b64 };
+                if (!pitchSnap.exists() || !authorSnap.exists()) {
+                    await Swal.fire('Ditolak', 'Data Studio Anda belum lengkap!', 'warning');
+                    window.location.href = '/dashboard/inkubasi.html';
+                    return;
                 }
+
+                // Logika Tarik Nama Anti-Kosong
+                let namaValid = "Nama Tidak Ditemukan";
+                if (userSnap.exists() && userSnap.data().name) namaValid = userSnap.data().name;
+                else if (authorSnap.exists() && authorSnap.data().real_name) namaValid = authorSnap.data().real_name;
+                else if (currentUser.displayName) namaValid = currentUser.displayName;
+
+                if (sidangSnap.exists()) {
+                    const status = sidangSnap.data().status;
+                    document.getElementById('fase-formulir').style.display = 'none';
+
+                    if (status === 'draft_form') {
+                        document.getElementById('fase-timeline').style.display = 'block';
+                        document.getElementById('id_nama').innerText = sidangSnap.data().nama_lengkap;
+                        document.getElementById('id_judul').innerText = sidangSnap.data().judul_naskah;
+                        document.getElementById('id_npm').innerText = currentUser.uid.substring(0, 8).toUpperCase();
+                        document.getElementById('id_tahun').innerText = new Date().getFullYear();
+                        if(sidangSnap.data().url_foto) document.getElementById('id_foto_render').src = sidangSnap.data().url_foto;
+                    } 
+                    else if (status === 'pending_admin') {
+                        document.getElementById('panel-waiting').style.display = 'block';
+                    }
+                    else if (status === 'rejected') {
+                        document.getElementById('panel-rejected').style.display = 'block';
+                        document.getElementById('reject-reason').innerText = sidangSnap.data().reject_reason || 'Terjadi kesalahan pada dokumen.';
+                    }
+                } else {
+                    document.getElementById('f_uid').value = currentUser.uid;
+                    document.getElementById('f_nama').value = namaValid;
+                    document.getElementById('f_judul').value = pitchSnap.data().judul || "-";
+                    document.getElementById('f_penname').value = authorSnap.data().pen_name || "-";
+                }
+            } catch (error) {
+                console.error("Load Data Error:", error);
+            }
+        }
+
+        window.handleFileSelect = function(inputId, boxId) {
+            const file = document.getElementById(inputId).files[0];
+            if (!file) return;
+            const nameDisplay = document.getElementById(`name-${inputId}`);
+            nameDisplay.innerText = "Terpilih: " + file.name;
+            nameDisplay.style.display = "block";
+            document.getElementById(boxId).style.borderColor = "var(--success)";
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const key = inputId.replace('f_', '');
+                base64Files[key] = event.target.result;
             };
             reader.readAsDataURL(file);
-        });
-    }
-
-    setupFile('f_foto',     'box-foto',     'chosen-foto',     'fotoBase64',   true);
-    setupFile('f_khs',      'box-khs',      'chosen-khs',      'khsFile');
-    setupFile('f_kuitansi', 'box-kuitansi', 'chosen-kuitansi', 'kuitansiFile');
-    setupFile('f_surat1',   'box-surat1',   'chosen-surat1',   'surat1File');
-    setupFile('f_surat2',   'box-surat2',   'chosen-surat2',   'surat2File');
-
-    // ================================================================
-    //  NAVIGASI STEP
-    // ================================================================
-    function updateProgress(step) {
-        for (let i = 1; i <= 5; i++) {
-            const el = document.getElementById(`ps-${i}`);
-            el.classList.remove('active', 'done');
-            if (i < step) el.classList.add('done');
-            else if (i === step) el.classList.add('active');
-        }
-    }
-
-    function showStep(n) {
-        for (let i = 1; i <= 5; i++) {
-            document.getElementById(`step-${i}`).style.display = 'none';
-        }
-        document.getElementById(`step-${n}`).style.display = 'block';
-        updateProgress(n);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function goStep(from, to) {
-        // Validasi ringan sebelum lanjut
-        if (to > from) {
-            if (from === 1) {
-                if (!document.getElementById('f_tempat').value.trim())
-                    return showToast('Tempat lahir wajib diisi!', 'error');
-                if (!document.getElementById('f_tgl').value)
-                    return showToast('Tanggal lahir wajib diisi!', 'error');
-                if (!appState.fotoBase64)
-                    return showToast('Harap pilih pas foto!', 'error');
-            }
-            if (from === 2) {
-                if (!document.getElementById('f_blurb').value.trim())
-                    return showToast('Sinopsis tidak boleh kosong!', 'error');
-            }
-            if (from === 3) {
-                if (!appState.khsFile)      return showToast('Harap pilih file KHS!', 'error');
-                if (!appState.kuitansiFile) return showToast('Harap pilih file Kuitansi!', 'error');
-            }
-            if (from === 4) {
-                if (!document.getElementById('f_paket').value)
-                    return showToast('Pilih paket penerbitan!', 'error');
-                if (!document.getElementById('f_promosi').value.trim())
-                    return showToast('Strategi promosi wajib diisi!', 'error');
-            }
-        }
-        showStep(to);
-    }
-
-    // ================================================================
-    //  UPLOAD FILE KE GAS
-    // ================================================================
-    async function uploadFileToGAS(fileData, namaFile) {
-        const payload = {
-            action:      "uploadFile",
-            uid:         STUDENT.uid,
-            studentName: STUDENT.nama,
-            judul:       STUDENT.judul,
-            fileName:    namaFile + '_' + STUDENT.nama.replace(/\s+/g,'_'),
-            mimeType:    fileData.mimeType,
-            fileBase64:  fileData.data,
-            folderName:  CONFIG.DRIVE_FOLDER
         };
 
-        const res = await fetch(CONFIG.GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
+        window.nextStep = function(current) {
+            const card = document.getElementById(`step-${current}`);
+            const inputs = card.querySelectorAll('input[required], textarea[required], select[required]');
+            let valid = true;
+            inputs.forEach(input => {
+                if (!input.value.trim() && input.type !== 'file') {
+                    input.style.borderColor = '#dc3545'; valid = false;
+                } else { input.style.borderColor = '#eee'; }
+            });
+            if (!valid) return Swal.fire('Error', 'Harap isi kolom bertanda bintang!', 'error');
+            if (current === 1 && !base64Files.foto) return Swal.fire('Error', 'Harap pilih foto!', 'error');
+            if (current === 3 && (!base64Files.khs || !base64Files.kuitansi)) return Swal.fire('Error', 'Harap pilih file KHS & Kuitansi!', 'error');
+
+            card.classList.remove('active');
+            document.getElementById(`step-${current + 1}`).classList.add('active');
+            window.scrollTo(0,0);
+        };
+
+        window.prevStep = function(current) {
+            document.getElementById(`step-${current}`).classList.remove('active');
+            document.getElementById(`step-${current - 1}`).classList.add('active');
+            window.scrollTo(0,0);
+        };
+
+        document.getElementById('sidang-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-form');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btn.disabled = true;
+
+            try {
+                const formData = {
+                    uid: currentUser.uid,
+                    status: 'draft_form',
+                    timestamp: serverTimestamp(),
+                    nama_lengkap: document.getElementById('f_nama').value,
+                    tempat_lahir: document.getElementById('f_tempat_lahir').value,
+                    tgl_lahir: document.getElementById('f_tgl_lahir').value,
+                    judul_naskah: document.getElementById('f_judul').value,
+                    blurb: document.getElementById('f_blurb').value,
+                    paket: document.getElementById('f_paket').value,
+                    promosi: document.getElementById('f_promosi').value,
+                    url_foto: base64Files.foto, 
+                };
+                await setDoc(doc(db, 'sidang_applications', currentUser.uid), formData);
+                Swal.fire('Tersimpan', 'Data aman. Lanjut ke dokumen.', 'success').then(() => window.location.reload());
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal', 'Kesalahan jaringan.', 'error');
+                btn.disabled = false;
+            }
         });
 
-        const result = await res.json();
-        if (result.status !== 'success') throw new Error(result.message || 'Upload gagal');
-        return result.fileUrl; // URL Google Drive
-    }
+        let nodeSelesai = 0;
+        window.selesaikanNode = async function(nodeNumber) {
+            const isFile = (nodeNumber === 1) ? base64Files.perjanjian : base64Files.sk;
+            if (!isFile) return Swal.fire('Peringatan', 'File belum dipilih!', 'warning');
+            try {
+                const updateData = {};
+                if(nodeNumber === 1) updateData.url_perjanjian = "Uploaded";
+                if(nodeNumber === 2) updateData.url_sk = "Uploaded";
+                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), updateData);
+                document.getElementById(`node-${nodeNumber}`).classList.add('completed');
+                nodeSelesai++;
+                if (nodeSelesai >= 2) document.getElementById('node-3').style.opacity = '1';
+                Swal.fire('Berhasil', 'File disimpan.', 'success');
+            } catch(e) { Swal.fire('Error', 'Gagal simpan.', 'error'); }
+        };
 
-    // ================================================================
-    //  SUBMIT FORM UTAMA (Step 5)
-    // ================================================================
-    async function submitForm() {
-        if (!document.getElementById('chk-orisinal').checked ||
-            !document.getElementById('chk-setuju').checked) {
-            return showToast('Centang semua pernyataan terlebih dahulu!', 'error');
-        }
+        document.getElementById('check-final').addEventListener('change', function(e) {
+            const btn = document.getElementById('btn-ajukan-final');
+            btn.disabled = !(e.target.checked && nodeSelesai >= 2);
+        });
 
-        const btn = document.getElementById('btn-submit');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...';
+        window.ajukanSidangAkhir = async function() {
+            try {
+                const btn = document.getElementById('btn-ajukan-final');
+                btn.innerHTML = 'MENGIRIM...'; btn.disabled = true;
+                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
+                    status: 'pending_admin',
+                    submitted_final_at: serverTimestamp()
+                });
+                Swal.fire('Terkirim!', 'Menunggu kurasi.', 'success').then(() => window.location.reload());
+            } catch(e) { Swal.fire('Error', 'Gagal ajukan.', 'error'); }
+        };
 
-        try {
-            // 1. Upload file KHS & Kuitansi
-            showToast('Mengunggah KHS...');
-            const linkKHS      = await uploadFileToGAS(appState.khsFile,      'KHS');
-            showToast('Mengunggah Kuitansi...');
-            const linkKuitansi = await uploadFileToGAS(appState.kuitansiFile, 'KUITANSI');
-
-            // 2. Kirim data form ke GAS (disimpan ke Spreadsheet)
-            const formData = {
-                action:        "saveForm",
-                uid:           STUDENT.uid,
-                nama_lengkap:  document.getElementById('f_nama').value,
-                email:         document.getElementById('f_email').value,
-                tempat_lahir:  document.getElementById('f_tempat').value,
-                tgl_lahir:     document.getElementById('f_tgl').value,
-                judul_naskah:  document.getElementById('f_judul').value,
-                nama_pena:     document.getElementById('f_penname').value,
-                blurb:         document.getElementById('f_blurb').value,
-                paket:         document.getElementById('f_paket').value,
-                promosi:       document.getElementById('f_promosi').value,
-                link_khs:      linkKHS,
-                link_kuitansi: linkKuitansi,
-                link_foto:     appState.fotoBase64,   // base64 kecil, simpan langsung
-                status:        'draft_form',
-                timestamp:     new Date().toISOString()
-            };
-
-            const res = await fetch(CONFIG.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(formData)
-            });
-            const result = await res.json();
-            if (result.status !== 'success') throw new Error(result.message);
-
-            showToast('Data tersimpan! Lanjut ke pemberkasan.', 'success');
-
-            // 3. Isi kartu sidang & tampilkan timeline
-            fillKartuSidang({
-                nama_lengkap: formData.nama_lengkap,
-                judul_naskah: formData.judul_naskah,
-                link_foto:    appState.fotoBase64
-            });
-
-            setTimeout(() => showView('view-timeline'), 1200);
-
-        } catch (err) {
-            console.error(err);
-            showToast('Gagal: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = 'Lanjut Pemberkasan <i class="fa-solid fa-check"></i>';
-        }
-    }
-
-    // ================================================================
-    //  UPLOAD SURAT TIMELINE
-    // ================================================================
-    async function uploadSurat(num) {
-        const fileKey = num === 1 ? 'surat1File' : 'surat2File';
-        const btnId   = `btn-upload-${num}`;
-        const nodeId  = `node-${num}`;
-
-        if (!appState[fileKey]) {
-            return showToast('Harap pilih file surat terlebih dahulu!', 'error');
-        }
-
-        const btn = document.getElementById(btnId);
-        const origHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah...';
-
-        try {
-            const namaFile = num === 1 ? 'SURAT_PERJANJIAN' : 'SK_SIDANG';
-            const linkSurat = await uploadFileToGAS(appState[fileKey], namaFile);
-
-            // Simpan link ke GAS
-            const payload = {
-                action: 'updateBerkas',
-                uid:    STUDENT.uid,
-                field:  num === 1 ? 'berkas_perjanjian' : 'berkas_sk',
-                value:  linkSurat
-            };
-
-            await fetch(CONFIG.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-
-            // UI: tandai done
-            document.getElementById(nodeId).classList.add('done');
-            document.getElementById(`tl-card-${num}`).classList.add('done');
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Berhasil Diunggah';
-
-            appState.nodesDone++;
-            showToast(`Berkas ${num === 1 ? 'Surat Perjanjian' : 'SK Sidang'} berhasil diunggah!`, 'success');
-
-            if (appState.nodesDone === 2) {
-                // Buka node kartu sidang
-                const node3 = document.getElementById('node-3');
-                node3.classList.remove('locked');
-                node3.classList.add('done');
-                document.getElementById('tl-card-3').classList.add('done');
-                showToast('Semua berkas lengkap! Kartu sidang diterbitkan.', 'success');
+        window.resetForm = async function() {
+            const conf = await Swal.fire({ title: 'Perbaiki?', text: 'Draf akan dihapus.', icon: 'warning', showCancelButton: true });
+            if (conf.isConfirmed) {
+                await deleteDoc(doc(db, 'sidang_applications', currentUser.uid));
+                window.location.reload();
             }
-
-        } catch (err) {
-            console.error(err);
-            showToast('Gagal upload: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = origHtml;
-        }
-    }
-
-    // ================================================================
-    //  TOGGLE BUTTON AJUKAN
-    // ================================================================
-    function toggleBtnFinal() {
-        const checked = document.getElementById('chk-final').checked;
-        const btn     = document.getElementById('btn-ajukan');
-        btn.disabled  = !(checked && appState.nodesDone === 2);
-    }
-
-    // ================================================================
-    //  AJUKAN SIDANG AKHIR
-    // ================================================================
-    async function ajukanSidang() {
-        const btn = document.getElementById('btn-ajukan');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengajukan...';
-
-        try {
-            const payload = {
-                action:    'submitFinal',
-                uid:       STUDENT.uid,
-                status:    'pending_admin',
-                submitted: new Date().toISOString()
-            };
-
-            await fetch(CONFIG.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-
-            showToast('Berkas dikirim ke Tim Redaksi!', 'success');
-            setTimeout(() => showView('view-status'), 1200);
-
-        } catch (err) {
-            console.error(err);
-            showToast('Gagal mengajukan: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = 'AJUKAN SIDANG AKHIR <i class="fa-solid fa-paper-plane"></i>';
-        }
-    }
+        };
     </script>
-
 </body>
 </html>
