@@ -56,15 +56,17 @@
         /* BERKAS & LINK */
         .berkas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid var(--border);}
         .berkas-item { display: flex; flex-direction: column; gap: 5px;}
+        .berkas-label { font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase;}
         .btn-link { background: white; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--navy-light); font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;}
         .btn-link:hover { border-color: var(--navy-light); background: #eff6ff;}
         .btn-link.disabled { opacity: 0.5; pointer-events: none; color: #94a3b8; }
         .btn-link.final-ttd { background: #d1fae5; border-color: #10b981; color: #065f46; }
 
-        /* METADATA TAMBAHAN */
+        /* METADATA TAMBAHAN (SEKARANG LEBIH LENGKAP) */
         .meta-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.85rem; color: #475569;}
         .meta-box { background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px;}
-        .meta-box strong { display: block; color: var(--navy-dark); margin-bottom: 3px;}
+        .meta-box strong { display: block; color: var(--navy-dark); margin-bottom: 5px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;}
+        .meta-box.full { grid-column: 1 / -1; }
 
         /* ACTION BUTTONS */
         .action-bar { display: flex; gap: 10px; margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 20px;}
@@ -200,7 +202,7 @@
             renderData();
         }
 
-        // 4. RENDER UI
+        // 4. RENDER UI KARTU
         function renderData() {
             const container = document.getElementById('data-container');
             container.innerHTML = '';
@@ -227,7 +229,7 @@
                 
                 // Konfigurasi Badge & Tombol berdasarkan Status
                 if(app.status === 'pending_tahap1') {
-                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Cek Berkas Awal</span>`;
+                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Tahap 1: Cek Berkas</span>`;
                     actionButtons = `
                         <div class="action-bar">
                             <button class="btn-action btn-reject" onclick="tolakApplication('${app.id}', 1)"><i class="fa-solid fa-xmark"></i> Tolak Berkas</button>
@@ -238,7 +240,7 @@
                     statusBadge = `<span class="status-badge" style="background:#e0e7ff; color:#1e40af; border:1px solid #bfdbfe;">Menunggu Siswa TTD</span>`;
                 }
                 else if(app.status === 'pending_tahap2') {
-                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Cek Tanda Tangan Final</span>`;
+                    statusBadge = `<span class="status-badge" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a;">Tahap 2: Cek Tanda Tangan</span>`;
                     actionButtons = `
                         <div class="action-bar">
                             <button class="btn-action btn-reject" onclick="tolakApplication('${app.id}', 2)"><i class="fa-solid fa-xmark"></i> Tolak TTD</button>
@@ -261,28 +263,32 @@
                         </div>`;
                 }
 
-                // Amankan Tautan Drive (Tahap 1 & Tahap 2)
+                // Amankan Tautan Drive
                 const linkFoto = app.url_foto ? `<a href="${app.url_foto}" target="_blank" class="btn-link">Foto</a>` : `<span class="btn-link disabled">Kosong</span>`;
                 const linkKHS = app.url_khs ? `<a href="${app.url_khs}" target="_blank" class="btn-link">KHS</a>` : `<span class="btn-link disabled">Kosong</span>`;
                 const linkKuitansi = app.url_kuitansi ? `<a href="${app.url_kuitansi}" target="_blank" class="btn-link">Kuitansi</a>` : `<span class="btn-link disabled">Kosong</span>`;
-                
-                // Berkas TTD (Jika sudah diupload siswa di Tahap 2)
                 const linkTTD1 = app.url_perjanjian_final ? `<a href="${app.url_perjanjian_final}" target="_blank" class="btn-link final-ttd"><i class="fa-solid fa-signature"></i> Perjanjian (TTD)</a>` : `<span class="btn-link disabled">Perjanjian</span>`;
                 const linkTTD2 = app.url_sk_final ? `<a href="${app.url_sk_final}" target="_blank" class="btn-link final-ttd"><i class="fa-solid fa-signature"></i> SK (TTD)</a>` : `<span class="btn-link disabled">SK Sidang</span>`;
+
+                const namaPena = app.pen_name ? `(${app.pen_name})` : '';
+                const TTL = (app.tempat_lahir && app.tgl_lahir) ? `${app.tempat_lahir}, ${app.tgl_lahir}` : '-';
 
                 const cardHTML = `
                     <div class="student-card">
                         <div class="card-header">
                             <div class="student-info">
                                 <h3>${app.judul_naskah || 'Judul Tidak Tersedia'}</h3>
-                                <p><i class="fa-solid fa-user"></i> ${app.nama_lengkap || '-'} &nbsp;|&nbsp; <span class="npm">${app.npm || app.id.substring(0,8).toUpperCase()}</span></p>
+                                <p><i class="fa-solid fa-user"></i> ${app.nama_lengkap || '-'} ${namaPena} &nbsp;|&nbsp; <span class="npm">${app.npm || app.id.substring(0,8).toUpperCase()}</span></p>
                             </div>
                             <div>${statusBadge}</div>
                         </div>
 
                         <div class="meta-details">
+                            <div class="meta-box"><strong>Tempat, Tgl Lahir:</strong> ${TTL}</div>
+                            <div class="meta-box"><strong>Asal Komunitas:</strong> ${app.instansi || '-'}</div>
                             <div class="meta-box"><strong>Paket Penerbitan:</strong> ${app.paket || '-'}</div>
-                            <div class="meta-box"><strong>Komunitas:</strong> ${app.instansi || '-'}</div>
+                            <div class="meta-box"><strong>Strategi Promosi:</strong> ${app.promosi || '-'}</div>
+                            <div class="meta-box full"><strong>Sinopsis (Blurb):</strong><br><span style="white-space: pre-wrap; line-height: 1.5;">${app.blurb || '-'}</span></div>
                         </div>
 
                         <div>
