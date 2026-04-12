@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ruang Sidang - Cendekia Aksara</title>
+    <title>Pendaftaran Sidang - Cendekia Aksara</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        :root {
-            --primary: #003366; --navy-light: #1e3a8a; --accent: #eab308; 
-            --success: #10b981; --danger: #ef4444; --bg: #f8fafc; --text-dark: #334155; --border: #e2e8f0;
-        }
+        :root { --primary: #003366; --navy-light: #1e3a8a; --accent: #eab308; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f8fafc; --text-dark: #334155; --border: #e2e8f0; }
         * { box-sizing: border-box; outline: none; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent;}
         body { background-color: var(--bg); color: var(--text-dark); padding-bottom: 50px; }
         
@@ -25,513 +23,1061 @@
         .nav-brand h1 span { color: var(--accent); }
         .btn-kembali { background: rgba(255,255,255,0.1); color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.2);}
 
-        .container { max-width: 800px; margin: 25px auto; padding: 0 15px; }
+        .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
+
+        .mini-header { background: #eff6ff; border: 1px solid #bfdbfe; color: var(--navy-light); padding: 12px 20px; border-radius: 10px; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
         
-        .profile-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid var(--border);}
-        .profile-header { background: linear-gradient(135deg, #020617 0%, #1e3a8a 100%); padding: 30px 20px; text-align: center; }
-        .kop-logo img { width: 70px; height: 70px; background: white; border-radius: 12px; padding: 5px; margin-bottom: 15px;}
-        .profile-header h2 { font-family: 'Playfair Display', serif; color: white; font-size: 1.6rem; margin: 0;}
-        .profile-header p { color: #cbd5e1; font-size: 0.9rem; margin-top: 5px;}
+        /* PANELS */
+        .status-panel, .upload-ttd-panel { background: white; border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: none; flex-direction: column; gap: 15px; border: 1px solid var(--border); animation: fadeIn 0.4s ease;}
+        .status-header { display: flex; justify-content: space-between; align-items: center; }
+        .status-title { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+        .badge { padding: 6px 14px; border-radius: 50px; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
+        .badge.menunggu { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+        .badge.revisi { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .badge.acc { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+        .feedback-box { background: #f8fafc; border-left: 4px solid var(--danger); padding: 15px 20px; border-radius: 0 8px 8px 0; margin-top: 10px; display: none;}
+        
+        /* MEET BOX */
+        .meet-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 12px; margin-top: 15px; display: flex; align-items: center; gap: 15px;}
+        .meet-icon { font-size: 2rem; color: #2563eb; flex-shrink: 0; }
+        .meet-info h4 { margin: 0 0 5px 0; color: var(--primary); font-size: 0.95rem;}
+        .meet-info a { color: #2563eb; font-weight: 600; text-decoration: none; word-break: break-all;}
 
-        .section-view { display: none; animation: fadeIn 0.4s ease; }
-        .section-view.show { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .step-card { display: none; background: white; border-radius: 16px; padding: 25px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);}
-        .step-card.active-step { display: block; }
-        .step-header { font-size: 1rem; font-weight: 700; color: var(--navy-light); text-transform: uppercase; margin-bottom: 20px; display: flex; justify-content: space-between; border-bottom: 2px solid var(--border); padding-bottom: 10px;}
+        /* =============================================
+           KARTU SIDANG — PERBAIKAN UNTUK HTML2CANVAS
+           - Hapus container-type (tidak didukung html2canvas)
+           - Gunakan fixed pixel sizes (bukan cqw units)
+        ============================================= */
+        .kartu-wrapper { margin: 20px auto 0; max-width: 480px; display: none; }
+        .kartu-label { font-size: 0.75rem; color: #94a3b8; text-align: center; margin-bottom: 8px; letter-spacing: 0.5px; }
+        #kartu-sidang-container {
+            width: 100%; aspect-ratio: 85.6 / 54;
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(234,179,8,0.35);
+            position: relative; background: #020617;
+            font-family: "Outfit", sans-serif;
+        }
+        #kartu-print-area {
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #020617 0%, #0f2554 55%, #1e3a8a 100%);
+            position: relative; display: flex; flex-direction: column; overflow: hidden;
+        }
+        #kartu-print-area::before {
+            content: ""; position: absolute; top: -30%; right: -10%;
+            width: 55%; height: 160%;
+            background: linear-gradient(135deg, rgba(234,179,8,0.06) 0%, rgba(30,58,138,0.12) 100%);
+            transform: rotate(-8deg); border-left: 1px solid rgba(234,179,8,0.12); pointer-events: none;
+        }
+        #kartu-print-area::after {
+            content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #eab308, transparent);
+        }
+        .kartu-topbar {
+            background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(234,179,8,0.2);
+            padding: 12px 15px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; position: relative; z-index: 1;
+        }
+        .kartu-topbar-logo { width: 32px; height: 32px; object-fit: contain; filter: brightness(1.1); }
+        .kartu-topbar-text { flex: 1; line-height: 1; }
+        .kartu-org-name { font-size: 13px; font-weight: 700; color: white; letter-spacing: 0.3px; display: block; }
+        .kartu-card-type { font-size: 8px; color: #eab308; letter-spacing: 2px; text-transform: uppercase; display: block; margin-top: 2px; }
+        .kartu-tahun-badge { font-size: 12px; font-weight: 800; color: #eab308; letter-spacing: 1px; }
+        .kartu-body {
+            flex: 1; display: flex; align-items: center; gap: 15px;
+            padding: 12px 15px; position: relative; z-index: 1; overflow: hidden;
+        }
+        .kartu-foto-box {
+            width: 72px; height: 96px; border-radius: 6px;
+            border: 2px solid rgba(234,179,8,0.65); overflow: hidden;
+            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            flex-shrink: 0; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .kartu-foto-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .kartu-foto-placeholder { color: rgba(255,255,255,0.25); font-size: 24px; }
+        .kartu-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+        .kartu-field { overflow: hidden; }
+        .kartu-field-label { font-size: 7px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 1.5px; line-height: 1; display: block; }
+        .kartu-field-value { font-size: 12px; font-weight: 700; color: white; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .kartu-field-value.gold { color: #eab308; }
+        .kartu-footer {
+            padding: 8px 15px; background: rgba(0,0,0,0.22);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; position: relative; z-index: 1;
+        }
+        .kartu-id-text { font-size: 7px; color: rgba(255,255,255,0.35); letter-spacing: 1px; font-family: monospace; }
+        .kartu-dots { display: flex; gap: 4px; align-items: center; }
+        .kartu-dots span { width: 5px; height: 5px; border-radius: 50%; background: rgba(234,179,8,0.35); display: block; }
+        .kartu-dots span:nth-child(2) { background: rgba(234,179,8,0.6); }
+        .kartu-dots span:last-child { background: rgba(234,179,8,0.9); }
+        #btn-print-kartu {
+            display: none; width: 100%; padding: 12px; margin-top: 12px;
+            background: linear-gradient(135deg, var(--accent), #ca8a04);
+            color: #020617; border: none; font-weight: 800; font-size: 0.95rem;
+            border-radius: 10px; cursor: pointer; letter-spacing: 0.4px;
+            box-shadow: 0 4px 15px rgba(234,179,8,0.3); transition: 0.2s;
+        }
+        #btn-print-kartu:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(234,179,8,0.45); }
+        
+        /* FORM STYLE */
+        .form-section { display: none; animation: fadeIn 0.4s ease; }
+        .form-section.show { display: block; }
+        .form-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid var(--border); margin-bottom: 20px; }
+        .section-title { font-size: 1.1rem; color: var(--primary); font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px dashed var(--border); display: flex; align-items: center; gap: 8px;}
         
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
-        .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.95rem; background: #f8fafc;}
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-dark);}
+        .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 0.95rem; background: #f8fafc; transition: 0.3s;}
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,51,102,0.1);}
+        .form-control.locked { background: #e2e8f0; color: #64748b; pointer-events: none; }
+        .full-width { grid-column: 1 / -1; }
+
+        /* RADIO CARDS */
+        .radio-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 5px; }
+        .radio-card { border: 2px solid #cbd5e1; border-radius: 10px; padding: 15px; cursor: pointer; transition: 0.2s; background: white; position: relative;}
+        .radio-card:hover { border-color: #94a3b8; }
+        .radio-card input { position: absolute; opacity: 0; cursor: pointer; }
+        .radio-card .rc-title { font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 5px; display: block; }
+        .radio-card .rc-desc { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
 
         .file-upload-box { border: 2px dashed #cbd5e1; padding: 15px; text-align: center; border-radius: 8px; background: #f8fafc; cursor: pointer; position: relative; transition: 0.3s;}
-        .file-upload-box:hover { border-color: var(--accent); }
+        .file-upload-box:hover { border-color: var(--primary); }
         .file-upload-box input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .file-name-display { font-size: 0.8rem; color: var(--success); font-weight: 600; margin-top: 10px; display: none;}
+        .file-name-display { font-size: 0.8rem; color: var(--success); font-weight: 600; margin-top: 10px; display: none; background:#d1fae5; padding:5px; border-radius:5px;}
+        .file-help { font-size: 0.75rem; color: #64748b; margin-top: 5px; display: block; }
 
-        .btn { padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; font-family: inherit; transition: 0.2s;}
-        .btn-outline { background: white; border: 1px solid #cbd5e1; }
-        .btn-primary { background: var(--navy-light); color: white; }
-        .btn-success { background: var(--success); color: white; width: 100%; font-size: 1.05rem; padding: 15px;}
-        .nav-buttons { display: flex; justify-content: space-between; margin-top: 25px; }
+        /* BOX TANDA TANGAN */
+        .ttd-box { border: 1px solid var(--border); padding: 15px; border-radius: 10px; background: #f8fafc; margin-bottom: 10px;}
+        .ttd-box h4 { margin: 0 0 10px; color: var(--primary); display: flex; justify-content: space-between; align-items: center;}
+        .btn-unduh { background: white; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--navy-light); font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px;}
+        .btn-unduh:hover { background: #eff6ff; border-color: var(--navy-light); }
 
-        /* TIMELINE */
-        .timeline { border-left: 2px solid #e2e8f0; padding-left: 20px; margin: 20px 0 0 10px;}
-        .tl-item { position: relative; margin-bottom: 25px; background: white; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; }
-        .tl-dot { position: absolute; left: -30px; top: 20px; width: 18px; height: 18px; background: white; border: 3px solid #cbd5e1; border-radius: 50%; }
-        .tl-item.completed { border-color: var(--success); background: #f0fdf4;}
-        .tl-item.completed .tl-dot { background: var(--success); border-color: var(--success); }
-        .tl-actions { display: flex; flex-direction: column; gap: 10px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-top: 10px;}
-        @media (min-width: 600px) { .tl-actions { flex-direction: row; align-items: center; } }
+        .checkbox-container { display: flex; gap: 10px; padding: 15px; background: #f1f5f9; border-radius: 8px; margin-bottom: 10px; cursor: pointer; border: 1px solid var(--border);}
+        .checkbox-container input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--primary);}
+        .checkbox-container span { font-size: 0.85rem; line-height: 1.5; color: #334155;}
 
-        /* KARTU VIRTUAL */
-        .id-card { background: linear-gradient(135deg, #020617 0%, #1e3a8a 100%); border-radius: 16px; color: white; border: 2px solid var(--gold); max-width: 400px; margin: 15px auto 0; overflow: hidden;}
-        .id-header { padding: 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);}
-        .id-header img { width: 30px; height: 30px; }
-        .id-body { padding: 20px; display: flex; gap: 15px; }
-        .id-photo { width: 80px; height: 110px; background: #eee; border: 2px solid var(--gold); border-radius: 6px; overflow: hidden; }
-        .id-photo img { width: 100%; height: 100%; object-fit: cover; }
-        .id-details { flex: 1; }
-        .id-label { font-size: 0.65rem; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 2px; }
-        .id-value { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; }
+        .btn-submit { background: linear-gradient(135deg, var(--primary), #001f3f); color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px;}
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 51, 102, 0.2); }
+        .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
-        .status-box { text-align: center; padding: 50px 20px; background: white; border-radius: 16px; border: 1px solid var(--border); }
-        
-        /* HIDDEN TEMPLATES FOR PDF GENERATION */
-        #draf-templates { display: none; }
-        .surat-cetak { padding: 40px; font-family: 'Times New Roman', Times, serif; color: black; background: white; width: 100%; max-width: 800px;}
-        .surat-cetak h2 { text-align: center; text-transform: uppercase; margin-bottom: 30px; font-size: 16pt;}
-        .surat-cetak p { line-height: 1.6; font-size: 12pt; margin-bottom: 10px; text-align: justify;}
+        /* PROGRESS UPLOAD */
+        .upload-progress { display: none; margin-top: 15px; padding: 15px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe; }
+        .progress-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 0.85rem; color: #475569; border-bottom: 1px dashed #e2e8f0; }
+        .progress-step:last-child { border-bottom: none; }
+        .step-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .step-icon.pending { color: #94a3b8; }
+        .step-icon.loading { color: var(--accent); animation: spin 1s linear infinite; }
+        .step-icon.done { color: var(--success); }
+        .step-icon.error { color: var(--danger); }
+
+        /* BANNER REVISI (di atas form) */
+        .revisi-banner { background: #fff7ed; border: 2px solid #f97316; border-radius: 12px; padding: 15px 20px; margin-bottom: 20px; display: none; }
+        .revisi-banner h4 { color: #c2410c; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+        .revisi-banner p { margin: 0; font-size: 0.9rem; color: #7c3aed; background: #f5f3ff; padding: 10px; border-radius: 6px; font-style: italic; }
+
+        #main-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(4px); }
+        .spinner { font-size: 3rem; color: var(--accent); margin-bottom: 15px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
+    <div id="main-loading">
+        <i class="fa-solid fa-circle-notch spinner"></i>
+        <h2 style="font-size: 1.2rem; color: var(--primary); margin: 0;">Memuat Ruang Sidang...</h2>
+    </div>
+
     <nav class="navbar">
-        <div class="nav-brand"><img src="https://imgur.com/5Srjyo4.png" alt="Logo"><h1>Ruang <span>Sidang</span></h1></div>
+        <div class="nav-brand"><img src="https://imgur.com/5Srjyo4.png" alt="Logo" onerror="this.style.display='none'"><h1>Ruang <span>Sidang</span></h1></div>
         <a href="/dashboard/inkubasi.html" class="btn-kembali"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </nav>
 
     <div class="container">
-        <div class="profile-card">
-            <div class="profile-header">
-                <div class="kop-logo"><img src="https://imgur.com/5Srjyo4.png" alt="Logo"></div>
-                <div class="user-info"><h2>Sidang Kelayakan Naskah</h2><p>Sistem Administrasi Pemberkasan Akhir</p></div>
+        <div class="mini-header" id="mini-header">
+            <i class="fa-solid fa-folder-closed" style="font-size: 1.2rem; color: var(--accent);"></i>
+            Sistem Pemberkasan Administrasi Sidang Akhir
+        </div>
+
+        <!-- STATUS PANEL (hanya tampil saat sudah submit & statusnya BUKAN revisi aktif) -->
+        <div class="status-panel" id="status-panel">
+            <div class="status-header">
+                <h3 class="status-title">Status Pemberkasan</h3>
+                <div class="badge menunggu" id="badge-status"><i class="fa-solid fa-hourglass-half"></i> Sedang Direview</div>
             </div>
-        </div>
+            <p id="status-desc" style="margin:0; font-size: 0.9rem; color: #64748b;">Dossier Anda telah masuk ke Redaksi dan sedang dalam antrean pemeriksaan.</p>
 
-        <div id="phase-form" class="section-view show">
-            <form id="sidang-form">
-                <div class="step-card active-step" id="step-1">
-                    <div class="step-header">Data Identitas <span>1/4</span></div>
-                    <div class="form-grid">
-                        <div class="form-group full-width"><label>ID Siswa / NPM <span class="req">*</span></label><input type="text" id="f_uid" class="form-control" required></div>
-                        <div class="form-group"><label>Nama Lengkap <span class="req">*</span></label><input type="text" id="f_nama" class="form-control" required></div>
-                        <div class="form-group"><label>Email Terdaftar <span class="req">*</span></label><input type="email" id="f_email" class="form-control" required></div>
-                        <div class="form-group"><label>Tempat Lahir <span class="req">*</span></label><input type="text" id="f_tempat_lahir" class="form-control" required></div>
-                        <div class="form-group"><label>Tanggal Lahir <span class="req">*</span></label><input type="date" id="f_tgl_lahir" class="form-control" required></div>
-                        <div class="form-group full-width">
-                            <label>Pas Foto Formal <span class="req">*</span></label>
-                            <div class="file-upload-box" id="box-foto">
-                                <i class="fa-solid fa-camera"></i><p>Pilih foto dari Galeri Anda</p>
-                                <input type="file" id="f_foto" accept="image/*" onchange="handleFileSelect('f_foto', 'box-foto')" required>
-                                <div class="file-name-display" id="name-f_foto"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="nav-buttons" style="justify-content: flex-end;"><button type="button" class="btn btn-primary" onclick="nextStep(1)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button></div>
-                </div>
-
-                <div class="step-card" id="step-2">
-                    <div class="step-header">Metadata & Dokumen <span class="req">2/4</span></div>
-                    <div class="form-grid">
-                        <div class="form-group"><label>Judul Naskah <span class="req">*</span></label><input type="text" id="f_judul" class="form-control" required></div>
-                        <div class="form-group"><label>Nama Pena <span class="req">*</span></label><input type="text" id="f_penname" class="form-control" required></div>
-                        <div class="form-group full-width"><label>Sinopsis (Blurb) <span class="req">*</span></label><textarea id="f_blurb" class="form-control" rows="3" required></textarea></div>
-                        <div class="form-group"><label>Asal Komunitas <span class="req">*</span></label><input type="text" id="f_instansi" class="form-control" required></div>
-                        <div class="form-group"><label>Paket Penerbitan <span class="req">*</span></label><select id="f_paket" class="form-control" required><option value="">Pilih...</option><option value="Reguler">Reguler</option><option value="Eksklusif">Eksklusif</option></select></div>
-                    </div>
-                    <div class="nav-buttons"><button type="button" class="btn btn-outline" onclick="prevStep(2)">Kembali</button><button type="button" class="btn btn-primary" onclick="nextStep(2)">Selanjutnya</button></div>
-                </div>
-
-                <div class="step-card" id="step-3">
-                    <div class="step-header">Unggah Berkas <span>3/4</span></div>
-                    <div class="form-group">
-                        <label>File Kartu Hasil Studi (KHS) <span class="req">*</span></label>
-                        <div class="file-upload-box" id="box-khs"><i class="fa-solid fa-file-pdf"></i><p>Pilih File KHS</p><input type="file" id="f_khs" accept="application/pdf,image/*" onchange="handleFileSelect('f_khs', 'box-khs')" required><div class="file-name-display" id="name-f_khs"></div></div>
-                    </div>
-                    <div class="form-group">
-                        <label>File Bukti Pembayaran <span class="req">*</span></label>
-                        <div class="file-upload-box" id="box-kuitansi"><i class="fa-solid fa-receipt"></i><p>Pilih Bukti Transfer</p><input type="file" id="f_kuitansi" accept="application/pdf,image/*" onchange="handleFileSelect('f_kuitansi', 'box-kuitansi')" required><div class="file-name-display" id="name-f_kuitansi"></div></div>
-                    </div>
-                    <div class="nav-buttons"><button type="button" class="btn btn-outline" onclick="prevStep(3)">Kembali</button><button type="button" class="btn btn-primary" onclick="nextStep(3)">Selanjutnya</button></div>
-                </div>
-
-                <div class="step-card" id="step-4">
-                    <div class="step-header">Pernyataan <span>4/4</span></div>
-                    <div style="background: #fef2f2; border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h4 style="color: #b91c1c; font-size: 0.9rem; margin-bottom: 5px;">Peringatan Legalitas</h4><p style="color: #991b1b; font-size: 0.8rem; margin: 0;">Cendekia Aksara adalah institusi non-formal. Data dan karya tetap menjadi hak milik Anda.</p>
-                    </div>
-                    <label style="display: flex; gap: 10px; cursor: pointer; padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);">
-                        <input type="checkbox" required style="margin-top: 3px;"> <span style="font-size: 0.85rem;">Semua data dan file yang diunggah adalah asli.</span>
-                    </label>
-                    <label style="display: flex; gap: 10px; cursor: pointer; padding: 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
-                        <input type="checkbox" required style="margin-top: 3px;"> <span style="font-size: 0.85rem;">Naskah orisinal, bebas plagiasi.</span>
-                    </label>
-                    <div class="nav-buttons"><button type="button" class="btn btn-outline" onclick="prevStep(4)">Kembali</button><button type="submit" class="btn btn-primary" id="btn-submit-form"><i class="fa-solid fa-save"></i> Simpan Draf & Lanjut</button></div>
-                </div>
-            </form>
-        </div>
-
-        <div id="phase-timeline" class="section-view">
-            <div class="step-card active-step">
-                <div class="step-header">Finalisasi Dokumen <span>Tanda Tangan</span></div>
-                <p style="font-size: 0.9rem; margin-bottom: 20px;">Unduh draf otomatis ini, bubuhkan tanda tangan Anda, lalu unggah kembali.</p>
+            <div id="panel-upload-ttd" style="display:none; margin-top:15px; padding-top:15px; border-top:1px dashed #ccc;">
+                <h4 style="color:var(--primary); margin-bottom:15px;"><i class="fa-solid fa-pen-nib"></i> Tahap 2: Tanda Tangan Dokumen</h4>
+                <p style="font-size:0.85rem; margin-bottom:15px; color:#666;">Berkas awal Anda telah disetujui. Silakan unduh draf dokumen, tanda tangani (bisa digital/cetak), lalu unggah kembali file PDF/JPG-nya.</p>
                 
-                <div class="timeline">
-                    <div class="tl-item" id="node-1">
-                        <div class="tl-dot"></div><h4>1. Surat Perjanjian Penerbitan</h4>
-                        <div class="tl-actions">
-                            <button class="btn btn-outline" onclick="generateDraf('perjanjian')"><i class="fa-solid fa-download"></i> Unduh Draf</button>
-                            <div class="file-upload-box" id="box-perjanjian" style="padding: 10px; flex:1; margin:0;">
-                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-upload"></i> Pilih File Tertanda</span>
-                                <input type="file" id="f_perjanjian" accept="application/pdf,image/*" onchange="handleFileSelect('f_perjanjian', 'box-perjanjian')">
-                                <div class="file-name-display" id="name-f_perjanjian"></div>
-                            </div>
-                            <button class="btn btn-primary" onclick="selesaikanNode(1)">Simpan</button>
-                        </div>
+                <div class="ttd-box">
+                    <h4>1. Surat Perjanjian <a href="#" id="link-draf-perjanjian" target="_blank" class="btn-unduh"><i class="fa-solid fa-download"></i> Unduh Draf</a></h4>
+                    <div class="file-upload-box" id="box-ttd-perjanjian" style="padding:10px;">
+                        <p style="margin:0; font-size:0.8rem;"><i class="fa-solid fa-upload"></i> Unggah File TTD (PDF/Image)</p>
+                        <input type="file" id="f_ttd_perjanjian" accept="application/pdf,image/*" onchange="handleFileSelect('f_ttd_perjanjian', 'box-ttd-perjanjian')">
+                        <div class="file-name-display" id="name-f_ttd_perjanjian"></div>
                     </div>
-
-                    <div class="tl-item" id="node-2">
-                        <div class="tl-dot"></div><h4>2. SK Kelayakan Sidang</h4>
-                        <div class="tl-actions">
-                            <button class="btn btn-outline" onclick="generateDraf('sk')"><i class="fa-solid fa-download"></i> Unduh Draf</button>
-                            <div class="file-upload-box" id="box-sk" style="padding: 10px; flex:1; margin:0;">
-                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-upload"></i> Pilih File SK Tertanda</span>
-                                <input type="file" id="f_sk" accept="application/pdf,image/*" onchange="handleFileSelect('f_sk', 'box-sk')">
-                                <div class="file-name-display" id="name-f_sk"></div>
-                            </div>
-                            <button class="btn btn-primary" onclick="selesaikanNode(2)">Simpan</button>
-                        </div>
+                </div>
+                
+                <div class="ttd-box">
+                    <h4>2. SK Kelayakan <a href="#" id="link-draf-sk" target="_blank" class="btn-unduh"><i class="fa-solid fa-download"></i> Unduh Draf</a></h4>
+                    <div class="file-upload-box" id="box-ttd-sk" style="padding:10px;">
+                        <p style="margin:0; font-size:0.8rem;"><i class="fa-solid fa-upload"></i> Unggah File TTD (PDF/Image)</p>
+                        <input type="file" id="f_ttd_sk" accept="application/pdf,image/*" onchange="handleFileSelect('f_ttd_sk', 'box-ttd-sk')">
+                        <div class="file-name-display" id="name-f_ttd_sk"></div>
                     </div>
+                </div>
 
-                    <div class="tl-item" id="node-3" style="opacity: 0.5; pointer-events: none;">
-                        <div class="tl-dot"></div><h4 style="margin-bottom: 15px;">3. Kartu Sidang Virtual</h4>
-                        <div class="id-card" id="kartu-sidang-print">
-                            <div class="id-header"><img src="https://imgur.com/5Srjyo4.png" alt="Logo"><div><h3 style="color:white; font-size:1.1rem; margin:0;">Cendekia Aksara</h3><span style="color:var(--gold); font-size:0.6rem;">KARTU SIDANG KELAYAKAN</span></div></div>
-                            <div class="id-body">
-                                <div class="id-photo"><img id="id_foto_render" src="" style="display:none; width:100%; height:100%; object-fit:cover;"></div>
-                                <div class="id-details">
-                                    <div class="id-label">Nama Penulis</div><div class="id-value" id="id_nama">-</div>
-                                    <div class="id-label">Judul Naskah</div><div class="id-value highlight" id="id_judul">-</div>
-                                    <div style="display:flex; justify-content:space-between; margin-top:10px; border-top:1px dashed #ccc; padding-top:10px;">
-                                        <div><div class="id-label">ID Siswa</div><div class="id-value" id="id_npm" style="font-size:0.85rem;">-</div></div>
-                                        <div><div class="id-label">Tahun</div><div class="id-value highlight" id="id_tahun" style="font-size:1rem;">-</div></div>
-                                    </div>
+                <!-- Progress upload TTD -->
+                <div class="upload-progress" id="progress-ttd">
+                    <div class="progress-step"><div class="step-icon pending" id="icon-ttd-perjanjian"><i class="fa-solid fa-circle"></i></div><span id="text-ttd-perjanjian">Menunggu upload file perjanjian...</span></div>
+                    <div class="progress-step"><div class="step-icon pending" id="icon-ttd-sk"><i class="fa-solid fa-circle"></i></div><span id="text-ttd-sk">Menunggu upload file SK...</span></div>
+                    <div class="progress-step"><div class="step-icon pending" id="icon-ttd-firestore"><i class="fa-solid fa-circle"></i></div><span id="text-ttd-firestore">Menunggu simpan ke database...</span></div>
+                </div>
+
+                <button class="btn-submit" id="btn-kirim-ttd" onclick="kirimTahap2()"><i class="fa-solid fa-paper-plane"></i> Kirim Dokumen Final</button>
+            </div>
+
+            <div class="meet-box" id="meet-box">
+                <i class="fa-brands fa-google meet-icon"></i>
+                <div class="meet-info">
+                    <h4>Jadwal Sidang Online (Google Meet)</h4>
+                    <p style="font-size: 0.85rem; margin: 3px 0; color: #475569;"><i class="fa-regular fa-calendar"></i> <span id="jadwal-meet">Menunggu Jadwal</span></p>
+                    <a href="#" id="link-meet" target="_blank"><i class="fa-solid fa-video"></i> Klik di sini untuk bergabung</a>
+                </div>
+            </div>
+
+            <!-- KARTU SIDANG -->
+            <div class="kartu-wrapper" id="kartu-wrapper">
+                <p class="kartu-label"><i class="fa-solid fa-id-card"></i> &nbsp;Kartu Peserta Sidang Anda</p>
+                <div id="kartu-sidang-container">
+                    <div id="kartu-print-area">
+
+                        <div class="kartu-topbar">
+                            <img class="kartu-topbar-logo" src="https://imgur.com/5Srjyo4.png" onerror="this.style.opacity='0'">
+                            <div class="kartu-topbar-text">
+                                <span class="kartu-org-name">Cendekia Aksara</span>
+                                <span class="kartu-card-type">Kartu Peserta Sidang</span>
+                            </div>
+                            <span class="kartu-tahun-badge" id="card-tahun">2025</span>
+                        </div>
+
+                        <div class="kartu-body">
+                            <div class="kartu-foto-box" id="kartu-foto-box">
+                                <div class="kartu-foto-placeholder" id="kartu-foto-placeholder">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <img id="card-foto" src="" alt="Foto" style="display:none; width:100%; height:100%; object-fit:cover;">
+                            </div>
+
+                            <div class="kartu-info">
+                                <div class="kartu-field">
+                                    <span class="kartu-field-label">Nama Penulis</span>
+                                    <span class="kartu-field-value" id="card-nama">—</span>
+                                </div>
+                                <div class="kartu-field">
+                                    <span class="kartu-field-label">Judul Naskah</span>
+                                    <span class="kartu-field-value gold" id="card-judul">—</span>
+                                </div>
+                                <div class="kartu-field">
+                                    <span class="kartu-field-label">Paket Penerbitan</span>
+                                    <span class="kartu-field-value" id="card-paket">—</span>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="kartu-footer">
+                            <span class="kartu-id-text" id="card-npm">ID: —</span>
+                            <div class="kartu-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            <button id="btn-print-kartu" onclick="cetakKartuPNG()">
+                <i class="fa-solid fa-download"></i> &nbsp;Unduh Kartu Sidang (PNG)
+            </button>
+        </div>
+
+        <!-- FORM SECTION -->
+        <div id="form-section" class="form-section show">
+
+            <div class="revisi-banner" id="revisi-banner">
+                <h4><i class="fa-solid fa-triangle-exclamation"></i> Ada Catatan Revisi dari Admin</h4>
+                <p id="revisi-banner-text">-</p>
+            </div>
+
+            <div class="upload-progress" id="upload-progress-box">
+                <b style="font-size:0.85rem; color:var(--primary); display:block; margin-bottom:8px;"><i class="fa-solid fa-cloud-arrow-up"></i> Progress Pengiriman Berkas</b>
+                <div class="progress-step"><div class="step-icon pending" id="icon-foto"><i class="fa-solid fa-circle"></i></div><span id="text-foto">Menunggu upload foto...</span></div>
+                <div class="progress-step"><div class="step-icon pending" id="icon-khs"><i class="fa-solid fa-circle"></i></div><span id="text-khs">Menunggu upload KHS...</span></div>
+                <div class="progress-step"><div class="step-icon pending" id="icon-kuitansi"><i class="fa-solid fa-circle"></i></div><span id="text-kuitansi">Menunggu upload kuitansi...</span></div>
+                <div class="progress-step"><div class="step-icon pending" id="icon-firestore"><i class="fa-solid fa-circle"></i></div><span id="text-firestore">Menunggu simpan ke database...</span></div>
+            </div>
+
+            <form id="sidang-form">
+                
+                <div class="form-card">
+                    <div class="section-title"><i class="fa-solid fa-address-card"></i> 1. Identitas Lengkap Siswa</div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>ID Siswa / NPM</label><input type="text" id="f_uid" class="form-control locked" readonly></div>
+                        <div class="form-group"><label>Email Terdaftar</label><input type="email" id="f_email" class="form-control locked" readonly></div>
+                        <div class="form-group full-width"><label>Nama Lengkap (Asli) <span style="color:var(--danger)">*</span></label><input type="text" id="f_nama" class="form-control" required placeholder="Sesuai KTP/KTM"></div>
+                        <div class="form-group"><label>Tempat Lahir <span style="color:var(--danger)">*</span></label><input type="text" id="f_tempat_lahir" class="form-control" required></div>
+                        <div class="form-group"><label>Tanggal Lahir <span style="color:var(--danger)">*</span></label><input type="date" id="f_tgl_lahir" class="form-control" required></div>
                     </div>
                 </div>
 
-                <div style="margin-top:30px; border-top:2px solid var(--border); padding-top:20px; text-align:center;">
-                    <label style="display:flex; gap:10px; cursor:pointer; justify-content:center; margin-bottom:15px;">
-                        <input type="checkbox" id="check-final" style="width:18px; height:18px;"> 
-                        <span style="font-weight:600;">Seluruh berkas fisik dan surat telah saya unggah.</span>
-                    </label>
-                    <button class="btn btn-success" id="btn-ajukan-final" onclick="ajukanSidangAkhir()" disabled><i class="fa-solid fa-paper-plane"></i> KIRIM SEMUA BERKAS KE ADMIN</button>
+                <div class="form-card">
+                    <div class="section-title"><i class="fa-solid fa-book-open"></i> 2. Metadata Naskah</div>
+                    <div class="form-grid">
+                        <div class="form-group full-width"><label>Judul Final Naskah <span style="color:var(--danger)">*</span></label><input type="text" id="f_judul" class="form-control" required></div>
+                        <div class="form-group full-width"><label>Sinopsis Belakang Buku (Blurb) <span style="color:var(--danger)">*</span></label><textarea id="f_blurb" class="form-control" rows="4" required></textarea></div>
+                        <div class="form-group"><label>Nama Pena <span style="color:var(--danger)">*</span></label><input type="text" id="f_penname" class="form-control" required></div>
+                        <div class="form-group"><label>Asal Komunitas <span style="color:var(--danger)">*</span></label><input type="text" id="f_instansi" class="form-control" required></div>
+                        
+                        <div class="form-group full-width">
+                            <label>Pilih Paket Penerbitan <span style="color:var(--danger)">*</span></label>
+                            <div class="radio-grid" id="paket-group">
+                                <label class="radio-card">
+                                    <input type="radio" name="f_paket" value="Reguler" required onclick="selectCard('paket-group', this)">
+                                    <span class="rc-title">Paket Reguler</span>
+                                    <span class="rc-desc">Buku cetak fisik standar (Softcover). Termasuk editing, layout, dan desain sampul dasar.</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="f_paket" value="Eksklusif" onclick="selectCard('paket-group', this)">
+                                    <span class="rc-title">Paket Eksklusif</span>
+                                    <span class="rc-desc">Buku fisik kualitas premium (Hardcover/Bookpaper). Desain custom eksklusif dan merchandise.</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="f_paket" value="Digital" onclick="selectCard('paket-group', this)">
+                                    <span class="rc-title">Paket Digital</span>
+                                    <span class="rc-desc">Penerbitan via platform E-Book (Google Play Books/KaryaKarsa). Tanpa cetak fisik.</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Strategi Promosi Karya <span style="color:var(--danger)">*</span></label>
+                            <div class="radio-grid" id="promo-group">
+                                <label class="radio-card">
+                                    <input type="radio" name="f_promosi_radio" value="Media Sosial Pribadi" required onclick="togglePromosi(this)">
+                                    <span class="rc-title">Media Sosial Pribadi</span>
+                                    <span class="rc-desc">Aktif promosi di Instagram, TikTok, atau X pribadi secara konsisten.</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="f_promosi_radio" value="Komunitas Literasi" onclick="togglePromosi(this)">
+                                    <span class="rc-title">Komunitas Literasi</span>
+                                    <span class="rc-desc">Menawarkan karya melalui grup menulis, WhatsApp, atau Telegram.</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="f_promosi_radio" value="Bookstagram/Reviewer" onclick="togglePromosi(this)">
+                                    <span class="rc-title">Bookstagram/Reviewer</span>
+                                    <span class="rc-desc">Bekerjasama dengan pembaca buku untuk mereview karya.</span>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="f_promosi_radio" value="PO (Pre-Order) Eksklusif" onclick="togglePromosi(this)">
+                                    <span class="rc-title">Pre-Order Bertahap</span>
+                                    <span class="rc-desc">Membuka masa PO dengan sistem bonus eksklusif (merch terbatas).</span>
+                                </label>
+                                <label class="radio-card" style="grid-column: 1 / -1;">
+                                    <input type="radio" name="f_promosi_radio" value="Lainnya" onclick="togglePromosi(this)">
+                                    <span class="rc-title">Lainnya (Sebutkan)</span>
+                                    <input type="text" id="f_promosi_lain" class="form-control" placeholder="Tuliskan strategi Anda..." style="display:none; margin-top:8px;">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <div id="phase-waiting" class="section-view">
-            <div class="status-box">
-                <i class="fa-solid fa-hourglass-half" style="color: var(--gold); font-size: 4rem;"></i>
-                <h2>Dossier Sedang Direview</h2>
-                <p>Seluruh dokumen dan file fisik Anda telah masuk ke Google Drive Redaksi. Mohon tunggu konfirmasi jadwal sidang.</p>
-            </div>
-        </div>
-        
-        <div id="phase-rejected" class="section-view">
-            <div class="status-box">
-                <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger); font-size: 4rem;"></i>
-                <h2>Berkas Dikembalikan</h2>
-                <p id="reject-reason" style="color: var(--danger); font-weight: bold; margin-top:10px;">Terdapat kesalahan pada dokumen.</p>
-                <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.reload();">Perbaiki Data</button>
-            </div>
+                <div class="form-card">
+                    <div class="section-title"><i class="fa-solid fa-folder-open"></i> 3. Unggah Berkas Fisik</div>
+                    <p style="font-size:0.85rem; color:#64748b; margin-bottom:15px; border-left:3px solid var(--accent); padding-left:10px;">Semua berkas wajib berformat <b>PDF, JPG, atau PNG</b>. Gambar akan dikompres otomatis. PDF maksimal <b>3MB</b>.</p>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Pas Foto Formal <span style="color:var(--danger)">*</span></label>
+                            <div class="file-upload-box" id="box-foto">
+                                <p style="margin:0; font-weight:600;"><i class="fa-solid fa-camera"></i> Pilih Foto</p>
+                                <span class="file-help">Pas foto wajah tampak depan. Akan dikompres otomatis.</span>
+                                <input type="file" id="f_foto" accept="image/*" onchange="handleFileSelect('f_foto', 'box-foto')" required>
+                                <div id="name-f_foto" class="file-name-display"></div>
+                                <canvas id="foto-canvas" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Kartu Hasil Studi (KHS) <span style="color:var(--danger)">*</span></label>
+                            <div class="file-upload-box" id="box-khs">
+                                <p style="margin:0; font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Pilih File KHS</p>
+                                <span class="file-help">Wajib KHS Minimal Semester 2. Gambar akan dikompres otomatis.</span>
+                                <input type="file" id="f_khs" accept="application/pdf,image/*" onchange="handleFileSelect('f_khs', 'box-khs')" required>
+                                <div id="name-f_khs" class="file-name-display"></div>
+                                <canvas id="khs-canvas" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Bukti Pembayaran <span style="color:var(--danger)">*</span></label>
+                            <div class="file-upload-box" id="box-kuitansi">
+                                <p style="margin:0; font-weight:600;"><i class="fa-solid fa-receipt"></i> Pilih Kuitansi</p>
+                                <span class="file-help">Kuitansi lunas biaya UAS. Gambar akan dikompres otomatis.</span>
+                                <input type="file" id="f_kuitansi" accept="application/pdf,image/*" onchange="handleFileSelect('f_kuitansi', 'box-kuitansi')" required>
+                                <div id="name-f_kuitansi" class="file-name-display"></div>
+                                <canvas id="kuitansi-canvas" style="display:none;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card" style="background: #f8fafc;">
+                    <div class="section-title"><i class="fa-solid fa-handshake"></i> 4. Persetujuan & Legalitas</div>
+                    
+                    <label class="checkbox-container"><input type="checkbox" id="agree-1" required> <span>Saya menjamin bahwa seluruh data identitas, metadata, dan berkas fisik yang dilampirkan adalah benar dan asli.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-2" required> <span>Naskah saya 100% orisinal, bebas plagiasi, dan tidak sedang terikat kontrak penerbitan dengan pihak lain.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-3" required> <span>Saya memberi kuasa kepada sistem Cendekia Aksara untuk mengarsipkan file dan membuatkan dokumen hukum (PDF) secara otomatis atas nama saya.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-4" required> <span>Saya bersedia mematuhi jadwal Sidang Kelayakan yang ditetapkan oleh Tim Redaksi tanpa terkecuali.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-5" required> <span>Saya tunduk secara mutlak pada keputusan akhir Tim Evaluator dan bersedia melakukan revisi naskah jika dinyatakan belum memenuhi standar.</span></label>
+                    
+                    <button type="submit" class="btn-submit" id="btn-submit-tahap1" disabled>
+                        <i class="fa-solid fa-paper-plane"></i> KIRIM BERKAS AWAL SEKARANG
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <div id="draf-templates">
-        <div id="template-perjanjian" class="surat-cetak">
-            <h2>Surat Perjanjian Penerbitan</h2>
-            <p>Yang bertanda tangan di bawah ini:</p>
-            <p>Nama: <strong id="pdf_nama_1"></strong></p>
-            <p>Judul Naskah: <strong id="pdf_judul_1"></strong></p>
-            <p>Menyatakan sepakat untuk menerbitkan naskah di Cendekia Aksara dengan menjamin bahwa naskah tersebut adalah karya asli dan tidak sedang terikat kontrak dengan pihak lain.</p>
-            <br><br><br>
-            <p style="text-align: right;">Penulis,</p>
-            <br><br><br>
-            <p style="text-align: right;">( ......................................... )</p>
-        </div>
-        <div id="template-sk" class="surat-cetak">
-            <h2>Surat Keputusan Kelayakan Sidang</h2>
-            <p>Menyatakan bahwa naskah berjudul <strong id="pdf_judul_2"></strong> karya <strong id="pdf_nama_2"></strong> telah memenuhi syarat administrasi untuk dilanjutkan ke tahap Sidang Kelayakan.</p>
-            <p>Peserta bersedia mematuhi jadwal dan melakukan revisi sesuai arahan evaluator.</p>
-            <br><br><br>
-            <p style="text-align: right;">Menyetujui,</p>
-            <br><br><br>
-            <p style="text-align: right;">( ......................................... )</p>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
-        import { db, checkAuth } from "../js/firebase-config.js";
+        import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ⚠️ INI URL APPS SCRIPT YANG KAMU BERIKAN
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwyLOayneYVg1s7suayQFghRjch7wamNagERpr4puzWApBA0sgpjsJ1zQIonl1uxLq4/exec";
-
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwyLOayneYVg1s7suayQFghRjch7wamNagERpr4puzWApBA0sgpjsJ1zQIonl1uxLq4/exec"; 
+        
         let currentUser = null;
-        let base64Files = { foto: null, khs: null, kuitansi: null, perjanjian: null, sk: null };
-        let formDataCache = {}; 
-        let nodeSelesaiCount = 0;
+        let base64Files = { foto: null, khs: null, kuitansi: null, ttd_perjanjian: null, ttd_sk: null };
+        let isRevisiMode = false;
+        let dataLama = {};
 
-        function showPhase(id) {
-            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('show'));
-            document.getElementById(id).classList.add('show');
+        // ==========================================
+        // UI & INTERAKSI FORM
+        // ==========================================
+        window.selectCard = function(groupId, el) {
+            document.querySelectorAll(`#${groupId} .radio-card`).forEach(card => card.style.borderColor = '#cbd5e1');
+            el.parentElement.style.borderColor = 'var(--primary)';
+        };
+
+        window.togglePromosi = function(el) {
+            selectCard('promo-group', el);
+            const inputLain = document.getElementById('f_promosi_lain');
+            if (el.value === 'Lainnya') {
+                inputLain.style.display = 'block';
+                inputLain.setAttribute('required', 'true');
+            } else {
+                inputLain.style.display = 'none';
+                inputLain.removeAttribute('required');
+            }
+        };
+
+        const checkboxes = ['agree-1', 'agree-2', 'agree-3', 'agree-4', 'agree-5'].map(id => document.getElementById(id));
+        const btnSubmit1 = document.getElementById('btn-submit-tahap1');
+        function cekValidasi() {
+            if(btnSubmit1) btnSubmit1.disabled = !checkboxes.every(cb => cb.checked);
         }
+        checkboxes.forEach(cb => { if(cb) cb.addEventListener('change', cekValidasi) });
 
-        // =====================================
-        // INIT & CEK STATUS
-        // =====================================
+        // ==========================================
+        // INISIALISASI & TARIK DATA
+        // ==========================================
         window.onload = async () => {
             try {
                 currentUser = await checkAuth('siswa');
-                if(!currentUser) { window.location.href = '../login.html'; return; }
+                if(!currentUser) return window.location.href = '/login.html';
                 
+                document.getElementById('f_uid').value = currentUser.uid;
+
+                const authorRef = doc(db, 'author_profiles', currentUser.uid);
+                const authorSnap = await getDoc(authorRef);
+                if (authorSnap.exists()) {
+                    document.getElementById('f_email').value = authorSnap.data().email || currentUser.email || "-";
+                    document.getElementById('f_penname').value = authorSnap.data().pen_name || "";
+                }
+
+                document.getElementById('main-loading').style.display = 'none';
                 await cekStatusDatabase();
             } catch(e) {
                 console.error(e);
-                // Jika error parah, tetap buka form kosong
-                showPhase('phase-form');
+                document.getElementById('main-loading').style.display = 'none';
             }
         };
 
         async function cekStatusDatabase() {
-            try {
-                const snap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
-                if (snap.exists()) {
-                    const data = snap.data();
-                    formDataCache = data; // Simpan ke cache lokal
-                    
-                    if (data.status === 'draft_form') {
-                        // Masuk Timeline
-                        showPhase('phase-timeline');
-                        document.getElementById('id_nama').innerText = data.nama_lengkap;
-                        document.getElementById('id_judul').innerText = data.judul_naskah;
-                        document.getElementById('id_npm').innerText = data.npm;
-                        document.getElementById('id_tahun').innerText = new Date().getFullYear();
-                        
-                        // Render Foto ke Kartu
-                        if(data.file_foto) {
-                            const img = document.getElementById('id_foto_render');
-                            img.src = data.file_foto;
-                            img.style.display = 'block';
-                        }
-                    } else if (data.status === 'pending_admin') {
-                        showPhase('phase-waiting');
-                    } else if (data.status === 'acc' || data.status === 'approved') {
-                        // Lulus: Munculkan kartu penuh tanpa tombol
-                        showPhase('phase-timeline');
-                        document.getElementById('id_nama').innerText = data.nama_lengkap;
-                        document.getElementById('id_judul').innerText = data.judul_naskah;
-                        document.getElementById('id_npm').innerText = data.npm;
-                        document.getElementById('id_tahun').innerText = new Date().getFullYear();
-                        if(data.file_foto) {
-                            const img = document.getElementById('id_foto_render');
-                            img.src = data.file_foto;
-                            img.style.display = 'block';
-                        }
-                        document.getElementById('node-1').classList.add('completed');
-                        document.getElementById('node-2').classList.add('completed');
-                        document.getElementById('node-3').style.opacity = '1';
-                        document.getElementById('node-3').style.pointerEvents = 'auto';
-                        document.getElementById('btn-ajukan-final').parentElement.style.display = 'none';
-                    } else if (data.status === 'rejected') {
-                        showPhase('phase-rejected');
-                    }
+            const snap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
+            if (!snap.exists()) {
+                document.getElementById('form-section').classList.add('show');
+                return;
+            }
+
+            const data = snap.data();
+            dataLama = data;
+
+            if (data.status === 'revisi_tahap1' || data.status === 'revisi_tahap2') {
+                isRevisiMode = true;
+                document.getElementById('mini-header').style.display = 'flex';
+                document.getElementById('form-section').classList.add('show');
+
+                const banner = document.getElementById('revisi-banner');
+                banner.style.display = 'block';
+                document.getElementById('revisi-banner-text').innerText = data.reject_reason || "Ada kesalahan berkas. Silakan perbaiki dan kirim ulang.";
+
+                prefillForm(data);
+
+                btnSubmit1.innerHTML = '<i class="fa-solid fa-rotate-right"></i> KIRIM ULANG BERKAS YANG DIPERBAIKI';
+                return;
+            }
+
+            document.getElementById('form-section').classList.remove('show');
+            document.getElementById('mini-header').style.display = 'none';
+            
+            const panel = document.getElementById('status-panel');
+            const badge = document.getElementById('badge-status');
+            panel.style.display = 'flex';
+
+            if (data.status === 'pending_tahap1') {
+                badge.className = 'badge menunggu'; 
+                badge.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Tahap 1: Review Admin';
+                document.getElementById('status-desc').innerText = "Dossier Anda telah masuk ke Redaksi dan sedang dalam antrean pemeriksaan.";
+            } 
+            else if (data.status === 'menunggu_ttd') {
+                badge.className = 'badge menunggu'; 
+                badge.innerHTML = '<i class="fa-solid fa-pen-nib"></i> Tahap 2: Upload Tanda Tangan';
+                badge.style.background = '#fef3c7'; badge.style.color = '#d97706';
+                document.getElementById('status-desc').innerText = "Berkas awal disetujui. Lanjutkan Tahap 2: unggah dokumen bertanda tangan.";
+                document.getElementById('panel-upload-ttd').style.display = 'block';
+                
+                const linkPerjanjian = document.getElementById('link-draf-perjanjian');
+                const linkSK = document.getElementById('link-draf-sk');
+                
+                if (data.draf_perjanjian && data.draf_perjanjian !== "undefined") {
+                    linkPerjanjian.href = data.draf_perjanjian;
                 } else {
-                    // Belum Daftar: Buka form manual
-                    showPhase('phase-form');
+                    linkPerjanjian.onclick = (e) => { e.preventDefault(); Swal.fire('Tunggu Sebentar', 'File Draf belum siap. Silakan hubungi Admin.', 'warning'); };
                 }
-            } catch(e) {
-                console.error("Gagal cek DB:", e);
-                showPhase('phase-form');
+                if (data.draf_sk && data.draf_sk !== "undefined") {
+                    linkSK.href = data.draf_sk;
+                } else {
+                    linkSK.onclick = (e) => { e.preventDefault(); Swal.fire('Tunggu Sebentar', 'File Draf SK belum siap. Silakan hubungi Admin.', 'warning'); };
+                }
+            }
+            else if (data.status === 'pending_tahap2') {
+                badge.className = 'badge menunggu'; 
+                badge.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Final Review';
+                document.getElementById('status-desc').innerText = "Dokumen tanda tangan sedang diverifikasi keasliannya oleh Tim Redaksi.";
+            }
+            else if (data.status === 'approved') {
+                badge.className = 'badge acc'; 
+                badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lulus Sidang (ACC)';
+                document.getElementById('status-desc').innerText = "Selamat! Jadwal dan Kartu Anda telah terbit.";
+                document.getElementById('meet-box').style.display = 'flex';
+                document.getElementById('link-meet').href = data.link_meet || '#';
+                document.getElementById('jadwal-meet').innerText = data.jadwal_sidang || 'Menunggu jadwal';
+
+                document.getElementById('card-nama').innerText = data.nama_lengkap || '-';
+                document.getElementById('card-judul').innerText = data.judul_naskah || '-';
+                document.getElementById('card-paket').innerText = data.paket || '-';
+                document.getElementById('card-npm').innerText = 'ID: ' + currentUser.uid.substring(0,8).toUpperCase();
+                document.getElementById('card-tahun').innerText = new Date().getFullYear();
+
+                document.getElementById('kartu-wrapper').style.display = 'block';
+                document.getElementById('btn-print-kartu').style.display = 'block';
+
+                if (data.url_foto) {
+                    loadFotoKeKartu(data.url_foto);
+                }
             }
         }
 
-        // =====================================
-        // UPLOAD FILE LOKAL -> BASE64
-        // =====================================
-        window.handleFileSelect = function(inputId, boxId) {
+        function prefillForm(data) {
+            const setVal = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+            setVal('f_nama', data.nama_lengkap);
+            setVal('f_judul', data.judul_naskah);
+            setVal('f_blurb', data.blurb);
+            setVal('f_penname', data.pen_name);
+            setVal('f_instansi', data.instansi);
+            setVal('f_tempat_lahir', data.tempat_lahir);
+            setVal('f_tgl_lahir', data.tgl_lahir);
+
+            if (data.paket) {
+                const radioP = document.querySelector(`input[name="f_paket"][value="${data.paket}"]`);
+                if(radioP) { radioP.checked = true; radioP.parentElement.style.borderColor = 'var(--primary)'; }
+            }
+
+            if (data.promosi) {
+                const knownValues = ['Media Sosial Pribadi','Komunitas Literasi','Bookstagram/Reviewer','PO (Pre-Order) Eksklusif'];
+                if (knownValues.includes(data.promosi)) {
+                    const radioPromo = document.querySelector(`input[name="f_promosi_radio"][value="${data.promosi}"]`);
+                    if(radioPromo) { radioPromo.checked = true; radioPromo.parentElement.style.borderColor = 'var(--primary)'; }
+                } else {
+                    const radioLain = document.querySelector(`input[name="f_promosi_radio"][value="Lainnya"]`);
+                    if(radioLain) { 
+                        radioLain.checked = true; 
+                        radioLain.parentElement.style.borderColor = 'var(--primary)';
+                        const inputLain = document.getElementById('f_promosi_lain');
+                        inputLain.style.display = 'block'; inputLain.value = data.promosi;
+                    }
+                }
+            }
+
+            if (data.url_foto) markFileExisting('box-foto', 'name-f_foto', 'Foto lama tersimpan (opsional ganti)');
+            if (data.url_khs) markFileExisting('box-khs', 'name-f_khs', 'KHS lama tersimpan (opsional ganti)');
+            if (data.url_kuitansi) markFileExisting('box-kuitansi', 'name-f_kuitansi', 'Kuitansi lama tersimpan (opsional ganti)');
+            
+            document.getElementById('f_foto').removeAttribute('required');
+            document.getElementById('f_khs').removeAttribute('required');
+            document.getElementById('f_kuitansi').removeAttribute('required');
+        }
+
+        function markFileExisting(boxId, nameId, msg) {
+            const box = document.getElementById(boxId);
+            const name = document.getElementById(nameId);
+            if(box) box.style.borderColor = 'var(--success)';
+            if(name) { name.innerText = '✓ ' + msg; name.style.display = 'block'; }
+        }
+
+        // ==========================================
+        // KOMPRESI GAMBAR
+        // ==========================================
+        function compressImage(file, canvasId, maxWidth, quality) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById(canvasId) || document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function readAsBase64(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        window.handleFileSelect = async function(inputId, boxId) {
             const input = document.getElementById(inputId);
             if (!input.files[0]) return;
             const file = input.files[0];
-            
-            if (file.size > 3 * 1024 * 1024) {
-                Swal.fire('File Kebesaran', 'Maksimal 3MB per file.', 'warning');
+
+            const MAX_PDF = 3 * 1024 * 1024;
+            if (!file.type.startsWith('image/') && file.size > MAX_PDF) {
+                Swal.fire('File Terlalu Besar', 'File PDF maksimal 3MB. Kompres PDF Anda terlebih dahulu.', 'warning');
                 input.value = ''; return;
             }
 
-            document.getElementById(`name-${inputId}`).innerText = "✓ " + file.name;
+            document.getElementById(`name-${inputId}`).innerText = "⏳ Memproses...";
             document.getElementById(`name-${inputId}`).style.display = 'block';
-            document.getElementById(boxId).style.borderColor = 'var(--success)';
 
-            const reader = new FileReader();
+            let base64Data;
             const fileKey = inputId.replace('f_', '');
-
-            reader.onload = (e) => {
-                if (fileKey === 'foto' && file.type.startsWith('image/')) {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        let w = img.width; let h = img.height;
-                        if (w > 400) { h = Math.round((h *= 400 / w)); w = 400; }
-                        canvas.width = w; canvas.height = h;
-                        ctx.drawImage(img, 0, 0, w, h);
-                        base64Files.foto = canvas.toDataURL('image/jpeg', 0.8);
-                    }
-                    img.src = e.target.result;
-                } else {
-                    base64Files[fileKey] = e.target.result; 
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // =====================================
-        // NAVIGASI FORM
-        // =====================================
-        window.nextStep = function(curr) {
-            const card = document.getElementById(`step-${curr}`);
-            let valid = true;
-            card.querySelectorAll('input[required], textarea[required], select[required]').forEach(el => {
-                if(el.type !== 'file' && !el.value.trim()) { el.style.borderColor = 'red'; valid = false; }
-                else { el.style.borderColor = '#eee'; }
-            });
             
-            if(!valid) return Swal.fire('Error', 'Isi semua kolom yang bertanda bintang (*)', 'error');
-            if(curr===1 && !base64Files.foto) return Swal.fire('Error', 'Unggah Pas Foto terlebih dahulu.', 'error');
-            if(curr===3 && (!base64Files.khs || !base64Files.kuitansi)) return Swal.fire('Error', 'Unggah KHS & Bukti Pembayaran.', 'error');
+            if (file.type.startsWith('image/')) {
+                const isPhoto = fileKey === 'foto';
+                const maxW = isPhoto ? 600 : 900;
+                const qual = isPhoto ? 0.70 : 0.75;
+                const canvasId = `${fileKey}-canvas`;
+                base64Data = await compressImage(file, canvasId, maxW, qual);
+            } else {
+                base64Data = await readAsBase64(file);
+            }
 
-            card.classList.remove('active-step');
-            document.getElementById(`step-${curr+1}`).classList.add('active-step');
-            window.scrollTo(0,0);
-        }
-        window.prevStep = function(curr) {
-            document.getElementById(`step-${curr}`).classList.remove('active-step');
-            document.getElementById(`step-${curr-1}`).classList.add('active-step');
-            window.scrollTo(0,0);
+            base64Files[fileKey] = base64Data;
+            
+            const sizeKB = Math.round((base64Data.length * 3/4) / 1024);
+            document.getElementById(`name-${inputId}`).innerText = `✓ ${file.name} (~${sizeKB}KB)`;
+            document.getElementById(boxId).style.borderColor = 'var(--success)';
+        };
+
+        // ==========================================
+        // HELPER: UPLOAD FILE
+        // ==========================================
+        async function uploadFileTunggal(uid, npm, namaFile, base64Data) {
+            const payload = {
+                action: 'upload_file',
+                uid: uid,
+                npm: npm,
+                file_key: namaFile,
+                file_data: base64Data
+            };
+            const res = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const result = await res.json();
+            if (result.status !== 'success') throw new Error(result.message || `Gagal upload ${namaFile}`);
+            return result.url;
         }
 
-        // =====================================
-        // SUBMIT FASE 1 (SIMPAN KE FIREBASE)
-        // =====================================
+        function setProgressStep(iconId, textId, state, msg) {
+            const icon = document.getElementById(iconId);
+            const text = document.getElementById(textId);
+            if(!icon || !text) return;
+            icon.className = `step-icon ${state}`;
+            if (state === 'loading') icon.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            else if (state === 'done') icon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            else if (state === 'error') icon.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+            else icon.innerHTML = '<i class="fa-solid fa-circle"></i>';
+            if (msg) text.innerText = msg;
+        }
+
+        // ==========================================
+        // SUBMIT TAHAP 1
+        // ==========================================
         document.getElementById('sidang-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btn-submit-form');
-            btn.innerHTML = 'Menyimpan...'; btn.disabled = true;
+
+            const promoRadio = document.querySelector('input[name="f_promosi_radio"]:checked');
+            const paketRadio = document.querySelector('input[name="f_paket"]:checked');
+            
+            if (!paketRadio) { Swal.fire('Peringatan', 'Paket Penerbitan belum dipilih.', 'warning'); return; }
+            if (!promoRadio) { Swal.fire('Peringatan', 'Strategi Promosi belum dipilih.', 'warning'); return; }
+
+            const fotoData = base64Files.foto || (isRevisiMode ? dataLama.url_foto : null);
+            const khsData = base64Files.khs || (isRevisiMode ? dataLama.url_khs : null);
+            const kuitansiData = base64Files.kuitansi || (isRevisiMode ? dataLama.url_kuitansi : null);
+
+            if (!fotoData || !khsData || !kuitansiData) {
+                Swal.fire('Peringatan', 'Ada file wajib yang belum diisi.', 'warning'); return;
+            }
+
+            btnSubmit1.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...'; 
+            btnSubmit1.disabled = true;
+
+            const progressBox = document.getElementById('upload-progress-box');
+            progressBox.style.display = 'block';
+            progressBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            const uid = currentUser.uid;
+            const npm = uid.substring(0, 8).toUpperCase();
+            const strategiFinal = (promoRadio.value === 'Lainnya') ? document.getElementById('f_promosi_lain').value : promoRadio.value;
+
+            let urlFoto, urlKhs, urlKuitansi, urlDrafPerjanjian, urlDrafSK;
 
             try {
-                formDataCache = {
-                    uid: currentUser.uid,
-                    status: 'draft_form',
-                    timestamp: serverTimestamp(),
-                    npm: document.getElementById('f_uid').value, // Ambil dari input manual
+                if (base64Files.foto) {
+                    setProgressStep('icon-foto', 'text-foto', 'loading', 'Mengupload foto...');
+                    urlFoto = await uploadFileTunggal(uid, npm, 'foto', base64Files.foto);
+                    setProgressStep('icon-foto', 'text-foto', 'done', 'Foto berhasil diupload ✓');
+                } else {
+                    urlFoto = dataLama.url_foto;
+                    setProgressStep('icon-foto', 'text-foto', 'done', 'Foto dari pengajuan sebelumnya digunakan ✓');
+                }
+
+                if (base64Files.khs) {
+                    setProgressStep('icon-khs', 'text-khs', 'loading', 'Mengupload KHS...');
+                    urlKhs = await uploadFileTunggal(uid, npm, 'khs', base64Files.khs);
+                    setProgressStep('icon-khs', 'text-khs', 'done', 'KHS berhasil diupload ✓');
+                } else {
+                    urlKhs = dataLama.url_khs;
+                    setProgressStep('icon-khs', 'text-khs', 'done', 'KHS dari pengajuan sebelumnya digunakan ✓');
+                }
+
+                if (base64Files.kuitansi) {
+                    setProgressStep('icon-kuitansi', 'text-kuitansi', 'loading', 'Mengupload kuitansi...');
+                    urlKuitansi = await uploadFileTunggal(uid, npm, 'kuitansi', base64Files.kuitansi);
+                    setProgressStep('icon-kuitansi', 'text-kuitansi', 'done', 'Kuitansi berhasil diupload ✓');
+                } else {
+                    urlKuitansi = dataLama.url_kuitansi;
+                    setProgressStep('icon-kuitansi', 'text-kuitansi', 'done', 'Kuitansi dari pengajuan sebelumnya digunakan ✓');
+                }
+
+                setProgressStep('icon-firestore', 'text-firestore', 'loading', 'Membuat draf dokumen...');
+                const metaPayload = {
+                    action: 'generate_drafts',
+                    uid, npm,
                     nama_lengkap: document.getElementById('f_nama').value,
-                    email: document.getElementById('f_email').value,
                     judul_naskah: document.getElementById('f_judul').value,
-                    // Simpan Base64 di database sementara agar tidak hilang saat reload
-                    file_foto: base64Files.foto,
-                    file_khs: base64Files.khs,
-                    file_kuitansi: base64Files.kuitansi
+                    paket: paketRadio.value,
+                    url_foto: urlFoto,
+                    url_khs: urlKhs,
+                    url_kuitansi: urlKuitansi,
                 };
-
-                await setDoc(doc(db, 'sidang_applications', currentUser.uid), formDataCache);
-                Swal.fire('Tersimpan', 'Lanjut ke Tanda Tangan Dokumen', 'success').then(()=> window.location.reload());
-            } catch(err) {
-                Swal.fire('Error', 'Gagal menyimpan.', 'error');
-                btn.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Draf & Lanjut'; btn.disabled = false;
-            }
-        });
-
-        // =====================================
-        // FASE 2: TIMELINE & GENERATE DRAF SURAT
-        // =====================================
-        window.generateDraf = function(jenis) {
-            // Isi template dengan data manual siswa dari cache
-            document.getElementById('pdf_nama_1').innerText = formDataCache.nama_lengkap || "Nama Penulis";
-            document.getElementById('pdf_judul_1').innerText = formDataCache.judul_naskah || "Judul Naskah";
-            document.getElementById('pdf_nama_2').innerText = formDataCache.nama_lengkap || "Nama Penulis";
-            document.getElementById('pdf_judul_2').innerText = formDataCache.judul_naskah || "Judul Naskah";
-
-            const elementId = jenis === 'perjanjian' ? 'template-perjanjian' : 'template-sk';
-            const element = document.getElementById(elementId);
-            element.style.display = 'block'; 
-
-            html2pdf().set({ margin: 15, filename: `Draf_${jenis}.pdf` }).from(element).save().then(() => {
-                element.style.display = 'none'; 
-            });
-        }
-
-        window.selesaikanNode = function(nodeNum) {
-            const key = nodeNum === 1 ? 'perjanjian' : 'sk';
-            if(!base64Files[key]) return Swal.fire('Peringatan', 'Pilih file yang sudah ditandatangani!', 'warning');
-            
-            document.getElementById(`node-${nodeNum}`).classList.add('completed');
-            nodeSelesaiCount++;
-            
-            // Simpan Base64 ke cache lokal (Belum dikirim ke Drive)
-            formDataCache[`file_${key}`] = base64Files[key];
-
-            if(nodeSelesaiCount >= 2) {
-                document.getElementById('node-3').style.opacity = '1';
-                document.getElementById('node-3').style.pointerEvents = 'auto';
-            }
-        }
-
-        document.getElementById('check-final').addEventListener('change', function(e) {
-            document.getElementById('btn-ajukan-final').disabled = !(nodeSelesaiCount >= 2 && e.target.checked);
-        });
-
-        // =====================================
-        // SUBMIT FINAL: KIRIM SEMUA BASE64 KE GOOGLE APPS SCRIPT
-        // =====================================
-        window.ajukanSidangAkhir = async function() {
-            const btn = document.getElementById('btn-ajukan-final');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> MENGUNGGAH KE SERVER...';
-            btn.disabled = true;
-
-            try {
-                // 1. KIRIM KE GOOGLE DRIVE VIA GAS
-                const res = await fetch(GAS_URL, {
+                const resMeta = await fetch(GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify(formDataCache),
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } // CORS aman
+                    body: JSON.stringify(metaPayload),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                const responseMeta = await resMeta.json();
+                
+                urlDrafPerjanjian = responseMeta?.urls?.draf_perjanjian || dataLama?.draf_perjanjian || "";
+                urlDrafSK = responseMeta?.urls?.draf_sk || dataLama?.draf_sk || "";
+
+                await setDoc(doc(db, 'sidang_applications', uid), {
+                    uid,
+                    email: document.getElementById('f_email').value,
+                    nama_lengkap: document.getElementById('f_nama').value,
+                    tempat_lahir: document.getElementById('f_tempat_lahir').value,
+                    tgl_lahir: document.getElementById('f_tgl_lahir').value,
+                    judul_naskah: document.getElementById('f_judul').value,
+                    pen_name: document.getElementById('f_penname').value,
+                    blurb: document.getElementById('f_blurb').value,
+                    instansi: document.getElementById('f_instansi').value,
+                    paket: paketRadio.value,
+                    promosi: strategiFinal,
+                    status: 'pending_tahap1',
+                    timestamp: serverTimestamp(),
+                    url_foto: urlFoto,
+                    url_khs: urlKhs,
+                    url_kuitansi: urlKuitansi,
+                    draf_perjanjian: urlDrafPerjanjian,
+                    draf_sk: urlDrafSK,
+                    reject_reason: ''
                 });
                 
-                const responseGAS = await res.json();
-                if(responseGAS.status !== 'success') throw new Error(responseGAS.message);
+                setProgressStep('icon-firestore', 'text-firestore', 'done', 'Data berhasil disimpan ke database ✓');
 
-                // 2. UPDATE FIREBASE (Ubah Base64 panjang menjadi Link Drive)
-                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
-                    status: 'pending_admin',
-                    url_foto: responseGAS.drive_links.foto || "",
-                    url_khs: responseGAS.drive_links.khs || "",
-                    url_kuitansi: responseGAS.drive_links.kuitansi || "",
-                    url_perjanjian: responseGAS.drive_links.perjanjian || "",
-                    url_sk: responseGAS.drive_links.sk || "",
-                    // Hapus Base64 dari database agar ringan
-                    file_foto: deleteDoc(), 
-                    file_khs: deleteDoc(), 
-                    file_kuitansi: deleteDoc(),
-                    submitted_final_at: serverTimestamp()
+                await Swal.fire('Terkirim!', isRevisiMode ? 'Berkas revisi berhasil dikirim. Menunggu review ulang dari Admin.' : 'Berkas awal sedang diperiksa oleh Tim Redaksi.', 'success');
+                window.location.reload();
+                
+            } catch (err) { 
+                console.error(err);
+                setProgressStep('icon-firestore', 'text-firestore', 'error', 'Error: ' + (err.message || 'Gagal'));
+                Swal.fire('Kesalahan Pengiriman', err.message || 'Gagal terhubung ke server. Cek koneksi dan coba ulangi.', 'error'); 
+                btnSubmit1.innerHTML = isRevisiMode ? '<i class="fa-solid fa-rotate-right"></i> KIRIM ULANG BERKAS YANG DIPERBAIKI' : '<i class="fa-solid fa-paper-plane"></i> KIRIM BERKAS AWAL SEKARANG'; 
+                btnSubmit1.disabled = false; 
+            }
+        });
+
+        // ==========================================
+        // SUBMIT TAHAP 2
+        // ==========================================
+        window.kirimTahap2 = async function() {
+            if(!base64Files.ttd_perjanjian || !base64Files.ttd_sk) {
+                return Swal.fire('Peringatan', 'Harap unggah kedua file TTD terlebih dahulu!', 'warning');
+            }
+            const btn = document.getElementById('btn-kirim-ttd');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...'; 
+            btn.disabled = true;
+
+            const progressTTD = document.getElementById('progress-ttd');
+            progressTTD.style.display = 'block';
+
+            try {
+                const uid = currentUser.uid;
+                const npm = uid.substring(0,8).toUpperCase();
+
+                setProgressStep('icon-ttd-perjanjian', 'text-ttd-perjanjian', 'loading', 'Mengupload TTD Perjanjian...');
+                const urlPerjanjian = await uploadFileTunggal(uid, npm, 'ttd_perjanjian', base64Files.ttd_perjanjian);
+                setProgressStep('icon-ttd-perjanjian', 'text-ttd-perjanjian', 'done', 'TTD Perjanjian terupload ✓');
+
+                setProgressStep('icon-ttd-sk', 'text-ttd-sk', 'loading', 'Mengupload TTD SK...');
+                const urlSK = await uploadFileTunggal(uid, npm, 'ttd_sk', base64Files.ttd_sk);
+                setProgressStep('icon-ttd-sk', 'text-ttd-sk', 'done', 'TTD SK terupload ✓');
+
+                setProgressStep('icon-ttd-firestore', 'text-ttd-firestore', 'loading', 'Menyimpan ke database...');
+                await updateDoc(doc(db, 'sidang_applications', uid), {
+                    status: 'pending_tahap2',
+                    url_perjanjian_final: urlPerjanjian,
+                    url_sk_final: urlSK,
+                    timestamp_ttd: serverTimestamp()
+                });
+                setProgressStep('icon-ttd-firestore', 'text-ttd-firestore', 'done', 'Tersimpan ✓');
+
+                await Swal.fire('Terkirim!', 'Dokumen tanda tangan berhasil dikirim. Menunggu verifikasi Admin.', 'success');
+                window.location.reload();
+                
+            } catch(e) { 
+                console.error(e);
+                Swal.fire('Error', 'Gagal mengirim dokumen: ' + (e.message || 'Coba ulangi.'), 'error'); 
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim Dokumen Final'; 
+                btn.disabled = false; 
+            }
+        };
+
+        // ==========================================
+        // LOAD FOTO KE KARTU
+        // ==========================================
+        function loadFotoKeKartu(urlFoto) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                fotoSudahSiap(img.src);
+            };
+            img.onerror = () => {
+                fetch(urlFoto)
+                    .then(r => r.blob())
+                    .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        fotoSudahSiap(blobUrl);
+                    })
+                    .catch(() => {
+                        console.warn('Tidak bisa load foto kartu, gunakan placeholder.');
+                    });
+            };
+            img.src = urlFoto;
+        }
+
+        function fotoSudahSiap(src) {
+            const cardFoto = document.getElementById('card-foto');
+            const placeholder = document.getElementById('kartu-foto-placeholder');
+            cardFoto.src = src;
+            cardFoto.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+        }
+
+        // ==========================================
+        // CETAK KARTU PNG - PERBAIKAN LENGKAP
+        // ==========================================
+        window.cetakKartuPNG = async function() {
+            const printArea = document.getElementById('kartu-print-area');
+            const container = document.getElementById('kartu-sidang-container');
+            const wrapper = document.getElementById('kartu-wrapper');
+            
+            if (!printArea || !container) {
+                return Swal.fire('Error', 'Elemen kartu tidak ditemukan.', 'error');
+            }
+
+            // Pastikan elemen terlihat dan punya dimensi
+            const currentW = container.offsetWidth || 480;
+            const currentH = container.offsetHeight || Math.round(currentW * 54 / 85.6);
+            
+            if (currentW === 0 || currentH === 0) {
+                return Swal.fire('Error', 'Kartu belum siap. Coba lagi dalam beberapa detik.', 'error');
+            }
+
+            // Output size CR-80 @ 300dpi
+            const OUTPUT_W = 1011;
+            const OUTPUT_H = 638;
+            const scale = OUTPUT_W / currentW;
+
+            Swal.fire({
+                title: 'Menyiapkan kartu...',
+                text: 'Sedang merender kartu berkualitas tinggi.',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                willOpen: () => Swal.showLoading()
+            });
+
+            try {
+                // Preload gambar logo dan foto
+                const logoImg = printArea.querySelector('.kartu-topbar-logo');
+                const fotoImg = document.getElementById('card-foto');
+                
+                // Fungsi untuk convert gambar ke base64 jika perlu
+                const ensureBase64 = async (imgEl) => {
+                    if (!imgEl || !imgEl.src) return null;
+                    try {
+                        // Jika sudah base64, langsung return
+                        if (imgEl.src.startsWith('data:')) return imgEl.src;
+                        
+                        // Jika blob URL, convert ke base64
+                        if (imgEl.src.startsWith('blob:')) {
+                            const response = await fetch(imgEl.src);
+                            const blob = await response.blob();
+                            return new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.readAsDataURL(blob);
+                            });
+                        }
+                        
+                        // Coba fetch dengan CORS
+                        const response = await fetch(imgEl.src, { mode: 'cors' });
+                        const blob = await response.blob();
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (e) {
+                        console.warn('Gagal convert gambar ke base64:', e);
+                        return null;
+                    }
+                };
+
+                // Simpan state asli
+                const originalLogoSrc = logoImg ? logoImg.src : '';
+                const originalFotoSrc = fotoImg ? fotoImg.src : '';
+                const originalFotoDisplay = fotoImg ? fotoImg.style.display : '';
+
+                // Convert gambar ke base64 untuk menghindari CORS issue di html2canvas
+                if (logoImg) {
+                    const logoBase64 = await ensureBase64(logoImg);
+                    if (logoBase64) logoImg.src = logoBase64;
+                }
+                
+                if (fotoImg && fotoImg.style.display !== 'none') {
+                    const fotoBase64 = await ensureBase64(fotoImg);
+                    if (fotoBase64) fotoImg.src = fotoBase64;
+                }
+
+                // Tunggu sebentar untuk memastikan gambar ter-render
+                await new Promise(r => setTimeout(r, 100));
+
+                const canvas = await html2canvas(printArea, {
+                    scale: scale,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#020617',
+                    width: currentW,
+                    height: currentH,
+                    logging: false,
+                    imageTimeout: 15000,
+                    removeContainer: true
                 });
 
-                Swal.fire('Selesai!', 'Berkas berhasil diarsipkan ke Google Drive Redaksi.', 'success').then(() => window.location.reload());
+                // Restore state asli
+                if (logoImg) logoImg.src = originalLogoSrc;
+                if (fotoImg) {
+                    fotoImg.src = originalFotoSrc;
+                    fotoImg.style.display = originalFotoDisplay;
+                }
 
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Error', 'Gagal mengunggah file ke Google Drive. Pastikan script URL GAS benar.', 'error');
-                btn.innerHTML = '<i class="fa-solid fa-gavel"></i> AJUKAN SIDANG KE REDAKSI';
-                btn.disabled = false;
+                // Buat canvas output dengan ukuran CR-80
+                const outCanvas = document.createElement('canvas');
+                outCanvas.width = OUTPUT_W;
+                outCanvas.height = OUTPUT_H;
+                const ctx = outCanvas.getContext('2d');
+                
+                // Fill background
+                ctx.fillStyle = '#020617';
+                ctx.fillRect(0, 0, OUTPUT_W, OUTPUT_H);
+                
+                // Draw rendered canvas
+                ctx.drawImage(canvas, 0, 0, OUTPUT_W, OUTPUT_H);
+
+                // Download
+                const link = document.createElement('a');
+                link.download = 'Kartu_Sidang_' + currentUser.uid.substring(0,8).toUpperCase() + '.png';
+                link.href = outCanvas.toDataURL('image/png', 1.0);
+                link.click();
+
+                Swal.close();
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: 'Kartu sidang berhasil diunduh.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+            } catch (err) {
+                console.error('html2canvas error:', err);
+                Swal.fire('Gagal', 'Tidak bisa mengunduh kartu: ' + (err.message || 'Error tidak diketahui'), 'error');
             }
-        }
+        };
     </script>
 </body>
 </html>
