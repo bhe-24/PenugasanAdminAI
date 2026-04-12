@@ -3,311 +3,426 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ruang Sidang - Cendekia Aksara</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Sidang Akhir - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
+        /* --- 1. VARIABLES (Standar Cendekia) --- */
         :root {
-            --primary: #003366; 
-            --accent: #eab308; 
-            --success: #28a745;
-            --danger: #dc3545;
-            --bg: #f4f7f6;
-            --text: #333333;
-            --border: #e0e0e0;
+            --navy-dark: #020617;
+            --navy-light: #1e3a8a;
+            --accent: #3b82f6;
+            --gold: #eab308;
+            --bg: #f8fafc;
+            --text-dark: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #e2e8f0;
         }
 
-        * { box-sizing: border-box; outline: none; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif;}
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        body { 
-            background-color: var(--bg); 
-            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
-            color: var(--text); 
-            min-height: 100vh; 
-            padding-bottom: 50px;
+        body {
+            background-color: var(--bg);
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-dark);
+            margin: 0; padding-bottom: 40px;
         }
 
-        .navbar {
-            background: var(--primary);
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            border-bottom: 3px solid var(--accent);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none !important; }
+
+        /* --- 2. NAVIGATION --- */
+        .nav-top { margin-bottom: 20px; }
+        .btn-dashboard {
+            text-decoration: none; color: var(--text-dark); font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: white; padding: 10px 20px; border-radius: 50px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; border: 1px solid var(--border);
         }
+        .btn-dashboard:hover { transform: translateX(-3px); border-color: var(--accent); color: var(--accent); }
+
+        /* --- 3. HEADER SIDANG --- */
+        .profile-card {
+            background: white; border-radius: 20px; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 25px;
+        }
+        .profile-header {
+            background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-light) 100%);
+            padding: 40px 20px; text-align: center; position: relative;
+        }
+        .profile-header::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 10px);
+            pointer-events: none;
+        }
+        .kop-logo {
+            width: 80px; height: 80px; margin: 0 auto 15px; position: relative; z-index: 2;
+            background: white; border-radius: 50%; padding: 5px; box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .kop-logo img { width: 100%; height: 100%; object-fit: contain; }
+        .user-info { position: relative; z-index: 2; }
+        .user-info h2 { margin: 0; font-size: 1.8rem; font-family: 'Playfair Display', serif; color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.3); letter-spacing: 0.5px;}
+        .user-info p { margin: 5px 0 0; color: #cbd5e1; font-size: 0.95rem; font-weight: 400; }
+
+        /* --- 4. FORM STEPS & INPUTS --- */
+        .view-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .form-wrapper { padding: 30px; }
+        .step-card { display: none; }
+        .step-card.active-step { display: block; }
         
-        .nav-brand { display: flex; align-items: center; gap: 15px; }
-        .nav-brand img { width: 45px; height: 45px; background: white; border-radius: 50%; padding: 2px; }
-        .nav-brand h1 { font-family: 'Playfair Display', serif; color: white; font-size: 1.5rem; margin: 0; }
-        .nav-brand h1 span { color: var(--accent); }
-        
-        .btn-kembali {
-            background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600;
-            display: flex; align-items: center; gap: 6px;
+        .section-label {
+            font-size: 0.95rem; font-weight: 700; color: var(--navy-light);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 25px;
+            display: flex; align-items: center; gap: 10px;
         }
+        .section-label span { color: var(--text-dark); background: #f1f5f9; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; }
+        .section-label::after { content:''; flex:1; height:2px; background:var(--border); }
 
-        .container { max-width: 800px; margin: 30px auto; padding: 0 15px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; }
+        .form-group label .req { color: var(--danger); }
+        .full-width { grid-column: 1 / -1; }
 
-        .card { 
-            background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
-            padding: 30px; margin-bottom: 20px; border: 1px solid var(--border); display: none;
-            animation: slideUp 0.4s ease;
+        .form-input {
+            width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 10px;
+            font-family: inherit; font-size: 0.95rem; transition: 0.3s; background: #f8fafc;
         }
-        .card.active { display: block; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .form-input:focus { background: white; border-color: var(--navy-light); box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.1); }
+        .form-input.locked { background: #e2e8f0; color: #64748b; cursor: not-allowed; border-color: #cbd5e1; font-weight: 500;}
 
-        .step-header { display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 20px; }
-        .step-header h2 { color: var(--primary); font-size: 1.2rem; font-weight: 700; margin: 0; }
-
-        .form-group { margin-bottom: 15px; }
-        .form-label { display: block; font-weight: 600; font-size: 0.85rem; color: #444; margin-bottom: 6px; }
-        .req { color: var(--danger); }
-        .form-control { width: 100%; padding: 12px 15px; border: 2px solid #eee; border-radius: 8px; font-size: 0.95rem; }
-        .form-control.locked { background: #f1f5f9; color: #666; cursor: not-allowed; font-weight: 600; }
-
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-
-        .file-upload-box { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 8px; background: #f8fafc; cursor: pointer; position: relative;}
+        /* FILE UPLOAD BOX */
+        .file-upload-box {
+            border: 2px dashed #cbd5e1; padding: 20px; text-align: center; border-radius: 10px; 
+            background: #f8fafc; transition: 0.3s; cursor: pointer; position: relative; overflow: hidden;
+        }
+        .file-upload-box:hover { border-color: var(--accent); background: #eff6ff; }
         .file-upload-box input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .file-name-display { font-size: 0.8rem; color: var(--success); font-weight: 600; margin-top: 10px; display: none;}
+        .file-upload-box i { font-size: 2rem; color: var(--navy-light); margin-bottom: 10px; }
+        .file-upload-box p { margin: 0; font-size: 0.85rem; font-weight: 500; color: var(--text-dark); }
+        .file-name-display { font-size: 0.8rem; color: var(--navy-light); font-weight: 600; margin-top: 10px; padding: 5px; border-radius: 5px; background: #e0e7ff;}
 
-        .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; gap: 10px; }
-        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-outline { background: white; border: 2px solid #e0e0e0; color: #555; }
-        .btn-success { background: var(--success); color: white; }
+        /* BUTTONS */
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 30px; gap: 15px;}
+        .btn {
+            padding: 14px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 0.95rem; border: none;
+        }
+        .btn-outline { background: white; border: 1px solid #cbd5e1; color: var(--text-dark); }
+        .btn-outline:hover { background: #f1f5f9; border-color: var(--text-dark); }
+        .btn-primary { background: var(--navy-light); color: white; flex: 1; box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2);}
+        .btn-primary:hover { background: var(--navy-dark); transform: translateY(-2px); }
+        .btn-success { background: var(--success); color: white; flex: 1;}
+        .btn-success:hover { background: #059669; transform: translateY(-2px); }
 
-        /* ID CARD VIRTUAL */
-        .id-card { background: #fff; border-radius: 12px; border: 2px solid var(--primary); width: 100%; max-width: 400px; margin: 0 auto; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);}
-        .id-header { background: var(--primary); padding: 15px; color: white; display: flex; align-items: center; gap: 12px; }
-        .id-header img { width: 35px; height: 35px; }
-        .id-body { padding: 20px; display: flex; gap: 15px; background: #fff; }
-        .id-photo { width: 80px; height: 110px; background: #eee; border: 2px solid var(--primary); border-radius: 4px; overflow: hidden; }
-        .id-photo img { width: 100%; height: 100%; object-fit: cover; }
-        .id-label { font-size: 0.6rem; color: #888; text-transform: uppercase; font-weight: 700; }
-        .id-value { font-size: 0.9rem; font-weight: 600; color: var(--primary); margin-bottom: 8px; }
-
-        .timeline { border-left: 2px solid #ccc; padding-left: 20px; margin-left: 10px; margin-top: 20px;}
-        .tl-item { position: relative; margin-bottom: 25px; background: white; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; }
-        .tl-dot { position: absolute; left: -29px; top: 15px; width: 16px; height: 16px; background: white; border: 3px solid #ccc; border-radius: 50%; }
+        /* --- 5. TIMELINE PEMBERKASAN --- */
+        .timeline { margin-top: 10px; border-left: 2px solid var(--border); padding-left: 20px; margin-left: 10px;}
+        .tl-item { position: relative; margin-bottom: 25px; background: white; padding: 20px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+        .tl-dot { position: absolute; left: -30px; top: 20px; width: 18px; height: 18px; background: white; border: 3px solid #cbd5e1; border-radius: 50%; transition: 0.3s;}
         .tl-item.completed { border-color: var(--success); background: #f0fdf4;}
         .tl-item.completed .tl-dot { background: var(--success); border-color: var(--success); }
+        
+        .tl-item h4 { color: var(--navy-dark); font-size: 1.05rem; margin: 0 0 5px 0; font-weight: 600;}
+        .tl-item p { font-size: 0.85rem; color: #64748b; margin-bottom: 15px; line-height: 1.4;}
+        .tl-actions { display: flex; flex-direction: column; gap: 10px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1;}
+        @media (min-width: 600px) { .tl-actions { flex-direction: row; align-items: center; } }
 
-        .status-box { text-align: center; padding: 40px 20px; background: white; border-radius: 12px; border: 1px solid #e0e0e0;}
+        /* --- 6. KARTU SIDANG VIRTUAL --- */
+        .id-card { background: linear-gradient(135deg, #020617 0%, #1e3a8a 100%); border-radius: 16px; padding: 0; color: white; overflow: hidden; box-shadow: 0 10px 25px rgba(30,58,138,0.2); position: relative; border: 2px solid var(--gold); width: 100%; max-width: 450px; margin: 0 auto;}
+        .id-header { background: rgba(0,0,0,0.2); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .id-brand { display: flex; align-items: center; gap: 12px; }
+        .id-logo-circle { width: 35px; height: 35px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 3px;}
+        .id-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+        .id-brand h3 { font-family: 'Playfair Display', serif; font-size: 1.05rem; margin: 0; color: white;}
+        .id-brand span { font-size: 0.6rem; color: var(--gold); letter-spacing: 1px; font-weight: 600;}
+        
+        .id-body { padding: 25px 20px; display: flex; gap: 15px; position: relative; z-index: 2; align-items: center;}
+        .id-photo { width: 85px; height: 115px; background: #fff; border: 2px solid var(--gold); border-radius: 8px; overflow: hidden; flex-shrink: 0;}
+        .id-photo img { width: 100%; height: 100%; object-fit: cover; }
+        .id-details { flex: 1; }
+        .id-label { font-size: 0.65rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; font-weight: 600;}
+        .id-value { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; line-height: 1.3;}
+        .id-value.highlight { color: var(--gold); font-family: 'Playfair Display', serif; font-size: 1.15rem; }
+
+        /* --- 7. STATUS PANELS --- */
+        .status-box { text-align: center; padding: 50px 20px; }
+        .status-box i { font-size: 4rem; margin-bottom: 20px; }
+        .status-box h2 { font-size: 1.5rem; color: var(--navy-dark); margin-bottom: 10px; }
+        .status-box p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; max-width: 500px; margin: 0 auto 20px; }
+
+        /* LOADING */
+        #loading { text-align: center; padding: 80px 20px; }
+        .spinner { width: 50px; height: 50px; border: 4px solid var(--border); border-top-color: var(--navy-light); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px;}
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .container { padding: 15px; margin-top: 10px; }
+            .form-wrapper { padding: 20px 15px; }
+            .form-grid { grid-template-columns: 1fr; gap: 15px; }
+            .nav-buttons { flex-direction: column-reverse; }
+            .btn { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="nav-brand">
-            <img src="https://imgur.com/5Srjyo4.png" alt="Logo Cendekia">
-            <h1>Ruang <span>Sidang</span></h1>
-        </div>
-        <a href="/dashboard/inkubasi.html" class="btn-kembali"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
-    </nav>
-
     <div class="container">
-        
-        <div id="fase-formulir">
-            <form id="sidang-form">
-                
-                <div class="card active" id="step-1">
-                    <div class="step-header">
-                        <h2>Identitas Penulis</h2>
-                        <span>1/5</span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">ID Siswa / NPM</label>
-                        <input type="text" id="f_uid" class="form-control locked" value="Memuat ID..." readonly>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Nama Lengkap</label>
-                        <input type="text" id="f_nama" class="form-control locked" value="Memuat Nama..." readonly>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Semester Saat Ini</label>
-                        <input type="text" id="f_semester" class="form-control locked" value="Memuat Semester..." readonly>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Tempat Lahir <span class="req">*</span></label>
-                            <input type="text" id="f_tempat_lahir" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Tanggal Lahir <span class="req">*</span></label>
-                            <input type="date" id="f_tgl_lahir" class="form-control" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Pas Foto Formal <span class="req">*</span></label>
-                        <div class="file-upload-box" id="box-foto">
-                            <i class="fa-solid fa-camera" style="font-size: 2rem; color: var(--primary); margin-bottom: 10px;"></i>
-                            <p style="font-weight:600; font-size: 0.85rem;">Ketuk untuk memilih foto</p>
-                            <input type="file" id="f_foto" accept="image/*" required onchange="handleFileSelect('f_foto', 'box-foto')">
-                            <div class="file-name-display" id="name-f_foto"></div>
-                        </div>
-                    </div>
-                    <div class="nav-buttons" style="justify-content: flex-end;">
-                        <button type="button" class="btn btn-primary" onclick="nextStep(1)">Lanjut <i class="fa-solid fa-arrow-right"></i></button>
-                    </div>
-                </div>
-
-                <div class="card" id="step-2">
-                    <div class="step-header"><h2>Metadata Naskah</h2><span>2/5</span></div>
-                    <div class="form-group">
-                        <label class="form-label">Judul Naskah Final</label>
-                        <input type="text" id="f_judul" class="form-control locked" value="Memuat Judul..." readonly>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Nama Pena</label>
-                        <input type="text" id="f_penname" class="form-control locked" value="Memuat Nama Pena..." readonly>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Sinopsis / Blurb Buku <span class="req">*</span></label>
-                        <textarea id="f_blurb" class="form-control" rows="4" required></textarea>
-                    </div>
-                    <div class="nav-buttons">
-                        <button type="button" class="btn btn-outline" onclick="prevStep(2)">Kembali</button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">Lanjut</button>
-                    </div>
-                </div>
-
-                <div class="card" id="step-3">
-                    <div class="step-header"><h2>Unggah Berkas</h2><span>3/5</span></div>
-                    <div class="form-group">
-                        <label class="form-label">Asal Komunitas / Institusi <span class="req">*</span></label>
-                        <input type="text" id="f_instansi" class="form-control" placeholder="Misal: Cendekia Aksara Pusat" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Unggah KHS (PDF/JPG) <span class="req">*</span></label>
-                        <div class="file-upload-box" id="box-khs">
-                            <input type="file" id="f_khs" accept="application/pdf,image/*" required onchange="handleFileSelect('f_khs', 'box-khs')">
-                            <span id="name-f_khs">Pilih File...</span>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Unggah Kuitansi (PDF/JPG) <span class="req">*</span></label>
-                        <div class="file-upload-box" id="box-kuitansi">
-                            <input type="file" id="f_kuitansi" accept="application/pdf,image/*" required onchange="handleFileSelect('f_kuitansi', 'box-kuitansi')">
-                            <span id="name-f_kuitansi">Pilih File...</span>
-                        </div>
-                    </div>
-                    <div class="nav-buttons">
-                        <button type="button" class="btn btn-outline" onclick="prevStep(3)">Kembali</button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(3)">Lanjut</button>
-                    </div>
-                </div>
-
-                <div class="card" id="step-4">
-                    <div class="step-header"><h2>Strategi</h2><span>4/5</span></div>
-                    <div class="form-group">
-                        <label class="form-label">Paket Penerbitan <span class="req">*</span></label>
-                        <select id="f_paket" class="form-control" required>
-                            <option value="">Pilih Paket...</option>
-                            <option value="Reguler">Reguler (Cetak Standar)</option>
-                            <option value="Eksklusif">Eksklusif (Hardcover)</option>
-                            <option value="Digital">Digital (E-Book)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Strategi Promosi <span class="req">*</span></label>
-                        <textarea id="f_promosi" class="form-control" rows="3" required></textarea>
-                    </div>
-                    <div class="nav-buttons">
-                        <button type="button" class="btn btn-outline" onclick="prevStep(4)">Kembali</button>
-                        <button type="button" class="btn btn-primary" onclick="nextStep(4)">Lanjut</button>
-                    </div>
-                </div>
-
-                <div class="card" id="step-5">
-                    <div class="step-header"><h2>Pernyataan</h2><span>5/5</span></div>
-                    <div style="background: #fef2f2; border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <p style="color: #991b1b; font-size: 0.8rem;">Saya menjamin seluruh data asli dan naskah 100% orisinal.</p>
-                    </div>
-                    <label style="display: flex; gap: 10px; margin-bottom: 15px; cursor: pointer;">
-                        <input type="checkbox" required style="width: 18px;"> 
-                        <span style="font-size: 0.85rem;">Saya menyetujui syarat & ketentuan Cendekia Aksara.</span>
-                    </label>
-                    <div class="nav-buttons">
-                        <button type="button" class="btn btn-outline" onclick="prevStep(5)">Kembali</button>
-                        <button type="submit" class="btn btn-success" id="btn-submit-form"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan Data</button>
-                    </div>
-                </div>
-            </form>
+        <div class="nav-top">
+            <a href="/dashboard/inkubasi.html" class="btn-dashboard">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
         </div>
 
-        <div id="fase-timeline" style="display:none;">
-            <div class="card active">
-                <h2 style="color: var(--primary); margin-bottom: 15px;">Finalisasi Dokumen</h2>
+        <div class="profile-card">
+            <div class="profile-header">
+                <div class="kop-logo"><img src="https://imgur.com/5Srjyo4.png" alt="Logo Cendekia"></div>
+                <div class="user-info">
+                    <h2>Ruang Sidang Naskah</h2>
+                    <p>Sistem Administrasi & Pemberkasan Akhir Cendekia Aksara</p>
+                </div>
+            </div>
+
+            <div id="loading">
+                <div class="spinner"></div>
+                <p style="color: var(--text-muted); font-weight: 500;">Memuat data sistem...</p>
+            </div>
+
+            <div class="form-wrapper view-section" id="view-form">
+                <form id="sidang-form">
+                    
+                    <div class="step-card active-step" id="step-1">
+                        <div class="section-label">Identitas Penulis <span>1/5</span></div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>Nama Lengkap (Terkunci)</label>
+                                <input type="text" id="f_nama" class="form-input locked" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Tempat Lahir <span class="req">*</span></label>
+                                <input type="text" id="f_tempat_lahir" class="form-input" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Tanggal Lahir <span class="req">*</span></label>
+                                <input type="date" id="f_tgl_lahir" class="form-input" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Unggah Pas Foto Formal <span class="req">*</span></label>
+                                <div class="file-upload-box" id="box-foto">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <p>Ketuk untuk memilih dari Galeri/File</p>
+                                    <input type="file" id="f_foto" accept="image/*" onchange="handleFileSelect('f_foto', 'box-foto')" required>
+                                    <div class="file-name-display hidden" id="name-f_foto"></div>
+                                    <canvas id="foto-canvas" class="hidden"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="nav-buttons" style="justify-content: flex-end;">
+                            <button type="button" class="btn btn-primary" onclick="nextStep(1)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="step-card" id="step-2">
+                        <div class="section-label">Metadata Naskah <span>2/5</span></div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>Judul Naskah Final</label>
+                                <input type="text" id="f_judul" class="form-input locked" readonly>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Sinopsis / Blurb Sampul <span class="req">*</span></label>
+                                <textarea id="f_blurb" class="form-input" rows="4" placeholder="Tuliskan sinopsis belakang buku Anda..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-outline" onclick="prevStep(2)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(2)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="step-card" id="step-3">
+                        <div class="section-label">Berkas Administrasi <span>3/5</span></div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>Asal Komunitas / Regional <span class="req">*</span></label>
+                                <input type="text" id="f_instansi" class="form-input" placeholder="Contoh: Cendekia Aksara Pusat" required>
+                            </div>
+                            <div class="form-group">
+                                <label>File KHS (PDF/JPG) <span class="req">*</span></label>
+                                <div class="file-upload-box" id="box-khs" style="padding: 15px;">
+                                    <i class="fa-solid fa-file-pdf" style="font-size: 1.5rem;"></i>
+                                    <p style="font-size: 0.75rem;">Pilih File KHS</p>
+                                    <input type="file" id="f_khs" accept="application/pdf,image/*" onchange="handleFileSelect('f_khs', 'box-khs')" required>
+                                    <div class="file-name-display hidden" id="name-f_khs"></div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>File Kuitansi (PDF/JPG) <span class="req">*</span></label>
+                                <div class="file-upload-box" id="box-kuitansi" style="padding: 15px;">
+                                    <i class="fa-solid fa-receipt" style="font-size: 1.5rem;"></i>
+                                    <p style="font-size: 0.75rem;">Pilih Bukti Transfer</p>
+                                    <input type="file" id="f_kuitansi" accept="application/pdf,image/*" onchange="handleFileSelect('f_kuitansi', 'box-kuitansi')" required>
+                                    <div class="file-name-display hidden" id="name-f_kuitansi"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-outline" onclick="prevStep(3)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(3)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="step-card" id="step-4">
+                        <div class="section-label">Penerbitan <span>4/5</span></div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label>Paket Penerbitan <span class="req">*</span></label>
+                                <select id="f_paket" class="form-input" required>
+                                    <option value="">Pilih Paket...</option>
+                                    <option value="Reguler">Reguler (Buku Cetak)</option>
+                                    <option value="Eksklusif">Eksklusif (Hardcover)</option>
+                                    <option value="Digital">Digital (E-Book)</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Strategi Promosi Pribadi <span class="req">*</span></label>
+                                <textarea id="f_promosi" class="form-input" rows="3" placeholder="Rencana promosi karya Anda..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-outline" onclick="prevStep(4)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                            <button type="button" class="btn btn-primary" onclick="nextStep(4)">Selanjutnya <i class="fa-solid fa-arrow-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="step-card" id="step-5">
+                        <div class="section-label">Pernyataan Hukum <span>5/5</span></div>
+                        
+                        <div style="background: #fef2f2; border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="color: #b91c1c; font-size: 0.9rem; margin-bottom: 5px;"><i class="fa-solid fa-scale-unbalanced"></i> Peringatan Legalitas</h4>
+                            <p style="color: #991b1b; font-size: 0.8rem; line-height: 1.5; margin: 0;">Cendekia Aksara adalah komunitas literasi non-formal. Segala bentuk berkas yang dilampirkan tetap menjadi hak pribadi siswa dan tidak akan disalahgunakan.</p>
+                        </div>
+
+                        <div style="margin-bottom: 25px;">
+                            <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;">
+                                <input type="checkbox" required style="margin-top: 3px; width: 16px; height: 16px;">
+                                <span style="font-size: 0.85rem; line-height: 1.4;">Saya menjamin bahwa seluruh data dan file yang diunggah adalah asli.</span>
+                            </label>
+                            <label style="display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 12px; background: var(--bg); border-radius: 8px;">
+                                <input type="checkbox" required style="margin-top: 3px; width: 16px; height: 16px;">
+                                <span style="font-size: 0.85rem; line-height: 1.4;">Naskah ini 100% orisinal, bebas plagiasi, dan saya mematuhi aturan sidang.</span>
+                            </label>
+                        </div>
+
+                        <div class="nav-buttons">
+                            <button type="button" class="btn btn-outline" onclick="prevStep(5)"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+                            <button type="submit" class="btn btn-success" id="btn-submit-form"><i class="fa-solid fa-upload"></i> Simpan Data</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-wrapper view-section" id="view-timeline">
+                <div class="section-label">Finalisasi Dokumen <span>Tanda Tangan</span></div>
+                
                 <div class="timeline">
                     <div class="tl-item" id="node-1">
                         <div class="tl-dot"></div>
                         <h4>1. Surat Perjanjian Penerbitan</h4>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <input type="file" id="f_perjanjian" style="font-size: 0.7rem;" onchange="handleFileSelect('f_perjanjian', 'node-1')">
-                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="selesaikanNode(1)">Simpan</button>
+                        <p>Unduh, tandatangani, dan unggah kembali PDF/JPG surat perjanjian.</p>
+                        <div class="tl-actions">
+                            <a href="#" class="btn btn-outline" style="font-size: 0.8rem; padding: 8px 12px;"><i class="fa-solid fa-download"></i> Unduh Draf</a>
+                            <div class="file-upload-box" id="box-perjanjian" style="padding: 10px; flex:1; margin:0;">
+                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-file-arrow-up"></i> Pilih File Tertanda Tangan</span>
+                                <input type="file" id="f_perjanjian" accept="application/pdf,image/*" onchange="handleFileSelect('f_perjanjian', 'box-perjanjian')">
+                                <div class="file-name-display hidden" id="name-f_perjanjian"></div>
+                            </div>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 8px 12px;" onclick="selesaikanNode(1)">Simpan</button>
                         </div>
                     </div>
+
                     <div class="tl-item" id="node-2">
                         <div class="tl-dot"></div>
-                        <h4>2. Surat Keputusan Kelayakan</h4>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <input type="file" id="f_sk" style="font-size: 0.7rem;" onchange="handleFileSelect('f_sk', 'node-2')">
-                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="selesaikanNode(2)">Simpan</button>
+                        <h4>2. SK Kelayakan Sidang</h4>
+                        <p>Lembar persetujuan untuk mematuhi seluruh peraturan sidang.</p>
+                        <div class="tl-actions">
+                            <a href="#" class="btn btn-outline" style="font-size: 0.8rem; padding: 8px 12px;"><i class="fa-solid fa-download"></i> Unduh Draf</a>
+                            <div class="file-upload-box" id="box-sk" style="padding: 10px; flex:1; margin:0;">
+                                <span style="font-size:0.8rem; font-weight:600;"><i class="fa-solid fa-file-arrow-up"></i> Pilih File SK Tertanda Tangan</span>
+                                <input type="file" id="f_sk" accept="application/pdf,image/*" onchange="handleFileSelect('f_sk', 'box-sk')">
+                                <div class="file-name-display hidden" id="name-f_sk"></div>
+                            </div>
+                            <button class="btn btn-primary" style="font-size: 0.8rem; padding: 8px 12px;" onclick="selesaikanNode(2)">Simpan</button>
                         </div>
                     </div>
+
                     <div class="tl-item" id="node-3" style="opacity: 0.5; pointer-events: none;">
                         <div class="tl-dot"></div>
                         <h4 style="margin-bottom: 15px;">3. Kartu Sidang Virtual</h4>
-                        <div class="id-card">
+                        
+                        <div class="id-card" id="kartu-sidang-print">
                             <div class="id-header">
-                                <img src="https://imgur.com/5Srjyo4.png" alt="Logo">
-                                <div style="font-family: 'Playfair Display', serif;">Cendekia Aksara</div>
+                                <div class="id-brand">
+                                    <div class="id-logo-circle"><img src="https://imgur.com/5Srjyo4.png" alt="Logo"></div>
+                                    <div>
+                                        <h3 style="color:white; font-size:1.05rem;">Cendekia Aksara</h3>
+                                        <span>KARTU SIDANG KELAYAKAN</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="id-body">
-                                <div class="id-photo"><img id="id_foto_render" src=""></div>
-                                <div>
+                                <div class="id-photo"><img id="id_foto_render" src="" alt="Foto"></div>
+                                <div class="id-details">
                                     <div class="id-label">Nama Penulis</div>
                                     <div class="id-value" id="id_nama">-</div>
                                     <div class="id-label">Judul Naskah</div>
-                                    <div class="id-value" id="id_judul" style="color:var(--accent)">-</div>
-                                    <div class="id-label">ID / NPM</div>
-                                    <div class="id-value" id="id_npm">-</div>
+                                    <div class="id-value highlight" id="id_judul">-</div>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.1);">
+                                        <div><div class="id-label">ID / NPM</div><div class="id-value" style="font-size: 0.85rem;" id="id_npm">-</div></div>
+                                        <div style="text-align:right;"><div class="id-label">Tahun</div><div class="id-value highlight" style="font-size: 1rem;" id="id_tahun">-</div></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div style="margin-top:20px;">
-                    <button class="btn btn-success" id="btn-ajukan-final" style="width:100%" onclick="ajukanSidangAkhir()" disabled>AJUKAN SIDANG KE REDAKSI</button>
+
+                <div style="margin-top: 30px; text-align: center; border-top: 2px dashed var(--border); padding-top: 20px;">
+                    <label style="display: flex; gap: 10px; justify-content: center; cursor: pointer; margin-bottom: 15px;">
+                        <input type="checkbox" id="check-final" style="width: 18px; height: 18px;">
+                        <span style="font-size: 0.9rem; font-weight: 600;">Seluruh pemberkasan telah saya selesaikan.</span>
+                    </label>
+                    <button class="btn btn-success" id="btn-ajukan-final" style="width: 100%; font-size: 1.05rem;" onclick="ajukanSidangAkhir()" disabled>
+                        <i class="fa-solid fa-gavel"></i> AJUKAN SIDANG KE REDAKSI
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <div class="status-box" id="panel-waiting" style="display:none;">
-            <i class="fa-solid fa-hourglass-half" style="font-size: 40px; color: var(--accent); margin-bottom: 15px;"></i>
-            <h2>Dossier Sedang Divalidasi</h2>
-            <p>Tim Redaksi sedang memeriksa berkas Anda.</p>
-        </div>
+            <div class="form-wrapper view-section" id="view-waiting">
+                <div class="status-box">
+                    <i class="fa-solid fa-hourglass-half" style="color: var(--gold);"></i>
+                    <h2>Dossier Sedang Divalidasi</h2>
+                    <p>Berkas pendaftaran Anda telah berhasil dikirim ke meja Redaksi dan sedang dalam antrean pemeriksaan. Jadwal sidang akan diinformasikan kemudian.</p>
+                </div>
+            </div>
 
-        <div class="status-box" id="panel-rejected" style="display:none;">
-            <i class="fa-solid fa-circle-xmark" style="font-size: 40px; color: var(--danger); margin-bottom: 15px;"></i>
-            <h2 style="color: var(--danger);">Berkas Dikembalikan</h2>
-            <p id="reject-reason" style="margin-bottom: 20px;">-</p>
-            <button class="btn btn-primary" onclick="resetForm()">Perbaiki Berkas</button>
-        </div>
+            <div class="form-wrapper view-section" id="view-rejected">
+                <div class="status-box">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i>
+                    <h2 style="color: var(--danger);">Berkas Dikembalikan</h2>
+                    <p id="reject-reason" style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px dashed #fca5a5; font-weight: 500; color: #991b1b; margin-bottom: 20px;">Terdapat kesalahan pada file unggahan Anda.</p>
+                    <button class="btn btn-primary" onclick="resetForm()"><i class="fa-solid fa-pen-to-square"></i> Perbaiki Pendaftaran</button>
+                </div>
+            </div>
 
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -318,97 +433,152 @@
         let currentUser = null;
         let base64Files = { foto: null, khs: null, kuitansi: null, perjanjian: null, sk: null };
 
+        // INIT DENGAN BLOK TRY-CATCH-FINALLY UNTUK LOADING SCREEN
         (async () => {
             try {
                 currentUser = await checkAuth('siswa');
-                if(currentUser) await loadDataAwal();
-            } catch (e) { console.error("Auth error:", e); }
+                if(currentUser) {
+                    await loadDataAwal();
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                Swal.fire('Sistem Gagal', 'Silakan refresh halaman.', 'error');
+            } finally {
+                // WAJIB: Sembunyikan loading screen di akhir, apapun yang terjadi
+                document.getElementById('loading').classList.add('hidden');
+            }
         })();
 
+        // FUNGSI TARIK DATA
         async function loadDataAwal() {
             try {
-                // Ambil semua data secara pararel
-                const [pitchSnap, authorSnap, userSnap, sidangSnap] = await Promise.all([
-                    getDoc(doc(db, 'pitching_projects', currentUser.uid)),
-                    getDoc(doc(db, 'author_profiles', currentUser.uid)),
-                    getDoc(doc(db, 'users', currentUser.uid)),
-                    getDoc(doc(db, 'sidang_applications', currentUser.uid))
-                ]);
+                const pitchSnap = await getDoc(doc(db, 'pitching_projects', currentUser.uid));
+                const authorSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
+                const userSnap = await getDoc(doc(db, 'users', currentUser.uid)); 
+                const sidangSnap = await getDoc(doc(db, 'sidang_applications', currentUser.uid));
 
                 if (!pitchSnap.exists() || !authorSnap.exists()) {
-                    await Swal.fire('Terkunci', 'Selesaikan naskah di Studio Menulis dulu!', 'warning');
+                    await Swal.fire('Akses Ditolak', 'Naskah Studio Anda belum lengkap!', 'warning');
                     window.location.href = '/dashboard/inkubasi.html';
                     return;
                 }
 
-                // Penentuan Nama & ID (Fallback aman)
-                const namaValid = userSnap.exists() ? userSnap.data().name : (authorSnap.exists() ? authorSnap.data().real_name : (currentUser.displayName || "Siswa Cendekia"));
-                const npmSiswa = currentUser.uid.substring(0, 8).toUpperCase();
-                const semesterSiswa = userSnap.exists() ? (userSnap.data().semester || "4") : "4";
+                // Logika Anti-Nama Kosong
+                let namaValid = currentUser.name || "Nama Tidak Ditemukan";
+                if (userSnap.exists() && userSnap.data().name) namaValid = userSnap.data().name;
+                if (authorSnap.exists() && authorSnap.data().real_name) namaValid = authorSnap.data().real_name;
 
+                // Tentukan Tampilan Berdasarkan Status Firebase
                 if (sidangSnap.exists()) {
                     const status = sidangSnap.data().status;
-                    document.getElementById('fase-formulir').style.display = 'none';
 
                     if (status === 'draft_form') {
-                        document.getElementById('fase-timeline').style.display = 'block';
+                        document.getElementById('view-timeline').classList.add('active');
+                        
+                        // Isi data kartu dari database
                         document.getElementById('id_nama').innerText = sidangSnap.data().nama_lengkap;
                         document.getElementById('id_judul').innerText = sidangSnap.data().judul_naskah;
-                        document.getElementById('id_npm').innerText = npmSiswa;
+                        document.getElementById('id_npm').innerText = currentUser.uid.substring(0, 8).toUpperCase();
+                        document.getElementById('id_tahun').innerText = new Date().getFullYear();
                         if(sidangSnap.data().url_foto) document.getElementById('id_foto_render').src = sidangSnap.data().url_foto;
                     } 
-                    else if (status === 'pending_admin') document.getElementById('panel-waiting').style.display = 'block';
+                    else if (status === 'pending_admin') {
+                        document.getElementById('view-waiting').classList.add('active');
+                    }
                     else if (status === 'rejected') {
-                        document.getElementById('panel-rejected').style.display = 'block';
-                        document.getElementById('reject-reason').innerText = sidangSnap.data().reject_reason || 'Kesalahan dokumen.';
+                        document.getElementById('view-rejected').classList.add('active');
+                        document.getElementById('reject-reason').innerText = sidangSnap.data().reject_reason || 'Terjadi kesalahan dokumen.';
+                    }
+                    else if (status === 'acc' || status === 'approved') {
+                        document.getElementById('view-timeline').classList.add('active');
+                        document.getElementById('node-1').classList.add('completed');
+                        document.getElementById('node-2').classList.add('completed');
+                        document.getElementById('node-3').style.opacity = '1';
+                        
+                        document.getElementById('id_nama').innerText = sidangSnap.data().nama_lengkap;
+                        document.getElementById('id_judul').innerText = sidangSnap.data().judul_naskah;
+                        document.getElementById('id_npm').innerText = currentUser.uid.substring(0, 8).toUpperCase();
+                        document.getElementById('id_tahun').innerText = new Date().getFullYear();
+                        if(sidangSnap.data().url_foto) document.getElementById('id_foto_render').src = sidangSnap.data().url_foto;
                     }
                 } else {
-                    // Isi data formulir otomatis
-                    document.getElementById('f_uid').value = npmSiswa;
+                    // Tampilkan Formulir jika belum pernah daftar
+                    document.getElementById('view-form').classList.add('active');
+                    document.getElementById('f_uid').value = currentUser.uid;
                     document.getElementById('f_nama').value = namaValid;
-                    document.getElementById('f_semester').value = "Semester " + semesterSiswa;
                     document.getElementById('f_judul').value = pitchSnap.data().judul || "-";
-                    document.getElementById('f_penname').value = authorSnap.data().pen_name || "-";
                 }
-            } catch (error) { console.error("Load Data Error:", error); }
+            } catch (error) {
+                console.error("Load Data Error: ", error);
+                throw error; // Lempar ke blok Try-Catch utama
+            }
         }
 
+        // =========================================
+        // UPLOAD FILE LOKAL -> BASE64
+        // =========================================
         window.handleFileSelect = function(inputId, boxId) {
             const file = document.getElementById(inputId).files[0];
             if (!file) return;
-            const display = document.getElementById(`name-${inputId}`);
-            if(display) {
-                display.innerText = "Terpilih: " + file.name;
-                display.style.display = "block";
-            }
+
+            const nameDisplay = document.getElementById(`name-${inputId}`);
+            nameDisplay.innerText = "✓ File Terpilih: " + file.name;
+            nameDisplay.classList.remove('hidden');
+            document.getElementById(boxId).style.borderColor = "var(--success)";
+
             const reader = new FileReader();
-            reader.onload = (e) => { base64Files[inputId.replace('f_', '')] = e.target.result; };
+            reader.onload = function(event) {
+                const base64String = event.target.result;
+                if (inputId === 'f_foto') base64Files.foto = base64String;
+                else if (inputId === 'f_khs') base64Files.khs = base64String;
+                else if (inputId === 'f_kuitansi') base64Files.kuitansi = base64String;
+                else if (inputId === 'f_perjanjian') base64Files.perjanjian = base64String;
+                else if (inputId === 'f_sk') base64Files.sk = base64String;
+            };
             reader.readAsDataURL(file);
         };
 
+        // =========================================
+        // NAVIGASI FORMULIR
+        // =========================================
         window.nextStep = function(current) {
             const card = document.getElementById(`step-${current}`);
             const inputs = card.querySelectorAll('input[required], textarea[required], select[required]');
             let valid = true;
-            inputs.forEach(i => { if(!i.value.trim()) { i.style.borderColor = 'red'; valid = false; } else { i.style.borderColor = '#eee'; }});
-            
-            if (!valid) return Swal.fire('Error', 'Lengkapi data!', 'error');
-            if (current === 1 && !base64Files.foto) return Swal.fire('Error', 'Pilih foto dulu!', 'error');
 
-            card.classList.remove('active');
-            document.getElementById(`step-${current + 1}`).classList.add('active');
+            inputs.forEach(input => {
+                if (!input.value.trim() && input.type !== 'checkbox' && input.type !== 'file') {
+                    input.style.borderColor = 'var(--danger)'; valid = false;
+                } else { 
+                    input.style.borderColor = '#cbd5e1'; 
+                }
+            });
+
+            if (!valid) return Swal.fire('Error', 'Harap isi semua kolom wajib (*)', 'warning');
+            if (current === 1 && !base64Files.foto) return Swal.fire('Error', 'Harap pilih Pas Foto!', 'warning');
+            if (current === 3 && (!base64Files.khs || !base64Files.kuitansi)) return Swal.fire('Error', 'Harap pilih file KHS & Kuitansi!', 'warning');
+
+            card.classList.remove('active-step');
+            document.getElementById(`step-${current + 1}`).classList.add('active-step');
             window.scrollTo(0,0);
         };
 
         window.prevStep = function(current) {
-            document.getElementById(`step-${current}`).classList.remove('active');
-            document.getElementById(`step-${current - 1}`).classList.add('active');
+            document.getElementById(`step-${current}`).classList.remove('active-step');
+            document.getElementById(`step-${current - 1}`).classList.add('active-step');
+            window.scrollTo(0,0);
         };
 
+        // =========================================
+        // SUBMIT FASE 1 -> PINDAH KE TIMELINE
+        // =========================================
         document.getElementById('sidang-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit-form');
-            btn.innerHTML = 'Menyimpan...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...'; 
+            btn.disabled = true;
 
             try {
                 const formData = {
@@ -416,44 +586,92 @@
                     status: 'draft_form',
                     timestamp: serverTimestamp(),
                     nama_lengkap: document.getElementById('f_nama').value,
-                    judul_naskah: document.getElementById('f_judul').value,
-                    url_foto: base64Files.foto,
                     tempat_lahir: document.getElementById('f_tempat_lahir').value,
                     tgl_lahir: document.getElementById('f_tgl_lahir').value,
+                    judul_naskah: document.getElementById('f_judul').value,
+                    blurb: document.getElementById('f_blurb').value,
                     paket: document.getElementById('f_paket').value,
-                    blurb: document.getElementById('f_blurb').value
+                    promosi: document.getElementById('f_promosi').value,
+                    
+                    // Simpan Base64 ke Firebase (Sementara sblm GAS aktif)
+                    url_foto: base64Files.foto, 
+                    url_khs: base64Files.khs, 
+                    url_kuitansi: base64Files.kuitansi,
                 };
+
                 await setDoc(doc(db, 'sidang_applications', currentUser.uid), formData);
-                Swal.fire('Berhasil', 'Data disimpan!', 'success').then(() => window.location.reload());
-            } catch (error) { 
-                Swal.fire('Gagal', 'Error simpan.', 'error'); 
-                btn.disabled = false;
+                
+                Swal.fire('Tersimpan', 'Data awal aman. Mari lanjut ke proses tanda tangan.', 'success').then(() => {
+                    window.location.reload(); 
+                });
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal', 'Kesalahan jaringan.', 'error');
+                btn.innerHTML = '<i class="fa-solid fa-upload"></i> Simpan Data'; btn.disabled = false;
             }
         });
 
-        let nodeCount = 0;
-        window.selesaikanNode = async function(node) {
-            const file = (node === 1) ? base64Files.perjanjian : base64Files.sk;
-            if(!file) return Swal.fire('Peringatan', 'Pilih file dulu!', 'warning');
-            
-            await updateDoc(doc(db, 'sidang_applications', currentUser.uid), { [`url_doc_${node}`]: "Uploaded" });
-            document.getElementById(`node-${node}`).classList.add('completed');
-            nodeCount++;
-            if(nodeCount >= 2) {
-                document.getElementById('node-3').style.opacity = '1';
-                document.getElementById('btn-ajukan-final').disabled = false;
+        // =========================================
+        // LOGIKA TIMELINE 
+        // =========================================
+        let nodeSelesai = 0;
+
+        window.selesaikanNode = async function(nodeNumber) {
+            const isFileSelected = (nodeNumber === 1) ? base64Files.perjanjian : base64Files.sk;
+            if (!isFileSelected) return Swal.fire('Peringatan', 'Anda belum memilih file dokumen!', 'warning');
+
+            try {
+                const updateData = {};
+                if(nodeNumber === 1) updateData.url_perjanjian = base64Files.perjanjian;
+                if(nodeNumber === 2) updateData.url_sk = base64Files.sk;
+                
+                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), updateData);
+
+                document.getElementById(`node-${nodeNumber}`).classList.add('completed');
+                nodeSelesai++;
+
+                if (nodeSelesai === 2) {
+                    document.getElementById('node-3').style.opacity = '1';
+                    Swal.fire('Lengkap!', 'Dokumen lengkap. Kartu Sidang Virtual Anda tercetak otomatis.', 'success');
+                } else {
+                    Swal.fire('Berhasil', 'Dokumen disimpan.', 'success');
+                }
+            } catch(e) {
+                Swal.fire('Error', 'Gagal menyimpan dokumen.', 'error');
             }
-            Swal.fire('Tersimpan', 'Dokumen aman.', 'success');
         };
 
+        // CEKLIS FINAL
+        document.getElementById('check-final').addEventListener('change', function(e) {
+            const btn = document.getElementById('btn-ajukan-final');
+            if(nodeSelesai === 2 && e.target.checked) btn.disabled = false;
+            else btn.disabled = true;
+        });
+
+        // SUBMIT AKHIR KE ADMIN
         window.ajukanSidangAkhir = async function() {
-            await updateDoc(doc(db, 'sidang_applications', currentUser.uid), { status: 'pending_admin' });
-            Swal.fire('Terkirim', 'Menunggu validasi admin.', 'success').then(() => window.location.reload());
+            try {
+                document.getElementById('btn-ajukan-final').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> MENGIRIM...';
+                await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
+                    status: 'pending_admin',
+                    submitted_final_at: serverTimestamp()
+                });
+                
+                Swal.fire('Dossier Terkirim!', 'Seluruh berkas Anda sedang dikurasi oleh Tim Redaksi.', 'success').then(() => {
+                    window.location.reload();
+                });
+            } catch(e) {
+                Swal.fire('Error', 'Gagal mengajukan pendaftaran sidang.', 'error');
+            }
         };
 
-        window.resetForm = async () => {
-            const conf = await Swal.fire({ title: 'Hapus Draft?', icon: 'warning', showCancelButton: true });
-            if(conf.isConfirmed) {
+        window.resetForm = async function() {
+            const konf = await Swal.fire({
+                title: 'Perbaiki Berkas?', text: 'Aksi ini akan menghapus draf sebelumnya.', icon: 'warning',
+                showCancelButton: true, confirmButtonText: 'Ya, Perbaiki'
+            });
+            if (konf.isConfirmed) {
                 await deleteDoc(doc(db, 'sidang_applications', currentUser.uid));
                 window.location.reload();
             }
