@@ -316,7 +316,7 @@
         </div>
     </div>
 
-    <script type="module">
+   <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -488,7 +488,6 @@
             btnSubmit1.disabled = true;
             
             try {
-                // Semua logika pencarian data diletakkan di DALAM try, agar jika error tombol bisa di-reset
                 const promoRadio = document.querySelector('input[name="f_promosi_radio"]:checked');
                 const paketRadio = document.querySelector('input[name="f_paket"]:checked');
                 
@@ -510,6 +509,7 @@
                 
                 if (responseGAS.status !== 'success') throw new Error("Google Script menolak permintaan: " + (responseGAS.message || "Unknown error"));
 
+                // Eksekusi Firestore DULU
                 await setDoc(doc(db, 'sidang_applications', currentUser.uid), {
                     uid: currentUser.uid, 
                     email: document.getElementById('f_email').value,
@@ -531,7 +531,9 @@
                     draf_sk: responseGAS.urls.draf_sk
                 });
                 
-                Swal.fire('Terkirim!', 'Berkas awal sedang diperiksa oleh Tim Redaksi.', 'success').then(()=>window.location.reload());
+                // BARU eksekusi Swal Fire
+                await Swal.fire('Terkirim!', 'Berkas awal sedang diperiksa oleh Tim Redaksi.', 'success');
+                window.location.reload();
                 
             } catch (err) { 
                 console.error(err);
@@ -561,12 +563,16 @@
                 
                 if (responseGAS.status !== 'success') throw new Error("Gagal di proses Drive");
 
+                // Eksekusi Firestore DULU
                 await updateDoc(doc(db, 'sidang_applications', currentUser.uid), {
                     status: 'pending_tahap2',
                     url_perjanjian_final: responseGAS.urls.ttd_perjanjian,
                     url_sk_final: responseGAS.urls.ttd_sk
                 });
-                Swal.fire('Terkirim!', 'Menunggu verifikasi TTD Final dari Admin.', 'success').then(()=>window.location.reload());
+                
+                // BARU eksekusi Swal Fire
+                await Swal.fire('Terkirim!', 'Menunggu verifikasi TTD Final dari Admin.', 'success');
+                window.location.reload();
                 
             } catch(e) { 
                 console.error(e);
