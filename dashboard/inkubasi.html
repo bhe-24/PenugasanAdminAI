@@ -60,21 +60,32 @@
         }
         @keyframes floatLogo { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
 
-        /* TRACKER WIDGET */
+        /* TRACKER WIDGET DINAMIS */
         .tracker-widget {
-            background: white; border-radius: 16px; padding: 25px; margin-bottom: 25px;
+            background: white; border-radius: 16px; padding: 20px 25px; margin-bottom: 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;
-            display: flex; flex-direction: column; gap: 15px;
+            display: flex; flex-direction: column; gap: 12px;
         }
         .tracker-header { display: flex; justify-content: space-between; align-items: center; }
         .tracker-title { margin: 0; font-family: 'Poppins', sans-serif; color: #1e293b; font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;}
-        .tracker-stats { font-size: 0.9rem; color: #64748b; font-weight: 600; }
-        .progress-container { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; position: relative; }
+        
+        /* Status Badges */
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; font-family: 'Poppins'; }
+        .status-belum { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+        .status-proses { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+        .status-menulis { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-revisi { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-sidang { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+
+        .progress-section { display: none; }
+        .progress-stats-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; font-weight: 600; margin-bottom: 6px; }
+        .progress-container { width: 100%; height: 16px; background: #e2e8f0; border-radius: 10px; overflow: hidden; position: relative; }
         .progress-bar { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 10px; width: 0%; transition: width 1s ease-in-out; position: relative;}
         .progress-bar::after { content:''; position:absolute; top:0; left:0; bottom:0; right:0; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite; }
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-        .tracker-locked { text-align: center; padding: 15px 0; color: #64748b; font-size: 0.95rem;}
-        .tracker-locked i { font-size: 1.5rem; color: #94a3b8; margin-bottom: 5px; display: block;}
+        
+        .tracker-message { text-align: center; padding: 10px 0; color: #64748b; font-size: 0.9rem; }
+        .tracker-message i { font-size: 1.2rem; margin-bottom: 5px; display: block; }
 
         /* DASHBOARD GRID */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
@@ -145,19 +156,27 @@
             </div>
         </div>
 
-        <!-- TRACKER PROGRES KATA -->
+        <!-- TRACKER PROGRES KATA DINAMIS -->
         <div class="tracker-widget">
             <div class="tracker-header">
-                <h3 class="tracker-title"><i class="fa-solid fa-chart-line" style="color:#10b981;"></i> Progres Naskah</h3>
-                <span class="tracker-stats" id="word-count-display">-</span>
+                <h3 class="tracker-title"><i class="fa-solid fa-chart-pie" style="color:#10b981;"></i> Status Naskah</h3>
+                <span id="naskah-status-badge" class="status-badge" style="display:none;"></span>
             </div>
-            <div class="progress-container" id="progress-container" style="display:none;">
-                <div class="progress-bar" id="word-progress-bar" style="width:0%;"></div>
+
+            <!-- Pesan jika bukan proses menulis -->
+            <div class="tracker-message" id="tracker-message">
+                <i class="fa-solid fa-spinner fa-spin"></i> Mengecek status...
             </div>
-            <div class="tracker-locked" id="tracker-locked">
-                <i class="fa-solid fa-lock"></i>
-                Belum ada progres naskah yang berjalan.<br>
-                Harap ajukan ide di <b>Portal Pengajuan Ide</b> terlebih dahulu.
+
+            <!-- Progress Bar (Hanya tampil jika status ACC / Proses Menulis) -->
+            <div class="progress-section" id="progress-section">
+                <div class="progress-stats-row">
+                    <span>Progres Penulisan</span>
+                    <span id="word-count-display">- / - Kata</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="word-progress-bar" style="width:0%;"></div>
+                </div>
             </div>
         </div>
 
@@ -176,8 +195,8 @@
                 <i class="fa-solid fa-gavel"></i> <h3>Ruang Sidang</h3> 
             </a>
 
-            <!-- KARTU OSIS: disembunyikan default, muncul jika is_osis === true -->
-            <a href="/osis/dashboard.html" class="dashboard-card card-osis always-on-cuti" id="card-osis-link">
+            <!-- KARTU OSIS: Link sudah direvisi ke /osis/index.html -->
+            <a href="/osis/index.html" class="dashboard-card card-osis always-on-cuti" id="card-osis-link">
                 <i class="fa-solid fa-shield-halved"></i>
                 <h3>Dasbor OSIS</h3>
             </a>
@@ -274,7 +293,7 @@
         // ============================================================
         function renderProgress(currentWords, targetWords) {
             const pct = Math.min((currentWords / targetWords) * 100, 100).toFixed(1);
-            document.getElementById('word-count-display').innerText =
+            document.getElementById('word-count-display').innerText = 
                 `${currentWords.toLocaleString('id-ID')} / ${targetWords.toLocaleString('id-ID')} Kata`;
             document.getElementById('word-progress-bar').style.width = `${pct}%`;
         }
@@ -299,7 +318,7 @@
             else if (jam >= 15 && jam < 18) { sapaan = 'Selamat Sore'; icon = '🌇'; }
             else if (jam >= 18) { sapaan = 'Selamat Malam'; icon = '🌙'; }
             const nickName = userData.name.split(' ')[0];
-            document.getElementById('user-greeting').innerHTML =
+            document.getElementById('user-greeting').innerHTML = 
                 `${sapaan}, Calon Penulis Hebat <b>${nickName}</b> ${icon}`;
 
             // --- TAMPILKAN KARTU OSIS JIKA PENGURUS ---
@@ -334,37 +353,64 @@
                 }, 250);
             }, 3000);
 
-            // --- PROGRESS BAR REALTIME ---
-            // Menggunakan onSnapshot agar otomatis update saat bab dihapus/ditambah
+            // --- TRACKER PROGRES DINAMIS ---
             try {
                 const pitchRef  = doc(db, 'pitching_projects', userData.uid);
                 const pitchSnap = await getDoc(pitchRef);
 
-                const progressContainer = document.getElementById('progress-container');
-                const lockedMessage     = document.getElementById('tracker-locked');
+                const progressSection = document.getElementById('progress-section');
+                const trackerMessage  = document.getElementById('tracker-message');
+                const statusBadge     = document.getElementById('naskah-status-badge');
 
-                if (pitchSnap.exists() && pitchSnap.data().status === 'acc') {
-                    progressContainer.style.display = 'block';
-                    lockedMessage.style.display     = 'none';
+                statusBadge.style.display = 'block';
 
-                    const targetWords = parseInt(pitchSnap.data().target_kata) || 50000;
-
-                    // onSnapshot: dengarkan perubahan word_count secara realtime
-                    // Setiap kali bab disimpan ATAU dihapus di studio.html,
-                    // word_count di /users/{uid} akan berubah dan progress otomatis terupdate
-                    const userRef = doc(db, 'users', userData.uid);
-                    onSnapshot(userRef, (snap) => {
-                        if (!snap.exists()) return;
-                        const currentWords = parseInt(snap.data().word_count) || 0;
-                        renderProgress(currentWords, targetWords);
-                    });
-
+                if (!pitchSnap.exists()) {
+                    // Kondisi: Belum mengajukan ide
+                    statusBadge.className = 'status-badge status-belum';
+                    statusBadge.innerText = 'Belum Mengajukan';
+                    trackerMessage.innerHTML = '<i class="fa-solid fa-file-circle-question"></i> Anda belum mengajukan ide naskah.<br>Harap ajukan di <b>Portal Pengajuan Ide</b>.';
+                    progressSection.style.display = 'none';
                 } else {
-                    progressContainer.style.display = 'none';
-                    lockedMessage.style.display     = 'block';
+                    const pitchData = pitchSnap.data();
+                    const status = pitchData.status || 'pending';
+
+                    if (status === 'pending') {
+                        // Kondisi: Proses / Menunggu Penilaian
+                        statusBadge.className = 'status-badge status-proses';
+                        statusBadge.innerText = 'Proses Penilaian';
+                        trackerMessage.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Ide Anda sedang dalam proses penilaian oleh tim.';
+                        progressSection.style.display = 'none';
+                    } else if (status === 'revisi') {
+                        // Kondisi: Proses Revisi
+                        statusBadge.className = 'status-badge status-revisi';
+                        statusBadge.innerText = 'Proses Revisi';
+                        trackerMessage.innerHTML = '<i class="fa-solid fa-pen-ruler"></i> Naskah/Ide Anda membutuhkan revisi. Silakan cek catatan terkait.';
+                        progressSection.style.display = 'none';
+                    } else if (status === 'sidang') {
+                        // Kondisi: Proses Sidang
+                        statusBadge.className = 'status-badge status-sidang';
+                        statusBadge.innerText = 'Proses Sidang';
+                        trackerMessage.innerHTML = '<i class="fa-solid fa-users-viewfinder"></i> Naskah Anda sedang dalam tahapan / persiapan Sidang.';
+                        progressSection.style.display = 'none';
+                    } else if (status === 'acc') {
+                        // Kondisi: Diterima / Proses Menulis (Tampilkan Progress Bar)
+                        statusBadge.className = 'status-badge status-menulis';
+                        statusBadge.innerText = 'Proses Menulis';
+                        trackerMessage.style.display = 'none'; // Sembunyikan pesan, munculkan bar
+                        progressSection.style.display = 'block';
+
+                        const targetWords = parseInt(pitchData.target_kata) || 50000;
+                        const userRef = doc(db, 'users', userData.uid);
+                        onSnapshot(userRef, (snap) => {
+                            if (!snap.exists()) return;
+                            const currentWords = parseInt(snap.data().word_count) || 0;
+                            renderProgress(currentWords, targetWords);
+                        });
+                    }
                 }
             } catch(err) {
                 console.error('Gagal memuat status pitching:', err);
+                document.getElementById('tracker-message').innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:red;"></i> Gagal memuat data progres.';
             }
 
             // --- PEMBLOKIRAN KARTU (CUTI / NONAKTIF) ---
