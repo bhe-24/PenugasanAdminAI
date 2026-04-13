@@ -7,7 +7,7 @@
     
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         /* RESET & GLOBAL */
@@ -17,22 +17,34 @@
         
         .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
 
-        /* HEADER */
+        /* HEADER DENGAN LOGO */
         .page-header {
-            background: linear-gradient(135deg, #003366, #0f4c81);
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white; padding: 25px 30px; border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 51, 102, 0.2);
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; position: relative; overflow: hidden; gap: 15px;
+            margin-bottom: 25px; position: relative; overflow: hidden; flex-wrap: wrap; gap: 15px;
         }
-        .header-content h1 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
-        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; }
+        .page-header::after {
+            content: ''; position: absolute; top: -50%; right: -10%;
+            width: 300px; height: 300px; background: rgba(255,255,255,0.05);
+            border-radius: 50%; pointer-events: none;
+        }
+        .header-content-wrapper { display: flex; align-items: center; gap: 20px; z-index: 2; }
+        .header-logo-circle {
+            width: 70px; height: 70px; background: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; overflow: hidden;
+        }
+        .header-logo-circle img { width: 75%; height: auto; object-fit: contain; }
+        .header-content h1 { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; line-height: 1.2; letter-spacing: 0.5px;}
+        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; color: #cbd5e1; }
         
         .btn-back {
-            background: rgba(255,255,255,0.2); color: white; text-decoration: none;
+            background: rgba(255,255,255,0.15); color: white; text-decoration: none;
             padding: 10px 18px; border-radius: 50px; font-weight: 600; backdrop-filter: blur(5px);
             transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;
-            white-space: nowrap; flex-shrink: 0;
+            white-space: nowrap; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.3); z-index: 2;
         }
         .btn-back:hover { background: white; color: var(--primary); }
 
@@ -133,11 +145,16 @@
 
     <div class="container" id="main-content">
         <header class="page-header">
-            <div class="header-content">
-                <h1>Keuangan Siswa</h1>
-                <p>Kelola tagihan dan administrasi akademik Anda.</p>
+            <div class="header-content-wrapper">
+                <div class="header-logo-circle">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+                </div>
+                <div class="header-content">
+                    <h1>Keuangan Siswa</h1>
+                    <p>Kelola tagihan dan administrasi akademik Anda.</p>
+                </div>
             </div>
-            <!-- ID DITAMBAHKAN PADA TOMBOL KEMBALI -->
+            <!-- LOGIKA TOMBOL KEMBALI DI JAVASCRIPT -->
             <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
                 <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
             </a>
@@ -318,6 +335,7 @@
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
+                // Listener untuk mendeteksi perubahan status lunas secara real-time
                 if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                     setWaitingUI();
                     onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
@@ -351,6 +369,7 @@
             const actionArea = document.getElementById('action-area');
             const labelTagihan = document.getElementById('label-tagihan');
 
+            // --- JIKA PEMBAYARAN SEDANG DIPROSES (WAITING) ---
             if (paymentStatus === 'waiting' && status !== 'Lunas') {
                 setWaitingUI();
                 if (sem < 3) {
@@ -364,7 +383,11 @@
                 return;
             }
 
+            // ====================================================
+            // LOGIKA PEMBAYARAN SEMESTER 1 & 2
+            // ====================================================
             if (sem < 3) {
+                // Di Semester 1 & 2, jika admin menghapus/mematikan ujian, tagihan bisa 0.
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snap = await getDocs(q);
                 const count = snap.size;
@@ -379,11 +402,22 @@
                     actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Lihat Kwitansi</a>`;
                 } else {
                     badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
-                    if(totalBayar > 0) actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
+                    if(totalBayar > 0) {
+                        actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
+                    } else {
+                        // Jika tidak ada tagihan (Admin mematikan ujian)
+                        actionArea.innerHTML = `<div style="text-align:center; color:#64748b; font-size:0.9rem; margin-top:10px;"><i class="fa-solid fa-circle-check"></i> Tidak ada tagihan ujian aktif saat ini.</div>`;
+                    }
                 }
-            } else {
+            } 
+            // ====================================================
+            // LOGIKA KHUSUS SEMESTER 3 (INDEPENDEN & PERMANEN)
+            // ====================================================
+            else {
+                // Di Semester 3, tagihan tidak mempedulikan ujian. Selalu muncul detail ini.
                 detailsEl.innerHTML = `<div class="detail-row"><span>Buku Rapor</span><span>Rp 20.450</span></div><div class="detail-row"><span>Special Book</span><span>Rp 25.000</span></div><div class="detail-row"><span>Administrasi</span><span>Rp 5.000</span></div><div class="detail-row"><span>Bimbingan</span><span>Rp 25.000</span></div><div class="detail-row detail-total"><span>TOTAL FULL</span><span>Rp 75.450</span></div>`;
 
+                // Jika sudah Lunas, akan SELAMANYA dikunci menjadi Lunas
                 if (status === 'Lunas') {
                     labelTagihan.innerText = "TOTAL ADMINISTRASI";
                     amountEl.innerText = "Rp 75.450";
