@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
         :root { --primary: #003366; --navy-light: #1e3a8a; --accent: #eab308; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --bg: #f8fafc; --text-dark: #334155; --border: #e2e8f0; }
@@ -33,98 +34,145 @@
         .badge.menunggu { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
         .badge.revisi { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
         .badge.acc { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+        .feedback-box { background: #f8fafc; border-left: 4px solid var(--danger); padding: 15px 20px; border-radius: 0 8px 8px 0; margin-top: 10px; display: none;}
         
-        .meet-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 12px; margin-top: 15px; display: flex; align-items: center; gap: 15px;}
+        .meet-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 12px; margin-top: 15px; display: flex; align-items: center; gap: 15px; display: none;}
         .meet-icon { font-size: 2rem; color: #2563eb; flex-shrink: 0; }
         .meet-info h4 { margin: 0 0 5px 0; color: var(--primary); font-size: 0.95rem;}
         .meet-info a { color: #2563eb; font-weight: 600; text-decoration: none; word-break: break-all;}
 
         /* =============================================
-           KARTU SIDANG — CR-80 Landscape
+           SURAT PERNYATAAN SIDANG — A4 Portrait Style
+           Sesuai instruksi: Header, Data Diri, Pernyataan, Jadwal, Link, Kolom TTD
         ============================================= */
-        .kartu-wrapper { margin: 20px auto 0; max-width: 480px; display: none; }
-        .kartu-label { font-size: 0.75rem; color: #94a3b8; text-align: center; margin-bottom: 8px; letter-spacing: 0.5px; }
-        #kartu-sidang-container {
-            width: 100%; aspect-ratio: 85.6 / 54;
-            border-radius: 16px; overflow: hidden;
-            box-shadow: 0 25px 70px rgba(0,0,0,0.45), 0 0 0 1px rgba(234,179,8,0.3);
-            position: relative; background: #020617;
-            font-family: "Outfit", sans-serif;
-        }
-        #kartu-print-area {
-            width: 100%; height: 100%;
-            background: linear-gradient(145deg, #020617 0%, #0c1d3d 40%, #162952 70%, #1e3a8a 100%);
-            position: relative; display: flex; flex-direction: column; overflow: hidden;
-        }
-        #kartu-print-area::before {
-            content: ""; position: absolute; top: -40%; right: -15%;
-            width: 60%; height: 180%;
-            background: radial-gradient(ellipse at center, rgba(234,179,8,0.08) 0%, transparent 70%);
-            transform: rotate(-12deg); pointer-events: none;
-        }
-        #kartu-print-area::after {
-            content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-            background: linear-gradient(90deg, transparent 0%, #eab308 50%, transparent 100%);
-        }
-        .kartu-topbar {
-            background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 100%);
-            border-bottom: 1px solid rgba(234,179,8,0.15);
-            padding: 14px 18px; display: flex; align-items: center; gap: 12px; 
-            flex-shrink: 0; position: relative; z-index: 1;
-        }
-        .kartu-topbar-logo {
-            width: 36px; height: 36px; border-radius: 50%; 
-            background: rgba(255,255,255,0.95); padding: 2px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3); object-fit: contain;
-        }
-        .kartu-topbar-text { flex: 1; line-height: 1.2; }
-        .kartu-org-name { font-size: 14px; font-weight: 700; color: white; letter-spacing: 0.5px; display: block; }
-        .kartu-card-type { font-size: 8px; color: #eab308; letter-spacing: 2.5px; text-transform: uppercase; display: block; margin-top: 2px; font-weight: 500; }
-        .kartu-tahun-badge { font-size: 13px; font-weight: 800; color: #eab308; letter-spacing: 1px; text-shadow: 0 0 10px rgba(234,179,8,0.4); }
-        .kartu-body {
-            flex: 1; display: flex; align-items: center; gap: 16px;
-            padding: 14px 18px; position: relative; z-index: 1; overflow: hidden;
-        }
-        .kartu-foto-box {
-            width: 78px; height: 104px; border-radius: 12px;
-            border: 2px solid rgba(234,179,8,0.5); overflow: hidden;
-            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
-            flex-shrink: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.1);
-            display: flex; align-items: center; justify-content: center; position: relative;
-        }
-        .kartu-foto-box::before {
-            content: ""; position: absolute; inset: 0;
-            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
-            pointer-events: none; border-radius: 10px;
-        }
-        .kartu-foto-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .kartu-foto-placeholder { color: rgba(255,255,255,0.2); font-size: 28px; }
-        .kartu-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
-        .kartu-field { overflow: hidden; }
-        .kartu-field-label { font-size: 7px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1.8px; line-height: 1; display: block; margin-bottom: 2px; font-weight: 500; }
-        .kartu-field-value { font-size: 13px; font-weight: 700; color: white; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-        .kartu-field-value.gold { color: #fbbf24; text-shadow: 0 0 15px rgba(234,179,8,0.3); }
-        .kartu-footer {
-            padding: 10px 18px; background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            display: flex; justify-content: space-between; align-items: center;
-            flex-shrink: 0; position: relative; z-index: 1;
-        }
-        .kartu-id-text { font-size: 8px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; font-family: monospace; }
-        .kartu-dots { display: flex; gap: 5px; align-items: center; }
-        .kartu-dots span { width: 6px; height: 6px; border-radius: 50%; display: block; box-shadow: 0 0 6px currentColor; }
-        .kartu-dots span:nth-child(1) { background: rgba(234,179,8,0.4); color: rgba(234,179,8,0.4); }
-        .kartu-dots span:nth-child(2) { background: rgba(234,179,8,0.65); color: rgba(234,179,8,0.65); }
-        .kartu-dots span:last-child { background: #eab308; color: #eab308; }
+        .surat-wrapper { margin: 20px auto 0; max-width: 100%; display: none; }
+        .surat-label { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 12px; font-weight: 600; }
         
-        #btn-print-kartu {
-            display: none; width: 100%; padding: 12px; margin-top: 12px;
-            background: linear-gradient(135deg, var(--accent), #ca8a04);
-            color: #020617; border: none; font-weight: 800; font-size: 0.95rem;
-            border-radius: 10px; cursor: pointer; letter-spacing: 0.4px;
-            box-shadow: 0 4px 15px rgba(234,179,8,0.3); transition: 0.2s;
+        #surat-print-container {
+            width: 100%;
+            /* Menjaga proporsi A4 (210 x 297 mm) secara kasar agar rapi sebelum di-print */
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            font-family: "Times New Roman", Times, serif; /* Font resmi persuratan */
+            color: #000;
+            position: relative;
         }
-        #btn-print-kartu:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(234,179,8,0.45); }
+
+        /* Kop Surat Resmi */
+        .kop-surat-resmi {
+            display: flex;
+            align-items: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .kop-logo {
+            width: 80px;
+            height: 80px;
+            margin-right: 20px;
+        }
+        .kop-teks-resmi {
+            flex: 1;
+            text-align: center;
+        }
+        .kop-teks-resmi h2 {
+            margin: 0;
+            font-size: 22px;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        .kop-teks-resmi h3 {
+            margin: 5px 0 0 0;
+            font-size: 16px;
+            font-weight: normal;
+        }
+        .kop-teks-resmi p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #333;
+        }
+
+        /* Judul Surat */
+        .judul-surat {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .judul-surat h4 {
+            margin: 0;
+            font-size: 18px;
+            text-decoration: underline;
+            text-transform: uppercase;
+        }
+        .judul-surat p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+        }
+
+        /* Tabel Data Diri */
+        .tabel-data-diri {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .tabel-data-diri td {
+            padding: 8px 4px;
+            vertical-align: top;
+        }
+        .tabel-data-diri td:first-child {
+            width: 30%;
+            font-weight: bold;
+        }
+        .tabel-data-diri td:nth-child(2) {
+            width: 2%;
+        }
+
+        /* Paragraf Pernyataan */
+        .teks-pernyataan {
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: justify;
+            margin-bottom: 20px;
+        }
+        
+        .box-jadwal {
+            border: 1px solid #000;
+            padding: 15px;
+            margin: 20px 0;
+            background: #f9fafb;
+        }
+        .box-jadwal h5 { margin: 0 0 10px 0; font-size: 15px; text-decoration: underline; }
+        .box-jadwal p { margin: 5px 0; font-size: 14px; }
+        .box-jadwal .highlight-meet { font-family: monospace; color: #1e3a8a; font-weight: bold; font-size: 13px;}
+
+        /* Area Tanda Tangan */
+        .area-ttd {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            font-size: 14px;
+        }
+        .kolom-ttd {
+            width: 40%;
+            text-align: center;
+        }
+        .kolom-ttd p { margin: 0 0 70px 0; } /* Spasi untuk TTD */
+        .nama-ttd {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        #btn-print-surat {
+            display: none; width: 100%; padding: 14px; margin-top: 15px;
+            background: linear-gradient(135deg, var(--primary), #001f3f);
+            color: white; border: none; font-weight: 700; font-size: 1rem;
+            border-radius: 10px; cursor: pointer; letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,51,102,0.3); transition: 0.2s;
+        }
+        #btn-print-surat:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,51,102,0.4); }
         
         /* FORM */
         .form-section { display: none; animation: fadeIn 0.4s ease; }
@@ -238,103 +286,87 @@
                 </div>
             </div>
 
-            <!-- KARTU SIDANG — FORMAT SURAT RESMI -->
-            <div class="kartu-wrapper" id="kartu-wrapper">
-                <p class="kartu-label"><i class="fa-solid fa-file-contract"></i> &nbsp;Kartu Peserta Sidang Akhir</p>
-                <div id="kartu-sidang-container">
-                    <div id="kartu-print-area">
-
-                        <!-- KOP SURAT -->
-                        <div class="kop-surat">
-                            <div class="kop-logo-wrap">
-                                <!-- Logo dirender via canvas agar html2canvas tidak CORS error -->
-                                <canvas id="kartu-logo-canvas" width="48" height="48"></canvas>
-                            </div>
-                            <div class="kop-teks">
-                                <div class="kop-nama-lembaga">Cendekia Aksara</div>
-                                <div class="kop-tagline">Lembaga Penerbitan &amp; Inkubasi Literasi</div>
-                            </div>
-                            <div class="kop-kanan">
-                                <div class="kop-no-kartu">No. Kartu</div>
-                                <div class="kop-kode" id="card-kode">—</div>
-                            </div>
+            <div class="surat-wrapper" id="surat-wrapper">
+                <p class="surat-label"><i class="fa-solid fa-file-contract"></i> &nbsp;Dokumen Resmi Peserta Sidang</p>
+                <div id="surat-print-container">
+                    
+                    <div class="kop-surat-resmi">
+                        <canvas id="surat-logo-canvas" class="kop-logo" width="80" height="80"></canvas>
+                        <div class="kop-teks-resmi">
+                            <h2>Cendekia Aksara</h2>
+                            <h3>Lembaga Penerbitan & Inkubasi Literasi</h3>
+                            <p>Website: cendekiaaksara.com | Email: redaksi@cendekiaaksara.com</p>
                         </div>
+                    </div>
 
-                        <!-- JUDUL -->
-                        <div class="judul-kartu">
-                            <h2>Kartu Peserta Sidang Kelayakan</h2>
-                            <p>Bukti Keikutsertaan Sidang Akhir Naskah &bull; <span id="card-tahun-doc">2025</span></p>
+                    <div class="judul-surat">
+                        <h4>Surat Pernyataan Peserta Sidang</h4>
+                        <p id="surat-no-dokumen">No. Register: CA-2026-XXXXXX</p>
+                    </div>
+
+                    <div class="teks-pernyataan">
+                        <p>Yang bertanda tangan di bawah ini, selaku Peserta Sidang Kelayakan Naskah Cendekia Aksara:</p>
+                    </div>
+
+                    <table class="tabel-data-diri">
+                        <tr>
+                            <td>Nama Lengkap</td>
+                            <td>:</td>
+                            <td id="surat-nama">[Nama Siswa]</td>
+                        </tr>
+                        <tr>
+                            <td>ID Siswa / NPM</td>
+                            <td>:</td>
+                            <td id="surat-npm" style="font-family: monospace;">[NPM]</td>
+                        </tr>
+                        <tr>
+                            <td>Judul Naskah Final</td>
+                            <td>:</td>
+                            <td id="surat-judul" style="font-weight: bold;">[Judul Naskah]</td>
+                        </tr>
+                        <tr>
+                            <td>Paket Penerbitan</td>
+                            <td>:</td>
+                            <td id="surat-paket">[Paket]</td>
+                        </tr>
+                    </table>
+
+                    <div class="teks-pernyataan">
+                        <p>Menyatakan dengan sesungguhnya bahwa data diri dan naskah yang saya ajukan adalah benar dan merupakan karya orisinal. Saya berhak dan diwajibkan untuk mengikuti Sidang Kelayakan Naskah sesuai dengan ketentuan yang berlaku di Lembaga Cendekia Aksara, dengan rincian jadwal sebagai berikut:</p>
+                    </div>
+
+                    <div class="box-jadwal">
+                        <h5>Rincian Pelaksanaan Sidang:</h5>
+                        <p><strong>Waktu Pelaksanaan :</strong> <span id="surat-jadwal">[Jadwal dari Admin]</span></p>
+                        <p><strong>Tautan Google Meet :</strong> <span id="surat-meet" class="highlight-meet">[Link Meet dari Admin]</span></p>
+                        <p style="margin-top:10px; font-size:12px; color:#555;"><em>*Peserta wajib bergabung ke ruang virtual selambat-lambatnya 10 menit sebelum jadwal di atas.</em></p>
+                    </div>
+
+                    <div class="teks-pernyataan">
+                        <p>Apabila saya tidak hadir tanpa alasan yang sah atau melanggar tata tertib sidang, maka saya bersedia menerima sanksi pembatalan penerbitan naskah oleh Tim Redaksi. Demikian surat pernyataan ini diterbitkan oleh sistem secara otomatis sebagai bukti sah kepesertaan sidang.</p>
+                    </div>
+
+                    <div class="area-ttd">
+                        <div class="kolom-ttd">
+                            <p>Mengetahui,</p>
+                            <p style="margin-bottom: 5px;"><strong>Tim Redaksi</strong></p>
+                            <p style="font-size: 12px; margin-bottom: 50px;">Cendekia Aksara</p>
+                            <span style="font-size: 11px; font-family: monospace; color: #666;">(Ttd Digital Sistem)</span>
                         </div>
-
-                        <!-- DATA PESERTA -->
-                        <div class="kartu-data-body">
-                            <div class="data-row">
-                                <span class="data-label">Nama Lengkap</span>
-                                <span class="data-value" id="card-nama">—</span>
-                            </div>
-                            <div class="data-row">
-                                <span class="data-label">Nomor Peserta</span>
-                                <span class="data-value mono" id="card-npm">—</span>
-                            </div>
-                            <div class="data-row full">
-                                <span class="data-label">Judul Naskah</span>
-                                <span class="data-value gold" id="card-judul">—</span>
-                            </div>
-                            <div class="data-row">
-                                <span class="data-label">Paket Penerbitan</span>
-                                <span class="data-value" id="card-paket">—</span>
-                            </div>
-                            <div class="data-row">
-                                <span class="data-label">Jadwal Sidang</span>
-                                <span class="data-value" id="card-jadwal">—</span>
-                            </div>
-                            <div class="data-row full">
-                                <span class="data-label">Link Google Meet</span>
-                                <span class="data-value mono" id="card-meet" style="font-size:0.78rem; color:#2563eb; word-break:break-all;">—</span>
-                            </div>
+                        <div class="kolom-ttd">
+                            <p>Dinyatakan di: Sistem Virtual</p>
+                            <p style="margin-bottom: 70px;">Tanggal: <span id="surat-tanggal">[Tanggal Saat Ini]</span></p>
+                            <span class="nama-ttd" id="surat-nama-ttd">[Nama Siswa]</span>
+                            <p style="font-size:12px; margin-top:3px;">Peserta Sidang</p>
                         </div>
+                    </div>
 
-                        <!-- PERNYATAAN -->
-                        <div class="pernyataan-box">
-                            <p>
-                                Dengan diterbitkannya kartu ini, peserta yang namanya tercantum di atas dinyatakan
-                                <strong>berhak dan wajib</strong> mengikuti Sidang Kelayakan Naskah yang diselenggarakan
-                                oleh Tim Redaksi Cendekia Aksara sesuai jadwal yang tertera. Peserta menyatakan siap
-                                mempertanggungjawabkan seluruh isi naskah dan menerima keputusan evaluator secara mutlak.
-                            </p>
-                        </div>
-
-                        <!-- KOLOM TANDA TANGAN -->
-                        <div class="ttd-area">
-                            <div class="ttd-col">
-                                <div class="ttd-title">Mengetahui, Tim Redaksi</div>
-                                <div class="ttd-line"></div>
-                                <div class="ttd-nama">Tim Redaksi</div>
-                                <div class="ttd-jabatan">Cendekia Aksara</div>
-                            </div>
-                            <div class="ttd-col">
-                                <div class="ttd-title">Peserta Sidang</div>
-                                <div class="ttd-line"></div>
-                                <div class="ttd-nama" id="card-nama-ttd">—</div>
-                                <div class="ttd-jabatan">Peserta Sidang Kelayakan</div>
-                            </div>
-                        </div>
-
-                        <!-- FOOTER STRIP -->
-                        <div class="kartu-footer-strip">
-                            <div class="footer-valid">
-                                <i class="fa-solid fa-circle-check"></i>
-                                Dokumen resmi diterbitkan oleh sistem Cendekia Aksara
-                            </div>
-                            <div class="footer-kode-akses" id="card-footer-kode">—</div>
-                        </div>
-
-                    </div><!-- end kartu-print-area -->
-                </div><!-- end kartu-sidang-container -->
-            </div><!-- end kartu-wrapper -->
-            <button id="btn-print-kartu" onclick="cetakKartuPDF()" style="display:none; width:100%; padding:13px; margin-top:12px; background:linear-gradient(135deg,var(--primary),#001f3f); color:white; border:none; font-weight:800; font-size:0.95rem; border-radius:10px; cursor:pointer; box-shadow:0 4px 15px rgba(0,51,102,0.3);">
-                <i class="fa-solid fa-file-pdf"></i> &nbsp;Unduh Kartu Sidang (PDF)
-            </button>
+                </div>
+                
+                <button id="btn-print-surat" onclick="unduhSuratPDF()">
+                    <i class="fa-solid fa-download"></i> Unduh Dokumen (PDF)
+                </button>
+            </div>
         </div>
 
         <div id="form-section" class="form-section show">
@@ -421,12 +453,12 @@
                 </div>
                 <div class="form-card" style="background: #f8fafc;">
                     <div class="section-title"><i class="fa-solid fa-handshake"></i> 4. Persetujuan & Legalitas</div>
-                    <label class="checkbox-container"><input type="checkbox" id="agree-1" required> <span>Saya menjamin bahwa seluruh data identitas dan berkas fisik yang dilampirkan adalah benar dan asli.</span></label>
-                    <label class="checkbox-container"><input type="checkbox" id="agree-2" required> <span>Naskah saya 100% orisinal dan bebas plagiasi.</span></label>
-                    <label class="checkbox-container"><input type="checkbox" id="agree-3" required> <span>Saya bersedia mematuhi jadwal Sidang Kelayakan.</span></label>
-                    <button type="submit" class="btn-submit" id="btn-submit-tahap1" disabled>
-                        <i class="fa-solid fa-paper-plane"></i> KIRIM BERKAS AWAL SEKARANG
-                    </button>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-1" required> <span>Saya menjamin bahwa seluruh data identitas, metadata, dan berkas fisik yang dilampirkan adalah benar dan asli.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-2" required> <span>Naskah saya 100% orisinal, bebas plagiasi, dan tidak sedang terikat kontrak penerbitan dengan pihak lain.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-3" required> <span>Saya memberi kuasa kepada sistem Cendekia Aksara untuk mengarsipkan file dan membuatkan dokumen hukum (PDF) secara otomatis atas nama saya.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-4" required> <span>Saya bersedia mematuhi jadwal Sidang Kelayakan yang ditetapkan oleh Tim Redaksi tanpa terkecuali.</span></label>
+                    <label class="checkbox-container"><input type="checkbox" id="agree-5" required> <span>Saya tunduk secara mutlak pada keputusan akhir Tim Evaluator dan bersedia melakukan revisi naskah jika dinyatakan belum memenuhi standar.</span></label>
+                    <button type="submit" class="btn-submit" id="btn-submit-tahap1" disabled>KIRIM BERKAS AWAL SEKARANG</button>
                 </div>
             </form>
         </div>
@@ -434,37 +466,19 @@
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwyLOayneYVg1s7suayQFghRjch7wamNagERpr4puzWApBA0sgpjsJ1zQIonl1uxLq4/exec";
-        
+        const GAS_URL = "URL_APPS_SCRIPT_KAMU_DISINI"; 
         let currentUser = null;
         let base64Files = { foto: null, khs: null, kuitansi: null, ttd_perjanjian: null, ttd_sk: null };
         let isRevisiMode = false;
         let dataLama = {};
 
-        // ================================================================
-        // FOTO & LOGO — SEMUA GAMBAR DI KARTU DITANGANI LEWAT CANVAS
-        // Tidak pakai <img src="URL"> karena html2canvas tidak bisa render
-        // URL eksternal (Drive / imgur) akibat CORS.
-        // Solusi: fetch → blob → FileReader → base64 → gambar di canvas.
-        // ================================================================
-
-        /**
-         * Fetch URL gambar eksternal lalu kembalikan sebagai base64 data URL.
-         * Mencoba langsung dulu, jika CORS gagal pakai dua proxy publik sebagai fallback.
-         */
+        // Helper untuk memuat gambar dari URL agar tidak kena blokir CORS saat di-print
         async function fetchGambarSebagaiBase64(url) {
             if (!url) return null;
-            if (url.startsWith('data:')) return url; // sudah base64, langsung pakai
-
-            // Daftar sumber yang dicoba berurutan
-            const sumber = [
-                url,                                                              // 1. langsung
-                `https://corsproxy.io/?${encodeURIComponent(url)}`,              // 2. corsproxy.io
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`  // 3. allorigins
-            ];
-
+            if (url.startsWith('data:')) return url;
+            const sumber = [ url, `https://corsproxy.io/?${encodeURIComponent(url)}`, `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` ];
             for (const src of sumber) {
                 try {
                     const res = await fetch(src);
@@ -476,88 +490,26 @@
                         reader.onerror = reject;
                         reader.readAsDataURL(blob);
                     });
-                } catch (e) {
-                    // Lanjut ke sumber berikutnya
-                }
+                } catch (e) { }
             }
-            return null; // semua gagal
+            return null;
         }
 
-        /**
-         * Gambar base64 ke canvas dengan mempertahankan object-fit: cover.
-         */
-        function gambarKeCanvas(canvas, base64, width, height) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-
-                    // Cover: hitung crop agar gambar memenuhi canvas tanpa distorsi
-                    const imgRatio = img.width / img.height;
-                    const canvasRatio = width / height;
-                    let sx, sy, sw, sh;
-                    if (imgRatio > canvasRatio) {
-                        sh = img.height; sw = sh * canvasRatio;
-                        sx = (img.width - sw) / 2; sy = 0;
-                    } else {
-                        sw = img.width; sh = sw / canvasRatio;
-                        sx = 0; sy = (img.height - sh) / 2;
-                    }
-                    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
-                    resolve(true);
-                };
-                img.onerror = () => resolve(false);
-                img.src = base64;
-            });
-        }
-
-        /**
-         * Load logo ke canvas kartu.
-         * Dipanggil saat kartu pertama kali ditampilkan.
-         */
-        async function loadLogoKartu() {
-            const canvas = document.getElementById('kartu-logo-canvas');
+        // Memuat logo ke canvas khusus untuk surat PDF
+        async function loadLogoSurat() {
+            const canvas = document.getElementById('surat-logo-canvas');
             if (!canvas) return;
             const b64 = await fetchGambarSebagaiBase64('https://i.imgur.com/5Srjyo4.png');
             if (b64) {
-                await gambarKeCanvas(canvas, b64, 36, 36);
-            } else {
-                // Fallback: buat lingkaran berwarna dengan inisial
-                canvas.width = 36; canvas.height = 36;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = '#1e3a8a';
-                ctx.beginPath(); ctx.arc(18, 18, 18, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#eab308'; ctx.font = 'bold 14px Outfit, sans-serif';
-                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText('CA', 18, 18);
+                const img = new Image();
+                img.onload = () => {
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 80, 80);
+                };
+                img.src = b64;
             }
         }
 
-        /**
-         * Load foto siswa ke canvas kartu.
-         * Dipanggil setelah data approved diambil dari Firestore.
-         */
-        async function loadFotoKartu(urlFoto) {
-            const canvas = document.getElementById('kartu-foto-canvas');
-            const placeholder = document.getElementById('kartu-foto-placeholder');
-            if (!canvas) return;
-
-            const b64 = await fetchGambarSebagaiBase64(urlFoto);
-            if (b64) {
-                const berhasil = await gambarKeCanvas(canvas, b64, 78, 104);
-                if (berhasil) {
-                    canvas.style.display = 'block';
-                    if (placeholder) placeholder.style.display = 'none';
-                }
-            }
-            // Jika gagal, biarkan placeholder tetap tampil
-        }
-
-        // ================================================================
-        // UI
-        // ================================================================
         window.selectCard = function(groupId, el) {
             document.querySelectorAll(`#${groupId} .radio-card`).forEach(card => card.style.borderColor = '#cbd5e1');
             el.parentElement.style.borderColor = 'var(--primary)';
@@ -570,14 +522,11 @@
             else { inputLain.style.display = 'none'; inputLain.removeAttribute('required'); }
         };
 
-        const checkboxes = ['agree-1', 'agree-2', 'agree-3'].map(id => document.getElementById(id));
+        const checkboxes = ['agree-1', 'agree-2', 'agree-3', 'agree-4', 'agree-5'].map(id => document.getElementById(id));
         const btnSubmit1 = document.getElementById('btn-submit-tahap1');
         function cekValidasi() { if(btnSubmit1) btnSubmit1.disabled = !checkboxes.every(cb => cb.checked); }
         checkboxes.forEach(cb => { if(cb) cb.addEventListener('change', cekValidasi) });
 
-        // ================================================================
-        // INIT
-        // ================================================================
         window.onload = async () => {
             try {
                 currentUser = await checkAuth('siswa');
@@ -638,33 +587,28 @@
             } else if (data.status === 'approved') {
                 badge.className = 'badge acc';
                 badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lulus Sidang (ACC)';
-                document.getElementById('status-desc').innerText = "Selamat! Jadwal dan Kartu Anda telah terbit.";
+                document.getElementById('status-desc').innerText = "Selamat! Surat Pernyataan dan Jadwal Anda telah terbit.";
 
-                document.getElementById('meet-box').style.display = 'flex';
-                document.getElementById('link-meet').href = data.link_meet || '#';
-                document.getElementById('jadwal-meet').innerText = data.jadwal_sidang || 'Menunggu jadwal';
-
-                // Kode peserta unik
-                const kode = 'CA-' + currentUser.uid.substring(0,6).toUpperCase() + '-' + new Date().getFullYear();
-
-                // Isi semua field kartu surat
-                document.getElementById('card-nama').innerText     = data.nama_lengkap || '-';
-                document.getElementById('card-nama-ttd').innerText = data.nama_lengkap || '-';
-                document.getElementById('card-judul').innerText    = data.judul_naskah || '-';
-                document.getElementById('card-paket').innerText    = data.paket || '-';
-                document.getElementById('card-npm').innerText      = currentUser.uid.substring(0,8).toUpperCase();
-                document.getElementById('card-jadwal').innerText   = data.jadwal_sidang || 'Menunggu jadwal';
-                document.getElementById('card-meet').innerText     = data.link_meet || '-';
-                document.getElementById('card-tahun-doc').innerText = new Date().getFullYear();
-                document.getElementById('card-kode').innerText     = kode;
-                document.getElementById('card-footer-kode').innerText = kode;
-
-                // Tampilkan wrapper kartu dan tombol
-                document.getElementById('kartu-wrapper').style.display = 'block';
-                document.getElementById('btn-print-kartu').style.display = 'block';
-
-                // Load logo ke canvas (tanpa CORS issue)
-                await loadLogoKartu();
+                // Isi data ke Surat A4
+                document.getElementById('surat-nama').innerText = data.nama_lengkap || '-';
+                document.getElementById('surat-nama-ttd').innerText = data.nama_lengkap || '-';
+                document.getElementById('surat-npm').innerText = currentUser.uid.substring(0,8).toUpperCase();
+                document.getElementById('surat-judul').innerText = data.judul_naskah || '-';
+                document.getElementById('surat-paket').innerText = data.paket || '-';
+                document.getElementById('surat-jadwal').innerText = data.jadwal_sidang || 'Menunggu jadwal';
+                document.getElementById('surat-meet').innerText = data.link_meet || '-';
+                
+                // Format Tanggal Hari Ini untuk TTD Surat
+                const today = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('surat-tanggal').innerText = today.toLocaleDateString('id-ID', options);
+                
+                // Tampilkan container surat dan tombol unduh
+                document.getElementById('surat-wrapper').style.display = 'block';
+                document.getElementById('btn-print-surat').style.display = 'block';
+                
+                // Muat logo ke dalam surat agar aman dicetak
+                await loadLogoSurat();
             }
         }
 
@@ -692,9 +636,6 @@
             if(name) { name.innerText = '✓ ' + msg; name.style.display = 'block'; }
         }
 
-        // ================================================================
-        // KOMPRESI FILE
-        // ================================================================
         function compressImage(file, canvasId, maxWidth, quality) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -741,9 +682,6 @@
             document.getElementById(boxId).style.borderColor = 'var(--success)';
         };
 
-        // ================================================================
-        // UPLOAD KE GAS
-        // ================================================================
         async function uploadFileTunggal(uid, npm, namaFile, base64Data) {
             const payload = { action: 'upload_file', uid, npm, file_key: namaFile, file_data: base64Data };
             const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
@@ -763,9 +701,6 @@
             if (msg) text.innerText = msg;
         }
 
-        // ================================================================
-        // SUBMIT TAHAP 1
-        // ================================================================
         document.getElementById('sidang-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const promoRadio = document.querySelector('input[name="f_promosi_radio"]:checked');
@@ -799,7 +734,7 @@
                     const metaJson = await metaRes.json();
                     urlDrafPerjanjian = metaJson?.urls?.draf_perjanjian || '';
                     urlDrafSK = metaJson?.urls?.draf_sk || '';
-                } catch(_) { /* draf gagal, lanjutkan saja */ }
+                } catch(_) { }
 
                 await setDoc(doc(db, 'sidang_applications', uid), {
                     uid, email: document.getElementById('f_email').value,
@@ -827,9 +762,6 @@
             }
         });
 
-        // ================================================================
-        // SUBMIT TAHAP 2
-        // ================================================================
         window.kirimTahap2 = async function() {
             if(!base64Files.ttd_perjanjian || !base64Files.ttd_sk) return Swal.fire('Peringatan','Unggah kedua file TTD!','warning');
             const btn = document.getElementById('btn-kirim-ttd');
@@ -840,12 +772,15 @@
                 setProgressStep('icon-ttd-perjanjian','text-ttd-perjanjian','loading','Mengupload...');
                 const urlP = await uploadFileTunggal(uid, npm, 'ttd_perjanjian', base64Files.ttd_perjanjian);
                 setProgressStep('icon-ttd-perjanjian','text-ttd-perjanjian','done','Perjanjian terupload ✓');
+                
                 setProgressStep('icon-ttd-sk','text-ttd-sk','loading','Mengupload...');
                 const urlS = await uploadFileTunggal(uid, npm, 'ttd_sk', base64Files.ttd_sk);
                 setProgressStep('icon-ttd-sk','text-ttd-sk','done','SK terupload ✓');
+                
                 setProgressStep('icon-ttd-firestore','text-ttd-firestore','loading','Menyimpan...');
                 await updateDoc(doc(db, 'sidang_applications', uid), { status: 'pending_tahap2', url_perjanjian_final: urlP, url_sk_final: urlS, timestamp_ttd: serverTimestamp() });
                 setProgressStep('icon-ttd-firestore','text-ttd-firestore','done','Tersimpan ✓');
+                
                 await Swal.fire('Terkirim!', 'Menunggu verifikasi Admin.', 'success');
                 window.location.reload();
             } catch(e) {
@@ -855,70 +790,53 @@
         };
 
         // ================================================================
-        // CETAK KARTU PDF — menggunakan print dialog browser
-        // html2canvas render kartu → blob → buka tab baru → print as PDF
-        // Logo sudah di canvas lokal, tidak ada CORS issue.
+        // DIRECT PDF DOWNLOAD MENGGUNAKAN jsPDF + html2canvas
+        // Mengubah tag div #surat-print-container menjadi file PDF A4.
         // ================================================================
-        window.cetakKartuPDF = async function() {
-            const printArea = document.getElementById('kartu-print-area');
-            const container = document.getElementById('kartu-sidang-container');
-            if (!printArea) return;
+        window.unduhSuratPDF = async function() {
+            const suratArea = document.getElementById('surat-print-container');
+            if (!suratArea) return;
 
             Swal.fire({
-                title: 'Menyiapkan PDF...',
-                html: 'Merender dokumen kualitas tinggi.',
-                allowOutsideClick: false, showConfirmButton: false,
-                willOpen: () => Swal.showLoading()
+                title: 'Mempersiapkan PDF...',
+                html: 'Mohon tunggu sementara dokumen diproses.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
             });
 
             try {
-                // Render kartu ke canvas dengan skala 3x (resolusi tinggi)
-                const W = container.offsetWidth || 640;
-                const H = printArea.offsetHeight || 480;
-
-                const canvas = await html2canvas(printArea, {
-                    scale: 3,
-                    useCORS: false,
-                    allowTaint: false,
-                    backgroundColor: '#ffffff',
-                    width: W,
-                    height: H,
-                    logging: false
+                // 1. Ubah HTML ke Canvas dengan resolusi tinggi (scale: 2)
+                const canvas = await html2canvas(suratArea, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
                 });
 
-                // Buat halaman HTML baru berisi gambar kartu, lalu print
-                const imgData = canvas.toDataURL('image/png', 1.0);
-                const printWin = window.open('', '_blank');
-                printWin.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Kartu Sidang - Cendekia Aksara</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: white; display: flex; justify-content: center; align-items: flex-start; padding: 20px; }
-    img { max-width: 100%; height: auto; display: block; box-shadow: 0 2px 20px rgba(0,0,0,0.12); }
-    @media print {
-      body { padding: 0; }
-      img { box-shadow: none; max-width: 100%; page-break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <img src="${imgData}" alt="Kartu Sidang">
-  <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 600);
-    };
-  <\/script>
-</body>
-</html>`);
-                printWin.document.close();
+                const imgData = canvas.toDataURL('image/png');
 
-                Swal.fire('Siap!', 'Halaman print telah dibuka. Pilih "Save as PDF" di dialog cetak.', 'success');
-            } catch(err) {
-                console.error(err);
-                Swal.fire('Gagal', err.message, 'error');
+                // 2. Inisiasi jsPDF untuk format A4 Portrait (210 x 297 mm)
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                // 3. Masukkan gambar ke dalam PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+                // 4. Langsung Unduh / Download
+                const fileName = `Surat_Pernyataan_Sidang_${currentUser.uid.substring(0,8)}.pdf`;
+                pdf.save(fileName);
+
+                Swal.close();
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal Mengunduh', 'Terjadi kesalahan saat memproses dokumen PDF.', 'error');
             }
         };
 
