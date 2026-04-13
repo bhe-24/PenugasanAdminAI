@@ -43,21 +43,44 @@
 
         /* =============================================
            SURAT PERNYATAAN SIDANG — A4 Portrait Style
-           Sesuai instruksi: Header, Data Diri, Pernyataan, Jadwal, Link, Kolom TTD
         ============================================= */
-        .surat-wrapper { margin: 20px auto 0; max-width: 100%; display: none; }
+        .surat-wrapper { 
+            margin: 20px auto 0; 
+            width: 100%; 
+            display: none; 
+            /* Menggunakan overflow agar scrollable horizontal di HP jika perlu, tapi kita akali dengan scale nanti */
+            overflow-x: auto; 
+            padding-bottom: 20px;
+        }
+        
         .surat-label { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 12px; font-weight: 600; }
         
+        /* Container A4 Tetap: Kunci ukuran ke Proporsi A4 Pixel (~794px x 1123px untuk resolusi standar) */
         #surat-print-container {
-            width: 100%;
-            /* Menjaga proporsi A4 (210 x 297 mm) secara kasar agar rapi sebelum di-print */
+            width: 794px; /* Lebar standar A4 di layar */
+            min-height: 1123px; /* Tinggi standar A4 */
             background: #ffffff;
             border: 1px solid #cbd5e1;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 40px;
+            padding: 50px 60px; /* Margin kertas */
             font-family: "Times New Roman", Times, serif; /* Font resmi persuratan */
             color: #000;
             position: relative;
+            margin: 0 auto; /* Posisi di tengah */
+            box-sizing: border-box;
+            transform-origin: top center; /* Agar kalau di scale nge-zoom dari atas tengah */
+        }
+
+        /* Membuat surat mengecil (zoom out) di layar HP agar tidak terpotong */
+        @media (max-width: 820px) {
+            #surat-print-container {
+                /* Menyesuaikan skala otomatis berdasarkan lebar layar dibagi lebar surat asli */
+                transform: scale(calc((100vw - 60px) / 794));
+                margin-bottom: calc(1123px * (calc((100vw - 60px) / 794)) - 1123px); /* Kompensasi tinggi setelah scale */
+            }
+            .surat-wrapper {
+                overflow: hidden; /* Matikan scroll karena sudah di scale */
+            }
         }
 
         /* Kop Surat Resmi */
@@ -79,7 +102,7 @@
         }
         .kop-teks-resmi h2 {
             margin: 0;
-            font-size: 22px;
+            font-size: 24px;
             text-transform: uppercase;
             font-weight: bold;
             letter-spacing: 1px;
@@ -88,11 +111,6 @@
             margin: 5px 0 0 0;
             font-size: 16px;
             font-weight: normal;
-        }
-        .kop-teks-resmi p {
-            margin: 5px 0 0 0;
-            font-size: 12px;
-            color: #333;
         }
 
         /* Judul Surat */
@@ -116,7 +134,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
-            font-size: 14px;
+            font-size: 15px;
         }
         .tabel-data-diri td {
             padding: 8px 4px;
@@ -132,7 +150,7 @@
 
         /* Paragraf Pernyataan */
         .teks-pernyataan {
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.6;
             text-align: justify;
             margin-bottom: 20px;
@@ -144,33 +162,35 @@
             margin: 20px 0;
             background: #f9fafb;
         }
-        .box-jadwal h5 { margin: 0 0 10px 0; font-size: 15px; text-decoration: underline; }
-        .box-jadwal p { margin: 5px 0; font-size: 14px; }
-        .box-jadwal .highlight-meet { font-family: monospace; color: #1e3a8a; font-weight: bold; font-size: 13px;}
+        .box-jadwal h5 { margin: 0 0 10px 0; font-size: 16px; text-decoration: underline; }
+        .box-jadwal p { margin: 5px 0; font-size: 15px; }
+        .box-jadwal .highlight-meet { font-family: monospace; color: #1e3a8a; font-weight: bold; font-size: 14px;}
 
         /* Area Tanda Tangan */
         .area-ttd {
             display: flex;
             justify-content: space-between;
-            margin-top: 40px;
-            font-size: 14px;
+            margin-top: 50px;
+            font-size: 15px;
         }
         .kolom-ttd {
             width: 40%;
             text-align: center;
         }
-        .kolom-ttd p { margin: 0 0 70px 0; } /* Spasi untuk TTD */
+        .kolom-ttd p { margin: 0 0 80px 0; } /* Spasi untuk TTD */
         .nama-ttd {
             font-weight: bold;
             text-decoration: underline;
+            display: block;
         }
 
         #btn-print-surat {
-            display: none; width: 100%; padding: 14px; margin-top: 15px;
+            display: none; width: 100%; padding: 14px; margin-top: 20px;
             background: linear-gradient(135deg, var(--primary), #001f3f);
             color: white; border: none; font-weight: 700; font-size: 1rem;
             border-radius: 10px; cursor: pointer; letter-spacing: 0.5px;
             box-shadow: 0 4px 15px rgba(0,51,102,0.3); transition: 0.2s;
+            position: relative; z-index: 10; /* Agar di atas surat yang ke-scale */
         }
         #btn-print-surat:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,51,102,0.4); }
         
@@ -295,7 +315,6 @@
                         <div class="kop-teks-resmi">
                             <h2>Cendekia Aksara</h2>
                             <h3>Lembaga Penerbitan & Inkubasi Literasi</h3>
-                            <p>Website: cendekiaaksara.com | Email: redaksi@cendekiaaksara.com</p>
                         </div>
                     </div>
 
@@ -474,7 +493,6 @@
         let isRevisiMode = false;
         let dataLama = {};
 
-        // Helper untuk memuat gambar dari URL agar tidak kena blokir CORS saat di-print
         async function fetchGambarSebagaiBase64(url) {
             if (!url) return null;
             if (url.startsWith('data:')) return url;
@@ -495,7 +513,6 @@
             return null;
         }
 
-        // Memuat logo ke canvas khusus untuk surat PDF
         async function loadLogoSurat() {
             const canvas = document.getElementById('surat-logo-canvas');
             if (!canvas) return;
@@ -589,7 +606,6 @@
                 badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Lulus Sidang (ACC)';
                 document.getElementById('status-desc').innerText = "Selamat! Surat Pernyataan dan Jadwal Anda telah terbit.";
 
-                // Isi data ke Surat A4
                 document.getElementById('surat-nama').innerText = data.nama_lengkap || '-';
                 document.getElementById('surat-nama-ttd').innerText = data.nama_lengkap || '-';
                 document.getElementById('surat-npm').innerText = currentUser.uid.substring(0,8).toUpperCase();
@@ -598,16 +614,13 @@
                 document.getElementById('surat-jadwal').innerText = data.jadwal_sidang || 'Menunggu jadwal';
                 document.getElementById('surat-meet').innerText = data.link_meet || '-';
                 
-                // Format Tanggal Hari Ini untuk TTD Surat
                 const today = new Date();
                 const options = { year: 'numeric', month: 'long', day: 'numeric' };
                 document.getElementById('surat-tanggal').innerText = today.toLocaleDateString('id-ID', options);
                 
-                // Tampilkan container surat dan tombol unduh
                 document.getElementById('surat-wrapper').style.display = 'block';
                 document.getElementById('btn-print-surat').style.display = 'block';
                 
-                // Muat logo ke dalam surat agar aman dicetak
                 await loadLogoSurat();
             }
         }
@@ -789,10 +802,6 @@
             }
         };
 
-        // ================================================================
-        // DIRECT PDF DOWNLOAD MENGGUNAKAN jsPDF + html2canvas
-        // Mengubah tag div #surat-print-container menjadi file PDF A4.
-        // ================================================================
         window.unduhSuratPDF = async function() {
             const suratArea = document.getElementById('surat-print-container');
             if (!suratArea) return;
@@ -805,17 +814,20 @@
             });
 
             try {
-                // 1. Ubah HTML ke Canvas dengan resolusi tinggi (scale: 2)
+                // Render at a high scale, but instruct html2canvas on the actual intended dimensions.
                 const canvas = await html2canvas(suratArea, {
-                    scale: 2,
+                    scale: 3, 
                     useCORS: true,
                     allowTaint: true,
-                    backgroundColor: '#ffffff'
+                    backgroundColor: '#ffffff',
+                    width: 794,
+                    height: 1123,
+                    windowWidth: 794, 
+                    windowHeight: 1123
                 });
 
-                const imgData = canvas.toDataURL('image/png');
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
 
-                // 2. Inisiasi jsPDF untuk format A4 Portrait (210 x 297 mm)
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF({
                     orientation: 'portrait',
@@ -826,10 +838,8 @@
                 const pdfWidth = pdf.internal.pageSize.getWidth();
                 const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-                // 3. Masukkan gambar ke dalam PDF
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
 
-                // 4. Langsung Unduh / Download
                 const fileName = `Surat_Pernyataan_Sidang_${currentUser.uid.substring(0,8)}.pdf`;
                 pdf.save(fileName);
 
