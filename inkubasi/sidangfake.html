@@ -138,6 +138,7 @@
             color: white; border: none; font-weight: 700; font-size: 1rem;
             border-radius: 10px; cursor: pointer; letter-spacing: 0.5px;
             box-shadow: 0 4px 15px rgba(0,51,102,0.3); transition: 0.2s;
+            position: relative; z-index: 10; /* Agar di atas surat yang ke-scale */
         }
         #btn-print-surat:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,51,102,0.4); }
         
@@ -463,7 +464,6 @@
         async function loadLogoSurat() {
             const canvas = document.getElementById('surat-logo-canvas');
             if (!canvas) return;
-            // Di web canvas responsif (kecil), tapi resolusinya kita buat gede biar PDF gak burem
             canvas.width = 160; 
             canvas.height = 160;
             const b64 = await fetchGambarSebagaiBase64('https://i.imgur.com/5Srjyo4.png');
@@ -775,10 +775,7 @@
             });
 
             try {
-                // Trik: Kita paksa container ke dimensi A4 aslinya sesaat sebelum difoto
                 suratArea.classList.add('pdf-render-mode');
-
-                // Tunggu sedikit agar browser sempat me-render ulang ukuran
                 await new Promise(r => setTimeout(r, 100)); 
 
                 const canvas = await html2canvas(suratArea, {
@@ -788,7 +785,6 @@
                     backgroundColor: '#ffffff'
                 });
 
-                // Kembalikan ukuran aslinya untuk tampilan web
                 suratArea.classList.remove('pdf-render-mode');
 
                 const imgData = canvas.toDataURL('image/jpeg', 1.0);
@@ -800,7 +796,6 @@
                     format: 'a4'
                 });
 
-                // Dimensi A4 dalam mm
                 const pdfWidth = 210; 
                 const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
@@ -811,7 +806,7 @@
 
                 Swal.close();
             } catch (error) {
-                suratArea.classList.remove('pdf-render-mode'); // Pastikan dikembalikan jika error
+                suratArea.classList.remove('pdf-render-mode'); 
                 console.error(error);
                 Swal.fire('Gagal Mengunduh', 'Terjadi kesalahan saat memproses dokumen PDF.', 'error');
             }
