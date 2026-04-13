@@ -191,7 +191,9 @@
             <a href="/inkubasi/referensi.html" class="dashboard-card referensi"> 
                 <i class="fa-solid fa-folder-open"></i> <h3>Pusat Referensi</h3> 
             </a>
-            <a href="/inkubasi/sidang.html" class="dashboard-card sidang"> 
+            
+            <!-- Ditambahkan ID card-sidang-link untuk pengecekan akses -->
+            <a href="/inkubasi/sidang.html" class="dashboard-card sidang" id="card-sidang-link"> 
                 <i class="fa-solid fa-gavel"></i> <h3>Ruang Sidang</h3> 
             </a>
 
@@ -265,7 +267,7 @@
                     btnConfirm.className   = 'btn-modal btn-danger-modal';
                     btnConfirm.innerText   = 'Ya, Keluar';
                 } else if (type === 'warning') {
-                    iconEl.innerHTML       = '<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b"></i>';
+                    iconEl.innerHTML       = '<i class="fa-solid fa-lock" style="color:#f59e0b"></i>';
                     btnConfirm.className   = 'btn-modal btn-confirm';
                     btnConfirm.innerText   = 'Mengerti';
                 } else {
@@ -353,6 +355,9 @@
                 }, 250);
             }, 3000);
 
+            // Variabel untuk melacak apakah siswa diizinkan masuk ke Ruang Sidang
+            let isSiapSidang = false; 
+
             // --- TRACKER PROGRES DINAMIS ---
             try {
                 const pitchRef  = doc(db, 'pitching_projects', userData.uid);
@@ -388,6 +393,7 @@
                         progressSection.style.display = 'none';
                     } else if (status === 'sidang') {
                         // Kondisi: Proses Sidang
+                        isSiapSidang = true; // Langsung buka izin karena status sudah diset ke Sidang
                         statusBadge.className = 'status-badge status-sidang';
                         statusBadge.innerText = 'Proses Sidang';
                         trackerMessage.innerHTML = '<i class="fa-solid fa-users-viewfinder"></i> Naskah Anda sedang dalam tahapan / persiapan Sidang.';
@@ -405,6 +411,13 @@
                             if (!snap.exists()) return;
                             const currentWords = parseInt(snap.data().word_count) || 0;
                             renderProgress(currentWords, targetWords);
+
+                            // Cek kelayakan sidang berdasarkan progress 100%
+                            if (currentWords >= targetWords && targetWords > 0) {
+                                isSiapSidang = true;
+                            } else {
+                                isSiapSidang = false;
+                            }
                         });
                     }
                 }
@@ -435,6 +448,22 @@
                 });
             } else {
                 updateDoc(doc(db, 'users', userData.uid), { last_active: serverTimestamp() });
+
+                // NORMAL STATUS - Tambahkan logika perlindungan khusus menu Ruang Sidang
+                const cardSidang = document.getElementById('card-sidang-link');
+                if (cardSidang) {
+                    cardSidang.onclick = (e) => {
+                        if (!isSiapSidang) {
+                            e.preventDefault();
+                            window.showModal(
+                                'Akses Terkunci', 
+                                'Fitur Ruang Sidang hanya terbuka jika progres menulis naskah Anda di Logbook sudah mencapai 100% (Selesai).', 
+                                false, 
+                                'warning'
+                            );
+                        }
+                    };
+                }
             }
         })();
 
