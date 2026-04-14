@@ -56,7 +56,7 @@
         .aspirasi-msg { font-size: 0.95rem; color: var(--text-dark); line-height: 1.6; margin-bottom: 20px; font-style: italic; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 3px solid #cbd5e1; }
 
         /* ACTION BUTTONS */
-        .action-group { display: flex; gap: 10px; margin-top: auto; }
+        .action-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .btn-action {
             flex: 1; border: none; padding: 10px; border-radius: 8px;
             font-size: 0.85rem; font-weight: 600; font-family: 'Poppins'; cursor: pointer;
@@ -66,6 +66,25 @@
         .btn-proses:hover { background: #dbeafe; }
         .btn-selesai { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
         .btn-selesai:hover { background: #dcfce7; }
+
+        /* --- KOLOM BALASAN OSIS --- */
+        .reply-section {
+            margin-top: auto; padding-top: 15px; border-top: 1px dashed #e2e8f0;
+        }
+        .reply-section label {
+            display: block; font-size: 0.85rem; font-weight: 600; color: var(--primary); margin-bottom: 8px;
+        }
+        .reply-input {
+            width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+            font-family: 'Poppins', sans-serif; font-size: 0.85rem; resize: vertical; min-height: 60px;
+            margin-bottom: 10px; box-sizing: border-box; background: #f8fafc; transition: 0.3s;
+        }
+        .reply-input:focus { border-color: var(--primary); background: white; outline: none; }
+        .btn-reply {
+            width: 100%; background: #0f172a; color: white; border: none; padding: 10px; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 5px;
+        }
+        .btn-reply:hover { background: var(--primary); }
 
         /* LOADING & TOAST */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--aspirasi); transition: 0.4s; }
@@ -107,7 +126,7 @@
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { collection, query, orderBy, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, orderBy, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Fungsi Toast
         window.showToast = (message) => {
@@ -202,6 +221,9 @@
                     // Cek Anonim
                     const senderName = data.isAnonim ? 'Siswa Rahasia (Anonim)' : (data.senderName || 'Siswa');
                     const senderIcon = data.isAnonim ? '<i class="fa-solid fa-user-secret"></i>' : '<i class="fa-solid fa-user"></i>';
+                    
+                    // Balasan Saat ini (Jika ada)
+                    const currentBalasan = data.balasanOsis || '';
 
                     htmlBuffer += `
                         <div class="aspirasi-card">
@@ -224,6 +246,15 @@
                             <div class="action-group">
                                 ${btnHtml}
                             </div>
+                            
+                            <!-- TAMBAHAN: KOLOM BALASAN OSIS -->
+                            <div class="reply-section">
+                                <label><i class="fa-solid fa-reply"></i> Balasan OSIS:</label>
+                                <textarea id="reply-${id}" class="reply-input" placeholder="Tuliskan jawaban atau tanggapan untuk siswa ini...">${currentBalasan}</textarea>
+                                <button class="btn-reply" onclick="kirimBalasan('${id}', this)">
+                                    <i class="fa-solid fa-paper-plane"></i> Simpan Balasan
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -236,10 +267,9 @@
             }
         }
 
-        // FUNGSI UPDATE STATUS
+        // FUNGSI UPDATE STATUS MANUAL
         window.updateStatus = async (id, newStatus) => {
             try {
-                // Update doc di firebase
                 await updateDoc(doc(db, 'aspirasi', id), {
                     status: newStatus
                 });
@@ -252,6 +282,37 @@
 
             } catch (e) {
                 alert("Gagal memperbarui status: " + e.message);
+            }
+        };
+
+        // FUNGSI KIRIM BALASAN OSIS
+        window.kirimBalasan = async (id, btnElement) => {
+            const inputEl = document.getElementById(`reply-${id}`);
+            const balasan = inputEl.value.trim();
+
+            if (!balasan) {
+                alert('Harap isi kolom balasan terlebih dahulu sebelum menyimpan.');
+                return;
+            }
+
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            btnElement.disabled = true;
+
+            try {
+                await updateDoc(doc(db, 'aspirasi', id), {
+                    balasanOsis: balasan,
+                    waktuBalasan: serverTimestamp(),
+                    status: 'selesai' // Mengubah status otomatis menjadi selesai karena sudah dibalas
+                });
+                
+                window.showToast("Balasan berhasil disimpan & dikirim ke siswa!");
+                loadAspirasi(); // Refresh layar agar statusnya terupdate
+
+            } catch (e) {
+                alert("Gagal menyimpan balasan: " + e.message);
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
             }
         };
     </script>
