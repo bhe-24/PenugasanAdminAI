@@ -45,7 +45,7 @@
         /* --- FORM CARD --- */
         .form-card {
             background: white; border-radius: 16px; padding: 35px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.03); border: 1px solid #e2e8f0;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 40px;
         }
 
         .form-group { margin-bottom: 20px; display: flex; flex-direction: column; }
@@ -90,6 +90,37 @@
         /* Info Box */
         .info-box { background: #eff6ff; padding: 15px; border-radius: 10px; border: 1px solid #bfdbfe; margin-bottom: 25px; font-size: 0.85rem; color: #1e3a8a; line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; }
         .info-box i { font-size: 1.2rem; margin-top: 2px; }
+
+        /* --- RIWAYAT ASPIRASI & BALASAN --- */
+        .history-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; color: var(--primary); }
+        .history-header h2 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+        
+        .aspirasi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .history-card { 
+            background: white; border-radius: 16px; padding: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; transition: 0.3s;
+        }
+        .history-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+        
+        .history-date { font-size: 0.8rem; color: var(--text-gray); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px;}
+        .aspirasi-msg { font-size: 0.95rem; color: var(--text-dark); line-height: 1.6; margin-bottom: 15px; font-style: italic; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 3px solid #cbd5e1; }
+        
+        .badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .cat-akademik { background: #e0e7ff; color: #4338ca; }
+        .cat-fasilitas { background: #ffedd5; color: #b45309; }
+        .cat-osis { background: #fce7f3; color: #be185d; }
+        .cat-lainnya { background: #f1f5f9; color: #475569; }
+
+        .status-pending { background: #fee2e2; color: #991b1b; }
+        .status-proses { background: #dbeafe; color: #1e40af; }
+        .status-selesai { background: #dcfce7; color: #166534; }
+
+        .balasan-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-top: auto; }
+        .balasan-title { font-size: 0.8rem; font-weight: 700; color: #166534; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+        .balasan-text { font-size: 0.9rem; color: #15803d; line-height: 1.5; }
+        
+        .no-balasan { font-size: 0.85rem; color: #94a3b8; font-style: italic; text-align: center; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px;}
 
         /* TOAST */
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
@@ -163,11 +194,23 @@
                 </button>
             </form>
         </div>
+
+        <!-- RIWAYAT ASPIRASI & BALASAN -->
+        <div class="history-header">
+            <i class="fa-solid fa-clock-rotate-left" style="font-size: 1.5rem;"></i>
+            <h2>Riwayat Aspirasi Saya</h2>
+        </div>
+        <div id="riwayat-grid" class="aspirasi-grid">
+            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 40px; background: white; border-radius: 16px; border: 1px solid #e2e8f0;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i><br>Memuat riwayat...
+            </div>
+        </div>
+
     </div>
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, addDoc, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ============================================================
         // LOGIKA DINAMIS TOMBOL KEMBALI
@@ -205,12 +248,105 @@
             }, 3500);
         };
 
+        const formatDate = (dateStr) => {
+            if (!dateStr) return "-";
+            const date = new Date(dateStr.toDate ? dateStr.toDate() : dateStr);
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        };
+
         (async () => {
             currentUser = await checkAuth('siswa');
             if(!currentUser) {
                 window.location.href = '/';
+            } else {
+                loadRiwayatAspirasi();
             }
         })();
+
+        // MEMUAT RIWAYAT ASPIRASI & BALASAN OSIS UNTUK SISWA INI SAJA
+        async function loadRiwayatAspirasi() {
+            const container = document.getElementById('riwayat-grid');
+            try {
+                // Mengambil aspirasi khusus untuk User ID yang login saat ini
+                const q = query(collection(db, 'aspirasi'), where('senderId', '==', currentUser.uid));
+                const snap = await getDocs(q);
+                
+                if (snap.empty) {
+                    container.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px; background: white; border-radius: 16px; border: 1px dashed #cbd5e1;">
+                            <i class="fa-solid fa-envelope-open" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 15px;"></i>
+                            <p>Anda belum pernah mengirimkan aspirasi, kritik, atau saran.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Mengurutkan secara manual di JavaScript (Terbaru di atas) untuk menghindari Index Error di Firebase
+                let dataArr = [];
+                snap.forEach(doc => dataArr.push({ id: doc.id, ...doc.data() }));
+                dataArr.sort((a, b) => {
+                    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+                    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+                    return timeB - timeA;
+                });
+
+                let htmlBuffer = '';
+                dataArr.forEach(data => {
+                    // Penentuan Status
+                    let statusBadge = '';
+                    if (data.status === 'pending' || !data.status) {
+                        statusBadge = `<span class="badge status-pending">Belum Diproses</span>`;
+                    } else if (data.status === 'proses') {
+                        statusBadge = `<span class="badge status-proses">Sedang Diproses</span>`;
+                    } else if (data.status === 'selesai') {
+                        statusBadge = `<span class="badge status-selesai">Selesai</span>`;
+                    }
+
+                    // Penentuan Kategori
+                    let catClass = 'cat-lainnya';
+                    if(data.kategori === 'Akademik/Kurikulum') catClass = 'cat-akademik';
+                    if(data.kategori === 'Fasilitas Web') catClass = 'cat-fasilitas';
+                    if(data.kategori === 'Kritik untuk OSIS') catClass = 'cat-osis';
+
+                    // Menyiapkan Kotak Balasan
+                    let balasanHtml = '';
+                    if (data.balasanOsis && data.balasanOsis.trim() !== '') {
+                        balasanHtml = `
+                            <div class="balasan-box">
+                                <div class="balasan-title"><i class="fa-solid fa-reply"></i> Balasan OSIS:</div>
+                                <div class="balasan-text">${data.balasanOsis}</div>
+                            </div>
+                        `;
+                    } else {
+                        balasanHtml = `
+                            <div class="no-balasan">
+                                <i class="fa-solid fa-hourglass-half"></i> Belum ada tanggapan/balasan dari OSIS.
+                            </div>
+                        `;
+                    }
+
+                    htmlBuffer += `
+                        <div class="history-card">
+                            <div class="history-date">
+                                <span class="badge ${catClass}">${data.kategori || 'Umum'}</span>
+                                <span><i class="fa-regular fa-clock"></i> ${formatDate(data.timestamp)}</span>
+                            </div>
+                            <div class="aspirasi-msg">"${data.pesan}"</div>
+                            <div style="margin-bottom:15px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                Status Tindakan: ${statusBadge}
+                            </div>
+                            ${balasanHtml}
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = htmlBuffer;
+
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #ef4444; background: white; padding: 20px; border-radius: 12px;">Gagal memuat riwayat. Periksa koneksi Anda.</div>`;
+            }
+        }
 
         document.getElementById('aspirasi-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -231,11 +367,15 @@
                     senderId: currentUser.uid,
                     senderName: currentUser.name,
                     status: 'pending',
+                    balasanOsis: '',
                     timestamp: serverTimestamp()
                 });
                 
                 window.showToast("Aspirasi berhasil dikirim ke Kotak Suara OSIS!");
                 document.getElementById('aspirasi-form').reset();
+
+                // Langsung muat ulang riwayat agar kartu yang baru dikirim langsung muncul
+                loadRiwayatAspirasi();
 
             } catch (error) {
                 alert("Gagal mengirim aspirasi: " + error.message);
