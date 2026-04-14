@@ -252,8 +252,25 @@
 
     <!-- SCRIPT LOGIC -->
     <script type="module">
-        import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { checkAuth } from "../js/firebase-config.js";
+        
+        // Import Firebase App dan Firestore untuk inisialisasi database Pustaka yang terpisah
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // === KONFIGURASI DATABASE PUSTAKA (berbasis-ai) ===
+        const firebaseConfigPustaka = {
+            apiKey: "AIzaSyDooErB7K4vFtmC6-PcI30v82Vh6b85fPI",
+            authDomain: "berbasis-ai.firebaseapp.com",
+            projectId: "berbasis-ai",
+            storageBucket: "berbasis-ai.firebasestorage.app",
+            messagingSenderId: "962437652324",
+            appId: "1:962437652324:web:4426a5efcabf72caebe471"
+        };
+
+        // Inisialisasi Instance Firebase kedua khusus untuk Pustaka Materi
+        const appPustaka = initializeApp(firebaseConfigPustaka, "PustakaApp");
+        const dbPustaka = getFirestore(appPustaka);
 
         const COLLECTION_NAME = 'pustaka_materi';
         const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; 
@@ -262,7 +279,7 @@
         let currentAdmin = null;
 
         (async () => {
-            // Verifikasi Admin
+            // Verifikasi Admin (menggunakan checkAuth dari main config mading-cf676)
             currentAdmin = await checkAuth('pengajar');
             if(!currentAdmin) {
                 window.location.href = '/admin/index.html';
@@ -271,9 +288,10 @@
             startDatabaseListener();
         })();
 
-        // --- LISTENER DATABASE ---
+        // --- LISTENER DATABASE PUSTAKA ---
         function startDatabaseListener() {
-            const q = query(collection(db, COLLECTION_NAME));
+            // Memanggil query menggunakan dbPustaka
+            const q = query(collection(dbPustaka, COLLECTION_NAME));
             
             onSnapshot(q, (snapshot) => {
                 materialsData = []; 
@@ -354,7 +372,7 @@
         window.deleteItem = async (id) => {
             if(confirm("Yakin ingin menghapus materi ini dari pustaka? Data tidak dapat dikembalikan.")) {
                 try {
-                    await deleteDoc(doc(db, COLLECTION_NAME, id));
+                    await deleteDoc(doc(dbPustaka, COLLECTION_NAME, id));
                     if(document.getElementById('editId').value == id) window.resetForm();
                 } catch (e) {
                     alert("Gagal menghapus: " + e.message);
@@ -450,11 +468,11 @@
                 };
 
                 if (editId) {
-                    const docRef = doc(db, COLLECTION_NAME, editId);
+                    const docRef = doc(dbPustaka, COLLECTION_NAME, editId);
                     await updateDoc(docRef, dataToSave);
                     alert("Berhasil memperbarui data materi!");
                 } else {
-                    await addDoc(collection(db, COLLECTION_NAME), dataToSave);
+                    await addDoc(collection(dbPustaka, COLLECTION_NAME), dataToSave);
                     alert("Berhasil menambahkan materi baru ke Pustaka!");
                 }
                 
