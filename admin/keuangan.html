@@ -97,14 +97,21 @@
         .bg-green { background: #10b981; }
         .bg-red { background: #ef4444; }
 
-        /* --- TABEL ARSIP --- */
-        .table-wrapper { overflow-x: auto; margin-top: 20px; }
+        /* --- TABEL ARSIP & FILTER TANGGAL --- */
+        .filter-box { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .date-input { padding: 10px 15px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: 'Poppins', sans-serif; font-size: 0.9rem; color: var(--text-dark); outline: none; transition: 0.3s; }
+        .date-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .btn-filter { background: #e2e8f0; color: #475569; padding: 10px 15px; border-radius: 8px; border: none; font-family: 'Poppins', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-filter:hover { background: #cbd5e1; color: var(--text-dark); }
+
+        .table-wrapper { overflow-x: auto; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th { background: #f8fafc; color: var(--text-gray); font-weight: 600; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; white-space: nowrap;}
+        th { background: #f1f5f9; color: var(--text-gray); font-weight: 600; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; white-space: nowrap;}
         td { padding: 15px; border-bottom: 1px solid #e2e8f0; color: var(--text-dark); }
-        tr:hover td { background: #f1f5f9; }
+        tr:hover td { background: #f8fafc; }
         
         .btn-pdf { padding: 10px 20px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; font-size: 0.85rem; font-family: 'Poppins';}
+        .btn-pdf:hover { filter: brightness(0.95); transform: translateY(-2px); }
 
         /* --- MODAL CUSTOM --- */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,31,63,0.6); backdrop-filter: blur(4px); z-index: 2000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
@@ -119,6 +126,9 @@
             .btn-back { width: 100%; justify-content: center; margin-top: 10px; }
             .cycle-panel { flex-direction: column; text-align: center; gap: 15px; }
             .header-brand-name { font-size: 1.5rem; }
+            .filter-box { flex-direction: column; align-items: stretch; text-align: center; }
+            .filter-box > div { width: 100%; text-align: center !important; }
+            .filter-box .btn-pdf { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -147,7 +157,6 @@
             <label class="toggle-switch" style="position:relative; display:inline-block; width:60px; height:34px; flex-shrink: 0;">
                 <input type="checkbox" id="cycle-toggle" onchange="toggleCycle(this)" style="opacity:0; width:0; height:0;">
                 <span class="slider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e1; transition:.4s; border-radius:34px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);"></span>
-                <!-- Custom styling for the slider dot in JS based on state -->
             </label>
         </div>
 
@@ -173,13 +182,26 @@
 
         <!-- TAB: ARSIP -->
         <div id="tab-arsip" class="content-card hidden">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:15px;">
-                <h3 style="margin:0; color:var(--primary);"><i class="fa-solid fa-chart-line"></i> Laporan Pemasukan</h3>
-                <div style="display:flex; gap:10px;">
-                    <button onclick="downloadReport('ujian')" class="btn-pdf" style="background:#e0f2fe; color:#0284c7;"><i class="fa-solid fa-file-pdf"></i> PDF Ujian</button>
-                    <button onclick="downloadReport('spp')" class="btn-pdf" style="background:#fce7f3; color:#db2777;"><i class="fa-solid fa-file-pdf"></i> PDF SPP</button>
+            <!-- FILTER BOX -->
+            <div class="filter-box">
+                <div>
+                    <h3 style="margin:0 0 15px 0; color:var(--primary);"><i class="fa-solid fa-chart-line"></i> Laporan Pemasukan</h3>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label for="filter-date" style="font-size: 0.85rem; font-weight: 600; color: var(--text-gray);">Filter Tanggal:</label>
+                        <input type="date" id="filter-date" class="date-input" onchange="applyDateFilter()">
+                        <button onclick="resetDateFilter()" class="btn-filter"><i class="fa-solid fa-rotate-right"></i> Reset</button>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.85rem; color: var(--text-gray); font-weight: 600;">Total Pemasukan (Filter):</div>
+                    <div id="daily-total" style="font-size: 1.8rem; font-weight: 800; color: #10b981; margin: 5px 0 15px;">Rp 0</div>
+                    <div style="display:flex; gap:10px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button onclick="downloadReport('ujian')" class="btn-pdf" style="background:#e0f2fe; color:#0284c7;"><i class="fa-solid fa-file-pdf"></i> PDF Ujian</button>
+                        <button onclick="downloadReport('spp')" class="btn-pdf" style="background:#fce7f3; color:#db2777;"><i class="fa-solid fa-file-pdf"></i> PDF SPP</button>
+                    </div>
                 </div>
             </div>
+
             <div class="table-wrapper">
                 <table id="table-arsip">
                     <thead>
@@ -212,6 +234,7 @@
     import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, addDoc, serverTimestamp, orderBy, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     let currentAdmin = null;
+    let allArchiveData = []; // Menyimpan semua data arsip dari Firebase
 
     (async () => {
         currentAdmin = await checkAuth('pengajar');
@@ -226,7 +249,11 @@
         // REAL-TIME LISTENER: Arsip Pemasukan
         const qArsip = query(collection(db, 'finance_logs'), orderBy('timestamp', 'desc'));
         onSnapshot(qArsip, (snap) => {
-            renderArchive(snap);
+            allArchiveData = [];
+            snap.forEach(doc => {
+                allArchiveData.push(doc);
+            });
+            renderArchive(); // Render ulang setelah data diperbarui
         });
 
         loadCycleStatus();
@@ -241,12 +268,21 @@
         document.head.appendChild(style);
     })();
 
+    // --- FUNGSI FILTER TANGGAL ---
+    window.applyDateFilter = () => {
+        renderArchive();
+    };
+
+    window.resetDateFilter = () => {
+        document.getElementById('filter-date').value = '';
+        renderArchive();
+    };
+
     // --- FUNGSI SIKLUS PEMBAYARAN ---
     window.toggleCycle = async (el) => {
         const isOpen = el.checked;
         
         if (!isOpen) {
-            // Jika mau ditutup (Reset)
             showModal('confirm', 'Tutup & Reset?', 'SEMUA status siswa akan di-reset jadi BELUM BAYAR. Lanjutkan?', 
                 async () => {
                     showModal('loading', 'Resetting...', 'Mereset data seluruh siswa...');
@@ -276,7 +312,6 @@
                 () => { el.checked = true; } // Jika batal, kembalikan ke ON
             );
         } else {
-            // Jika mau dibuka
             await setDoc(doc(db, 'settings', 'finance'), { isOpen: true }, { merge: true });
             updateCycleUI(true);
         }
@@ -332,29 +367,167 @@
         });
     }
 
-    // --- FUNGSI RENDER ARSIP ---
-    function renderArchive(snap) {
+    // --- FUNGSI RENDER ARSIP (DENGAN FILTER TANGGAL) ---
+    function renderArchive() {
         const tbody = document.getElementById('archive-body');
+        const totalDisplay = document.getElementById('daily-total');
         tbody.innerHTML = '';
         
-        if(snap.empty) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">Belum ada riwayat transaksi.</td></tr>';
+        const filterDateStr = document.getElementById('filter-date').value; // Format: YYYY-MM-DD
+        let filteredData = allArchiveData;
+        let runningTotal = 0;
+
+        // Lakukan penyaringan jika tanggal dipilih
+        if (filterDateStr) {
+            filteredData = allArchiveData.filter(d => {
+                const data = d.data();
+                if (!data.timestamp) return false;
+                
+                const dateObj = new Date(data.timestamp.seconds * 1000);
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const formattedRecordDate = `${y}-${m}-${day}`;
+                
+                return formattedRecordDate === filterDateStr;
+            });
+        }
+
+        if(filteredData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">Tidak ada riwayat transaksi pada filter ini.</td></tr>';
+            totalDisplay.innerText = "Rp 0";
             return;
         }
 
-        snap.forEach(d => {
+        filteredData.forEach(d => {
             const data = d.data();
             const time = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleString('id-ID') : '-';
+            
+            // Tambahkan ke total
+            runningTotal += (data.amount || 0);
+
             tbody.innerHTML += `
                 <tr>
                     <td style="font-size:0.85rem; color:#64748b;"><i class="fa-regular fa-clock"></i> ${time}</td>
                     <td><b style="color:var(--primary);">${data.studentName}</b><br><span style="font-size:0.8rem; background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#475569;">${data.type}</span></td>
-                    <td style="font-weight:700; color:#166534;">Rp ${data.amount.toLocaleString('id-ID')}</td>
+                    <td style="font-weight:700; color:#166534;">Rp ${(data.amount || 0).toLocaleString('id-ID')}</td>
                     <td><span style="background:#e0f2fe; color:#0284c7; padding:4px 10px; border-radius:50px; font-size:0.8rem; font-weight:600;">${data.adminName}</span></td>
                 </tr>
             `;
         });
+
+        // Tampilkan Total Pemasukan
+        totalDisplay.innerText = `Rp ${runningTotal.toLocaleString('id-ID')}`;
     }
+
+    // --- FUNGSI UNDUH LAPORAN PDF ---
+    window.downloadReport = (type) => {
+        // type: 'ujian' atau 'spp'
+        const filterDateStr = document.getElementById('filter-date').value || 'Semua Waktu';
+        
+        let filteredPrint = allArchiveData;
+        
+        // Filter Tanggal
+        if (filterDateStr !== 'Semua Waktu') {
+            filteredPrint = allArchiveData.filter(d => {
+                const data = d.data();
+                if (!data.timestamp) return false;
+                const dateObj = new Date(data.timestamp.seconds * 1000);
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}` === filterDateStr;
+            });
+        }
+
+        // Generate Container HTML Sementara
+        const printArea = document.createElement('div');
+        printArea.style.padding = '20px';
+        printArea.style.fontFamily = 'sans-serif';
+        printArea.style.color = '#333';
+        
+        const reportTitle = type === 'ujian' ? 'Laporan Pemasukan - Ujian' : 'Laporan Pemasukan - SPP & Administrasi';
+        
+        let html = `
+            <div style="text-align:center; border-bottom: 2px solid #003366; margin-bottom: 20px; padding-bottom: 10px;">
+                <h2 style="margin:0; color:#003366; font-size:18pt; text-transform:uppercase;">${reportTitle}</h2>
+                <p style="margin:5px 0 0 0; font-size:10pt; color:#666;">Cendekia Aksara | Tanggal: ${filterDateStr}</p>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size: 10pt;" border="1">
+                <thead>
+                    <tr style="background:#f1f5f9; text-align:left;">
+                        <th style="padding:10px;">Waktu</th>
+                        <th style="padding:10px;">Identitas Siswa</th>
+                        <th style="padding:10px;">Keterangan</th>
+                        <th style="padding:10px; text-align:right;">Nominal (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        let totalCetak = 0;
+        let countRow = 0;
+
+        filteredPrint.forEach(d => {
+            const data = d.data();
+            const semesterNum = parseInt(data.semester) || 1;
+            
+            // Logika Pemisahan Ujian vs SPP (Smt 1,2 = Ujian | Smt 3 = SPP)
+            const isUjian = semesterNum < 3;
+            
+            if ((type === 'ujian' && isUjian) || (type === 'spp' && !isUjian)) {
+                countRow++;
+                const time = data.timestamp ? new Date(data.timestamp.seconds*1000).toLocaleString('id-ID') : '-';
+                html += `
+                    <tr>
+                        <td style="padding:8px;">${time}</td>
+                        <td style="padding:8px;">${data.studentName}</td>
+                        <td style="padding:8px;">${data.type}</td>
+                        <td style="padding:8px; text-align:right;">${(data.amount || 0).toLocaleString('id-ID')}</td>
+                    </tr>
+                `;
+                totalCetak += (data.amount || 0);
+            }
+        });
+        
+        if(countRow === 0) {
+            html += `<tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">Tidak ada data untuk kategori ini.</td></tr>`;
+        }
+
+        html += `
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f8fafc;">
+                        <th colspan="3" style="padding:12px; text-align:right; font-size:12pt;">TOTAL PEMASUKAN:</th>
+                        <th style="padding:12px; text-align:right; font-size:12pt; color:#166534;">Rp ${totalCetak.toLocaleString('id-ID')}</th>
+                    </tr>
+                </tfoot>
+            </table>
+            <div style="margin-top: 40px; text-align: right; font-size: 10pt;">
+                Dicetak oleh: <b>${currentAdmin.name}</b><br>
+                Waktu Cetak: ${new Date().toLocaleString('id-ID')}
+            </div>
+        `;
+        
+        printArea.innerHTML = html;
+        
+        // Pilihan Konfigurasi PDF
+        const opt = {
+            margin: 10,
+            filename: `Laporan_${type}_${filterDateStr}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        // Buat PDF
+        showModal('loading', 'Menyiapkan PDF...', 'Harap tunggu, dokumen sedang dibuat.');
+        html2pdf().set(opt).from(printArea).save().then(() => {
+            closeModal();
+        }).catch(e => {
+            showModal('error', 'Gagal Mencetak', e.message);
+        });
+    };
 
     window.manualApprove = (uid, name, amount, sem) => {
         showModal('confirm', 'Konfirmasi Pembayaran', `Terima pembayaran sebesar Rp ${amount.toLocaleString('id-ID')} untuk siswa atas nama ${name}?`, async () => {
