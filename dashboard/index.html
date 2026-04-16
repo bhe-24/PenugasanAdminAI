@@ -11,15 +11,20 @@
     
     <style>
         /* --- STYLE CONTAINER --- */
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding-bottom: 50px; overflow-x: hidden;}
         .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
 
-        /* --- HEADER BRANDED NAVY --- */
+        /* --- HEADER BRANDED NAVY (STICKY) --- */
         .brand-header {
+            position: sticky;
+            top: 15px; /* Menempel di atas saat di-scroll */
+            z-index: 1000;
             background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-            color: white; padding: 25px 30px; border-radius: 16px;
+            color: white; padding: 20px 30px; border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 31, 63, 0.3);
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
-            margin-bottom: 30px; position: relative; overflow: hidden;
+            display: flex; justify-content: space-between; align-items: center; gap: 15px;
+            margin-bottom: 20px; overflow: hidden;
+            transition: all 0.3s ease;
         }
         
         .brand-header::after {
@@ -28,45 +33,26 @@
             border-radius: 50%; pointer-events: none;
         }
 
-        .header-content-wrapper { display: flex; align-items: center; gap: 20px; z-index: 2; }
+        .header-content-wrapper { display: flex; align-items: center; gap: 20px; z-index: 2; flex: 1; }
 
         .header-logo-circle {
-            width: 75px; height: 75px;
+            width: 70px; height: 70px;
             background: white; border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            flex-shrink: 0; padding: 12px; box-sizing: border-box; /* Mencegah logo over */
+            flex-shrink: 0; padding: 10px; box-sizing: border-box;
             animation: floatLogo 3s ease-in-out infinite;
-            overflow: hidden;
         }
-
         .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
 
         .header-info { display: flex; flex-direction: column; justify-content: center; z-index: 2; }
         .header-brand-name {
-            font-family: 'Aleo', serif; font-size: 1.8rem; font-weight: 700;
-            margin: 0; line-height: 1.1; letter-spacing: 0.5px;
+            font-family: 'Aleo', serif; font-size: 1.7rem; font-weight: 700;
+            margin: 0; line-height: 1.1; letter-spacing: 0.5px; color: white;
         }
         .header-greeting {
-            font-family: 'Poppins', sans-serif; font-size: 1rem; opacity: 0.9;
-            margin-top: 5px; font-weight: 400;
+            font-size: 0.95rem; opacity: 0.9; margin-top: 4px; font-weight: 400; color: #bae6fd;
         }
-
-        /* --- BADGE STATUS & OSIS --- */
-        .badge-container { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-        
-        #status-badge, #osis-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 5px 12px; border-radius: 20px;
-            font-size: 0.8rem; font-weight: 600; font-family: 'Poppins';
-            transition: 0.3s;
-        }
-        .status-aktif { background: #22c55e; color: white; box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3); }
-        .status-cuti { background: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
-        .status-nonaktif { background: #ef4444; color: white; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
-        
-        /* Lencana OSIS Emas */
-        #osis-badge { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4); border: 1px solid #fef08a;}
 
         /* TOMBOL KELUAR DI HEADER */
         .btn-logout-header {
@@ -74,16 +60,26 @@
             padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer;
             transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem;
             backdrop-filter: blur(5px); z-index: 2; font-family: 'Poppins', sans-serif;
+            flex-shrink: 0; margin-left: auto;
         }
         .btn-logout-header:hover { background: #dc3545; color: white; border-color: #dc3545; box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4); transform: translateY(-2px);}
 
-        @media (max-width: 480px) {
-            .brand-header { padding: 20px; gap: 15px; flex-direction: column; align-items: flex-start; }
-            .btn-logout-header { width: 100%; justify-content: center; margin-top: 10px; }
-            .header-logo-circle { width: 60px; height: 60px; padding: 10px; }
-            .header-brand-name { font-size: 1.4rem; }
-            .header-greeting { font-size: 0.85rem; }
+        /* --- LENCANA STATUS DINAMIS (DI BAWAH HEADER) --- */
+        .status-ticker-wrapper {
+            display: flex; justify-content: center; margin-bottom: 30px;
         }
+        .dynamic-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; border-radius: 50px;
+            font-size: 0.85rem; font-weight: 600; font-family: 'Poppins';
+            transition: opacity 0.3s ease-in-out, transform 0.3s;
+            cursor: default; opacity: 0; /* Awal tersembunyi sampai diload JS */
+        }
+        
+        .badge-aktif { background: #22c55e; color: white; box-shadow: 0 2px 10px rgba(34, 197, 94, 0.3); border: 1px solid #86efac;}
+        .badge-cuti { background: #f59e0b; color: white; box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3); border: 1px solid #fde68a;}
+        .badge-nonaktif { background: #ef4444; color: white; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3); border: 1px solid #fca5a5;}
+        .badge-osis { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; box-shadow: 0 2px 10px rgba(212, 175, 55, 0.4); border: 1px solid #fef08a;}
 
         @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
@@ -119,7 +115,7 @@
         .card-bayar { background: linear-gradient(135deg, #f2994a, #f2c94c); }
         .aksabot { background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); } 
         .card-cuti { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
-        .aspirasi { background: linear-gradient(135deg, #64748b 0%, #475569 100%); } /* Kotak Saran Netral */
+        .aspirasi { background: linear-gradient(135deg, #64748b 0%, #475569 100%); }
         
         /* WARNA KARTU OSIS EKSKLUSIF */
         .card-osis { background: linear-gradient(135deg, #d4af37 0%, #a17f1a 100%); box-shadow: 0 4px 10px rgba(212, 175, 55, 0.3);}
@@ -159,11 +155,34 @@
         .btn-cancel { background: #f1f1f1; color: #666; }
         .btn-confirm { background: #003366; color: white; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.3); }
         .btn-danger-modal { background: #dc3545; color: white; box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3); }
+
+        /* --- RESPONSIVE MOBILE FIX --- */
+        @media (max-width: 600px) {
+            .container { padding: 15px; }
+            .brand-header {
+                padding: 15px 20px; gap: 10px;
+                flex-direction: row; /* Memaksa elemen tetap menyamping */
+                align-items: center;
+                top: 10px; /* Jarak sticky mobile */
+            }
+            .header-logo-circle { width: 50px; height: 50px; padding: 8px; }
+            .header-brand-name { font-size: 1.3rem; }
+            .header-greeting { font-size: 0.8rem; margin-top: 2px; }
+            
+            /* Tombol keluar mengecil jadi ikon di ujung kanan */
+            .btn-logout-header {
+                width: 42px; height: 42px; padding: 0;
+                justify-content: center; margin: 0; margin-left: auto;
+            }
+            .btn-logout-header span { display: none; }
+            .btn-logout-header i { margin: 0; font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         
+        <!-- HEADER STICKY -->
         <div class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
@@ -172,27 +191,29 @@
                 <div class="header-info">
                     <h1 class="header-brand-name">Cendekia Aksara</h1>
                     <div id="user-greeting" class="header-greeting"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
-                    
-                    <div class="badge-container">
-                        <div id="status-badge" style="display:none;"></div>
-                        <div id="osis-badge" style="display:none;"><i class="fa-solid fa-shield-halved"></i> Pengurus OSIS</div>
-                    </div>
                 </div>
             </div>
-            <!-- TOMBOL KELUAR DIPINDAHKAN KE HEADER -->
-            <button id="logout-btn" class="btn-logout-header">
-                <i class="fa-solid fa-right-from-bracket"></i> Keluar
+            
+            <button id="logout-btn" class="btn-logout-header" title="Keluar">
+                <i class="fa-solid fa-right-from-bracket"></i> <span>Keluar</span>
             </button>
+        </div>
+
+        <!-- LENCANA STATUS DINAMIS DI BAWAH HEADER -->
+        <div class="status-ticker-wrapper">
+            <div id="dynamic-badge" class="dynamic-badge badge-aktif">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan...
+            </div>
         </div>
 
         <div class="dashboard-grid">
             <a href="/tugas" class="dashboard-card tugas"> 
                 <i class="fa-solid fa-pencil-alt"></i> <h3>Tugas Harian</h3> 
             </a>
-            <a href="/profil" class="dashboard-card profil"> 
+            <a href="/profil/index.html" class="dashboard-card profil"> 
                 <i class="fa-solid fa-user-circle"></i> <h3>Profil Saya</h3> 
             </a>
-            <a href="/kartu-studi" class="dashboard-card kartu-studi"> 
+            <a href="/kartu-studi/index.html" class="dashboard-card kartu-studi"> 
                 <i class="fa-solid fa-file-contract"></i> <h3>Kartu Studi</h3> 
             </a>
 
@@ -308,20 +329,18 @@
                 const nickName = userData.name.split(' ')[0];
                 document.getElementById('user-greeting').innerHTML = `${sapaan}, ${nickName} 😊 ${icon}`;
 
-                // ==========================================
-                // FITUR EKSKLUSIF OSIS
-                // ==========================================
+                // 2. Kumpulkan Badge Aktif (OSIS & Status)
+                const badgeEl = document.getElementById('dynamic-badge');
+                const activeBadges = [];
+
                 if (userData.is_osis === true) {
-                    document.getElementById('osis-badge').style.display = 'inline-flex';
                     document.getElementById('card-osis').style.display = 'flex';
+                    activeBadges.push({ class: 'badge-osis', html: '<i class="fa-solid fa-shield-halved"></i> Pengurus OSIS' });
                 }
 
-                // 2. Setup Logic Status & Pemblokiran
                 let currentStatus = userData.status || 'aktif';
-                const badge = document.getElementById('status-badge');
-                badge.style.display = 'inline-flex';
 
-                // Cek inaktivitas
+                // Cek inaktivitas (Auto Nonaktif jika > 75 hari tidak login)
                 if (currentStatus !== 'nonaktif') {
                     let lastActiveDate = new Date(); 
                     if (userData.last_active && userData.last_active.toDate) {
@@ -342,13 +361,11 @@
                 const allCards = document.querySelectorAll('.dashboard-card');
 
                 if (currentStatus === 'aktif') {
-                    badge.className = 'status-aktif';
-                    badge.innerHTML = '<i class="fa-solid fa-user-check"></i> Status: Aktif';
+                    activeBadges.push({ class: 'badge-aktif', html: '<i class="fa-solid fa-user-check"></i> Status: Aktif' });
                     updateDoc(doc(db, 'users', userData.uid), { last_active: serverTimestamp() });
 
                 } else if (currentStatus === 'cuti') {
-                    badge.className = 'status-cuti';
-                    badge.innerHTML = '<i class="fa-solid fa-bed"></i> Status: Cuti / Izin';
+                    activeBadges.push({ class: 'badge-cuti', html: '<i class="fa-solid fa-bed"></i> Status: Cuti / Izin' });
                     
                     allCards.forEach(card => {
                         if (!card.classList.contains('always-on-cuti')) {
@@ -361,8 +378,7 @@
                     });
 
                 } else if (currentStatus === 'nonaktif') {
-                    badge.className = 'status-nonaktif';
-                    badge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Status: Dinonaktifkan';
+                    activeBadges.push({ class: 'badge-nonaktif', html: '<i class="fa-solid fa-user-lock"></i> Status: Dinonaktifkan' });
                     
                     allCards.forEach(card => {
                         card.classList.add('disabled-card');
@@ -380,6 +396,28 @@
                             'danger'
                         );
                     }, 500);
+                }
+
+                // 3. Jalankan Animasi Lencana Ticker
+                if (activeBadges.length > 0) {
+                    let badgeIdx = 0;
+                    badgeEl.className = `dynamic-badge ${activeBadges[0].class}`;
+                    badgeEl.innerHTML = activeBadges[0].html;
+                    badgeEl.style.opacity = '1';
+
+                    if (activeBadges.length > 1) {
+                        setInterval(() => {
+                            badgeEl.style.opacity = '0';
+                            setTimeout(() => {
+                                badgeIdx = (badgeIdx + 1) % activeBadges.length;
+                                badgeEl.className = `dynamic-badge ${activeBadges[badgeIdx].class}`;
+                                badgeEl.innerHTML = activeBadges[badgeIdx].html;
+                                badgeEl.style.opacity = '1';
+                            }, 300);
+                        }, 4000); // Ganti tiap 4 detik
+                    }
+                } else {
+                    badgeEl.style.display = 'none';
                 }
             }
         })();
