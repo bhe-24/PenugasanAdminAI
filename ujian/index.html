@@ -27,8 +27,8 @@
             background: linear-gradient(135deg, #003366, #1e3a8a);
             color: white; padding: 25px 30px; border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0, 51, 102, 0.15); margin-bottom: 25px;
-            display: flex; justify-content: space-between; align-items: center; 
-            position: relative; overflow: hidden;
+            display: flex; justify-content: space-between; align-items: flex-start; 
+            position: relative; overflow: hidden; gap: 20px;
         }
         /* Hiasan background header */
         .modern-header::before {
@@ -37,14 +37,28 @@
             border-radius: 50%; pointer-events: none;
         }
         
+        .header-content { flex: 1; z-index: 2; }
         .header-content h1 { margin: 0; font-size: 1.6rem; font-weight: 700; }
-        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; }
+        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.95rem; }
         
+        /* ANIMASI MENGETIK MOTIVASI */
+        .quote-container {
+            margin-top: 10px; font-size: 0.85rem; color: #bae6fd; font-style: italic;
+            min-height: 40px; /* Menjaga tinggi agar layout tidak lompat-lompat */
+            line-height: 1.5; padding-right: 15px; font-weight: 400;
+        }
+        .cursor {
+            display: inline-block; width: 2px; height: 1em;
+            background-color: #facc15; vertical-align: text-bottom;
+            animation: blink 0.8s step-end infinite; margin-left: 2px;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
         .btn-back {
             background: rgba(255,255,255,0.15); color: white; text-decoration: none;
-            padding: 10px 18px; border-radius: 50px; font-weight: 600; font-size: 0.9rem;
-            backdrop-filter: blur(5px); transition: 0.2s; display: flex; align-items: center; gap: 8px;
-            border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;
+            padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem;
+            backdrop-filter: blur(5px); transition: 0.2s; display: inline-flex; align-items: center; gap: 8px;
+            border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; z-index: 2;
         }
         .btn-back:hover { background: white; color: var(--primary); }
 
@@ -138,14 +152,15 @@
 
         /* --- MOBILE OPTIMIZATION (Layarnya Kecil) --- */
         @media (max-width: 600px) {
-            .container { padding: 15px; width: 100%; } /* Margin lebih tipis */
+            .container { padding: 15px; width: 100%; } 
             
             /* Header Compact */
             .modern-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 15px; }
-            .btn-back { width: 100%; justify-content: center; background: rgba(255,255,255,0.2); }
+            .btn-back { width: 100%; justify-content: center; background: rgba(255,255,255,0.15); }
             .header-content h1 { font-size: 1.4rem; }
+            .quote-container { min-height: 48px; font-size: 0.8rem; }
 
-            /* Stats Diperkecil (Sesuai Request) */
+            /* Stats Diperkecil */
             .stats-grid { gap: 10px; margin-bottom: 20px; }
             .stat-card { padding: 12px 15px; border-radius: 12px; gap: 10px; }
             .stat-icon { width: 35px; height: 35px; font-size: 1rem; border-radius: 8px; }
@@ -153,7 +168,7 @@
             .stat-info p { font-size: 0.75rem; margin-top: 2px; }
 
             /* Kartu Ujian Diperkecil & Rapi */
-            .exam-grid { grid-template-columns: 1fr; gap: 15px; } /* 1 Kolom Full */
+            .exam-grid { grid-template-columns: 1fr; gap: 15px; } 
             .exam-card { padding: 15px; border-radius: 14px; }
             .exam-title { font-size: 1.05rem; margin-bottom: 5px; }
             .exam-meta { font-size: 0.75rem; margin-bottom: 12px; }
@@ -169,8 +184,16 @@
             <div class="header-content">
                 <h1>Ujian & Evaluasi</h1>
                 <p>Semester <span id="user-sem-label" style="font-weight:700;">-</span></p>
+                
+                <!-- ANIMASI MENGETIK MOTIVASI -->
+                <div class="quote-container">
+                    <span id="typewriter-text"></span><span class="cursor"></span>
+                </div>
             </div>
-            <a href="../index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+            <!-- TOMBOL KEMBALI DINAMIS -->
+            <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
+                <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
+            </a>
         </header>
 
         <div class="stats-grid">
@@ -194,14 +217,14 @@
         
         <div id="loading">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; color:var(--primary);"></i>
-            <p style="margin-top:10px; font-size:0.9rem; color:#64748b;">Memuat...</p>
+            <p style="margin-top:10px; font-size:0.9rem; color:#64748b;">Memuat data ujian...</p>
         </div>
         
         <div id="exam-list" class="exam-grid hidden"></div>
         
         <div id="empty-msg" class="hidden">
-            <i class="fa-solid fa-box-open" style="font-size:3rem; opacity:0.3; margin-bottom:10px;"></i>
-            <p style="color:#64748b;">Belum ada ujian.</p>
+            <i class="fa-solid fa-box-open" style="font-size:3rem; opacity:0.3; margin-bottom:10px; color: #64748b;"></i>
+            <p style="color:#64748b; font-weight: 500;">Belum ada jadwal ujian untuk semester ini.</p>
         </div>
 
     </div>
@@ -209,6 +232,72 @@
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ============================================================
+        // LOGIKA ANIMASI KATA-KATA MOTIVASI
+        // ============================================================
+        const quotes = [
+            '"Buku adalah jendela dunia, dan ujian adalah kuncinya." - Pepatah Cendekia',
+            '"Pendidikan adalah senjata paling mematikan untuk mengubah dunia." - Nelson Mandela',
+            '"Hiduplah seolah engkau mati besok. Belajarlah seolah engkau hidup selamanya." - Mahatma Gandhi',
+            '"Orang yang tidak pernah membaca buku sama buruknya dengan orang yang tidak bisa membaca." - Mark Twain',
+            '"Satu jam belajar lebih baik daripada semalaman begadang tanpa arah." - AksaBot'
+        ];
+
+        const textEl = document.getElementById('typewriter-text');
+        let quoteIndex = Math.floor(Math.random() * quotes.length);
+        let charIndex = 0;
+        let isDeleting = false;
+
+        function typeEffect() {
+            const currentQuote = quotes[quoteIndex];
+            
+            if (isDeleting) {
+                textEl.innerText = currentQuote.substring(0, charIndex - 1);
+                charIndex--;
+            } else {
+                textEl.innerText = currentQuote.substring(0, charIndex + 1);
+                charIndex++;
+            }
+
+            // Kecepatan mengetik & menghapus
+            let typeSpeed = isDeleting ? 20 : 60;
+
+            // Logika jeda
+            if (!isDeleting && charIndex === currentQuote.length) {
+                typeSpeed = 4000; // Tahan 4 detik sebelum menghapus
+                isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                quoteIndex = (quoteIndex + 1) % quotes.length;
+                typeSpeed = 500; // Tahan 0.5 detik sebelum ngetik quote baru
+            }
+
+            setTimeout(typeEffect, typeSpeed);
+        }
+        // Mulai Animasi Mengetik
+        setTimeout(typeEffect, 500);
+
+        // ============================================================
+        // LOGIKA DINAMIS TOMBOL KEMBALI
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromInkubasi = urlParams.get('ref') === 'inkubasi';
+        
+        const btnKembali = document.getElementById('btn-kembali');
+        const textKembali = document.getElementById('kembali-text');
+        
+        if (btnKembali) {
+            if (fromInkubasi) {
+                btnKembali.href = '/dashboard/inkubasi.html';
+                if(textKembali) textKembali.innerText = 'Ruang Inkubasi'; 
+            } else {
+                btnKembali.href = '/dashboard/index.html'; 
+                if(textKembali) textKembali.innerText = 'Dashboard Utama';
+            }
+        }
+        // ============================================================
+
 
         (async () => {
             const user = await checkAuth('siswa');
@@ -225,7 +314,7 @@
             const loading = document.getElementById('loading');
             
             try {
-                // 1. Fetch Ujian & Hasil
+                // 1. Fetch Ujian & Hasil secara Paralel
                 const [snapExam, snapResult] = await Promise.all([
                     getDocs(query(collection(db, 'exams'), where('status', '==', 'active'))),
                     getDocs(query(collection(db, 'quiz_results'), where('studentId', '==', uid)))
@@ -270,15 +359,20 @@
                             doneCount++;
                             cardClass = "done";
                             scoreHtml = `<div class="score-display">${history.score}</div>`;
-                            btnHtml = `<a href="detail.html?rid=${history.resultId}" class="btn-exam btn-result"><i class="fa-solid fa-list"></i> Pembahasan</a>`;
+                            btnHtml = `<a href="detail.html?rid=${history.resultId}" class="btn-exam btn-result"><i class="fa-solid fa-list"></i> Pembahasan Ujian</a>`;
                         } else if (paymentStatus === 'Lunas') {
                             // BELUM SELESAI & LUNAS
-                            btnHtml = `<a href="start.html?id=${doc.id}" class="btn-exam btn-start">Mulai Ujian</a>`;
+                            btnHtml = `<a href="start.html?id=${doc.id}" class="btn-exam btn-start"><i class="fa-solid fa-pen"></i> Mulai Ujian</a>`;
                         } else {
-                            // TERKUNCI
+                            // TERKUNCI (BELUM LUNAS)
                             cardClass = "locked";
-                            btnHtml = `<a href="../pembayaran.html" class="btn-exam btn-locked"><i class="fa-solid fa-lock"></i> Bayar Dulu</a>`;
+                            btnHtml = `<a href="../payment.html${fromInkubasi ? '?ref=inkubasi' : ''}" class="btn-exam btn-locked"><i class="fa-solid fa-lock"></i> Bayar Biaya Ujian</a>`;
                         }
+
+                        // Penyesuaian Tampilan untuk Esai AI
+                        const examInfo = data.type === 'essay' 
+                            ? `<div><i class="fa-solid fa-robot"></i> Dinilai AI</div>` 
+                            : `<div><i class="fa-solid fa-list-ol"></i> ${data.questions?.length || 0} Soal</div>`;
 
                         const html = `
                             <div class="exam-card ${cardClass}">
@@ -289,8 +383,8 @@
                                     </div>
                                     <h3 class="exam-title">${data.judul}</h3>
                                     <div class="exam-meta">
-                                        <div><i class="fa-regular fa-clock"></i> ${data.durasi}m</div>
-                                        <div><i class="fa-solid fa-list-ol"></i> ${data.questions?.length || 0} Soal</div>
+                                        <div><i class="fa-regular fa-clock"></i> ${data.durasi} Menit</div>
+                                        ${examInfo}
                                     </div>
                                 </div>
                                 ${btnHtml}
@@ -309,7 +403,7 @@
             } catch(e) {
                 console.error(e);
                 loading.classList.add('hidden');
-                alert("Gagal memuat data.");
+                alert("Gagal memuat data ujian. Pastikan koneksi internet stabil.");
             }
         }
     </script>
