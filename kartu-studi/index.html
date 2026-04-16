@@ -2,28 +2,108 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kartu Studi - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Menggabungkan Font Modern untuk UI dan Font Serif/Klasik untuk Kertas KHS -->
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&family=Merriweather:wght@700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
-        /* --- STYLE CONTAINER UTAMA --- */
-        body { background-color: #f0f4f8; margin: 0; padding-bottom: 50px; font-family: sans-serif;}
+        /* --- 1. GLOBAL & RESET --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root { --primary: #003366; --accent: #facc15; --bg: #f4f6f9; --text-dark: #1e293b; --text-gray: #64748b;}
         
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        body { 
+            background-color: var(--bg); font-family: 'Poppins', sans-serif; 
+            color: var(--text-dark); margin: 0; padding-bottom: 60px; overflow-x: hidden;
+        }
 
-        /* --- STYLE KERTAS KHS (FIXED WIDTH UNTUK PRINT) --- */
+        .container { max-width: 1000px; margin: 0 auto; padding: 25px; }
+
+        /* --- 2. HEADER BRANDED NAVY --- */
+        .brand-header {
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+            color: white; padding: 25px 30px; border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 31, 63, 0.3);
+            display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;
+            margin-bottom: 30px; position: relative; overflow: hidden;
+        }
+        
+        .brand-header::after {
+            content: ''; position: absolute; top: -50%; right: -10%;
+            width: 300px; height: 300px; background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%; pointer-events: none;
+        }
+
+        .header-content-wrapper { display: flex; align-items: center; gap: 20px; z-index: 2; flex: 1; min-width: 250px;}
+
+        .header-logo-circle {
+            width: 75px; height: 75px; background: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0;
+            padding: 12px; box-sizing: border-box;
+            animation: floatLogo 3s ease-in-out infinite; overflow: hidden;
+        }
+        .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+
+        .header-info { display: flex; flex-direction: column; justify-content: center; z-index: 2; flex: 1;}
+        .header-brand-name {
+            font-family: 'Aleo', serif; font-size: 1.8rem; font-weight: 700;
+            margin: 0; line-height: 1.1; letter-spacing: 0.5px; color: white;
+        }
+        .header-greeting {
+            font-size: 0.95rem; opacity: 0.9; margin-top: 5px; font-weight: 400; margin-bottom: 0; color: #bae6fd;
+        }
+
+        /* --- HEADER ACTIONS --- */
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; z-index: 2; margin-top: 5px;}
+        
+        .btn-back {
+            background: rgba(255,255,255,0.15); color: white; text-decoration: none;
+            padding: 10px 20px; border-radius: 50px; font-weight: 600; backdrop-filter: blur(5px);
+            transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem;
+            white-space: nowrap; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.3); cursor: pointer;
+        }
+        .btn-back:hover { background: white; color: var(--primary); }
+        
+        .btn-download {
+            background: #10b981; color: white; text-decoration: none;
+            padding: 10px 20px; border-radius: 50px; font-weight: 600; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+            transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem;
+            white-space: nowrap; flex-shrink: 0; border: none; cursor: pointer; font-family: 'Poppins', sans-serif;
+        }
+        .btn-download:hover { background: #059669; transform: translateY(-2px); }
+
+        @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+        /* --- STATE STYLES (LOADING & ERROR) --- */
+        .hidden { display: none !important; }
+        
+        #loading-state { text-align: center; padding: 60px 20px; }
+        
+        #error-state {
+            text-align: center; padding: 50px 20px; background: white; border-radius: 16px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0;
+        }
+        .error-icon { font-size: 4rem; color: #ef4444; margin-bottom: 20px; opacity: 0.8; }
+        .error-title { color: var(--text-dark); margin: 0 0 10px 0; font-family: 'Aleo', serif; font-size: 1.5rem;}
+        .error-desc { color: var(--text-gray); max-width: 500px; margin: 0 auto 20px; line-height: 1.6; font-size: 0.95rem;}
+        .error-badge { background: #fef2f2; padding: 8px 20px; display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; font-size: 0.9rem; color: #b91c1c; font-weight: 600; border: 1px solid #fecaca; }
+
+        /* --- STYLE KERTAS KHS (TETAP KLASIK UNTUK PRINT) --- */
+        .mobile-hint { display: none; font-size: 0.85rem; color: var(--text-gray); text-align: center; margin-bottom: 10px; font-weight: 500; }
+        @media (max-width: 700px) { .mobile-hint { display: block; } }
+
         .khs-wrapper { width: 100%; overflow-x: auto; padding: 20px 0; display: flex; justify-content: center; }
 
         .khs-paper {
             background: white; width: 650px; min-width: 650px; min-height: 800px;
-            padding: 40px; border: 5px double #1a365d; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 40px; border: 5px double #1a365d; box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             position: relative; font-family: 'Noto Serif', 'Times New Roman', serif; color: #000; box-sizing: border-box;
         }
 
@@ -52,48 +132,63 @@
 
         .legal-footer { margin-top: 30px; font-size: 10px; color: #666; font-style: italic; text-align: center; border-top: 1px solid #ccc; padding-top: 5px; }
 
-        /* --- UTILS --- */
-        .hidden { display: none !important; }
-        #loading-state { text-align: center; padding: 50px; }
-        
-        .mobile-hint { display: none; font-size: 0.8rem; color: #666; text-align: center; margin-bottom: 5px; }
-        @media (max-width: 700px) { .mobile-hint { display: block; } }
-        
-        .btn { padding: 10px 20px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;}
-        .btn-secondary { background: #6c757d; }
-        .btn-primary { background: #003366; }
+        /* --- MOBILE OPTIMIZATION --- */
+        @media (max-width: 600px) {
+            .container { padding: 15px; width: 100%; } 
+            .brand-header { padding: 20px; flex-direction: column; align-items: flex-start; gap: 15px; }
+            .header-content-wrapper { width: 100%; align-items: flex-start;}
+            .header-brand-name { font-size: 1.4rem; }
+            .header-logo-circle { width: 55px; height: 55px; padding: 10px;}
+            
+            .header-actions { width: 100%; flex-direction: column-reverse; gap: 10px; }
+            .btn-back, .btn-download { width: 100%; justify-content: center; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <a href="index.html" class="btn btn-secondary">
-                <i class="fa-solid fa-arrow-left"></i> Dashboard
-            </a>
-            <button onclick="window.downloadKHS()" id="btn-download" class="btn btn-primary hidden">
-                <i class="fa-solid fa-download"></i> Unduh KHS (HD)
-            </button>
-        </div>
+        
+        <!-- HEADER BARU -->
+        <header class="brand-header">
+            <div class="header-content-wrapper">
+                <div class="header-logo-circle">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+                </div>
+                <div class="header-info">
+                    <h1 class="header-brand-name">Kartu Hasil Studi</h1>
+                    <p class="header-greeting">Lihat dan unduh laporan akademik Anda.</p>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
+                    <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
+                </a>
+                <button onclick="window.downloadKHS()" id="btn-download" class="btn-download hidden">
+                    <i class="fa-solid fa-download"></i> Unduh KHS
+                </button>
+            </div>
+        </header>
 
         <div id="loading-state">
-            <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: #003366;"></i>
-            <p style="margin-top: 15px; color: #666;">Memeriksa status KHS Anda...</p>
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 3rem; color: var(--primary);"></i>
+            <p style="margin-top: 15px; color: var(--text-gray); font-weight: 500;">Memeriksa status KHS Anda...</p>
         </div>
 
-        <div id="error-state" class="hidden" style="text-align: center; padding: 50px 20px; background: white; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
-            <i class="fa-solid fa-lock" style="font-size: 4rem; color: #dc3545; margin-bottom: 20px;"></i>
-            <h3 style="color: #333; margin-top: 0;">Akses KHS Ditolak</h3>
-            <p style="color: #666; max-width: 500px; margin: 0 auto 20px; line-height: 1.6;">
-                Mohon maaf, Kartu Hasil Studi Anda masih dikunci atau nilai belum lengkap. <br>
+        <div id="error-state" class="hidden">
+            <i class="fa-solid fa-lock error-icon"></i>
+            <h3 class="error-title">Akses KHS Ditolak</h3>
+            <p class="error-desc">
+                Mohon maaf, Kartu Hasil Studi Anda masih dikunci atau data nilai belum lengkap dimasukkan oleh pengajar. <br><br>
                 Jika Anda merasa sudah menyelesaikan seluruh ujian dan administrasi, silakan hubungi Admin.
             </p>
-            <div style="background: #fff3cd; padding: 10px 20px; display: inline-block; border-radius: 8px; font-size: 0.9em; color: #856404; font-weight: bold;">
+            <div class="error-badge">
                 <i class="fa-solid fa-circle-exclamation"></i> Status: KHS Terkunci
             </div>
         </div>
 
         <div id="document-area" class="hidden">
-            <p class="mobile-hint"><i class="fa-solid fa-arrows-left-right"></i> Geser dokumen untuk melihat detail</p>
+            <p class="mobile-hint"><i class="fa-solid fa-arrows-left-right"></i> Geser dokumen ke kanan untuk melihat detail</p>
             
             <div class="khs-wrapper">
                 <div id="khs-paper" class="khs-paper">
@@ -108,7 +203,7 @@
 
                     <table class="student-info-table">
                         <tr>
-                            <td class="label-col">Nama</td><td class="sep-col">:</td>
+                            <td class="label-col">Nama Lengkap</td><td class="sep-col">:</td>
                             <td id="khs-nama">Nama Siswa</td>
                         </tr>
                         <tr>
@@ -137,7 +232,8 @@
                             </tr>
                         </thead>
                         <tbody id="khs-tbody">
-                            </tbody>
+                            <!-- Diisi oleh JS -->
+                        </tbody>
                         <tfoot>
                             <tr style="background-color: #f8f9fa; font-weight: bold;">
                                 <td colspan="2" style="text-align: right; padding-right: 10px;">Total SKS</td>
@@ -169,6 +265,26 @@
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
         import { doc, getDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ============================================================
+        // LOGIKA DINAMIS TOMBOL KEMBALI
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromInkubasi = urlParams.get('ref') === 'inkubasi';
+        
+        const btnKembali = document.getElementById('btn-kembali');
+        const textKembali = document.getElementById('kembali-text');
+        
+        if (btnKembali && textKembali) {
+            if (fromInkubasi) {
+                btnKembali.href = '/dashboard/inkubasi.html';
+                textKembali.innerText = 'Ruang Inkubasi'; 
+            } else {
+                btnKembali.href = '/dashboard/index.html'; 
+                textKembali.innerText = 'Dashboard Utama';
+            }
+        }
+        // ============================================================
 
         let currentUser = null;
 
@@ -268,7 +384,7 @@
             const btn = document.getElementById('btn-download');
             const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sedang Memproses...';
 
             try {
                 addDoc(collection(db, 'khs_access_logs'), {
@@ -295,7 +411,7 @@
                 btn.innerHTML = originalText;
             }).catch(err => {
                 console.error(err);
-                alert("Gagal mengunduh. Coba refresh halaman.");
+                alert("Gagal mengunduh. Coba refresh halaman lalu tekan lagi.");
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             });
