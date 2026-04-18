@@ -61,13 +61,13 @@ Ketentuan Review (SANGAT KETAT):
 2. Bedah kelogisan Judul, Genre, dan Target Kata.
 3. Berikan KRITIKAN TAJAM pada Logline/Sinopsis/Outline. Cari celah plot hole atau klise.
 4. Gunakan baris baru (enter) antar paragraf agar enak dipandang.
-5. DILARANG KERAS menggunakan Markdown seperti bintang-bintang untuk tebal/miring (**teks** atau *teks*). Gunakan HURUF KAPITAL saja untuk memberikan penekanan jika perlu.
+5. Tuliskan jawaban dalam teks biasa (plain text). DILARANG KERAS menggunakan Markdown seperti bintang-bintang untuk tebal/miring (**teks** atau *teks*) dan JANGAN menulis seluruh ulasan dengan HURUF KAPITAL.
+6. PASTIKAN ulasanmu dijawab sampai tuntas, kalimat selesai dengan titik, dan tidak terpotong di akhir.
 `;
 
         const model = genAI.getGenerativeModel({ 
             model: "gemini-3-flash-preview", // Menggunakan versi stabil
             generationConfig: { 
-                // Tidak lagi menggunakan responseMimeType: "application/json"
                 temperature: 0.7, 
                 maxOutputTokens: 2500 
             }
