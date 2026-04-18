@@ -40,7 +40,7 @@ Ini adalah ide pertama dari ${data.studentName}. Langsung bedah kelogisan ide, k
 `;
         }
 
-        // --- SUSUN PROMPT UTAMA ---
+        // --- SUSUN PROMPT UTAMA (HANYA MINTA TEKS BIASA) ---
         const promptText = `
 Peran: Kamu adalah "Mentor Cendekia", Editor Akuisisi Novel yang kritis dan gaul. 
 Gunakan bahasa "Aku" dan "Kamu", santai tapi tajam.
@@ -56,24 +56,18 @@ Data Naskah:
 - Sinopsis: ${data.sinopsis}
 - Outline: ${outlineTeks}
 
-Wajib Berikan output dalam format JSON valid:
-{
-  "feedback": "ISI_REVIEW_DISINI"
-}
-
 Ketentuan Review (SANGAT KETAT):
-1. JANGAN ADA BASA-BASI PEMBUKA! Dilarang keras memakai kata seperti "Halo", "Terima kasih sudah submit", "Tentu, mari kita bedah". LANGSUNG TEMBAK KE INTINYA (misal: "Hal pertama yang harus kamu revisi adalah...", atau "Naskah ini punya masalah di bagian...").
+1. JANGAN ADA BASA-BASI PEMBUKA ATAU PENUTUP! Dilarang keras memakai kata seperti "Halo", "Terima kasih sudah submit", "Tentu, mari kita bedah", atau "Semoga sukses". LANGSUNG TEMBAK KE INTINYA (misal: "Hal pertama yang harus kamu revisi adalah...", atau "Ide ini cukup menarik, tapi...").
 2. Bedah kelogisan Judul, Genre, dan Target Kata.
 3. Berikan KRITIKAN TAJAM pada Logline/Sinopsis/Outline. Cari celah plot hole atau klise.
-4. Gunakan "\\n\\n" untuk enter (baris baru) antar paragraf agar enak dipandang.
-5. DILARANG KERAS menggunakan Markdown seperti bintang-bintang (**teks**). Gunakan HURUF KAPITAL saja untuk penekanan jika perlu.
-6. PENTING: Jangan gunakan karakter newline asli (tombol enter) di dalam string JSON. Gunakan "\\n\\n" sebagai ganti enter. Jangan gunakan tanda kutip ganda (") di dalam teks review, gunakan tanda kutip tunggal (') saja agar JSON tidak rusak.
+4. Gunakan baris baru (enter) antar paragraf agar enak dipandang.
+5. DILARANG KERAS menggunakan Markdown seperti bintang-bintang untuk tebal/miring (**teks** atau *teks*). Gunakan HURUF KAPITAL saja untuk memberikan penekanan jika perlu.
 `;
 
         const model = genAI.getGenerativeModel({ 
             model: "gemini-3-flash-preview", // Menggunakan versi stabil
             generationConfig: { 
-                responseMimeType: "application/json",
+                // Tidak lagi menggunakan responseMimeType: "application/json"
                 temperature: 0.7, 
                 maxOutputTokens: 2500 
             }
@@ -82,32 +76,14 @@ Ketentuan Review (SANGAT KETAT):
         const result = await model.generateContent(promptText);
         let textResponse = result.response.text();
 
-        // --- PROSES PEMBERSIHAN TOTAL ---
-        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-        let cleanText = textResponse.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+        // --- PROSES PEMBERSIHAN ---
+        // Hapus karakter bintang (*) yang sering dipakai AI untuk bold/italic/list
+        let cleanFeedback = textResponse.replace(/\*/g, "").trim();
 
-        try {
-            const finalResult = JSON.parse(cleanText);
-            
-            // Hapus karakter bintang (**) jika AI tetap membandel
-            let cleanFeedback = finalResult.feedback.replace(/\*\*/g, "");
-            
-            res.status(200).json({
-                analisis_teks: cleanFeedback
-            });
-        } catch (parseError) {
-            console.error("Gagal Parse JSON, mencoba ekstraksi manual...");
-            const match = textResponse.match(/"feedback"\s*:\s*"([\s\S]*)"/);
-            if (match && match[1]) {
-                let resultText = match[1]
-                    .replace(/\\n/g, "\n")
-                    .replace(/\\"/g, '"')
-                    .replace(/\*\*/g, ""); // Hapus bintang di fallback
-                res.status(200).json({ analisis_teks: resultText });
-            } else {
-                throw new Error("Format output AI tidak dapat dikenali.");
-            }
-        }
+        // Backend langsung membungkus teks bersih ke dalam JSON
+        res.status(200).json({
+            analisis_teks: cleanFeedback
+        });
 
     } catch (error) {
         console.error("AI Error (Analisis Pitching):", error);
