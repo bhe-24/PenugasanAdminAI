@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Inisialisasi Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export default async function handler(req, res) {
@@ -21,53 +22,74 @@ export default async function handler(req, res) {
 
         const jumlah = jumlahSoal || 5; // Default 5 soal
 
-        // 2. SUSUN PROMPT UNTUK GENERATOR KUIS
+        // 2. SUSUN PROMPT UNTUK GENERATOR KUIS (DIPERBAIKI)
         const promptText = `
-Tugas Anda adalah membuat ${jumlah} soal Pilihan Ganda (A, B, C, D) berdasarkan materi berikut. 
-Soal harus merupakan campuran dari pertanyaan teori (konseptual) dan contoh kasus/penerapan dari materi tersebut.
+Anda adalah seorang guru ahli pembuat soal ujian tingkat nasional.
+Tugas Anda adalah membuat ${jumlah} soal Pilihan Ganda (A, B, C, D) yang berkualitas berdasarkan materi referensi yang diberikan.
 
-MATERI PELAJARAN:
-"${materi}"
+MATERI REFERENSI (Hanya untuk Anda pelajari, siswa TIDAK akan melihat teks ini):
+"""
+${materi}
+"""
 
-SYARAT DAN FORMAT PENULISAN (Sangat Ketat):
-1. Tulis soal di baris pertama.
-2. Baris berikutnya adalah pilihan jawaban (A, B, C, D).
-3. Berikan tanda bintang (*) di depan pilihan jawaban yang BENAR.
-4. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
-5. DILARANG menggunakan awalan angka pada nomor soal (jangan tulis "1.", langsung saja tulis soalnya).
-6. DILARANG menambahkan teks pembuka seperti "Berikut adalah soalnya" atau teks penutup. Langsung berikan output format soal.
+ATURAN SANGAT KETAT (WAJIB DIPATUHI - JIKA MELANGGAR SOAL AKAN DITOLAK):
+1. Soal harus bersifat MANDIRI (self-contained).
+2. DILARANG KERAS menggunakan frasa yang merujuk pada teks gaib, seperti "Berdasarkan wacana di atas...", "Menurut teks tersebut...", "Cermati teks di bawah", dll.
+3. JIKA Anda ingin menguji pemahaman membaca/studi kasus, Anda WAJIB MENULISKAN KEMBALI penggalan cerita/kasus tersebut ke dalam teks pertanyaan secara utuh.
+4. Tulis pertanyaan di baris pertama tanpa menggunakan nomor (Jangan tulis "1.", "2.", dll).
+5. Baris berikutnya adalah pilihan jawaban persis dengan huruf (A. B. C. D.).
+6. Berikan tanda bintang (*) TEPAT di depan huruf pilihan jawaban yang BENAR.
+7. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
+8. DILARANG memberikan kata pengantar, basa-basi, penjelasan jawaban, atau teks penutup apa pun. Keluarkan hanya teks soal saja.
 
 CONTOH OUTPUT YANG DIHARAPKAN:
-Ibu kota Indonesia adalah?
+Ibu kota negara Republik Indonesia adalah?
 A. Bandung
 *B. Jakarta
 C. Surabaya
 D. Medan
 
-Berdasarkan teori gravitasi, jika buah apel terlepas dari tangkainya, maka buah tersebut akan jatuh ke bawah. Fenomena ini pertama kali dirumuskan oleh?
-*A. Isaac Newton
-B. Albert Einstein
-C. Galileo Galilei
-D. Thomas Alva Edison
+Andi menemukan sebuah dompet di jalan, lalu ia membawanya ke kantor polisi terdekat untuk dikembalikan. Tindakan yang dilakukan Andi mencerminkan penerapan nilai Pancasila sila ke?
+A. Pertama
+*B. Kedua
+C. Ketiga
+D. Keempat
 `;
 
         // 3. PANGGIL GEMINI AI
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+        // Menggunakan model yang diatur di env atau flash yang cepat
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); // Bisa disesuaikan dengan versi modelmu
+        
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
-            generationConfig: { temperature: 0.3 } // Temperature rendah agar patuh pada format
+            generationConfig: { 
+                temperature: 0.2, // Sengaja di-set sangat rendah agar AI fokus mematuhi instruksi format dan tidak berhalusinasi
+                topP: 0.8
+            } 
         });
         
         let textResponse = result.response.text();
         
-        // Membersihkan markdown jika AI bandel
-        textResponse = textResponse.replace(/```text/gi, '').replace(/```/g, '').trim();
+        // 4. PEMBERSIHAN STRING (CLEANUP)
+        // Membersihkan markdown formatting (```text atau ```) jika AI membandel
+        textResponse = textResponse.replace(/```[a-zA-Z]*\n/gi, '').replace(/```/g, '').trim();
 
-        // 4. KIRIM HASIL KE FRONTEND
+        // Menghapus baris yang mungkin berisi "Berikut adalah soalnya:" dll
+        const lines = textResponse.split('\n');
+        const cleanLines = lines.filter(line => {
+            const lower = line.toLowerCase();
+            return !lower.includes('berikut adalah') && 
+                   !lower.includes('ini adalah soal') &&
+                   !lower.includes('selamat mengerjakan');
+        });
+        
+        textResponse = cleanLines.join('\n').trim();
+
+        // 5. KIRIM HASIL KE FRONTEND
         res.status(200).json({ result: textResponse });
 
     } catch (error) {
         console.error("AI Error (Kuis Generator):", error);
-        res.status(500).json({ error: "Gagal membuat soal dengan AI." });
+        res.status(500).json({ error: "Gagal membuat soal dengan AI. Coba lagi nanti." });
     }
 }
