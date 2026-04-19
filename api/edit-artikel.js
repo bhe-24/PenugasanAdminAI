@@ -13,39 +13,47 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { text, title, category } = req.body;
+        // Menerima parameter tambahan "instruction" dari frontend Admin
+        const { text, title, category, instruction } = req.body;
 
         if (!text || text.trim() === '') {
             return res.status(400).json({ error: 'Teks artikel tidak boleh kosong.' });
         }
 
-        // 2. PROMPT UNTUK AI SEBAGAI PROOFREADER (EDITOR)
+        // Susun instruksi dinamis: Jika ada instruksi khusus dari Admin, gunakan itu. 
+        // Jika tidak ada, gunakan instruksi standar (merapikan ejaan).
+        const customInstruction = instruction && instruction.trim() !== '' 
+            ? `INSTRUKSI KHUSUS DARI REDAKTUR UTAMA:\n"${instruction}"\nPastikan Anda mengubah, memperpanjang, atau menyesuaikan naskah secara kreatif SESUAI DENGAN instruksi khusus ini!`
+            : `INSTRUKSI UMUM:\nRapikan ejaan, tanda baca (sesuai PUEBI), dan susunan paragraf agar bahasanya lebih mengalir tanpa mengubah alur atau makna asli cerita.`;
+
+        // 2. PROMPT UNTUK AI SEBAGAI KEPALA REDAKSI
         const promptText = `
-Peranmu: Seorang Proofreader dan Copy Editor profesional untuk Mading Sekolah.
+Peranmu: Seorang Editor Senior, Penulis Berbakat, dan Proofreader untuk Mading Sekolah Cendekia Aksara.
 
-Tugas: Rapikan dan sunting artikel HTML berikut agar tata bahasanya lebih baik, ejaan sesuai PUEBI, paragraf terstruktur rapi, dan bahasanya mengalir.
+Tugas Pokok: Sunting atau ubah draf naskah berikut sesuai dengan instruksi yang diberikan.
 
-Data Tambahan:
+Data Naskah:
 - Judul: ${title}
 - Kategori: ${category}
 
-TEKS ARTIKEL (FORMAT HTML):
+${customInstruction}
+
+TEKS ARTIKEL/NASKAH DARI SISWA (FORMAT HTML):
 """
 ${text}
 """
 
 ATURAN KETAT (WAJIB DIPATUHI):
-1. JANGAN PERNAH MENGUBAH GAYA BAHASA ASLINYA. Jika tulisan siswa bergaya santai, biarkan santai. Jika formal, biarkan formal. Kamu hanya memperbaiki penempatan tanda baca, huruf kapital, dan salah ketik (typo).
-2. PERTAHANKAN FORMAT HTML ASLINYA. Jika siswa menggunakan tag <b>, <i>, <ul>, <ol>, <li>, atau <p>, PASTIKAN TAG TERSEBUT TETAP ADA DAN TIDAK RUSAK.
-3. JANGAN MEMBERIKAN KOMENTAR APA PUN (seperti "Berikut adalah hasilnya" atau "Ini dia revisinya").
-4. Langsung keluarkan hasil teks HTML yang sudah dirapikan saja.
+1. PERTAHANKAN ATAU GUNAKAN FORMAT HTML. Jangan kembalikan teks biasa. Gunakan tag <p> untuk paragraf, <b> untuk tebal, atau <i> untuk miring agar rapi saat dibaca di website.
+2. JANGAN PERNAH MEMBERIKAN KOMENTAR, BASA-BASI, ATAU PENJELASAN (seperti "Berikut adalah hasilnya", "Saya telah menambahkan paragraf", atau "Ini dia revisinya").
+3. Langsung keluarkan hasil teks HTML cerita/artikel yang sudah dirapikan atau diperpanjang. TITIK.
 `;
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash", // Menggunakan engine Gemini 1.5 Flash
+            model: "gemini-2.5-flash", 
             generationConfig: { 
-                temperature: 0.2, // Temperature rendah agar AI tidak merombak cerita, hanya memoles.
-                maxOutputTokens: 3000
+                temperature: instruction ? 0.7 : 0.2, // Jika ada instruksi khusus, biarkan AI lebih kreatif (0.7). Jika hanya merapikan, buat kaku (0.2).
+                maxOutputTokens: 5000 // Diperbesar agar muat cerita yang diperpanjang
             }
         });
 
@@ -60,6 +68,6 @@ ATURAN KETAT (WAJIB DIPATUHI):
 
     } catch (error) {
         console.error("AI Edit Error:", error);
-        res.status(500).json({ error: "Gagal merapikan teks. Sistem sedang sibuk." });
+        res.status(500).json({ error: "Gagal memproses teks. Sistem AI sedang sibuk." });
     }
 }
