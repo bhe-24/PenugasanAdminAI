@@ -66,7 +66,7 @@ Ketentuan Review (SANGAT KETAT):
 `;
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-3-flash-preview", // Menggunakan versi stabil
+            model: "gemini-3.1-flash-lite-preview", // Menggunakan versi stabil
             generationConfig: { 
                 temperature: 0.7, 
                 maxOutputTokens: 2500 
