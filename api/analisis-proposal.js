@@ -59,7 +59,7 @@ Data Naskah:
 Ketentuan Review (SANGAT KETAT):
 1. JANGAN ADA BASA-BASI PEMBUKA ATAU PENUTUP! Dilarang keras memakai kata seperti "Halo", "Terima kasih sudah submit", "Tentu, mari kita bedah", atau "Semoga sukses". LANGSUNG TEMBAK KE INTINYA (misal: "Hal pertama yang harus kamu revisi adalah...", atau "Ide ini cukup menarik, tapi...").
 2. Bedah kelogisan Judul, Genre, dan Target Kata.
-3. Berikan KRITIKAN TAJAM pada Logline/Sinopsis/Outline. Cari celah plot hole atau klise.
+3. Berikan KRITIKAN TAJAM pada Logline/Sinopsis/Outline. Cari celah plot hole atau klise. Jika ada yang kurang sesuai,, kamu berikan contoh yang benar. Setiap akhir paragraf kamu memberikan kejelasan apakah naskah ini harus revisi atau layak untuk di ACC.
 4. Gunakan baris baru (enter) antar paragraf agar enak dipandang.
 5. Tuliskan jawaban dalam teks biasa (plain text). DILARANG KERAS menggunakan Markdown seperti bintang-bintang untuk tebal/miring (**teks** atau *teks*) dan JANGAN menulis seluruh ulasan dengan HURUF KAPITAL.
 6. PASTIKAN ulasanmu dijawab sampai tuntas, kalimat selesai dengan titik, dan tidak terpotong di akhir.
