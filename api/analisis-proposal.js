@@ -72,6 +72,13 @@ Ketentuan Review (SANGAT KETAT):
                 maxOutputTokens: 2500 
             }
         });
+        // Ganti baris ini:
+const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
+// Menjadi salah satu dari ini:
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+// ATAU
+const model = genAI.getGenerativeModel({ model: "gemma-4-31b-it" });
 
         const result = await model.generateContent(promptText);
         let textResponse = result.response.text();
