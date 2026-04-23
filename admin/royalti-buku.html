@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Buku & Penjualan - Admin CA</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root { --primary: #003366; --accent: #d4af37; --bg: #f4f7f6; --text: #334155; --success: #10b981; --warning: #f59e0b; }
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* HEADER */
+        .page-header { background: #fff; padding: 20px 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 6px solid var(--success); }
+        .page-header h2 { margin: 0; color: var(--success); font-size: 1.6rem; display: flex; align-items: center; gap: 10px;}
+        .page-header p { margin: 5px 0 0 0; font-size: 0.9rem; color: #64748b; }
+        .btn-back { background: #f1f5f9; color: #475569; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.95rem; transition: 0.2s;}
+        .btn-back:hover { background: #e2e8f0; color: var(--primary); }
+
+        /* NAVIGATION TABS MULTI-PAGE */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); overflow-x: auto;}
+        .tab-link { padding: 10px 20px; border-radius: 8px; text-decoration: none; color: #64748b; font-weight: 600; font-size: 0.95rem; transition: 0.2s; display: flex; align-items: center; gap: 8px; white-space: nowrap;}
+        .tab-link:hover { background: #f1f5f9; }
+        .tab-link.active { background: var(--success); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+
+        .btn-add { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins'; margin-bottom: 20px;}
+        
+        /* GRID BUKU */
+        .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .book-card { background: white; border-radius: 12px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; position: relative;}
+        .book-card:hover { border-color: #cbd5e1; box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+        
+        .b-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--primary); margin: 0 0 10px 0; line-height: 1.3;}
+        .b-meta { font-size: 0.85rem; color: #64748b; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; }
+        .b-meta span i { color: var(--success); width: 20px; }
+        
+        .author-list { background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 0.85rem; color: #475569; margin-bottom: 20px; max-height: 100px; overflow-y: auto; border: 1px solid #e2e8f0;}
+        .author-list strong { display: block; margin-bottom: 5px; color: var(--primary); }
+
+        .btn-sell { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: 0.2s; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: 'Poppins';}
+        .btn-sell:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);}
+
+        /* MODAL FORM BUKU */
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.6); backdrop-filter:blur(4px); z-index:2000; display:none; justify-content:center; align-items:center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background:white; width:95%; max-width:600px; max-height:90vh; overflow-y:auto; padding:30px; border-radius:16px; transform: scale(0.9); transition: 0.3s;}
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 5px; color: var(--primary);}
+        .form-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; }
+        
+        .author-input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .btn-add-author { background: #e0f2fe; color: #0284c7; border: 1px dashed #7dd3fc; padding: 10px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 600; transition: 0.2s;}
+        .btn-add-author:hover { background: #bae6fd; }
+
+        @media (max-width: 600px) { .page-header { flex-direction: column; text-align: center; gap: 15px; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h2><i class="fa-solid fa-book-open-dollar"></i> Sistem Royalti Otomatis</h2>
+                <p>Kelola penjualan buku dan bagi hasil penulis secara otomatis.</p>
+            </div>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Pusat Pantau</a>
+        </div>
+
+        <!-- MULTI-PAGE NAVIGATION -->
+        <div class="nav-tabs">
+            <a href="royalti-buku.html" class="tab-link active"><i class="fa-solid fa-book"></i> 1. Penjualan Buku</a>
+            <a href="royalti-penulis.html" class="tab-link"><i class="fa-solid fa-users"></i> 2. Saldo Penulis & Pembayaran</a>
+        </div>
+
+        <button class="btn-add" onclick="openModal()"><i class="fa-solid fa-plus"></i> Daftarkan Buku Baru</button>
+
+        <div class="book-grid" id="book-grid">
+            <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #94a3b8;">
+                <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i><br><br>Memuat Katalog Buku...
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH BUKU -->
+    <div class="modal-overlay" id="book-modal">
+        <div class="modal-box">
+            <h2 style="color:var(--primary); margin: 0 0 20px 0;"><i class="fa-solid fa-book-medical"></i> Buku Antologi Baru</h2>
+            <form id="book-form">
+                <div class="form-group">
+                    <label>Judul Buku</label>
+                    <input type="text" id="b-judul" class="form-input" required placeholder="Contoh: Antologi Puisi Senja">
+                </div>
+                <div class="form-group">
+                    <label>Total Royalti per 1 Buku Terjual (Rp)</label>
+                    <small style="color:#64748b; display:block; margin-bottom:5px;">Keuntungan bersih yang akan dibagi rata ke seluruh penulis dalam buku ini.</small>
+                    <input type="number" id="b-royalty" class="form-input" required placeholder="Contoh: 15000">
+                </div>
+                
+                <div class="form-group">
+                    <label>Daftar Penulis yang Terlibat</label>
+                    <div id="author-container">
+                        <div class="author-input-group">
+                            <input type="text" class="form-input auth-name" placeholder="Nama Penulis" required>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-add-author" onclick="addAuthorField()"><i class="fa-solid fa-plus"></i> Tambah Penulis Lain</button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 30px;">
+                    <button type="button" class="btn-back" style="display:block; color:#64748b; background:#f1f5f9; border:none;" onclick="closeModal()">Batal</button>
+                    <button type="submit" class="btn-add" style="margin:0;"><i class="fa-solid fa-floppy-disk"></i> Simpan Buku</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, getDocs, addDoc, doc, updateDoc, increment, runTransaction, serverTimestamp, orderBy, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        (async () => {
+            const admin = await checkAuth('admin');
+            if(!admin) window.location.href = '../index.html';
+            loadBooks();
+        })();
+
+        // --- LOAD DATA BUKU ---
+        async function loadBooks() {
+            const container = document.getElementById('book-grid');
+            try {
+                const q = query(collection(db, 'royalty_books'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                container.innerHTML = '';
+
+                if(snap.empty) {
+                    container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8; border:2px dashed #cbd5e1; border-radius:12px;">Belum ada buku terdaftar.</div>`;
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    const royaltyPerAuthor = data.royaltyTotal / data.authors.length;
+                    
+                    const authorsList = data.authors.map(a => `<li>${a}</li>`).join('');
+
+                    container.innerHTML += `
+                        <div class="book-card">
+                            <h3 class="b-title">${data.judul}</h3>
+                            <div class="b-meta">
+                                <span><i class="fa-solid fa-tags"></i> Royalti Total: <b>Rp ${data.royaltyTotal.toLocaleString('id-ID')} /buku</b></span>
+                                <span><i class="fa-solid fa-users"></i> Dibagi ke <b>${data.authors.length} Penulis</b> (Rp ${royaltyPerAuthor.toLocaleString('id-ID')}/orang)</span>
+                                <span style="margin-top:10px; color:var(--primary); font-size:1.1rem;"><i class="fa-solid fa-chart-line"></i> Total Terjual: <b>${data.terjual || 0} Buku</b></span>
+                            </div>
+                            
+                            <div class="author-list">
+                                <strong>Daftar Penulis:</strong>
+                                <ul style="margin:0; padding-left:20px;">${authorsList}</ul>
+                            </div>
+
+                            <button class="btn-sell" onclick="recordSale('${d.id}', ${data.royaltyTotal}, '${JSON.stringify(data.authors).replace(/"/g, '&quot;')}')">
+                                <i class="fa-solid fa-cart-plus"></i> Catat Terjual +1
+                            </button>
+                        </div>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        // --- CATAT PENJUALAN +1 (TRANSACTION AGAR AMAN) ---
+        window.recordSale = async (bookId, totalRoyalty, authorsStr) => {
+            const authors = JSON.parse(authorsStr.replace(/&quot;/g, '"'));
+            const royaltyPerPerson = totalRoyalty / authors.length;
+
+            Swal.fire({
+                title: 'Catat Penjualan?',
+                text: `Sistem akan mencatat 1 penjualan dan otomatis membagikan royalti Rp ${royaltyPerPerson.toLocaleString('id-ID')} ke masing-masing saldo penulis.`,
+                icon: 'question', showCancelButton: true, confirmButtonText: 'Ya, Catat & Bagikan!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Memproses Pembagian...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
+                    try {
+                        // 1. Tambah jumlah terjual di koleksi Buku
+                        await updateDoc(doc(db, 'royalty_books', bookId), { terjual: increment(1) });
+
+                        // 2. Loop setiap penulis, tambahkan saldonya di koleksi Authors
+                        // Kita gunakan batch/transaction terpisah per penulis
+                        for (const authorName of authors) {
+                            // Buat UID unik berdasarkan nama agar bisa dicari (Kecilkan huruf & hapus spasi)
+                            const authorId = authorName.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+                            
+                            const authorRef = doc(db, 'authors_royalty', authorId);
+                            
+                            // Gunakan RunTransaction agar jika data belum ada, akan dibuatkan
+                            await runTransaction(db, async (transaction) => {
+                                const authorDoc = await transaction.get(authorRef);
+                                if (!authorDoc.exists()) {
+                                    transaction.set(authorRef, {
+                                        name: authorName,
+                                        balance: royaltyPerPerson,
+                                        whatsapp: '',
+                                        bank: '',
+                                        norek: ''
+                                    });
+                                } else {
+                                    const newBalance = (authorDoc.data().balance || 0) + royaltyPerPerson;
+                                    transaction.update(authorRef, { balance: newBalance });
+                                }
+                            });
+                        }
+
+                        Swal.fire('Berhasil!', 'Penjualan tercatat dan royalti telah masuk ke saldo penulis.', 'success');
+                        loadBooks();
+
+                    } catch(e) {
+                        Swal.fire('Error', e.message, 'error');
+                    }
+                }
+            });
+        };
+
+        // --- FORM LOGIC ---
+        window.openModal = () => document.getElementById('book-modal').classList.add('active');
+        window.closeModal = () => document.getElementById('book-modal').classList.remove('active');
+        
+        window.addAuthorField = () => {
+            const div = document.createElement('div');
+            div.className = 'author-input-group';
+            div.innerHTML = `<input type="text" class="form-input auth-name" placeholder="Nama Penulis" required>
+                             <button type="button" style="background:#fee2e2; color:#ef4444; border:none; border-radius:8px; padding:0 15px; cursor:pointer;" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>`;
+            document.getElementById('author-container').appendChild(div);
+        };
+
+        document.getElementById('book-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const judul = document.getElementById('b-judul').value;
+            const royalty = parseInt(document.getElementById('b-royalty').value);
+            
+            const authors = [];
+            document.querySelectorAll('.auth-name').forEach(input => {
+                if(input.value.trim() !== '') authors.push(input.value.trim());
+            });
+
+            if(authors.length === 0) return alert("Minimal harus ada 1 penulis!");
+
+            Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
+            
+            try {
+                await addDoc(collection(db, 'royalty_books'), {
+                    judul: judul,
+                    royaltyTotal: royalty,
+                    authors: authors,
+                    terjual: 0,
+                    createdAt: serverTimestamp()
+                });
+                closeModal();
+                document.getElementById('book-form').reset();
+                Swal.fire('Tersimpan', 'Buku baru berhasil didaftarkan.', 'success');
+                loadBooks();
+            } catch(err) { Swal.fire('Error', err.message, 'error'); }
+        };
+    </script>
+</body>
+</html>
