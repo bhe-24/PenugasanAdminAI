@@ -165,12 +165,12 @@
         .footer-logos { display: flex; justify-content: center; margin-bottom: 10px; }
         .footer-logos img { 
             height: 45px; width: auto; object-fit: contain; 
-            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5)); /* Efek shadow natural tanpa kotak putih */
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
         }
         .site-footer strong { color: white; font-size: 0.9rem; font-family: 'Aleo', serif;}
 
         /* ============================================= */
-        /* --- MOBILE OPTIMIZATION (DIKECILKAN SIGNIFIKAN) --- */
+        /* --- MOBILE OPTIMIZATION --- */
         /* ============================================= */
         @media (max-width: 600px) {
             body { padding-top: 65px; }
@@ -227,6 +227,8 @@
             .art-share-strip { padding: 10px 15px; gap: 8px; margin-top: 20px;}
             .art-share-label { font-size: 0.75rem; }
             .share-btn { padding: 5px 12px; font-size: 0.7rem; }
+            
+            .recommendation-section { margin-top: 30px; padding-top: 20px;}
         }
     </style>
 </head>
@@ -366,7 +368,7 @@
             </div>
 
             <div class="recommendation-section" id="recommendation-section" style="display:none;">
-                <div class="section-title" style="margin-bottom: 15px;">
+                <div class="section-title" style="margin-bottom: 20px;">
                     <i class="fa-solid fa-layer-group" style="color:#0284c7;"></i> Bacaan Serupa
                 </div>
                 <div class="horizontal-scroll" id="rec-grid"></div>
@@ -375,7 +377,7 @@
 
     </div><!-- /main-content -->
 
-    <!-- FOOTER PATEN (MENYATU DENGAN LATAR BELAKANG) -->
+    <!-- FOOTER PATEN -->
     <footer class="site-footer">
         <div class="footer-logos">
             <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
@@ -388,7 +390,8 @@
     <script type="module">
         import { db, auth } from "/js/firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { collection, doc, getDoc, getDocs, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORT TAMBAHAN UNTUK FITUR SILUMAN AI
+        import { collection, doc, getDoc, getDocs, query, setDoc, addDoc, serverTimestamp, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let allPublishedArticles = [];
 
@@ -492,8 +495,8 @@
             const onerror   = hasImage ? `onerror="handleImageError(this)"` : '';
 
             const plainText = (art.content || '').replace(/<[^>]+>/g, '');
-            let excerpt = plainText.substring(0, 90);
-            if (plainText.length > 90) excerpt += '…';
+            let excerpt = plainText.substring(0, 100);
+            if (plainText.length > 100) excerpt += '…';
 
             return `
                 <a href="?id=${art.id}" class="article-card">
@@ -558,6 +561,51 @@
             }
         };
 
+        // --- SISTEM SILUMAN (BACKGROUND AI GENERATOR) ---
+        async function runSilentAIGenerator() {
+            try {
+                // Gunakan tanggal hari ini sebagai ID penanda (YYYY-MM-DD)
+                const today = new Date();
+                const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+                const aiDocRef = doc(db, 'ai_generator_logs', todayStr);
+                
+                const checkSnap = await getDoc(aiDocRef);
+                
+                if (!checkSnap.exists()) {
+                    // Tandai sedang diproses agar pengunjung lain di waktu bersamaan tidak ikut nge-trigger
+                    await setDoc(aiDocRef, { status: 'processing', timestamp: serverTimestamp() });
+                    
+                    // Panggil API Vercel secara diam-diam
+                    const response = await fetch('/api/tips-harian', { method: 'POST' });
+                    if (response.ok) {
+                        const newArticle = await response.json();
+                        
+                        // Simpan sebagai artikel Mading biasa
+                        await addDoc(collection(db, 'articles'), {
+                            title: newArticle.judul,
+                            content: newArticle.isi,
+                            imageUrl: newArticle.gambar,
+                            category: "Opini & Literasi",
+                            authorName: "Redaksi Cendekia", 
+                            authorId: "system_ai",
+                            status: "published",
+                            timestamp: serverTimestamp()
+                        });
+                        
+                        // Update log sukses
+                        await updateDoc(aiDocRef, { status: 'success' });
+                        // PENTING: Karena ini background, kita biarkan saja. 
+                        // Artikel akan muncul saat user me-refresh halaman atau untuk visitor berikutnya.
+                    } else {
+                        // Jika gagal, hapus log agar bisa dicoba lagi oleh pengunjung lain
+                        await deleteDoc(aiDocRef);
+                    }
+                }
+            } catch (err) {
+                console.error("Silent AI Generator Error:", err);
+            }
+        }
+
         // ---- MAIN LOGIC ----
         (async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -606,8 +654,6 @@
                             detailView.style.display = 'block';
 
                             initReadingProgress();
-                            
-                            // Generate rekomendasi
                             generateRecommendations(articleId, data.category);
 
                         } else {
@@ -627,6 +673,9 @@
             // ---- MODE BERANDA (LIST MADING) ----
             } else {
                 try {
+                    // JALANKAN GENERATOR AI SECARA DIAM-DIAM DI BACKGROUND
+                    runSilentAIGenerator();
+
                     const snap = await getDocs(query(collection(db, 'articles')));
                     allPublishedArticles = [];
 
