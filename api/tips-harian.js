@@ -14,70 +14,44 @@ export default async function handler(req, res) {
     const genAI = new GoogleGenerativeAI(apiKey);
 
     try {
-        // --- 1. MEMBUAT TEKS TIPS MENGGUNAKAN GEMINI ---
+        // --- 1. MEMBUAT ARTIKEL MENGGUNAKAN GEMINI ---
         const model = genAI.getGenerativeModel({ 
             model: "gemini-2.5-flash",
             generationConfig: { 
                 responseMimeType: "application/json",
-                temperature: 0.9 // Kreativitas tinggi agar tips dan topiknya sangat beragam setiap hari
+                temperature: 0.85 // Kreativitas tinggi namun tetap berbobot
             }
         });
         
         const promptTeks = `
-Peranmu adalah Penulis Senior dan Editor Mading yang asyik, gaul, wawasannya luas, dan tidak kaku.
-Tugasmu: Berikan SATU tips kepenulisan acak untuk anak SMA. Eksplorasi seluruh bidang kepenulisan! (Bisa tentang meracik plot twist, nulis dialog yang hidup, jurnalisme sekolah, nulis puisi, show don't tell, atau sekadar tips melawan writer's block).
+Peranmu adalah Penulis Senior, Edukator, dan Editor Mading Cendekia Aksara.
+Tugasmu: Tulis sebuah artikel atau tips kepenulisan (bisa tentang merancang plot, meracik konflik, menulis puisi, sudut pandang, karakterisasi, dll) yang SANGAT BERBOBOT dan EDUKATIF untuk siswa SMA.
 
-Aturan Mutlak:
-1. Gaya bahasa HARUS lugas, ringan, asyik, dan mudah dimengerti (seperti penulis manusia sedang membagikan trik rahasianya). DILARANG KERAS menggunakan bahasa kaku khas robot/AI.
-2. WAJIB sertakan satu contoh singkat penerapan langsung di dalam penjelasanmu.
-3. WAJIB balas HANYA dalam format JSON yang valid.
-4. JSON memiliki dua kunci:
-   - "judul": Judul tips yang memancing rasa penasaran (maksimal 7 kata).
-   - "isi": Penjelasan tips beserta contohnya. Tulis secara mengalir dalam 1 paragraf padat (sekitar 4-6 kalimat yang isinya "daging" semua).
+ATURAN MUTLAK (JIKA DILANGGAR, ARTIKEL DITOLAK):
+1. GAYA BAHASA: Harus lugas, ringan, mudah dimengerti, dan bersahabat (seperti mentor membimbing adiknya). Gunakan kata ganti "Aku", "Kamu", atau "Kita".
+2. DILARANG KERAS menggunakan bahasa slang/gaul yang berlebihan apalagi menggunakan kata "Lo" dan "Gue".
+3. PANJANG ARTIKEL: Wajib panjang, komprehensif, dan rinci! Buatlah sekitar 4 hingga 6 paragraf.
+4. WAJIB CONTOH: Setiap teori yang kamu sampaikan HARUS disertai contoh konkret! (Misal: berikan contoh kalimat yang salah, lalu berikan contoh kalimat yang benar).
+5. FORMAT OUTPUT: Karena teks ini langsung tayang di website, kunci "isi" HARUS menggunakan format tag HTML dasar (<p>, <b>, <i>, <ul>, <li>, <br>) agar susunan paragraf dan poin-poinnya sangat rapi saat dibaca. JANGAN gunakan Markdown (* atau #).
+6. Output HARUS murni JSON valid dengan struktur:
+   - "judul": Judul artikel yang elegan dan mengundang rasa penasaran (maksimal 10 kata).
+   - "isi": Keseluruhan teks artikel berformat HTML (panjang 4-6 paragraf).
 `;
         
         const resultTeks = await model.generateContent(promptTeks);
         const tipData = JSON.parse(resultTeks.response.text());
 
-
-        // --- 2. MEMBUAT ILUSTRASI MENGGUNAKAN IMAGEN 4 ---
-        let imageUrl = "";
-        try {
-            // Prompt untuk gambar estetik ala lofi/akademi
-            const imgPrompt = "Aesthetic minimal 2D flat vector illustration of an open notebook, a modern pen, and a cup of coffee on a wooden desk, warm cozy lighting, pastel colors, lofi study aesthetic, no text";
-            
-            const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    instances: { prompt: imgPrompt },
-                    parameters: { sampleCount: 1 }
-                })
-            });
-            
-            const imgJson = await imgRes.json();
-            
-            if (imgJson.predictions && imgJson.predictions[0]) {
-                // Mengambil hasil render gambar berupa format Base64
-                imageUrl = `data:image/png;base64,${imgJson.predictions[0].bytesBase64Encoded}`;
-            } else {
-                throw new Error("Gagal mengambil prediksi gambar");
-            }
-        } catch(imgErr) {
-            console.warn("Gambar Imagen gagal digenerate. Memakai gambar cadangan (fallback).", imgErr);
-            // Gambar cadangan estetik bebas hak cipta jika API Imagen sedang sibuk/limit
-            imageUrl = "https://images.unsplash.com/photo-1455390582262-044cdead2708?auto=format&fit=crop&w=600&q=80"; 
-        }
-
-        // --- 3. MENGIRIM KEMBALI KE WEBSITE ---
+        // --- 2. PENGIRIMAN DATA KE WEBSITE ---
+        // Karena Imagen (Gambar) sering error/limit, kita kirimkan string kosong.
+        // Frontend Mading akan mendeteksi ini dan otomatis membuatkan Sampul Kategori SVG yang rapi.
         res.status(200).json({
             judul: tipData.judul,
             isi: tipData.isi,
-            gambar: imageUrl
+            gambar: "" 
         });
 
     } catch (error) {
         console.error("AI Daily Tip Error:", error);
-        res.status(500).json({ error: "Gagal membuat tips harian." });
+        res.status(500).json({ error: "Gagal membuat artikel mading otomatis." });
     }
 }
