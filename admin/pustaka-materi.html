@@ -9,9 +9,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Pustaka Tambahan untuk Generate Gambar Poster & QR Code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
         /* --- STYLE GLOBAL --- */
-        :root { --primary: #003366; --accent: #4361ee; --bg: #f4f6f9; --text-dark: #1e293b; --text-gray: #64748b;}
+        :root { --primary: #003366; --accent: #4361ee; --mustard: #facc15; --bg: #f4f6f9; --text-dark: #1e293b; --text-gray: #64748b;}
         body { background-color: var(--bg); font-family: 'Poppins', sans-serif; color: var(--text-dark); margin: 0; padding-bottom: 50px; }
         * { box-sizing: border-box; outline: none; }
         .container { max-width: 1200px; width: 95%; margin: 0 auto; padding: 25px; }
@@ -120,19 +124,110 @@
         .bg-karya { background: #f3e8ff; color: #7e22ce; }
         .bg-materi { background: #dcfce7; color: #166534; }
         
-        .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; transition: 0.2s; padding: 8px; border-radius: 8px;}
+        .btn-icon { background: none; border: none; font-size: 1.1rem; cursor: pointer; transition: 0.2s; padding: 8px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;}
         .text-blue { color: var(--accent); } .text-blue:hover { color: #1d4ed8; background: #eff6ff; }
         .text-red { color: #ef4444; } .text-red:hover { color: #b91c1c; background: #fef2f2; }
+        .text-ig { color: #d946ef; } .text-ig:hover { color: white; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); }
 
         /* Notice / Error */
         .alert-box { background: #fef2f2; border-left: 4px solid #ef4444; color: #b91c1c; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; display: none;}
         .alert-box.active { display: block; }
-        
         .badge-count { background: #e2e8f0; color: var(--text-dark); font-size: 0.8rem; padding: 4px 12px; border-radius: 50px; font-weight: 700;}
 
         .empty-state { text-align: center; padding: 50px 20px; color: #94a3b8; display: none; }
         .empty-state.active { display: block; }
         .empty-state i { font-size: 3.5rem; margin-bottom: 15px; opacity: 0.5; }
+
+        /* --- MODAL PILIH TEMA POSTER --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 31, 63, 0.6); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: white; width: 90%; max-width: 400px; padding: 30px;
+            border-radius: 16px; text-align: center; transform: translateY(20px); transition: 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .modal-overlay.active .modal-box { transform: translateY(0); }
+        .theme-buttons { display: flex; gap: 15px; margin-top: 25px;}
+        .btn-theme {
+            flex: 1; padding: 15px; border-radius: 12px; font-weight: 700; cursor: pointer;
+            border: 2px solid transparent; font-family: 'Poppins', sans-serif; transition: 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        .btn-theme i { font-size: 1.5rem; }
+        .btn-theme-navy { background: var(--primary); color: white; border-color: var(--primary); }
+        .btn-theme-navy:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,51,102,0.3);}
+        .btn-theme-mustard { background: var(--mustard); color: var(--primary); border-color: var(--mustard); }
+        .btn-theme-mustard:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(250,204,21,0.4);}
+        .btn-close-modal { background: none; border: none; font-size: 0.9rem; color: var(--text-gray); margin-top: 20px; font-weight: 600; cursor: pointer; text-decoration: underline;}
+
+        /* ========================================================================= */
+        /* --- POSTER INSTAGRAM TEMPLATE (HIDDEN, RENDERED BY HTML2CANVAS) --- */
+        /* ========================================================================= */
+        #pustaka-poster {
+            position: fixed; top: 0; left: -9999px; z-index: -9999;
+            width: 1080px; height: 1350px; /* Ukuran Rasio 4:5 Instagram Feed */
+            display: flex; flex-direction: column; font-family: 'Poppins', sans-serif;
+            overflow: hidden; box-sizing: border-box;
+        }
+        
+        /* Tema Warna */
+        #pustaka-poster.theme-navy { background: var(--primary); color: white; }
+        #pustaka-poster.theme-mustard { background: var(--mustard); color: var(--primary); }
+
+        /* Tekstur Garis Diagonal Formal */
+        .pp-bg-texture {
+            position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1;
+        }
+        #pustaka-poster.theme-navy .pp-bg-texture { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 2px, transparent 2px, transparent 15px); }
+        #pustaka-poster.theme-mustard .pp-bg-texture { background-image: repeating-linear-gradient(45deg, rgba(0,51,102,0.05) 0, rgba(0,51,102,0.05) 2px, transparent 2px, transparent 15px); }
+
+        /* Konten Poster */
+        .pp-content { position: relative; z-index: 2; padding: 100px; display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+        
+        .pp-header { text-align: center; margin-bottom: 80px; }
+        .pp-logo-container {
+            width: 180px; height: 180px; background: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin: 0 auto; padding: 25px; border: 12px solid;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .pp-logo-container img { width: 100%; height: 100%; object-fit: contain; }
+        #pustaka-poster.theme-navy .pp-logo-container { border-color: var(--mustard); }
+        #pustaka-poster.theme-mustard .pp-logo-container { border-color: var(--primary); }
+
+        .pp-main { display: flex; align-items: center; justify-content: space-between; flex: 1; gap: 60px; }
+        
+        .pp-text { flex: 1.2; }
+        .pp-text h2 { font-family: 'Aleo', serif; font-size: 75px; line-height: 1.2; margin: 0 0 20px 0; font-weight: 900; text-transform: uppercase;}
+        .pp-text h3 { font-size: 45px; font-weight: 400; margin: 0; line-height: 1.4; opacity: 0.9; }
+        #pustaka-poster.theme-navy .pp-text h2 { color: var(--mustard); }
+        #pustaka-poster.theme-mustard .pp-text h2 { color: var(--primary); }
+
+        .pp-cover-wrapper { flex: 1; display: flex; justify-content: center; }
+        .pp-cover-wrapper img {
+            width: 360px; height: 520px; object-fit: cover; border-radius: 12px;
+            border: 15px solid; box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+        #pustaka-poster.theme-navy .pp-cover-wrapper img { border-color: var(--mustard); }
+        #pustaka-poster.theme-mustard .pp-cover-wrapper img { border-color: var(--primary); }
+
+        .pp-bottom-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 60px; }
+        
+        .pp-qr-section { display: flex; align-items: center; gap: 30px; }
+        #pp-qr { background: white; padding: 20px; border-radius: 20px; width: 180px; height: 180px; display: flex; justify-content: center; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);}
+        #pp-qr img { width: 100%; height: 100%; object-fit: contain; }
+        .pp-qr-text { font-size: 32px; font-weight: 700; margin: 0; max-width: 250px; line-height: 1.3;}
+        
+        .pp-footer { text-align: right; border-top: 4px solid; padding-top: 30px; width: 100%; margin-top: 50px;}
+        .pp-footer p { font-size: 28px; margin: 0 0 10px 0; opacity: 0.8; font-weight: 500;}
+        .pp-footer h3 { font-size: 32px; margin: 0; font-weight: 700; }
+        #pustaka-poster.theme-navy .pp-footer { border-top-color: rgba(255,255,255,0.2); }
+        #pustaka-poster.theme-mustard .pp-footer { border-top-color: rgba(0,51,102,0.2); }
+        /* ========================================================================= */
 
         @media (max-width: 900px) {
             .dashboard-grid { grid-template-columns: 1fr; }
@@ -155,7 +250,7 @@
                 </div>
                 <div class="header-info">
                     <h1 class="header-brand-name">Kelola Pustaka</h1>
-                    <p class="header-greeting">Upload dan kelola karya & materi ajar siswa.</p>
+                    <p class="header-greeting">Upload materi, buku karya siswa, & cetak poster promosi.</p>
                 </div>
             </div>
             <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard Utama</a>
@@ -180,7 +275,7 @@
 
                     <div class="form-group">
                         <label class="form-label">Judul Buku / Materi</label>
-                        <input type="text" id="judul" class="form-input" required placeholder="Contoh: Antologi Puisi X">
+                        <input type="text" id="judul" class="form-input" required placeholder="Contoh: Antologi Puisi Senja">
                     </div>
 
                     <div class="form-group">
@@ -202,15 +297,15 @@
 
                     <div class="form-group">
                         <label class="form-label">Link Dokumen (Google Drive)</label>
-                        <input type="text" id="linkDrive" class="form-input" required placeholder="Paste link 'Anyone with the link' di sini...">
+                        <input type="text" id="linkDrive" class="form-input" required placeholder="Paste link G-Drive di sini...">
                     </div>
 
                     <div style="margin-top: 25px;">
                         <button type="submit" id="btnSubmit" class="btn-submit">
                             <span id="btnText">Simpan Data</span>
-                            <i id="loadingIcon" class="fa-solid fa-spinner fa-spin hidden"></i>
+                            <i id="loadingIcon" class="fa-solid fa-spinner fa-spin hidden" style="display:none;"></i>
                         </button>
-                        <button type="button" id="btnCancel" onclick="resetForm()" class="btn-cancel hidden">
+                        <button type="button" id="btnCancel" onclick="resetForm()" class="btn-cancel hidden" style="display:none;">
                             <i class="fa-solid fa-xmark"></i> Batal Edit
                         </button>
                     </div>
@@ -231,11 +326,11 @@
                                 <th style="width: 70px;">Cover</th>
                                 <th>Informasi Materi</th>
                                 <th>Kategori</th>
-                                <th style="text-align: center; width: 100px;">Aksi</th>
+                                <th style="text-align: center; width: 140px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
-                            <!-- Data akan dimuat disini -->
+                            <!-- Data dimuat disini -->
                         </tbody>
                     </table>
                 </div>
@@ -250,15 +345,63 @@
         </div>
     </div>
 
+    <!-- MODAL PILIH TEMA POSTER -->
+    <div class="modal-overlay" id="theme-modal">
+        <div class="modal-box">
+            <h3 style="margin:0 0 5px; color:var(--primary); font-family:'Aleo', serif;"><i class="fa-brands fa-instagram"></i> Poster Instagram</h3>
+            <p style="margin:0 0 20px; font-size:0.9rem; color:var(--text-gray);">Pilih warna latar belakang poster promosi untuk buku ini.</p>
+            
+            <div class="theme-buttons">
+                <button class="btn-theme btn-theme-navy" onclick="generatePustakaPoster('navy')">
+                    <i class="fa-solid fa-moon"></i> Tema Navy
+                </button>
+                <button class="btn-theme btn-theme-mustard" onclick="generatePustakaPoster('mustard')">
+                    <i class="fa-solid fa-sun"></i> Tema Mustard
+                </button>
+            </div>
+            
+            <button class="btn-close-modal" onclick="closeThemeModal()">Batal</button>
+        </div>
+    </div>
+
+    <!-- TEMPLATE POSTER (HIDDEN) -->
+    <div id="pustaka-poster" class="theme-navy">
+        <div class="pp-bg-texture"></div>
+        <div class="pp-content">
+            <div class="pp-header">
+                <div class="pp-logo-container">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
+                </div>
+            </div>
+            <div class="pp-main">
+                <div class="pp-text">
+                    <h2>BUKU BARU SUDAH TERSEDIA</h2>
+                    <h3 id="pp-title">Judul Buku Disini</h3>
+                </div>
+                <div class="pp-cover-wrapper">
+                    <img id="pp-cover" src="" alt="Cover Buku" crossorigin="anonymous">
+                </div>
+            </div>
+            <div class="pp-bottom-row">
+                <div class="pp-qr-section">
+                    <div id="pp-qr"></div>
+                    <p class="pp-qr-text">Scan Untuk Akses / Unduh Buku</p>
+                </div>
+            </div>
+            <div class="pp-footer">
+                <p>Buku ini tersedia dan dapat diakses di portal pustaka kami:</p>
+                <h3>cendekia-aksara.vercel.app/pustaka-materi/index.html</h3>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPT LOGIC -->
     <script type="module">
         import { checkAuth } from "../js/firebase-config.js";
-        
-        // Import Firebase App dan Firestore untuk inisialisasi database Pustaka yang terpisah
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // === KONFIGURASI DATABASE PUSTAKA (berbasis-ai) ===
+        // === KONFIGURASI DATABASE PUSTAKA ===
         const firebaseConfigPustaka = {
             apiKey: "AIzaSyDooErB7K4vFtmC6-PcI30v82Vh6b85fPI",
             authDomain: "berbasis-ai.firebaseapp.com",
@@ -268,7 +411,6 @@
             appId: "1:962437652324:web:4426a5efcabf72caebe471"
         };
 
-        // Inisialisasi Instance Firebase kedua khusus untuk Pustaka Materi
         const appPustaka = initializeApp(firebaseConfigPustaka, "PustakaApp");
         const dbPustaka = getFirestore(appPustaka);
 
@@ -276,11 +418,10 @@
         const API_KEY_IMGBB = '2f45fcafb6dfb2dbae295499022ce476'; 
         
         let materialsData = [];
-        let currentAdmin = null;
+        let currentPosterItem = null;
 
         (async () => {
-            // Verifikasi Admin (menggunakan checkAuth dari main config mading-cf676)
-            currentAdmin = await checkAuth('pengajar');
+            const currentAdmin = await checkAuth('pengajar');
             if(!currentAdmin) {
                 window.location.href = '/admin/index.html';
                 return;
@@ -288,9 +429,8 @@
             startDatabaseListener();
         })();
 
-        // --- LISTENER DATABASE PUSTAKA ---
+        // --- LISTENER DATABASE ---
         function startDatabaseListener() {
-            // Memanggil query menggunakan dbPustaka
             const q = query(collection(dbPustaka, COLLECTION_NAME));
             
             onSnapshot(q, (snapshot) => {
@@ -317,10 +457,8 @@
                     materialsData.push(item);
                 });
 
-                // Sorting Client-side (Terbaru di atas)
                 materialsData.sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
 
-                // Render Tabel
                 materialsData.forEach((item) => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -338,6 +476,7 @@
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button onclick="startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Materi"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster Instagram"><i class="fa-brands fa-instagram"></i></button>
                             <button onclick="deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus Materi"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     `;
@@ -345,24 +484,90 @@
                 });
             }, (error) => {
                 console.error("Error Database: ", error);
-                let msg = error.message;
-
-                if(msg.includes("Missing or insufficient permissions")) {
-                    msg = "Firebase memblokir akses karena Aturan (Rules) Firestore terkunci.";
-                }
-                
-                showError(msg);
+                document.getElementById('error-container').classList.add('active');
+                document.getElementById('error-message').innerText = error.message;
             });
         }
 
-        function showError(msg) {
-            const errorContainer = document.getElementById('error-container');
-            const errorMsg = document.getElementById('error-message');
-            errorContainer.classList.add('active');
-            errorMsg.innerText = msg;
-        }
+        // --- SISTEM POSTER INSTAGRAM ---
+        window.openThemeModal = (id) => {
+            currentPosterItem = materialsData.find(x => x.id === id);
+            if(currentPosterItem) {
+                document.getElementById('theme-modal').classList.add('active');
+            }
+        };
 
-        // --- FUNGSI GLOBAL & HELPER ---
+        window.closeThemeModal = () => {
+            document.getElementById('theme-modal').classList.remove('active');
+            currentPosterItem = null;
+        };
+
+        window.generatePustakaPoster = async (themeType) => {
+            if(!currentPosterItem) return;
+            
+            // 1. Tutup modal & siapkan state loading (bisa gunakan alert browser simple)
+            document.getElementById('theme-modal').classList.remove('active');
+            
+            // Beri tahu admin proses dimulai (bisa menggunakan toast jika ada, disini kita pakai alert simple / merubah cursor)
+            document.body.style.cursor = 'wait';
+
+            try {
+                const posterDiv = document.getElementById('pustaka-poster');
+                
+                // 2. Set Tema Warna (Hapus class lama, tambah yang baru)
+                posterDiv.className = '';
+                posterDiv.classList.add(themeType === 'navy' ? 'theme-navy' : 'theme-mustard');
+
+                // 3. Masukkan Data ke Template
+                document.getElementById('pp-title').innerText = currentPosterItem.judul;
+                
+                // Setup Gambar Cover (pastikan crossorigin di html)
+                const imgCover = document.getElementById('pp-cover');
+                imgCover.src = currentPosterItem.cover;
+
+                // 4. Generate QR Code ke link download/drive buku tersebut
+                const qrBox = document.getElementById('pp-qr');
+                qrBox.innerHTML = ''; // Bersihkan QR lama
+                new QRCode(qrBox, {
+                    text: currentPosterItem.link,
+                    width: 140,
+                    height: 140,
+                    colorDark : themeType === 'navy' ? "#facc15" : "#003366", // QR color menyesuaikan tema
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+
+                // Tunggu font dan gambar termuat sempurna
+                await document.fonts.ready;
+                // Sedikit jeda agar QR selesai dirender
+                await new Promise(r => setTimeout(r, 500)); 
+
+                // 5. Render dengan html2canvas
+                const canvas = await html2canvas(posterDiv, {
+                    scale: 2, // Kualitas tinggi (Retina)
+                    useCORS: true, // Izinkan gambar ImgBB/Imgur
+                    backgroundColor: null // Biarkan background CSS bekerja
+                });
+
+                // 6. Download Otomatis
+                const imageURI = canvas.toDataURL("image/png");
+                const link = document.createElement("a");
+                link.download = `Poster_${themeType}_${currentPosterItem.judul.replace(/\s+/g, '_').substring(0,15)}.png`;
+                link.href = imageURI;
+                link.click();
+
+                alert("Poster berhasil diunduh! Silakan cek galeri/folder download Anda.");
+
+            } catch (error) {
+                console.error(error);
+                alert("Gagal merender poster. Pastikan koneksi internet stabil dan gambar tidak diproteksi (CORS).");
+            } finally {
+                document.body.style.cursor = 'default';
+                currentPosterItem = null;
+            }
+        };
+
+        // --- FUNGSI GLOBAL CRUD LAINNYA ---
         window.getDirectLink = (url) => {
             const regex = /\/d\/([a-zA-Z0-9_-]+)/;
             const match = url.match(regex);
@@ -374,9 +579,7 @@
                 try {
                     await deleteDoc(doc(dbPustaka, COLLECTION_NAME, id));
                     if(document.getElementById('editId').value == id) window.resetForm();
-                } catch (e) {
-                    alert("Gagal menghapus: " + e.message);
-                }
+                } catch (e) { alert("Gagal menghapus: " + e.message); }
             }
         }
 
@@ -393,13 +596,12 @@
             document.getElementById('formTitle').innerHTML = '<span style="color:#f59e0b;"><i class="fa-solid fa-pen-to-square"></i> Edit Materi</span>';
             document.getElementById('btnText').innerText = "Update Data";
             document.getElementById('btnSubmit').style.background = "#f59e0b";
-            document.getElementById('btnCancel').classList.remove('hidden');
+            document.getElementById('btnCancel').style.display = 'flex';
             
             const preview = document.getElementById('coverPreview');
             preview.classList.add('active');
             preview.querySelector('img').src = item.cover;
             
-            // Auto scroll ke atas (bagian form)
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -411,11 +613,11 @@
             document.getElementById('formTitle').innerHTML = '<span><i class="fa-solid fa-plus-circle"></i> Tambah Materi Baru</span>';
             document.getElementById('btnText').innerText = "Simpan Data";
             document.getElementById('btnSubmit').style.background = "var(--primary)";
-            document.getElementById('btnCancel').classList.add('hidden');
+            document.getElementById('btnCancel').style.display = 'none';
             document.getElementById('coverPreview').classList.remove('active');
         }
 
-        // --- SUBMIT HANDLER ---
+        // --- SUBMIT HANDLER UPLOAD/EDIT ---
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -426,7 +628,7 @@
 
             btnSubmit.disabled = true;
             btnText.innerText = editId ? "Memperbarui..." : "Menyimpan...";
-            loadingIcon.classList.remove('hidden');
+            loadingIcon.style.display = 'inline-block';
 
             try {
                 const judul = document.getElementById('judul').value;
@@ -443,14 +645,12 @@
                 let imageUrl = document.getElementById('existingCoverUrl').value;
                 const fileInput = document.getElementById('fileCover');
 
-                // Jika ada gambar baru yang dipilih
                 if (fileInput.files.length > 0) {
                      const formData = new FormData();
                     formData.append('image', fileInput.files[0]);
 
                     const imgRes = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY_IMGBB}`, {
-                        method: 'POST',
-                        body: formData
+                        method: 'POST', body: formData
                     });
                     const imgData = await imgRes.json();
                     if (!imgData.success) throw new Error('Gagal upload gambar cover ke server.');
@@ -468,8 +668,7 @@
                 };
 
                 if (editId) {
-                    const docRef = doc(dbPustaka, COLLECTION_NAME, editId);
-                    await updateDoc(docRef, dataToSave);
+                    await updateDoc(doc(dbPustaka, COLLECTION_NAME, editId), dataToSave);
                     alert("Berhasil memperbarui data materi!");
                 } else {
                     await addDoc(collection(dbPustaka, COLLECTION_NAME), dataToSave);
@@ -484,10 +683,9 @@
             } finally {
                 btnSubmit.disabled = false;
                 btnText.innerText = editId ? "Update Data" : "Simpan Data";
-                loadingIcon.classList.add('hidden');
+                loadingIcon.style.display = 'none';
             }
         });
-
     </script>
 </body>
 </html>
