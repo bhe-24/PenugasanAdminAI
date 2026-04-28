@@ -63,11 +63,22 @@
 
         @keyframes floatLogo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
-        /* --- FILTER TABS --- */
-        .filter-tabs { display: flex; gap: 15px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; }
+        /* --- FILTER TABS & ACTIONS --- */
+        .filter-and-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;}
+        .filter-tabs { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 5px; flex: 1;}
         .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 10px 25px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins'; }
         .tab-btn:hover { background: #f1f5f9; }
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+
+        /* Tombol Generate Artikel AI */
+        .btn-ai-generate {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white;
+            border: none; padding: 10px 25px; border-radius: 50px; font-weight: 600; font-family: 'Poppins';
+            cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.95rem;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); white-space: nowrap;
+        }
+        .btn-ai-generate:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); }
+        .btn-ai-generate:disabled { background: #a78bfa; cursor: not-allowed; transform: none; box-shadow: none; }
 
         /* --- GRID ARTIKEL --- */
         .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
@@ -89,7 +100,7 @@
 
         /* ACTION BUTTONS */
         .action-group { display: flex; gap: 10px; margin-top: auto; }
-        .btn-action { flex: 1; border: none; padding: 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; font-family: 'Poppins'; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 6px; }
+        .btn-action { flex: 1; border: none; padding: 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; font-family: 'Poppins'; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 6px; text-decoration: none;}
         .btn-read { background: #f1f5f9; color: #475569; }
         .btn-read:hover { background: #e2e8f0; color: var(--primary); }
 
@@ -157,6 +168,9 @@
             .btn-back span { display: none; }
             .btn-back i { margin: 0; font-size: 1.1rem; }
 
+            .filter-and-actions { flex-direction: column; align-items: stretch;}
+            .btn-ai-generate { width: 100%; justify-content: center; }
+
             .article-grid { grid-template-columns: 1fr; }
             .modal-box { width: 100%; height: 100%; border-radius: 0; max-width: 100%; }
             .modal-body { padding: 15px; }
@@ -218,10 +232,18 @@
     </div>
 
     <div class="container">
-        <div class="filter-tabs">
-            <button class="tab-btn active" onclick="setFilter('pending', this)">Menunggu Kurasi</button>
-            <button class="tab-btn" onclick="setFilter('published', this)">Telah Terbit</button>
-            <button class="tab-btn" onclick="setFilter('rejected', this)">Ditolak/Turun</button>
+        
+        <!-- BAGIAN FILTER & TOMBOL GENERATOR AI HARIAN -->
+        <div class="filter-and-actions">
+            <div class="filter-tabs" style="margin-bottom: 0;">
+                <button class="tab-btn active" onclick="setFilter('pending', this)">Menunggu Kurasi</button>
+                <button class="tab-btn" onclick="setFilter('published', this)">Telah Terbit</button>
+                <button class="tab-btn" onclick="setFilter('rejected', this)">Ditolak/Turun</button>
+            </div>
+            
+            <button class="btn-ai-generate" id="btn-generate-daily" onclick="window.generateDailyArticle()">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Tambah Artikel Harian (AI)
+            </button>
         </div>
 
         <div id="article-grid" class="article-grid">
@@ -233,7 +255,8 @@
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, orderBy, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORT addDoc dan serverTimestamp untuk fitur Generator Harian
+        import { collection, query, orderBy, getDocs, doc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let allArticles = [];
         let currentFilter = 'pending';
@@ -337,7 +360,7 @@
                         
                         <div class="action-group">
                             <button onclick="window.previewArticle('${a.id}')" class="btn-action btn-read"><i class="fa-solid fa-pen-nib"></i> Buka Editor</button>
-                            <a href="/mading/index.html?id=${a.id}" target="_blank" class="btn-action" style="background:#f1f5f9; color:#475569; flex:0.3;" title="Lihat di Mading Publik"><i class="fa-solid fa-link"></i></a>
+                            <a href="/artikel.html?id=${a.id}" target="_blank" class="btn-action" style="background:#f1f5f9; color:#475569; flex:0.3;" title="Lihat Artikel (Terbit)"><i class="fa-solid fa-link"></i></a>
                         </div>
                     </div>
                 `;
@@ -345,6 +368,48 @@
 
             container.innerHTML = htmlBuffer;
         }
+
+        // --- GENERATE ARTIKEL HARIAN VIA API ---
+        window.generateDailyArticle = async () => {
+            const btn = document.getElementById('btn-generate-daily');
+            const oriHtml = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Meracik Artikel...';
+            btn.disabled = true;
+            window.showToast("AI sedang menulis artikel harian... Mohon tunggu.", "info");
+
+            try {
+                // Memanggil Endpoint Vercel API
+                const response = await fetch('/api/tips-harian', { method: 'POST' });
+                if (!response.ok) throw new Error("Gagal terhubung ke sistem AI (Mungkin timeout atau limit).");
+                
+                const newArticle = await response.json();
+                
+                // Simpan langsung ke koleksi articles sebagai artikel yang ter-publish
+                await addDoc(collection(db, 'articles'), {
+                    title: newArticle.judul,
+                    content: newArticle.isi,
+                    imageUrl: newArticle.gambar || "", // Tetap kosong jika gambar dari AI dimatikan
+                    category: "Opini & Literasi",
+                    authorName: "Redaksi Cendekia", 
+                    authorId: "system_ai",
+                    status: "published",
+                    timestamp: serverTimestamp()
+                });
+                
+                window.showToast("Artikel harian AI berhasil dibuat & diterbitkan!", "success");
+                
+                // Muat ulang daftar jika tab "Telah Terbit" sedang aktif
+                loadData(); 
+
+            } catch (error) {
+                console.error(error);
+                window.showToast("Gagal membuat artikel: " + error.message, "error");
+            } finally {
+                btn.innerHTML = oriHtml;
+                btn.disabled = false;
+            }
+        };
 
         // --- MODAL EDITOR INTERAKTIF ---
         window.previewArticle = (id) => {
