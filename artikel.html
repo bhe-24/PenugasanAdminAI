@@ -190,12 +190,12 @@
         }
 
         /* --- KONTEN ARTIKEL --- */
-        .art-body { font-size: 1.05rem; line-height: 1.85; color: var(--text-body); background: white; padding: 45px 50px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; position: relative; }
+        .art-body { font-size: 1.05rem; line-height: 1.85; color: var(--text-body); background: white; padding: 45px 50px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; position: relative; overflow-wrap: break-word;}
         .art-body > p:first-of-type::first-letter { font-family: 'Playfair Display', serif; font-size: 4.5rem; font-weight: 900; line-height: 0.75; float: left; margin: 0 10px -5px 0; color: var(--primary); }
         
-        /* Gambar Sisipan di Tengah Teks */
+        /* Gambar Sisipan di Tengah Teks (Responsive Fix) */
         .art-body img { 
-            max-width: 100%; border-radius: 12px; margin: 25px auto; display: block; 
+            max-width: 100%; height: auto; border-radius: 12px; margin: 25px auto; display: block; 
             box-shadow: 0 8px 25px rgba(0,0,0,0.08); 
         }
         
@@ -355,7 +355,7 @@
             </a>
         </div>
 
-        <!-- LIST VIEW (BERANDA MADING) -->
+        <!-- LIST VIEW (BERANDA MADING PURE) -->
         <div id="list-view" style="display:none;">
             <!-- Kolom Pencarian -->
             <div class="search-container">
@@ -561,17 +561,46 @@
             el.classList.add('is-logo');
         };
 
-        // --- FUNGSI MENGUBAH TEKS URL MENJADI LINK KLIKABLE ---
+        // --- FUNGSI MENGUBAH TEKS URL MENJADI LINK KLIKABLE (DIPERBAIKI) ---
         const linkify = (inputText) => {
-            let replacedText, replacePattern1, replacePattern2;
-
-            replacePattern1 = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
-            replacedText = inputText.replace(replacePattern1, '<a href="$1" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$1 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
-
-            replacePattern2 = /(^|[^\/])(\bwww\.[\S]+(\b|$))/gim;
-            replacedText = replacedText.replace(replacePattern2, '$1<a href="http://$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$2 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
-
-            return replacedText;
+            if (!inputText) return "";
+            
+            // Kita menggunakan DOMParser untuk memanipulasi teks dengan sangat aman 
+            // agar tag HTML gambar (<img>) tidak ikut berubah menjadi link.
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(inputText, 'text/html');
+            
+            const urlRegex1 = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
+            const urlRegex2 = /(^|[^\/])(\bwww\.[\S]+(\b|$))/gim;
+            
+            const walk = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    let text = node.nodeValue;
+                    
+                    // Lewati jika node teks ini sudah ada di dalam tag <a>
+                    if (node.parentNode && node.parentNode.nodeName === 'A') return;
+                    
+                    let replacedText = text.replace(urlRegex1, '<a href="$1" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$1 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
+                    replacedText = replacedText.replace(urlRegex2, '$1<a href="http://$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$2 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
+                    
+                    if (replacedText !== text) {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = replacedText;
+                        while (tempDiv.firstChild) {
+                            node.parentNode.insertBefore(tempDiv.firstChild, node);
+                        }
+                        node.parentNode.removeChild(node);
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    // Hindari mengubah script, style, atau tag a
+                    if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                        Array.from(node.childNodes).forEach(walk);
+                    }
+                }
+            };
+            
+            Array.from(doc.body.childNodes).forEach(walk);
+            return doc.body.innerHTML;
         };
 
         function makePlaceholderSVG(category) {
@@ -790,9 +819,15 @@
 
                             rawArticleContent = data.content.replace(/<[^>]+>/g, ''); 
                             
-                            let rawHtml = data.content.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
+                            // FORMAT PARAGRAF
+                            // CATATAN PENTING: Kita tidak lagi sembarangan me-replace \n dengan <br> 
+                            // karena konten dari editor sudah berformat HTML
+                            let rawHtml = data.content; 
+                            
+                            // Terapkan Linkify dengan aman
                             rawHtml = linkify(rawHtml);
-                            document.getElementById('v-body').innerHTML = `<p>${rawHtml}</p>`;
+                            
+                            document.getElementById('v-body').innerHTML = rawHtml;
 
                             // Logika Tampilan Background Hero
                             const heroWrapper = document.getElementById('v-hero-wrapper');
