@@ -86,6 +86,12 @@
             background: #f8fafc; color: var(--text-dark); width: 100%; box-sizing: border-box;
         }
         .form-control:focus { border-color: var(--kominfo); background: white; box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1); }
+        .help-text { font-size: 0.75rem; color: var(--text-gray); margin-top: 5px;}
+
+        /* Preview Image Upload */
+        .preview-box { margin-top: 15px; display: none; }
+        .preview-box.active { display: block; }
+        .preview-box img { width: 100%; max-height: 250px; border-radius: 10px; border: 1px solid #cbd5e1; object-fit: cover; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
 
         /* --- RICH TEXT EDITOR SISWA --- */
         .editor-wrapper { border: 2px solid #cbd5e1; border-radius: 10px; overflow: hidden; transition: 0.3s; background: #f8fafc; }
@@ -100,7 +106,7 @@
         .editor-btn:hover { background: #e2e8f0; color: var(--kominfo); }
         
         .editor-content { 
-            min-height: 250px; padding: 15px; outline: none; font-size: 0.95rem; line-height: 1.8; 
+            min-height: 350px; padding: 20px; outline: none; font-size: 0.95rem; line-height: 1.8; 
             color: var(--text-dark); overflow-y: auto; max-height: 60vh; background: transparent;
         }
         .editor-content[placeholder]:empty:before { content: attr(placeholder); color: #94a3b8; pointer-events: none; display: block; }
@@ -108,6 +114,7 @@
         /* Merapikan tampilan di dalam editor saat mengetik */
         .editor-content p { margin: 0 0 10px 0; }
         .editor-content ul, .editor-content ol { margin-top: 0; margin-bottom: 10px; padding-left: 20px;}
+        .editor-content img { max-width: 100%; border-radius: 8px; margin: 15px 0; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: block;}
 
         /* --- TOMBOL SUBMIT --- */
         .btn-submit {
@@ -183,7 +190,7 @@
             font-weight: 600; cursor: pointer; text-decoration: underline; margin-top: 10px;
         }
 
-        /* --- LOADING SCREEN (RAHASIA AI) --- */
+        /* --- LOADING SCREEN (RAHASIA AI / UPLOAD) --- */
         #loading-screen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: rgba(255,255,255,0.98); z-index: 9999; display: flex; flex-direction: column; 
@@ -217,13 +224,14 @@
 
     <div id="toast-container"></div>
 
-    <!-- LOADING RAHASIA (PENYUNTINGAN SISTEM) -->
+    <!-- LOADING LAYAR PENUH -->
     <div id="loading-screen">
-        <i class="fa-solid fa-pen-nib fa-bounce" style="font-size: 3.5rem; margin-bottom: 20px;"></i>
+        <i id="loading-icon" class="fa-solid fa-pen-nib fa-bounce" style="font-size: 3.5rem; margin-bottom: 20px;"></i>
         <h3 id="load-title">Membuka Ruang Redaksi...</h3>
         <p id="load-desc">Harap tunggu sebentar.</p>
     </div>
 
+    <!-- MODAL LINK HASIL ARTIKEL -->
     <div id="link-modal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-icon"><i class="fa-solid fa-paperclip"></i></div>
@@ -265,27 +273,51 @@
                     <div class="form-group">
                         <label>Kategori Naskah</label>
                         <select id="art-category" class="form-control" required>
-                            <option value="Berita OSIS">Berita & Pengumuman OSIS</option>
-                            <option value="Opini & Literasi">Opini & Artikel Literasi</option>
-                            <option value="Karya Sastra">Karya Sastra (Cerpen/Puisi)</option>
-                            <option value="Tips & Trik">Tips & Trik Menulis</option>
+                            <!-- 20 Kategori Tersedia -->
+                            <option value="Berita Sekolah">Berita Sekolah</option>
+                            <option value="Pengumuman OSIS">Pengumuman OSIS</option>
+                            <option value="Opini & Pandangan Siswa">Opini & Pandangan Siswa</option>
+                            <option value="Artikel Literasi & Edukasi">Artikel Literasi & Edukasi</option>
+                            <option value="Karya Sastra (Cerpen)">Karya Sastra (Cerpen)</option>
+                            <option value="Puisi & Sajak">Puisi & Sajak</option>
+                            <option value="Promosi Acara (Event)">Promosi Acara (Event)</option>
+                            <option value="Promosi Penjualan (Danus)">Promosi Penjualan (Danus)</option>
+                            <option value="Tips & Trik Belajar">Tips & Trik Belajar</option>
+                            <option value="Review Buku & Film">Review Buku & Film</option>
+                            <option value="Laporan Kegiatan Sekolah">Laporan Kegiatan Sekolah</option>
+                            <option value="Teknologi & Inovasi">Teknologi & Inovasi</option>
+                            <option value="Seni & Budaya">Seni & Budaya</option>
+                            <option value="Olahraga & Kesehatan">Olahraga & Kesehatan</option>
+                            <option value="Inspirasi & Motivasi">Inspirasi & Motivasi</option>
+                            <option value="Profil Siswa Berprestasi">Profil Siswa Berprestasi</option>
+                            <option value="Ruang Ekstrakurikuler">Ruang Ekstrakurikuler</option>
+                            <option value="Humor & Hiburan">Humor & Hiburan</option>
+                            <option value="Opini Bebas (Suara Kita)">Opini Bebas (Suara Kita)</option>
+                            <option value="Lain-Lain">Lain-Lain</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Judul Tulisan</label>
                         <input type="text" id="art-title" class="form-control" placeholder="Maksimal 60 karakter..." maxlength="60" required>
+                        <div class="help-text">*Setiap kata akan otomatis kapital (Title Case).</div>
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label>Tautan Gambar Sampul (Opsional)</label>
-                    <input type="url" id="art-image" class="form-control" placeholder="https://contoh-gambar.com/cover.jpg">
+                <!-- UPLOAD COVER IMGBB -->
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label>Gambar Sampul Artikel (Cover)</label>
+                    <input type="file" id="art-image-file" class="form-control" accept="image/*" style="padding: 9px 15px; background: white;">
+                    <input type="hidden" id="art-image-url"> <!-- URL Asli dari ImgBB Disimpan Di Sini -->
+                    
+                    <div id="cover-preview" class="preview-box">
+                        <img id="cover-img" src="" alt="Preview Cover">
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label>Isi Tulisan</label>
                     <div class="editor-wrapper">
-                        <!-- EDITOR TOOLBAR -->
+                        <!-- EDITOR TOOLBAR DENGAN TOMBOL GAMBAR -->
                         <div class="editor-toolbar">
                             <button type="button" class="editor-btn" onclick="formatDoc('bold')" title="Tebal"><i class="fa-solid fa-bold"></i></button>
                             <button type="button" class="editor-btn" onclick="formatDoc('italic')" title="Miring"><i class="fa-solid fa-italic"></i></button>
@@ -293,7 +325,13 @@
                             <div style="width: 1px; background: #cbd5e1; margin: 0 5px;"></div>
                             <button type="button" class="editor-btn" onclick="formatDoc('insertOrderedList')" title="Daftar Angka"><i class="fa-solid fa-list-ol"></i></button>
                             <button type="button" class="editor-btn" onclick="formatDoc('insertUnorderedList')" title="Daftar Titik"><i class="fa-solid fa-list-ul"></i></button>
+                            <div style="width: 1px; background: #cbd5e1; margin: 0 5px;"></div>
+                            
+                            <!-- Tombol Upload Gambar di Dalam Teks -->
+                            <button type="button" class="editor-btn" onclick="document.getElementById('in-text-image-file').click()" title="Sisipkan Gambar ke Paragraf"><i class="fa-solid fa-image" style="color: #10b981;"></i> Sisipkan Gambar</button>
+                            <input type="file" id="in-text-image-file" accept="image/*" style="display:none;">
                         </div>
+
                         <!-- EDITOR AREA -->
                         <div id="art-content-editor" class="editor-content" contenteditable="true" placeholder="Ketik isi artikel atau naskah Anda di sini..."></div>
                     </div>
@@ -323,6 +361,82 @@
         import { collection, addDoc, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
+        const IMGBB_API_KEY = "de228613e15b0cf58f84b53f87d109b5";
+
+        // --- KAPITALISASI JUDUL OTOMATIS (Capitalize Each Word) ---
+        document.getElementById('art-title').addEventListener('input', function(e) {
+            const words = this.value.toLowerCase().split(' ');
+            for (let i = 0; i < words.length; i++) {
+                if (words[i].length > 0) {
+                    words[i] = words[i][0].toUpperCase() + words[i].substring(1);
+                }
+            }
+            this.value = words.join(' ');
+        });
+
+        // --- FUNGSI UPLOAD KE IMGBB ---
+        async function uploadToImgBB(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: 'POST', body: formData
+            });
+            const data = await res.json();
+            if(data.success) return data.data.url;
+            throw new Error("Gagal mengunggah gambar. Pastikan internet stabil.");
+        }
+
+        // --- 1. UPLOAD GAMBAR SAMPUL (COVER) ---
+        document.getElementById('art-image-file').addEventListener('change', async function() {
+            if(this.files.length === 0) return;
+            const file = this.files[0];
+            
+            showLoading("Mengunggah Sampul...", "Sedang mengirim gambar ke server pusat. Proses ini memakan waktu beberapa detik.");
+            document.getElementById('loading-icon').className = "fa-solid fa-cloud-arrow-up fa-bounce";
+            
+            try {
+                const url = await uploadToImgBB(file);
+                document.getElementById('art-image-url').value = url;
+                
+                const previewBox = document.getElementById('cover-preview');
+                document.getElementById('cover-img').src = url;
+                previewBox.classList.add('active');
+                
+                window.showToast("Sampul berhasil diunggah!");
+            } catch (err) {
+                alert(err.message);
+                this.value = ''; // Reset file input
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // --- 2. UPLOAD GAMBAR DI TENGAH TEKS (IN-TEXT IMAGE) ---
+        document.getElementById('in-text-image-file').addEventListener('change', async function() {
+            if(this.files.length === 0) return;
+            const file = this.files[0];
+            
+            showLoading("Menyisipkan Gambar...", "Mempersiapkan gambar untuk dimasukkan ke dalam teks artikel.");
+            document.getElementById('loading-icon').className = "fa-solid fa-image fa-bounce";
+            
+            try {
+                const url = await uploadToImgBB(file);
+                
+                const editor = document.getElementById('art-content-editor');
+                editor.focus(); // Pastikan kursor berada di editor
+                
+                // Masukkan gambar dengan tag HTML yang rapi ke posisi kursor saat ini
+                const imgHtml = `<img src="${url}" alt="Gambar Sisipan" style="max-width:100%; border-radius:10px; margin:15px auto; display:block; box-shadow:0 4px 10px rgba(0,0,0,0.1);">`;
+                document.execCommand('insertHTML', false, imgHtml);
+                
+                window.showToast("Gambar berhasil disisipkan ke dalam paragraf!");
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                this.value = ''; // Reset input agar bisa upload gambar yang sama lagi
+                hideLoading();
+            }
+        });
 
         // FUNGSI RICH TEXT EDITOR
         window.formatDoc = (cmd) => {
@@ -336,7 +450,7 @@
             if(this.innerHTML.trim() === '<p><br></p>' || this.innerHTML.trim() === '<br>') this.innerHTML = '';
         });
 
-        // FUNGSI MODAL LINK
+        // FUNGSI MODAL LINK (PERBAIKAN TARGET URL)
         window.openLinkModal = (url) => {
             document.getElementById('generated-url').value = url;
             document.getElementById('link-modal').classList.add('active');
@@ -357,8 +471,9 @@
             });
         };
 
+        // PERBAIKAN TAUTAN SALIN KE ARTIKEL.HTML
         window.copyListLink = (linkId) => {
-            const url = `${window.location.origin}/artikel.html?id=${linkId}`;
+            const url = `https://cendekia-aksara.vercel.app/artikel.html?id=${linkId}`;
             navigator.clipboard.writeText(url);
             window.showToast("Tautan artikel disalin!");
         };
@@ -395,7 +510,10 @@
         };
         const hideLoading = () => {
             document.getElementById('loading-screen').style.opacity = '0';
-            setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 400);
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('loading-icon').className = "fa-solid fa-pen-nib fa-bounce"; // reset icon
+            }, 400);
         };
 
         (async () => {
@@ -437,9 +555,9 @@
 
             const title = document.getElementById('art-title').value.trim();
             const category = document.getElementById('art-category').value;
-            const imageUrl = document.getElementById('art-image').value.trim();
+            // Ambil URL Gambar dari Input Tersembunyi (Hasil Upload ImgBB)
+            const imageUrl = document.getElementById('art-image-url').value.trim();
 
-            // Tampilkan Layar Penuh Sistem Bekerja
             showLoading("Menyelaraskan Naskah...", "Sistem sedang memeriksa ejaan (PUEBI) dan merapikan tata letak paragraf. Mohon jangan tutup halaman ini.");
 
             try {
@@ -457,7 +575,7 @@
                 if (!response.ok) throw new Error("Gagal terhubung ke sistem penyuntingan.");
                 
                 const apiData = await response.json();
-                let finalContent = apiData.result || rawContent; // Fallback jika gagal ambil dari API
+                let finalContent = apiData.result || rawContent;
 
                 // 2. Simpan ke Firebase
                 showLoading("Menyimpan ke Arsip...", "Naskah berhasil dirapikan. Sedang mendaftarkan ke server redaksi.");
@@ -473,15 +591,18 @@
                     timestamp: serverTimestamp()
                 });
                 
-                // Selesai
                 hideLoading();
                 
-                // BUAT LINK UNIK ARTIKEL
-                const uniqueLink = `${window.location.origin}/artikel.html?id=${docRef.id}`;
+                // BUAT LINK UNIK ARTIKEL (TARGET ARTIKEL.HTML)
+                const uniqueLink = `https://cendekia-aksara.vercel.app/artikel.html?id=${docRef.id}`;
                 openLinkModal(uniqueLink);
                 
+                // Reset Form
                 document.getElementById('article-form').reset();
                 document.getElementById('art-content-editor').innerHTML = '';
+                document.getElementById('art-image-url').value = '';
+                document.getElementById('cover-preview').classList.remove('active');
+                
                 loadMyArticles();
 
             } catch (error) {
