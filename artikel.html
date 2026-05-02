@@ -456,7 +456,7 @@
         <!-- DETAIL VIEW (BACA ARTIKEL) -->
         <div class="article-container" id="detail-view" style="display:none;">
             
-            <!-- HERO BANNER ARTIKEL (BARU) -->
+            <!-- HERO BANNER ARTIKEL -->
             <div class="article-hero-wrapper" id="v-hero-wrapper">
                 <img id="v-image" class="article-hero-bg" src="" alt="Cover Artikel" crossorigin="anonymous">
                 <div class="article-hero-overlay"></div>
@@ -599,6 +599,7 @@
         };
 
         const estimasiMenit = (text) => {
+            if (!text) return '< 1 menit baca';
             const words = text.replace(/<[^>]+>/g, '').split(/\s+/).filter(Boolean).length;
             const menit = Math.ceil(words / 200);
             return menit <= 1 ? '< 1 menit baca' : `${menit} menit baca`;
@@ -651,8 +652,9 @@
             return doc.body.innerHTML;
         };
 
-        // --- FUNGSI PEMOTONG TEKS CERDAS UNTUK POSTER (MEMPERTAHANKAN FORMAT BOLD & ITALIC) ---
+        // --- FUNGSI PEMOTONG TEKS CERDAS UNTUK POSTER ---
         function truncateHTMLSafe(htmlString, maxLength) {
+            if (!htmlString) return '""';
             let tempHtml = htmlString.replace(/<\/?(div|p|br|h[1-6]|ul|ol|li|blockquote)[^>]*>/gi, ' ');
             
             tempHtml = tempHtml.replace(/<\/?(?!(b|strong|i|em)\b)[^>]+>/gi, '');
@@ -705,7 +707,7 @@
         }
 
         function createCardHTML(art) {
-            const hasImage  = art.imageUrl && art.imageUrl.trim() !== '';
+            const hasImage  = art.imageUrl && typeof art.imageUrl === 'string' && art.imageUrl.trim() !== '';
             const imgSrc    = hasImage ? art.imageUrl : makePlaceholderSVG(art.category);
             const imgClass  = hasImage ? 'card-img' : 'card-img is-placeholder';
             const onerror   = hasImage ? `onerror="handleImageError(this)"` : '';
@@ -721,7 +723,7 @@
                         <img src="${imgSrc}" class="${imgClass}" alt="Cover" ${onerror}>
                     </div>
                     <div class="card-content">
-                        <h3 class="card-title">${art.title}</h3>
+                        <h3 class="card-title">${art.title || 'Tanpa Judul'}</h3>
                         <div class="card-excerpt">${excerpt}</div>
                         <div class="card-meta">
                             <span class="card-author"><i class="fa-solid fa-pen-nib"></i> ${art.authorName || 'Redaksi'}</span>
@@ -794,9 +796,9 @@
                         const newArticle = await response.json();
                         
                         await addDoc(collection(db, 'articles'), {
-                            title: newArticle.judul,
-                            content: newArticle.isi,
-                            imageUrl: newArticle.gambar,
+                            title: newArticle.judul || 'Tips Hari Ini',
+                            content: newArticle.isi || '',
+                            imageUrl: newArticle.gambar || '',
                             category: "Opini & Literasi",
                             authorName: "Redaksi Cendekia", 
                             authorId: "system_ai",
@@ -814,13 +816,13 @@
             }
         }
 
-        // --- GENERATOR POSTER IG (DIPERBARUI: AUTO SIZE JUDUL) ---
+        // --- GENERATOR POSTER IG ---
         window.preparePosterData = function(title, fullHtmlContent, url) {
             const titleEl = document.getElementById('poster-title');
-            titleEl.innerText = title;
+            titleEl.innerText = title || 'Mading Cendekia';
             
             // 1. Skala Ukuran Judul Otomatis Berdasarkan Panjang Teks
-            const len = title.length;
+            const len = titleEl.innerText.length;
             if (len <= 25) {
                 titleEl.style.fontSize = '85px';
             } else if (len <= 50) {
@@ -839,7 +841,7 @@
             const displayUrl = url.replace(/^https?:\/\//, '');
             document.getElementById('poster-url-text').innerText = displayUrl;
 
-            // 4. Buat QR Code (Ukuran Sedang: 170x170 agar sisa ruang lega)
+            // 4. Buat QR Code
             const qrBox = document.getElementById('poster-qr');
             qrBox.innerHTML = ''; 
             new QRCode(qrBox, {
@@ -906,20 +908,23 @@
 
                     if (docSnap.exists()) {
                         const data = docSnap.data();
+                        
+                        // Perbaikan Bug: Gunakan string kosong jika content undefined
+                        const contentStr = data.content || '';
 
                         if (data.status === 'published') {
                             document.getElementById('v-category').innerText = data.category || 'Berita';
-                            document.getElementById('v-title').innerText    = data.title;
+                            document.getElementById('v-title').innerText    = data.title || 'Tanpa Judul';
                             document.getElementById('v-author').innerText   = data.authorName || 'Redaksi OSIS';
                             document.getElementById('v-date').innerText     = formatTanggal(data.timestamp);
 
                             const readTimeEl = document.getElementById('v-read-time');
-                            document.getElementById('v-read-time-text').innerText = estimasiMenit(data.content);
+                            document.getElementById('v-read-time-text').innerText = estimasiMenit(contentStr);
                             readTimeEl.style.display = 'inline-flex';
 
-                            rawArticleContent = data.content.replace(/<[^>]+>/g, ''); 
+                            rawArticleContent = contentStr.replace(/<[^>]+>/g, ''); 
                             
-                            let rawHtml = data.content; 
+                            let rawHtml = contentStr; 
                             rawHtml = linkify(rawHtml);
                             
                             document.getElementById('v-body').innerHTML = rawHtml;
@@ -927,14 +932,16 @@
                             // Logika Tampilan Background Hero
                             const heroWrapper = document.getElementById('v-hero-wrapper');
                             const imgEl = document.getElementById('v-image');
-                            if (data.imageUrl && data.imageUrl.trim() !== '') {
+                            
+                            // Perbaikan Bug: Cek String Valid sebelum Trim
+                            if (data.imageUrl && typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '') {
                                 imgEl.src = data.imageUrl;
                                 imgEl.style.display = 'block';
                             } else {
                                 imgEl.style.display = 'none';
                             }
 
-                            document.title = `${data.title} — Cendekia News`;
+                            document.title = `${data.title || 'Artikel'} — Cendekia News`;
 
                             document.getElementById('v-divider').style.display = 'block';
                             document.getElementById('v-share').style.display   = 'flex';
@@ -946,7 +953,7 @@
                             generateRecommendations(articleId, data.category);
 
                             const finalUrl = `https://cendekia-aksara.vercel.app/artikel.html?id=${articleId}`;
-                            window.preparePosterData(data.title, data.content, finalUrl);
+                            window.preparePosterData(data.title || 'Mading Cendekia', contentStr, finalUrl);
 
                         } else {
                             loader.style.display    = 'none';
