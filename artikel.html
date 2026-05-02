@@ -220,7 +220,6 @@
             padding: 100px; /* Jarak aman tepi kanvas */
             display: flex; flex-direction: column; box-sizing: border-box;
             color: white; overflow: hidden; 
-            /* Perhatian: JANGAN gunakan display: block, harus flex agar pembagian ruang berjalan */
         }
         
         .pt-header { 
@@ -249,9 +248,8 @@
         /* Snippet memakan sisa ruang agar footer terdorong rapi ke bawah */
         .pt-snippet { 
             font-family: 'Poppins', sans-serif; font-size: 38px; line-height: 1.6; color: #f1f5f9; 
-            font-weight: 300; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 9;
-            white-space: normal; word-wrap: break-word; overflow: hidden;
-            flex: 1; /* PENTING: Snippet otomatis mengisi ruang tersisa */
+            font-weight: 300; display: block; white-space: normal; word-wrap: break-word; overflow: hidden;
+            flex: 1; max-height: 480px; /* JAGA-JAGA AGAR TIDAK NABRAK BAWAH */
         }
         .pt-snippet * { font-style: normal; }
         .pt-snippet i, .pt-snippet em { font-style: italic; }
@@ -390,7 +388,7 @@
         <div class="state-box" id="error-box">
             <i class="fa-solid fa-file-circle-xmark" style="color: #ef4444;"></i>
             <h2>Artikel Tidak Ditemukan</h2>
-            <p>Tautan yang Anda tuju salah, atau artikel ini telah ditarik kembali oleh redaksi.</p>
+            <p id="error-desc-text">Tautan yang Anda tuju salah, atau artikel ini telah ditarik kembali oleh redaksi.</p>
             <a href="index.html" style="display:inline-flex;align-items:center;gap:8px;background:var(--primary);color:white;border-radius:50px;text-decoration:none;padding:8px 20px;font-weight:600;font-size:0.85rem;margin:10px auto 0;">
                 <i class="fa-solid fa-house"></i> Lihat Artikel Lainnya
             </a>
@@ -600,9 +598,11 @@
 
         const estimasiMenit = (text) => {
             if (!text) return '< 1 menit baca';
-            const words = text.replace(/<[^>]+>/g, '').split(/\s+/).filter(Boolean).length;
-            const menit = Math.ceil(words / 200);
-            return menit <= 1 ? '< 1 menit baca' : `${menit} menit baca`;
+            try {
+                const words = String(text).replace(/<[^>]+>/g, '').split(/\s+/).filter(Boolean).length;
+                const menit = Math.ceil(words / 200);
+                return menit <= 1 ? '< 1 menit baca' : `${menit} menit baca`;
+            } catch(e) { return '< 1 menit baca'; }
         };
 
         const LOGO_URL = 'https://i.imgur.com/5Srjyo4.png';
@@ -612,71 +612,77 @@
             el.classList.add('is-logo');
         };
 
-        // --- FUNGSI MENGUBAH TEKS URL MENJADI LINK KLIKABLE ---
+        // --- FUNGSI MENGUBAH TEKS URL MENJADI LINK KLIKABLE (SANGAT AMAN) ---
         const linkify = (inputText) => {
             if (!inputText) return "";
-            
-            // Kita menggunakan DOMParser untuk memanipulasi teks dengan sangat aman 
-            // agar tag HTML gambar (<img>) tidak ikut berubah menjadi link.
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(inputText, 'text/html');
-            
-            const urlRegex1 = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
-            const urlRegex2 = /(^|[^\/])(\bwww\.[\S]+(\b|$))/gim;
-            
-            const walk = (node) => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    let text = node.nodeValue;
-                    
-                    if (node.parentNode && node.parentNode.nodeName === 'A') return;
-                    
-                    let replacedText = text.replace(urlRegex1, '<a href="$1" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$1 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
-                    replacedText = replacedText.replace(urlRegex2, '$1<a href="http://$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$2 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
-                    
-                    if (replacedText !== text) {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = replacedText;
-                        while (tempDiv.firstChild) {
-                            node.parentNode.insertBefore(tempDiv.firstChild, node);
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(inputText, 'text/html');
+                
+                const urlRegex1 = /(\b(https?):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
+                const urlRegex2 = /(^|[^\/])(\bwww\.[\S]+(\b|$))/gim;
+                
+                const walk = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        let text = node.nodeValue;
+                        if (!text || !text.trim()) return;
+                        if (node.parentNode && node.parentNode.nodeName === 'A') return;
+                        
+                        let replacedText = text.replace(urlRegex1, '<a href="$1" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$1 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
+                        replacedText = replacedText.replace(urlRegex2, '$1<a href="http://$2" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline; word-break: break-all;">$2 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.8em;"></i></a>');
+                        
+                        if (replacedText !== text) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = replacedText;
+                            while (tempDiv.firstChild) {
+                                node.parentNode.insertBefore(tempDiv.firstChild, node);
+                            }
+                            node.parentNode.removeChild(node);
                         }
-                        node.parentNode.removeChild(node);
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                            Array.from(node.childNodes).forEach(walk);
+                        }
                     }
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    if (node.nodeName !== 'A' && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
-                        Array.from(node.childNodes).forEach(walk);
-                    }
-                }
-            };
-            
-            Array.from(doc.body.childNodes).forEach(walk);
-            return doc.body.innerHTML;
+                };
+                
+                Array.from(doc.body.childNodes).forEach(walk);
+                return doc.body.innerHTML;
+            } catch (e) {
+                console.error("Linkify error:", e);
+                return inputText; // Tetap kembalikan teks aslinya jika terjadi error
+            }
         };
 
         // --- FUNGSI PEMOTONG TEKS CERDAS UNTUK POSTER ---
         function truncateHTMLSafe(htmlString, maxLength) {
             if (!htmlString) return '""';
-            let tempHtml = htmlString.replace(/<\/?(div|p|br|h[1-6]|ul|ol|li|blockquote)[^>]*>/gi, ' ');
-            
-            tempHtml = tempHtml.replace(/<\/?(?!(b|strong|i|em)\b)[^>]+>/gi, '');
-            tempHtml = tempHtml.replace(/\s+/g, ' ').trim();
+            try {
+                let tempHtml = String(htmlString).replace(/<\/?(div|p|br|h[1-6]|ul|ol|li|blockquote)[^>]*>/gi, ' ');
+                tempHtml = tempHtml.replace(/<\/?(?!(b|strong|i|em)\b)[^>]+>/gi, '');
+                tempHtml = tempHtml.replace(/\s+/g, ' ').trim();
 
-            let result = '';
-            let charCount = 0;
-            let inTag = false;
-            
-            for (let i = 0; i < tempHtml.length; i++) {
-                const char = tempHtml[i];
-                if (char === '<') inTag = true;
-                result += char;
-                if (!inTag) charCount++;
-                if (char === '>') inTag = false;
+                let result = '';
+                let charCount = 0;
+                let inTag = false;
                 
-                if (charCount >= maxLength) {
-                    result += '... (Selengkapnya di web)';
-                    break;
+                for (let i = 0; i < tempHtml.length; i++) {
+                    const char = tempHtml[i];
+                    if (char === '<') inTag = true;
+                    result += char;
+                    if (!inTag) charCount++;
+                    if (char === '>') inTag = false;
+                    
+                    if (charCount >= maxLength) {
+                        result += '... (Selengkapnya di web)';
+                        break;
+                    }
                 }
+                return `"${result}"`;
+            } catch(e) {
+                console.error("Truncate error:", e);
+                return '""';
             }
-            return `"${result}"`;
         }
 
         function makePlaceholderSVG(category) {
@@ -712,12 +718,13 @@
             const imgClass  = hasImage ? 'card-img' : 'card-img is-placeholder';
             const onerror   = hasImage ? `onerror="handleImageError(this)"` : '';
 
-            const plainText = (art.content || '').replace(/<[^>]+>/g, '');
+            const plainText = String(art.content || '').replace(/<[^>]+>/g, '');
             let excerpt = plainText.substring(0, 100);
             if (plainText.length > 100) excerpt += '…';
 
+            // MENGARAHKAN LANGSUNG KE ARTIKEL.HTML AGAR TERHUBUNG (Sesuai Request)
             return `
-                <a href="?id=${art.id}" class="article-card">
+                <a href="/artikel.html?id=${art.id}" class="article-card">
                     <div class="card-img-wrapper">
                         <span class="card-category">${art.category || 'Umum'}</span>
                         <img src="${imgSrc}" class="${imgClass}" alt="Cover" ${onerror}>
@@ -833,8 +840,8 @@
                 titleEl.style.fontSize = '45px';
             }
             
-            // 2. Potong Cuplikan (Maks 280 karakter agar tidak nabrak Footer QR)
-            const smartSnippet = truncateHTMLSafe(fullHtmlContent, 280);
+            // 2. Potong Cuplikan (Maks 200 karakter agar tidak nabrak Footer QR)
+            const smartSnippet = truncateHTMLSafe(fullHtmlContent, 200);
             document.getElementById('poster-snippet').innerHTML = smartSnippet;
 
             // 3. Render Link Teks (Tanpa https://)
@@ -893,7 +900,8 @@
         // ---- MAIN LOGIC ----
         (async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const articleId = urlParams.get('id');
+            // Menghindari spasi atau bug saat URL di-parse
+            const articleId = urlParams.get('id')?.split('?')[0]?.trim();
 
             const loader      = document.getElementById('loader');
             const errorBox    = document.getElementById('error-box');
@@ -910,7 +918,7 @@
                         const data = docSnap.data();
                         
                         // Perbaikan Bug: Gunakan string kosong jika content undefined
-                        const contentStr = data.content || '';
+                        const contentStr = String(data.content || '');
 
                         if (data.status === 'published') {
                             document.getElementById('v-category').innerText = data.category || 'Berita';
@@ -922,8 +930,6 @@
                             document.getElementById('v-read-time-text').innerText = estimasiMenit(contentStr);
                             readTimeEl.style.display = 'inline-flex';
 
-                            rawArticleContent = contentStr.replace(/<[^>]+>/g, ''); 
-                            
                             let rawHtml = contentStr; 
                             rawHtml = linkify(rawHtml);
                             
@@ -962,11 +968,13 @@
                     } else {
                         loader.style.display  = 'none';
                         errorBox.style.display = 'block';
+                        document.getElementById('error-desc-text').innerText = "ID Artikel tidak ditemukan atau mungkin sudah dihapus dari server.";
                     }
                 } catch (err) {
                     console.error('Gagal memuat naskah:', err);
                     loader.style.display  = 'none';
                     errorBox.style.display = 'block';
+                    document.getElementById('error-desc-text').innerText = "Gagal memuat sistem: " + err.message;
                 }
 
             // ---- MODE BERANDA (LIST MADING) ----
@@ -1022,6 +1030,7 @@
                     console.error('Gagal memuat daftar artikel:', err);
                     loader.style.display  = 'none';
                     errorBox.style.display = 'block';
+                    document.getElementById('error-desc-text').innerText = "Gagal memuat daftar artikel: " + err.message;
                 }
             }
         })();
