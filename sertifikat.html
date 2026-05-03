@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Sertifikat - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Great+Vibes&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --primary: #002244; --accent: #d4af37; --bg: #f4f6f9; }
+        * { box-sizing: border-box; outline: none; }
+        body { background-color: var(--bg); font-family: 'Poppins', sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh;}
+        
+        /* HEADER SEDERHANA */
+        .header { background: var(--primary); padding: 15px 20px; display: flex; align-items: center; justify-content: center; gap: 15px; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
+        .header img { height: 40px; }
+        .header h1 { margin: 0; font-family: 'Aleo', serif; font-size: 1.2rem; }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;}
+
+        /* STATE BOXES */
+        .info-box { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); text-align: center; max-width: 500px; width: 100%; border: 1px solid #e2e8f0;}
+        .info-icon { font-size: 4rem; margin-bottom: 20px; }
+        .info-title { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.5rem; margin: 0 0 10px 0; }
+        .info-desc { color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px; }
+
+        .btn-action { background: var(--primary); color: white; border: none; padding: 14px 30px; border-radius: 50px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins'; text-decoration: none; box-shadow: 0 4px 15px rgba(0,34,68,0.3);}
+        .btn-action:hover { transform: translateY(-2px); background: #00122e; }
+
+        .hidden { display: none !important; }
+
+        /* ========================================================================= */
+        /* --- DESAIN SERTIFIKAT (SAMA PERSIS DENGAN ADMIN) --- */
+        /* ========================================================================= */
+        .cert-preview-container { 
+            width: 100%; overflow-x: auto; padding: 20px; background: #cbd5e1; border-radius: 16px;
+            display: flex; justify-content: center; margin-bottom: 30px; box-shadow: inset 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .certificate {
+            width: 1123px; /* A4 Landscape 300dpi approx */
+            height: 794px; background: #ffffff; position: relative; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); flex-shrink: 0; font-family: 'Poppins', sans-serif; color: #1e293b;
+            background-image: repeating-radial-gradient(circle at 0 0, transparent 0, #ffffff 10px), repeating-linear-gradient(#f8fafc55, #f8fafc55);
+        }
+
+        .cert-wave-navy { position: absolute; top: -150px; left: -100px; width: 800px; height: 500px; background: linear-gradient(135deg, #00122e 0%, #002244 100%); border-radius: 50% 10% 50% 20%; transform: rotate(-15deg); z-index: 1; box-shadow: 10px 10px 30px rgba(0,34,68,0.4); }
+        .cert-wave-gold { position: absolute; top: 80px; right: -50px; width: 500px; height: 150px; background: linear-gradient(to right, #facc15, #d4af37, #b48608); border-radius: 50px 0 0 100px; transform: rotate(-10deg); z-index: 0; }
+        .cert-ribbon-vertical { position: absolute; top: 0; left: 150px; width: 60px; height: 100%; background: #002244; border-left: 4px solid #d4af37; border-right: 4px solid #d4af37; z-index: 2; }
+        .cert-badge-gold { position: absolute; top: 400px; left: 105px; width: 150px; height: 150px; background: radial-gradient(circle, #fde047 0%, #d4af37 80%, #a16207 100%); border-radius: 50%; z-index: 3; box-shadow: 0 10px 20px rgba(0,0,0,0.3); border: 4px dashed #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .cert-badge-gold::before, .cert-badge-gold::after { content: ''; position: absolute; bottom: -40px; width: 40px; height: 60px; background: #002244; z-index: -1; }
+        .cert-badge-gold::before { left: 20px; transform: rotate(15deg); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);}
+        .cert-badge-gold::after { right: 20px; transform: rotate(-15deg); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);}
+        .cb-text1 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 900; color: #002244; line-height: 1; }
+        .cb-text2 { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #002244; letter-spacing: 1px; margin-top: 5px;}
+
+        .cert-content { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; padding: 60px 80px 60px 280px; display: flex; flex-direction: column; }
+        .cert-title-area { position: absolute; top: 70px; left: 80px; z-index: 6; color: white;}
+        .ct-main { font-family: 'Cinzel', serif; font-size: 55px; font-weight: 700; color: #facc15; letter-spacing: 3px; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);}
+        .ct-sub { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 4px; margin-top: 5px; text-transform: uppercase;}
+
+        .cert-body-area { text-align: right; margin-top: 130px; padding-right: 20px;}
+        .c-presents { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 600; color: #475569; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px;}
+        .c-honor { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700; color: #002244; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 40px;}
+        
+        .c-name { font-family: 'Great Vibes', cursive; font-size: 75px; color: #000000; margin: 0; padding-bottom: 10px; border-bottom: 2px solid #cbd5e1; text-align: center; line-height: 1.2; }
+        .c-desc-title { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; color: #002244; margin: 30px 0 10px; text-align: center; text-transform: uppercase;}
+        .c-desc-text { font-family: 'Poppins', sans-serif; font-size: 13px; color: #64748b; text-align: center; max-width: 700px; margin: 0 auto; line-height: 1.6;}
+
+        .cert-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 20px;}
+        .c-qr-box { display: flex; flex-direction: column; align-items: center; gap: 5px;}
+        .c-qr-code { width: 90px; height: 90px; background: white; padding: 5px; border: 1px solid #e2e8f0; }
+        .c-qr-label { font-size: 10px; color: #94a3b8; font-weight: 600; letter-spacing: 1px;}
+        .c-cert-num { font-size: 11px; font-family: monospace; color: #002244; font-weight: bold; margin-top: 5px;}
+
+        .c-ttd-box { text-align: center; width: 250px; position: relative;}
+        .c-cap-basah { position: absolute; top: -40px; left: 10px; width: 110px; opacity: 0.85; transform: rotate(-15deg); mix-blend-mode: multiply;}
+        .c-sign-img { height: 70px; margin-bottom: 5px; position: relative; z-index: 2;}
+        .c-line { width: 100%; height: 2px; background: #002244; margin-bottom: 5px;}
+        .c-ttd-name { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 700; color: #002244;}
+        .c-ttd-role { font-family: 'Poppins', sans-serif; font-size: 11px; color: #64748b; letter-spacing: 1px;}
+        .c-medal { display: flex; gap: 15px; align-items: center; margin: 0 auto;}
+        .c-medal img { width: 60px; filter: grayscale(100%) contrast(200%); opacity: 0.3;}
+
+        /* WATERMARK INVALID */
+        .invalid-watermark {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 150px; font-weight: 900; color: rgba(220, 38, 38, 0.3); border: 15px solid rgba(220, 38, 38, 0.3);
+            padding: 20px 40px; border-radius: 30px; z-index: 10; pointer-events: none; display: none;
+        }
+
+        .footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 0.85rem; margin-top: auto; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo CA">
+        <h1>Sistem Validasi Sertifikat</h1>
+    </div>
+
+    <div class="container">
+        
+        <!-- LOADING -->
+        <div id="state-loading" class="info-box">
+            <i class="fa-solid fa-circle-notch fa-spin info-icon" style="color: var(--primary);"></i>
+            <h2 class="info-title">Memverifikasi Data...</h2>
+            <p class="info-desc">Sistem sedang memeriksa keabsahan sertifikat dan mencocokkan data Anda.</p>
+        </div>
+
+        <!-- ERROR / INVALID -->
+        <div id="state-error" class="info-box hidden">
+            <i class="fa-solid fa-triangle-exclamation info-icon" style="color: #ef4444;"></i>
+            <h2 class="info-title" style="color: #ef4444;">Akses Ditolak</h2>
+            <p class="info-desc" id="error-msg">Sertifikat ini tidak ditemukan atau telah dicabut oleh Admin.</p>
+            <a href="/" class="btn-action">Kembali ke Beranda</a>
+        </div>
+
+        <!-- NOT LOGGED IN -->
+        <div id="state-login" class="info-box hidden">
+            <i class="fa-solid fa-shield-halved info-icon" style="color: var(--accent);"></i>
+            <h2 class="info-title">Autentikasi Diperlukan</h2>
+            <p class="info-desc">Untuk mengklaim sertifikat ini atas nama Anda, silakan login menggunakan akun siswa Cendekia Aksara.</p>
+            <a href="/login.html" class="btn-action"><i class="fa-solid fa-right-to-bracket"></i> Login Sekarang</a>
+        </div>
+
+        <!-- SUCCESS / PREVIEW -->
+        <div id="state-success" class="hidden" style="width: 100%;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: var(--primary); font-family: 'Aleo', serif;"><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Sertifikat Tervalidasi</h2>
+                <p style="color: #64748b; font-size: 0.95rem; margin-top: 5px;">Data cocok. Silakan unduh e-Sertifikat resmi Anda di bawah ini.</p>
+            </div>
+
+            <div class="cert-preview-container">
+                <div class="certificate" id="cert-paper">
+                    
+                    <div class="invalid-watermark" id="invalid-mark">DICABUT</div>
+
+                    <div class="cert-wave-gold"></div>
+                    <div class="cert-wave-navy"></div>
+                    <div class="cert-ribbon-vertical"></div>
+                    
+                    <div class="cert-badge-gold">
+                        <div class="cb-text1">Best</div>
+                        <div class="cb-text1">AWARD</div>
+                        <div class="cb-text2">CENDEKIA</div>
+                    </div>
+
+                    <div class="cert-title-area">
+                        <div class="ct-main">CERTIFICATE</div>
+                        <div class="ct-sub">OF ACHIEVEMENT</div>
+                    </div>
+
+                    <div class="cert-content">
+                        <div class="cert-body-area">
+                            <div class="c-presents">This certificate is proudly presented</div>
+                            <div class="c-honor">For Honorable Achievement To</div>
+                        </div>
+                        
+                        <!-- NAMA SISWA DARI DATABASE -->
+                        <h2 class="c-name" id="c-name">Memuat Nama...</h2>
+                        
+                        <div class="c-desc-title" id="c-acara">NAMA PENGHARGAAN</div>
+                        <div class="c-desc-text" id="c-desc">Deskripsi penghargaan akan muncul di sini.</div>
+
+                        <div class="cert-footer">
+                            <div class="c-qr-box">
+                                <div class="c-qr-label">VERIFIED BY</div>
+                                <div class="c-qr-code" id="c-qr"></div>
+                                <div class="c-cert-num" id="c-nomor">000/CA/2026</div>
+                            </div>
+
+                            <div class="c-medal"><i class="fa-solid fa-award" style="font-size:3rem; color:#cbd5e1;"></i></div>
+
+                            <div class="c-ttd-box">
+                                <img src="https://i.imgur.com/YvrNYRw.png" class="c-cap-basah" crossorigin="anonymous">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/f/f6/Signature_of_John_Hancock.svg" class="c-sign-img" crossorigin="anonymous" style="opacity:0.6;">
+                                <div class="c-line"></div>
+                                <div class="c-ttd-name">Mukhamad Bayu Aji</div>
+                                <div class="c-ttd-role">Kepala Cendekia Aksara</div>
+                                <div style="font-size:10px; color:#64748b; margin-top:5px;" id="c-tanggal">15 Nov 2026</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn-action" id="btn-download" onclick="downloadSertifikat()">
+                    <i class="fa-solid fa-download"></i> Unduh Sertifikat (PNG)
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Cendekia Aksara &copy; 2026. E-Certificate Verification System.
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const certId = urlParams.get('id');
+
+        let currentUserData = null;
+        let certificateData = null;
+
+        const showState = (stateId) => {
+            ['state-loading', 'state-error', 'state-login', 'state-success'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(stateId).classList.remove('hidden');
+        }
+
+        // --- ALUR LOGIKA ---
+        (async () => {
+            if (!certId) {
+                document.getElementById('error-msg').innerText = "Tautan sertifikat tidak valid atau rusak.";
+                showState('state-error');
+                return;
+            }
+
+            // 1. Cek Data Sertifikat di DB
+            try {
+                const certSnap = await getDoc(doc(db, 'certificate_templates', certId));
+                if (!certSnap.exists()) {
+                    document.getElementById('error-msg').innerText = "Sertifikat ini tidak ditemukan di dalam database.";
+                    showState('state-error');
+                    return;
+                }
+
+                certificateData = certSnap.data();
+
+                // 2. Cek Login Siswa
+                currentUserData = await checkAuth('siswa');
+                
+                if (!currentUserData) {
+                    // Jika ada tamu (non-login) nge-scan QR, suruh login dulu
+                    showState('state-login');
+                    return;
+                }
+
+                // 3. Render Data ke Sertifikat
+                renderCertificate();
+
+                // 4. Cek Status Validasi
+                if (certificateData.status !== 'valid') {
+                    // Jika di-revoke admin
+                    document.getElementById('invalid-mark').style.display = 'block';
+                    document.getElementById('btn-download').style.display = 'none';
+                    Swal.fire('Sertifikat Dicabut', 'Sertifikat ini telah dibatalkan oleh Admin. Anda tidak dapat mengunduhnya.', 'error');
+                } else {
+                    // Catat Log Klaim
+                    try {
+                        await addDoc(collection(db, 'certificate_claims'), {
+                            templateId: certId,
+                            studentUid: currentUserData.uid,
+                            studentName: currentUserData.name,
+                            claimedAt: serverTimestamp()
+                        });
+                    } catch(e) { console.error("Log error", e); }
+                }
+
+                showState('state-success');
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('error-msg').innerText = "Terjadi kesalahan sistem saat memverifikasi.";
+                showState('state-error');
+            }
+        })();
+
+        function renderCertificate() {
+            // Isi data Siswa
+            document.getElementById('c-name').innerText = currentUserData.name || "Nama Siswa";
+            
+            // Isi data Sertifikat
+            document.getElementById('c-acara').innerText = certificateData.acara || "PENGHARGAAN";
+            document.getElementById('c-desc').innerText = certificateData.deskripsi || "";
+            document.getElementById('c-nomor').innerText = certificateData.nomor || "000/CA/2026";
+            document.getElementById('c-tanggal').innerText = certificateData.tanggal || "15 Nov 2026";
+
+            // Buat QR Code (URL aslinya)
+            const qrBox = document.getElementById('c-qr');
+            qrBox.innerHTML = '';
+            new QRCode(qrBox, {
+                text: window.location.href,
+                width: 90, height: 90, colorDark: "#002244", colorLight: "#ffffff"
+            });
+        }
+
+        window.downloadSertifikat = async () => {
+            const btn = document.getElementById('btn-download');
+            const oriHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Gambar...';
+            btn.disabled = true;
+
+            try {
+                // Pastikan font custom termuat
+                await document.fonts.ready;
+
+                const element = document.getElementById('cert-paper');
+                
+                // Gunakan html2canvas
+                const canvas = await html2canvas(element, {
+                    scale: 2, // Kualitas HD
+                    useCORS: true, // Mengizinkan logo dari imgur/wiki
+                    backgroundColor: "#ffffff",
+                    logging: false
+                });
+
+                // Unduh
+                const link = document.createElement('a');
+                link.download = `Sertifikat_${certificateData.acara}_${currentUserData.name.replace(/\s+/g, '_')}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                
+                Swal.fire({icon: 'success', title: 'Berhasil Diunduh!', text: 'Sertifikat telah tersimpan di perangkat Anda.', timer: 2000, showConfirmButton: false});
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Gagal', 'Terjadi kesalahan saat membuat gambar sertifikat.', 'error');
+            } finally {
+                btn.innerHTML = oriHtml;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
