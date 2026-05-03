@@ -477,7 +477,7 @@
             z-index: 5; padding: 55px 70px 50px 280px;
             display: flex; flex-direction: column;
         }
-        .cert-body-area { text-align: right; margin-top: 140px; padding-right: 10px; }
+        .cert-body-area { text-align: right; margin-top: 155px; padding-right: 10px; }
         .c-presents {
             font-size: 13px; font-weight: 500; color: #64748b;
             letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px;
@@ -488,12 +488,13 @@
         }
         .c-name {
             font-family: 'Poppins', sans-serif;
-            font-size: 56px; font-weight: 700; font-style: italic;
-            color: #002244; margin: 0; line-height: 1.15;
+            font-size: 52px; font-weight: 700; font-style: italic;
+            color: #002244; margin: 0; line-height: 1.2;
             text-align: center; text-transform: capitalize;
             padding-bottom: 12px;
             border-bottom: 2px solid #e2e8f0;
             text-shadow: 0 2px 4px rgba(0,34,68,0.08);
+            transition: font-size 0.2s;
         }
         .c-desc-title {
             font-family: 'Cinzel', serif; font-size: 20px; font-weight: 700;
@@ -722,6 +723,30 @@
                             </div>
                         </div>
 
+                        <!-- FOKUS SERTIFIKAT (Badge Medali) -->
+                        <div class="form-group full-width">
+                            <label class="form-label">
+                                Fokus / Kategori Sertifikat
+                                <span class="label-badge">Opsional</span>
+                            </label>
+                            <input type="text" id="inp-fokus" class="form-input"
+                                placeholder="Contoh: KARYA TERBAIK — akan tampil di medali sertifikat"
+                                maxlength="60" oninput="updatePreview()">
+                            <div class="help-text">Teks ini akan muncul di medali emas pada sisi kiri sertifikat. Kosongkan untuk menggunakan default.</div>
+                        </div>
+
+                                           <!-- FOKUS SERTIFIKAT (Badge Medali) -->
+                        <div class="form-group full-width">
+                            <label class="form-label">
+                                Fokus / Kategori Sertifikat
+                                <span class="label-badge">Opsional</span>
+                            </label>
+                            <input type="text" id="inp-fokus" class="form-input"
+                                placeholder="Contoh: KARYA TERBAIK — muncul di medali emas sertifikat"
+                                maxlength="60" oninput="updatePreview()">
+                            <div class="help-text">Teks pendek yang muncul di medali emas sisi kiri. Kosongkan untuk menggunakan teks default.</div>
+                        </div>
+
                         <!-- NAMA ACARA -->
                         <div class="form-group full-width">
                             <label class="form-label">
@@ -756,9 +781,9 @@
                             <div class="cert-wave-navy"></div>
                             
                             <div class="cert-badge-gold">
-                                <div class="cb-text1">KARYA</div>
-                                <div class="cb-text1" style="font-size:20px;">TERBAIK</div>
-                                <div class="cb-text2">MINGGUAN</div>
+                                <div class="cb-text1" id="prev-badge-l1">KARYA</div>
+                                <div class="cb-text1" id="prev-badge-l2" style="font-size:20px;">TERBAIK</div>
+                                <div class="cb-text2" id="prev-badge-l3">MINGGUAN</div>
                             </div>
 
                             <div class="cert-title-area">
@@ -1024,8 +1049,10 @@
             document.getElementById('chip-uid').innerText    = uid;
             document.getElementById('siswa-chip').classList.add('visible');
 
-            // Update preview nama di sertifikat
-            document.getElementById('prev-name').innerText = name;
+            // Update preview nama di sertifikat + auto font-size
+            const nameEl = document.getElementById('prev-name');
+            nameEl.innerText = name;
+            autoFontName(nameEl, name);
         };
 
         window.clearSelectedSiswa = () => {
@@ -1039,11 +1066,41 @@
         // ----------------------------------------------------------------
         // PREVIEW UPDATE
         // ----------------------------------------------------------------
+        // Fungsi auto font-size nama berdasarkan panjang teks
+        function autoFontName(nameEl, text) {
+            const len = (text || '').length;
+            let size;
+            if      (len <= 15) size = '56px';
+            else if (len <= 22) size = '46px';
+            else if (len <= 30) size = '38px';
+            else                size = '30px';
+            nameEl.style.fontSize = size;
+        }
+
         window.updatePreview = () => {
             document.getElementById('prev-acara').innerText =
                 document.getElementById('inp-acara').value.trim() || 'NAMA PENGHARGAAN';
             document.getElementById('prev-desc').innerText =
                 document.getElementById('inp-desc').value.trim() || 'Telah berpartisipasi aktif dan menyelesaikan seluruh tugas yang diberikan.';
+
+            // Update badge medali dari input fokus
+            const fokus = document.getElementById('inp-fokus').value.trim();
+            if (fokus) {
+                // Pecah menjadi maks 3 baris: baris 1 = kata pertama, baris 2 = kata kedua, baris 3 = sisanya
+                const words = fokus.split(/\s+/);
+                const l1 = words[0] || '';
+                const l2 = words.slice(1, 3).join(' ') || '';
+                const l3 = words.slice(3).join(' ') || '';
+                document.getElementById('prev-badge-l1').innerText = l1;
+                document.getElementById('prev-badge-l2').innerText = l2;
+                document.getElementById('prev-badge-l2').style.fontSize = l2.length > 8 ? '15px' : '20px';
+                document.getElementById('prev-badge-l3').innerText = l3;
+            } else {
+                document.getElementById('prev-badge-l1').innerText = 'KARYA';
+                document.getElementById('prev-badge-l2').innerText = 'TERBAIK';
+                document.getElementById('prev-badge-l2').style.fontSize = '20px';
+                document.getElementById('prev-badge-l3').innerText = 'MINGGUAN';
+            }
         };
 
         // ----------------------------------------------------------------
@@ -1062,13 +1119,14 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
             btn.disabled = true;
 
+            const fokusVal = document.getElementById('inp-fokus').value.trim();
             const payload = {
                 nomor:     currentAutoNumber,
                 tanggal:   currentAutoDate,
                 tipe:      currentTipe,
-                // BUG FIX: simpan UID DAN nama siswa agar bisa ditampilkan di tabel
                 targetUid:  currentTipe === 'individu' ? selectedSiswa.uid  : null,
                 targetNama: currentTipe === 'individu' ? selectedSiswa.name : null,
+                fokus:      fokusVal || null,
                 acara:      document.getElementById('inp-acara').value,
                 deskripsi:  document.getElementById('inp-desc').value,
                 status:     'valid',
