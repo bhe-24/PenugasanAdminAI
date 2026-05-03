@@ -1,4 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { 
+    GoogleGenerativeAI, 
+    HarmCategory, 
+    HarmBlockThreshold 
+} from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -57,15 +61,39 @@ Ketentuan Feedback (Wajib diikuti):
 4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. DILARANG KERAS MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
 `;
 
+        // Konfigurasi Filter Keamanan untuk mencegah error PROHIBITED_CONTENT
+        const safetySettings = [
+            {
+                category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+        ];
+
         const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
-            generationConfig: { temperature: 0.4 } 
+            generationConfig: { 
+                temperature: 0.7,
+                responseMimeType: "application/json" // Memaksa AI mengembalikan format JSON murni
+            },
+            safetySettings: safetySettings // Memasukkan pengaturan filter keamanan
         });
         
-        let textResponse = result.response.text();
-        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-
+        const textResponse = result.response.text();
+        
+        // Parsing JSON langsung tanpa perlu regex replace (karena responseMimeType sudah mengurusnya)
         const finalResult = JSON.parse(textResponse);
 
         res.status(200).json({
