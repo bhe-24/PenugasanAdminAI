@@ -127,7 +127,7 @@
         .theme-mustard .pp-call { color: #001f3f; }
         .theme-mustard .pp-call-box { background: rgba(255,255,255,0.35); }
 
-        /* 1. POSTER PROMO EVENT (REVISI BESAR: TATA LETAK CENTER) */
+        /* 1. POSTER PROMO EVENT (CENTERED & BESAR) */
         #poster-promo { padding: 90px 80px; justify-content: space-between; text-align: center;}
         .pp-header { display: flex; justify-content: space-between; align-items: flex-start; text-align: left; margin-bottom: 20px;}
         .pp-tag { font-family: 'Aleo', serif; font-size: 32px; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 10px;}
@@ -333,7 +333,7 @@
                 <button class="btn-copy" onclick="copyShareLink()" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:600;">Salin</button>
             </div>
             
-            <!-- TOMBOL UNDUH PROMO DIRUBAH MEMANGGIL PILIHAN TEMA -->
+            <!-- TOMBOL UNDUH PROMO MEMANGGIL PILIHAN TEMA -->
             <button class="btn-submit" style="width:100%;" onclick="promptPromoTheme()"><i class="fa-brands fa-instagram"></i> Unduh Poster IG Promo</button>
         </div>
     </div>
@@ -532,6 +532,9 @@
 
         // POPUP PEMILIHAN TEMA PROMO EVENT
         window.promptPromoTheme = () => {
+            // TUTUP MODAL SHARE TERLEBIH DAHULU AGAR TIDAK BERTUMPUK
+            closeModal('share-modal');
+
             Swal.fire({
                 title: 'Pilih Tema Poster Promo',
                 html: '<div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">' +
@@ -593,6 +596,33 @@
                 a.download = `Promo_${currentEventPromo.tipe.replace(/\s/g,'_')}.png`;
                 a.href = canvas.toDataURL("image/png");
                 a.click();
+
+                // Generate Teks Caption untuk WhatsApp / IG
+                let deadlineText = "Tanpa Batas Waktu";
+                if(currentEventPromo.deadline) {
+                    const dObj = new Date(currentEventPromo.deadline);
+                    deadlineText = dObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                }
+
+                const captionText = `✨ *${currentEventPromo.judul}* ✨\n\nHalo Sahabat Cendekia! 👋\nAda kegiatan seru nih buat kamu:\n\n_"${currentEventPromo.deskripsi}"_\n\n⏳ *Batas Waktu:* ${deadlineText}\n\nYuk, tunjukkan kreativitasmu dan kirimkan karyamu sekarang melalui tautan berikut:\n${linkFull}\n\n#CendekiaAksara #KegiatanMingguan`;
+
+                // Tampilkan Popup Caption setelah loading hilang
+                setTimeout(() => {
+                    Swal.fire({
+                        title: '<i class="fa-solid fa-bullhorn" style="color:var(--primary);"></i> Bagikan Sekarang!',
+                        html: `
+                            <p style="font-size:0.9rem; color:var(--text-gray); margin-bottom:10px;">Poster berhasil diunduh. Salin pesan (caption) di bawah ini untuk dibagikan ke grup WhatsApp.</p>
+                            <textarea id="caption-textarea" readonly style="width:100%; height:200px; padding:15px; border-radius:10px; border:1px solid #cbd5e1; font-family:'Poppins'; font-size:0.85rem; line-height:1.6; background:#f8fafc; color:#334155; resize:none;">${captionText}</textarea>
+                            <div style="display:flex; gap:10px; margin-top:15px;">
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('caption-textarea').value); Swal.showValidationMessage('Teks berhasil disalin!');" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:10px; border-radius:8px; font-weight:600; cursor:pointer;"><i class="fa-regular fa-copy"></i> Salin Caption</button>
+                                <a href="https://wa.me/?text=${encodeURIComponent(captionText)}" target="_blank" style="flex:1; background:#25D366; color:white; text-decoration:none; display:flex; justify-content:center; align-items:center; border-radius:8px; font-weight:600; gap:8px;"><i class="fa-brands fa-whatsapp"></i> Share WA</a>
+                            </div>
+                        `,
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        allowOutsideClick: false
+                    });
+                }, 500);
 
             } catch (e) {
                 console.error(e);
