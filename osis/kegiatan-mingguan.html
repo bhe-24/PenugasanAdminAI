@@ -30,6 +30,8 @@
         .header-logo-circle { width: 55px; height: 55px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; padding: 8px;}
         .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
         .header-brand-name { font-family: 'Aleo', serif; font-size: 1.5rem; margin: 0; color: white; }
+        .header-greeting { font-size: 0.85rem; opacity: 0.9; margin-top: 2px; font-weight: 400; color: #bae6fd;}
+        
         .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.3); transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;}
         .btn-back:hover { background: white; color: var(--primary); }
 
@@ -155,11 +157,42 @@
 
         /* --- MOBILE OPTIMIZATION RESPONSIVE FIX --- */
         @media (max-width: 768px) {
-            body { padding-top: 20px; } /* Reset top padding untuk non-fixed mobile header */
-            .brand-header { position: relative; padding: 15px; flex-direction: column; align-items: flex-start; margin-bottom: 25px; border-radius: 12px;}
-            .btn-back { width: 100%; justify-content: center; margin-top: 10px;}
-            .form-grid { grid-template-columns: 1fr; }
-            .filter-area { flex-direction: column; align-items: stretch; }
+            body { padding-top: 75px; } /* Jarak untuk header fixed di mobile */
+            .container { padding: 15px; width: 100%; }
+
+            /* PERBAIKAN HEADER MOBILE */
+            .brand-header { 
+                position: fixed; top: 0; left: 0; width: 100%; 
+                border-radius: 0 0 16px 16px; /* Hapus radius atas */
+                padding: 10px 15px; 
+                margin-bottom: 0; 
+                flex-direction: row; /* Tetap horizontal */
+                align-items: center; 
+            }
+            .header-content-wrapper { gap: 10px; }
+            .header-logo-circle { width: 40px; height: 40px; padding: 5px; }
+            .header-brand-name { font-size: 1.15rem; }
+            .header-greeting { display: none; } /* Sembunyikan sapaan agar hemat ruang */
+            
+            /* Tombol Kembali: Mengecil jadi Ikon Bulat */
+            .btn-back { 
+                width: 35px; height: 35px; padding: 0; 
+                display: flex; justify-content: center; align-items: center; 
+                border-radius: 50%; margin: 0; 
+            }
+            .btn-back span { display: none; }
+            .btn-back i { margin: 0; font-size: 1rem; }
+
+            .nav-tabs { margin-top: 15px; padding-bottom: 8px;}
+            .tab-btn { padding: 8px 18px; font-size: 0.85rem; }
+            
+            .admin-card { padding: 20px 15px; border-radius: 12px; }
+            .form-grid { grid-template-columns: 1fr; gap: 15px; }
+            .filter-area { flex-direction: column; align-items: stretch; gap: 10px;}
+            .btn-word { width: 100%; justify-content: center; }
+
+            .event-grid { grid-template-columns: 1fr; }
+            .karya-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -174,17 +207,18 @@
 
     <div class="container">
 
+        <!-- HEADER FIXED -->
         <header class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
                     <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
                 </div>
-                <div>
+                <div class="header-info">
                     <h1 class="header-brand-name">Kegiatan Mingguan</h1>
                     <p class="header-greeting">Pabrik karya: Kumpulkan fiksi mini, cerpen & quotes.</p>
                 </div>
             </div>
-            <a href="/osis/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Lobi OSIS</a>
+            <a href="/osis/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Lobi OSIS</span></a>
         </header>
 
         
@@ -243,7 +277,7 @@
             <h2 class="section-title"><i class="fa-solid fa-box-open"></i> Gudang Karya Siswa</h2>
             
             <div class="filter-area">
-                <div style="flex:1;">
+                <div style="flex:1; width: 100%;">
                     <label style="font-size:0.85rem; font-weight:600; color:var(--text-gray); display:block; margin-bottom:5px;">Pilih Event untuk Ditampilkan:</label>
                     <select id="filter-event" class="form-select" onchange="loadSubmissions()">
                         <option value="">Pilih Event...</option>
@@ -337,6 +371,9 @@
         let allEvents = [];
         let allSubmissions = [];
         let currentEventPromo = null; // Menyimpan data event untuk diunduh posternya
+        
+        // --- PERBAIKAN: GUNAKAN MAP UNTUK MENYIMPAN DATA (ANTI ERROR KARAKTER UNIK) ---
+        window.submissionsMap = {};
 
         (async () => {
             const osis = await checkAuth('siswa');
@@ -522,6 +559,9 @@
             try {
                 const q = query(collection(db, 'weekly_submissions'), where('eventId', '==', eventId));
                 const snap = await getDocs(q);
+                
+                // Kosongkan map setiap kali memuat ulang data
+                window.submissionsMap = {};
                 allSubmissions = [];
 
                 if(snap.empty) {
@@ -530,7 +570,11 @@
                     return;
                 }
 
-                snap.forEach(d => allSubmissions.push({id: d.id, ...d.data()}));
+                snap.forEach(d => {
+                    const data = {id: d.id, ...d.data()};
+                    allSubmissions.push(data);
+                    window.submissionsMap[d.id] = data; // Simpan ke Map global agar mudah dipanggil
+                });
                 
                 // Urutkan berdasarkan waktu kumpul
                 allSubmissions.sort((a,b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
@@ -538,12 +582,9 @@
                 container.innerHTML = '';
                 btnWord.disabled = false;
 
-                allSubmissions.forEach(sub => {
-                    const safeName = (sub.studentName || 'Anonim').replace(/'/g, "\\'");
-                    const safeTitle = (sub.title || '').replace(/'/g, "\\'");
-                    const safeContent = (sub.content || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
-                    const evType = allEvents.find(e => e.id === eventId)?.tipe || 'Karya';
+                const evType = allEvents.find(e => e.id === eventId)?.tipe || 'Karya';
 
+                allSubmissions.forEach(sub => {
                     container.innerHTML += `
                         <div class="karya-card">
                             <div class="kc-author"><i class="fa-solid fa-user-pen"></i> ${sub.studentName || 'Anonim'}</div>
@@ -551,9 +592,8 @@
                             <div class="kc-content">${(sub.content || '').replace(/\n/g, '<br>')}</div>
                             
                             <div style="display:flex; gap:8px; margin-top:auto;">
-                                <button class="btn-sm gray" onclick="copyKarya('${safeContent}')"><i class="fa-regular fa-copy"></i> Salin Teks</button>
-                                <!-- Memanggil fungsi konfirmasi pilihan tema terlebih dahulu -->
-                                <button class="btn-sm ig" onclick="promptPosterTheme('${safeName}', '${safeTitle}', '${safeContent}', '${evType}')"><i class="fa-brands fa-instagram"></i> IG Post</button>
+                                <button class="btn-sm gray" onclick="handleCopyKarya('${sub.id}')"><i class="fa-regular fa-copy"></i> Salin Teks</button>
+                                <button class="btn-sm ig" onclick="handlePromptPoster('${sub.id}', '${evType}')"><i class="fa-brands fa-instagram"></i> IG Post</button>
                             </div>
                         </div>
                     `;
@@ -565,10 +605,20 @@
             }
         }
 
-        window.copyKarya = (text) => {
-            navigator.clipboard.writeText(text);
+        // --- HANDLER BARU (LEBIH AMAN DARI ERROR STRING HTML) ---
+        window.handleCopyKarya = (id) => {
+            const sub = window.submissionsMap[id];
+            if(!sub) return;
+            const textToCopy = sub.content || '';
+            navigator.clipboard.writeText(textToCopy);
             Swal.fire({icon:'success', title:'Tersalin', text:'Teks karya berhasil disalin ke clipboard.', timer:1500, showConfirmButton:false});
-        }
+        };
+
+        window.handlePromptPoster = (id, evType) => {
+            const sub = window.submissionsMap[id];
+            if(!sub) return;
+            promptPosterTheme(sub.studentName || 'Anonim', sub.title || '-', sub.content || '', evType);
+        };
 
         // --- 5. EKSPOR SEMUA KARYA KE MS. WORD ---
         window.exportToWord = () => {
@@ -624,7 +674,6 @@
                 let maxL = isFirstChunk ? firstMax : restMax;
                 
                 if (p.length > maxL) {
-                    // Paragraf terlalu panjang, potong secara paksa berdasarkan batas max
                     if (currentChunk) { 
                         chunks.push(currentChunk.trim()); 
                         currentChunk = ''; 
@@ -635,7 +684,7 @@
                     let tempP = p;
                     while (tempP.length > maxL) {
                         let cutIndex = tempP.lastIndexOf(' ', maxL);
-                        if (cutIndex === -1) cutIndex = maxL; // Fallback kalau gak ada spasi
+                        if (cutIndex === -1) cutIndex = maxL; 
                         
                         chunks.push(tempP.substring(0, cutIndex).trim());
                         tempP = tempP.substring(cutIndex).trim();
@@ -644,7 +693,6 @@
                     }
                     if (tempP) currentChunk = tempP + '\n\n';
                 } else {
-                    // Masih muat di chunk saat ini
                     if (currentChunk.length + p.length > maxL) {
                         chunks.push(currentChunk.trim());
                         currentChunk = p + '\n\n';
@@ -689,28 +737,22 @@
             try {
                 await document.fonts.ready;
 
-                // 1. Terapkan Tema ke Elemen Poster
                 const template = document.getElementById('poster-karya');
-                template.className = 'poster-wrapper'; // Reset class
+                template.className = 'poster-wrapper'; 
                 template.classList.add(`theme-${themeType}`);
 
-                // 2. Persiapkan Data & Potong Teks
                 const textNormal = contentRaw.replace(/\\n/g, '\n');
                 
-                // Kapasitas slide 1 dikurangi agar tidak menabrak footer jika judulnya makan tempat (contoh: 260 karakter max).
-                // Slide berikutnya bisa lebih banyak karena tidak ada judul (contoh: 650 karakter max).
+                // Kapasitas slide 1 dikurangi secara signifikan agar tidak menabrak footer 
                 const slides = chunkText(textNormal, 260, 650);
                 const totalPages = slides.length;
 
-                // Set Data Statis Header
                 document.getElementById('pk-author').innerText = author;
                 document.getElementById('pk-event').innerText = eventType;
 
-                // 3. Loop & Render per Slide
                 for (let i = 0; i < totalPages; i++) {
                     msgEl.innerText = `Merender Slide ${i + 1} dari ${totalPages}...`;
                     
-                    // A. Atur Judul (Hanya tampil di slide 1)
                     if (i === 0 && title && title !== '-') {
                         document.getElementById('pk-title-area').style.display = 'block';
                         const pkTitle = document.getElementById('pk-title');
@@ -719,22 +761,20 @@
                         // Menyesuaikan ukuran font dinamis untuk judul berdasarkan panjangnya
                         const tLen = title.length;
                         if (tLen <= 25) {
-                            pkTitle.style.fontSize = '85px';
+                            pkTitle.style.fontSize = '80px';
                         } else if (tLen <= 50) {
-                            pkTitle.style.fontSize = '70px';
+                            pkTitle.style.fontSize = '65px';
                         } else if (tLen <= 80) {
-                            pkTitle.style.fontSize = '55px';
+                            pkTitle.style.fontSize = '50px';
                         } else {
-                            pkTitle.style.fontSize = '45px';
+                            pkTitle.style.fontSize = '40px';
                         }
                     } else {
                         document.getElementById('pk-title-area').style.display = 'none';
                     }
 
-                    // B. Atur Konten Teks
                     document.getElementById('pk-content').innerText = slides[i];
 
-                    // C. Atur Footer (Halaman)
                     if (totalPages === 1) {
                         document.getElementById('pk-page').innerText = "Cendekia Aksara";
                     } else if (i === totalPages - 1) {
@@ -743,23 +783,19 @@
                         document.getElementById('pk-page').innerText = `Slide ${i + 1}/${totalPages} 👉`;
                     }
 
-                    // Beri waktu sejenak agar DOM update sebelum dicapture html2canvas
                     await new Promise(r => setTimeout(r, 200));
 
-                    // D. Capture HTML2Canvas
                     const canvas = await html2canvas(template, { 
                         scale: 2, 
                         useCORS: true, 
                         backgroundColor: null 
                     });
 
-                    // E. Download Slide
                     const a = document.createElement("a");
                     a.download = `${author.replace(/\s/g,'_')}_Slide_${i + 1}.png`;
                     a.href = canvas.toDataURL("image/png");
                     a.click();
                     
-                    // Jeda sedikit antar download agar browser tidak memblokir
                     await new Promise(r => setTimeout(r, 600));
                 }
 
