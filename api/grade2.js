@@ -23,6 +23,16 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Jawaban siswa kosong' });
         }
 
+        // FUNGSI PEMBERSIH: Menghapus tag HTML dan karakter aneh bawaan copy-paste
+        const sanitizeText = (text) => {
+            if (!text) return '';
+            return text.replace(/<[^>]*>?/gm, '').trim(); 
+        };
+
+        // Terapkan pembersih ke jawaban dan instruksi untuk mencegah membengkaknya token
+        answer = sanitizeText(answer);
+        instruction = sanitizeText(instruction);
+
         // Memastikan tidak ada 'undefined'
         if (!instruction || instruction === 'undefined' || instruction === 'null') {
             instruction = 'Kerjakan tugas dengan baik, jujur, dan perhatikan kaidah penulisan.';
@@ -61,7 +71,7 @@ Ketentuan Feedback (Wajib diikuti):
 4. Format Teks: GUNAKAN tag HTML <b> untuk tebal, <i> untuk miring, dan <br> untuk enter/baris baru. DILARANG KERAS MENGGUNAKAN MARKDOWN (seperti **teks**). Langsung tuliskan tag HTML-nya di dalam string JSON.
 `;
 
-        // Konfigurasi Filter Keamanan untuk mencegah error PROHIBITED_CONTENT
+        // Konfigurasi Filter Keamanan untuk melonggarkan pengecekan AI
         const safetySettings = [
             {
                 category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -85,15 +95,15 @@ Ketentuan Feedback (Wajib diikuti):
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { 
-                temperature: 0.7,
+                temperature: 0.4,
                 responseMimeType: "application/json" // Memaksa AI mengembalikan format JSON murni
             },
-            safetySettings: safetySettings // Memasukkan pengaturan filter keamanan
+            safetySettings: safetySettings
         });
         
         const textResponse = result.response.text();
         
-        // Parsing JSON langsung tanpa perlu regex replace (karena responseMimeType sudah mengurusnya)
+        // Parsing JSON langsung (karena output dijamin JSON dari config di atas)
         const finalResult = JSON.parse(textResponse);
 
         res.status(200).json({
