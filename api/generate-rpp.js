@@ -1,110 +1,173 @@
+// api/generate-rpp.js
+// Backend Vercel — Menggunakan Google Gemini 2.0 Flash
+// Mengembalikan objek JSON terstruktur (bukan HTML mentah)
+// sehingga PDF yang dihasilkan benar-benar profesional & bersih.
+
 export default async function handler(req, res) {
+    // ── CORS ──
     res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*'); 
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    try {
-        const { mapel, semester, topik } = req.body;
+    const { mapel, semester, topik } = req.body || {};
+    if (!mapel || !semester || !topik) {
+        return res.status(400).json({ error: 'Parameter mapel, semester, dan topik wajib diisi.' });
+    }
 
-        const systemPrompt = `
-Anda adalah Pakar Kurikulum Tingkat Lanjut dan Master Pedagogi. Buatlah Rancangan Pelaksanaan Pembelajaran (RPP) yang SANGAT DETAIL berdurasi total 80 menit untuk mata pelajaran "${mapel}" semester ${semester} dengan topik "${topik}".
+    // ── PROMPT ──
+    // Minta Gemini mengembalikan JSON murni (tanpa markdown fence)
+    const prompt = `
+Anda adalah Pakar Kurikulum dan Master Pedagogi Bahasa & Sastra.
+Buatlah Rancangan Pelaksanaan Pembelajaran (RPP) SANGAT DETAIL dan PROFESIONAL untuk:
+- Mata Pelajaran / Modul : "${mapel}"
+- Semester               : ${semester}
+- Topik Khusus           : "${topik}"
+- Durasi Pertemuan       : 80 Menit
 
-ATURAN WAJIB:
-1. Bagi skenario pembelajaran menjadi blok waktu per 10-15 menit (Misal: 00-10, 10-25, 25-40, 40-55, 55-70, 70-80).
-2. Di setiap blok waktu, Anda WAJIB menguraikan:
-   - Apa materi yang sedang MENJELASKAN.
-   - Apa ANALOGI / MEMADANKAN konsep tersebut dengan kehidupan nyata.
-   - POIN PENTING apa yang mutlak harus tersampaikan di menit tersebut.
-3. Gunakan HANYA HTML murni. JANGAN gunakan markdown (\`\`\`).
-4. WAJIB tambahkan style "page-break-inside: avoid;" pada setiap tag <tr> di dalam tabel agar PDF tidak terpotong.
+Kembalikan HANYA objek JSON valid tanpa backtick, tanpa komentar, tanpa penjelasan tambahan.
+Ikuti PERSIS struktur berikut:
 
-FORMAT HTML WAJIB:
-<div style="margin-bottom: 25px; page-break-inside: avoid;">
-    <h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px; font-size: 14pt;">A. Capaian Pembelajaran (CP) & Tujuan Pembelajaran (TP)</h3>
-    <p><strong>Capaian Pembelajaran:</strong><br> [Tulis CP secara sangat mendalam, berbobot, dan filosofis sesuai topik]</p>
-    <p><strong>Tujuan Pembelajaran:</strong><br> 
-        <ul style="line-height: 1.6;">
-            <li>[Tulis TP 1 - ranah kognitif]</li>
-            <li>[Tulis TP 2 - ranah afektif/sikap]</li>
-            <li>[Tulis TP 3 - ranah psikomotorik/praktik]</li>
-        </ul>
-    </p>
-</div>
+{
+  "jumlahSiswa": "15–25 orang",
 
-<h3 style="color: #003366; border-bottom: 2px solid #d4af37; padding-bottom: 5px; font-size: 14pt;">B. Skenario Pembelajaran Rinci (80 Menit)</h3>
-<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10.5pt; line-height: 1.5;">
-    <thead>
-        <tr style="background-color: #003366; color: white;">
-            <th style="border: 1px solid #000; padding: 12px; width: 15%;">Waktu & Fase</th>
-            <th style="border: 1px solid #000; padding: 12px; width: 40%;">Aktivitas Guru (Menjelaskan & Memadankan)</th>
-            <th style="border: 1px solid #000; padding: 12px; width: 25%;">Aktivitas Siswa</th>
-            <th style="border: 1px solid #000; padding: 12px; width: 20%;">Poin Penting Tersampaikan</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr style="page-break-inside: avoid;">
-            <td style="border: 1px solid #000; padding: 12px; text-align: center; vertical-align: top; background-color: #f8fafc;">
-                <strong>Menit 00 - 10</strong><br>Pendahuluan & Apersepsi
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                <strong>Menjelaskan:</strong> [Uraikan apa yang guru jelaskan sebagai pembuka]<br><br>
-                <strong>Memadankan:</strong> [Berikan analogi menarik untuk memancing rasa ingin tahu siswa]
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                [Detail respon, diskusi, atau tindakan siswa]
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top; color: #b91c1c; font-weight: 500;">
-                [1-2 kalimat poin target yang harus nyangkut di kepala siswa pada sesi ini]
-            </td>
-        </tr>
-        
-        <tr style="page-break-inside: avoid;">
-            <td style="border: 1px solid #000; padding: 12px; text-align: center; vertical-align: top; background-color: #ffffff;">
-                <strong>Menit 10 - 25</strong><br>Eksplorasi Materi
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                <strong>Menjelaskan:</strong> [Uraikan konsep inti materi]<br><br>
-                <strong>Memadankan:</strong> [Analogi relevan dengan dunia remaja/keseharian]
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top;">
-                [Aktivitas mengamati, mencatat, atau tanya jawab]
-            </td>
-            <td style="border: 1px solid #000; padding: 12px; vertical-align: top; color: #b91c1c; font-weight: 500;">
-                [Poin target pemahaman konsep dasar]
-            </td>
-        </tr>
-        </tbody>
-</table>
+  "cp": "Teks Capaian Pembelajaran yang mendalam dan filosofis, 3–5 kalimat.",
+
+  "tp": [
+    "TP 1 — Ranah Kognitif: ...",
+    "TP 2 — Ranah Afektif/Sikap: ...",
+    "TP 3 — Ranah Psikomotorik/Praktik: ..."
+  ],
+
+  "materiPokok": [
+    "Poin materi 1",
+    "Poin materi 2",
+    "Poin materi 3",
+    "Poin materi 4"
+  ],
+
+  "metode": [
+    "Model: Project-Based Learning (PjBL)",
+    "Metode: Diskusi Socrates",
+    "Pendekatan: Kontekstual & Kolaboratif",
+    "Teknik: Think-Pair-Share"
+  ],
+
+  "skenario": [
+    {
+      "waktu": "Menit 00–10",
+      "fase": "Pendahuluan & Apersepsi",
+      "menjelaskan": "Uraian detail apa yang guru jelaskan sebagai pembuka (min 3 kalimat).",
+      "memadankan": "Analogi menarik dari kehidupan nyata / dunia remaja untuk membuka rasa ingin tahu (min 2 kalimat).",
+      "aktivitasSiswa": "Detail respon, tindakan, atau diskusi singkat peserta didik.",
+      "poinPenting": "1–2 kalimat poin target yang harus tertanam di benak siswa setelah sesi ini."
+    },
+    {
+      "waktu": "Menit 10–25",
+      "fase": "Eksplorasi Konsep",
+      "menjelaskan": "...",
+      "memadankan": "...",
+      "aktivitasSiswa": "...",
+      "poinPenting": "..."
+    },
+    {
+      "waktu": "Menit 25–40",
+      "fase": "Pendalaman Materi",
+      "menjelaskan": "...",
+      "memadankan": "...",
+      "aktivitasSiswa": "...",
+      "poinPenting": "..."
+    },
+    {
+      "waktu": "Menit 40–55",
+      "fase": "Latihan Terbimbing",
+      "menjelaskan": "...",
+      "memadankan": "...",
+      "aktivitasSiswa": "...",
+      "poinPenting": "..."
+    },
+    {
+      "waktu": "Menit 55–70",
+      "fase": "Praktik Mandiri",
+      "menjelaskan": "...",
+      "memadankan": "...",
+      "aktivitasSiswa": "...",
+      "poinPenting": "..."
+    },
+    {
+      "waktu": "Menit 70–80",
+      "fase": "Penutup & Refleksi",
+      "menjelaskan": "...",
+      "memadankan": "...",
+      "aktivitasSiswa": "...",
+      "poinPenting": "..."
+    }
+  ],
+
+  "penilaian": [
+    { "jenis": "Sikap (Afektif)", "teknik": "Observasi", "instrumen": "Lembar observasi keaktifan & kolaborasi" },
+    { "jenis": "Pengetahuan (Kognitif)", "teknik": "Tes Lisan / Kuis", "instrumen": "Pertanyaan pemahaman konsep" },
+    { "jenis": "Keterampilan (Psikomotorik)", "teknik": "Penugasan Praktik", "instrumen": "Rubrik penilaian karya tulis / produk" }
+  ],
+
+  "catatanRefleksi": "Paragraf refleksi guru pasca-pembelajaran: tantangan yang mungkin ditemui, strategi adaptasi, dan rekomendasi tindak lanjut untuk pertemuan berikutnya. (min 4 kalimat)"
+}
+
+Isi semua field dengan konten SUBSTANTIF, DETAIL, dan RELEVAN terhadap mata pelajaran dan topik di atas.
+JANGAN kembalikan markdown, komentar, atau teks di luar JSON.
 `;
 
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages: [ { role: 'system', content: systemPrompt } ],
-                temperature: 0.6 // Suhu ideal untuk memadukan struktur ketat dengan kreativitas bahasa
-            })
-        });
+    try {
+        // ── PANGGIL GEMINI 2.0 FLASH ──
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi di environment variables Vercel.');
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Gagal dari Groq');
+        const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        temperature: 0.5,          // seimbang: terstruktur tapi tetap kreatif
+                        topP: 0.95,
+                        maxOutputTokens: 8192,
+                        responseMimeType: 'application/json'  // minta Gemini return JSON langsung
+                    }
+                })
+            }
+        );
 
-        let htmlRes = data.choices[0].message.content;
-        // Pembersihan tag markdown berjaga-jaga jika AI nakal
-        htmlRes = htmlRes.replace(/```html/g, '').replace(/```/g, '').trim(); 
+        if (!geminiRes.ok) {
+            const errBody = await geminiRes.text();
+            throw new Error(`Gemini API error ${geminiRes.status}: ${errBody}`);
+        }
 
-        res.status(200).json({ htmlRpp: htmlRes });
+        const geminiData = await geminiRes.json();
+
+        // ── EKSTRAK TEKS OUTPUT ──
+        const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error('Gemini tidak mengembalikan konten. Cek quota / API key.');
+
+        // Bersihkan fence kalau masih ada (jaga-jaga)
+        const cleaned = rawText
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+
+        const rpp = JSON.parse(cleaned);
+
+        return res.status(200).json({ rpp });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Gagal menyusun RPP." });
+        console.error('[generate-rpp] Error:', error.message);
+        return res.status(500).json({
+            error: 'Gagal menyusun RPP.',
+            detail: error.message
+        });
     }
 }
