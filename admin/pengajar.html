@@ -3,74 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pengajar - Cendekia Aksara</title>
+    <title>Portal Pengajar - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
 
     <style>
-        :root { --primary: #003366; --accent: #d4af37; --bg: #f4f7f6; }
-        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; color: #333; }
-        
-        /* DIPERLEBAR AGAR FULL LAPTOP */
-        .container { width: 95%; max-width: 1600px; margin: 0 auto; padding: 20px; }
-        
-        .page-header { background: #fff; padding: 25px 40px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 4px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
-        .page-header h2 { margin: 0; color: var(--primary); font-family: 'Playfair Display', serif; font-size: 1.8rem;}
-        
-        .grid-panel { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-        @media (max-width: 900px) { .grid-panel { grid-template-columns: 1fr; } }
+        :root {
+            --primary: #003366;
+            --primary-light: #004d99;
+            --accent: #d4af37;
+            --accent-light: #f0d878;
+            --bg: #eef2f7;
+            --card: #ffffff;
+            --border: #dde3ed;
+            --text: #1a2640;
+            --text-muted: #5a6a82;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+        }
 
-        .panel-card { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        .panel-title { color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-top: 0; margin-bottom: 25px; font-weight: 600; font-size: 1.4rem; display: flex; align-items: center; gap: 10px;}
-        
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding-bottom: 60px;
+            color: var(--text);
+        }
+
+        /* ── LOADING OVERLAY ── */
+        #loading-overlay {
+            position: fixed; inset: 0;
+            background: rgba(255,255,255,0.96);
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            gap: 16px;
+            transition: opacity 0.3s;
+        }
+        .loader-ring {
+            width: 56px; height: 56px;
+            border: 5px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-text { font-weight: 600; color: var(--primary); font-size: 1rem; }
+
+        /* ── LAYOUT ── */
+        .container { width: 95%; max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+        /* ── HEADER ── */
+        .page-header {
+            background: var(--primary);
+            padding: 20px 36px;
+            border-radius: 14px;
+            margin-bottom: 28px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 8px 24px rgba(0,51,102,0.25);
+        }
+        .page-header h2 {
+            margin: 0; color: #fff;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.75rem; letter-spacing: 0.3px;
+        }
+        .page-header h2 span { color: var(--accent); }
+
+        /* ── GRID ── */
+        .grid-panel { display: grid; grid-template-columns: 2fr 1fr; gap: 28px; }
+        @media (max-width: 960px) { .grid-panel { grid-template-columns: 1fr; } }
+
+        .panel-card {
+            background: var(--card);
+            padding: 36px;
+            border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+
+        .panel-title {
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 14px;
+            margin: 0 0 28px 0;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .panel-title i { color: var(--accent); font-size: 1.1rem; }
+
+        /* ── FORM ── */
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 0.95rem; font-weight: bold; margin-bottom: 8px; color: #555; }
-        .form-control { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: 'Poppins'; font-size: 1rem;}
-        .form-control:focus { border-color: var(--primary); outline: none; }
+        .form-group label {
+            display: block; font-size: 0.82rem;
+            font-weight: 600; margin-bottom: 7px;
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .form-control {
+            width: 100%; padding: 13px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            font-family: 'Poppins'; font-size: 0.95rem;
+            color: var(--text);
+            background: #fafbfd;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,51,102,0.12);
+            outline: none; background: #fff;
+        }
+        .form-control[readonly] { background: #f1f4f8; color: var(--text-muted); cursor: not-allowed; }
 
-        .btn { padding: 15px 25px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; color: white; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; justify-content: center; }
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 14px 24px; border-radius: 9px; border: none;
+            font-weight: 600; cursor: pointer; font-size: 0.95rem; color: white;
+            display: inline-flex; align-items: center; gap: 9px;
+            justify-content: center; transition: all 0.2s;
+            letter-spacing: 0.2px;
+        }
         .btn-full { width: 100%; }
-        .btn-ai { background: linear-gradient(135deg, #8f00ff, #4a148c); margin-top: 10px; }
-        .btn-pdf { background: var(--accent); color: #fff; margin-top: 20px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-        .btn-primary { background: var(--primary); }
-        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 5px 15px rgba(0,0,0,0.1);}
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none;}
+        .btn-ai {
+            background: linear-gradient(135deg, var(--primary) 0%, #005baa 100%);
+            margin-top: 8px;
+            box-shadow: 0 4px 14px rgba(0,51,102,0.3);
+        }
+        .btn-pdf {
+            background: linear-gradient(135deg, #b8860b 0%, var(--accent) 100%);
+            margin-top: 22px;
+            box-shadow: 0 4px 14px rgba(212,175,55,0.35);
+        }
+        .btn-nav { background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.4); }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.07); }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: none; }
 
-        .ebook-list { margin-top: 30px; background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid var(--accent); }
-        .gaji-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; border-radius: 8px; margin-top: 30px; text-align: center; }
-        .gaji-box h3 { margin: 10px 0; color: #166534; font-size: 2.2rem; }
+        /* ── REFERENSI BUKU ── */
+        .ebook-list {
+            margin-top: 28px;
+            background: #f8fafc;
+            padding: 18px 22px;
+            border-radius: 10px;
+            border-left: 4px solid var(--accent);
+        }
+        .ebook-list strong { font-size: 0.9rem; color: var(--primary); }
+        .ebook-list ul { padding-left: 18px; margin: 10px 0 0 0; }
+        .ebook-list li { font-size: 0.9rem; line-height: 2; }
+        .ebook-list a { color: var(--primary-light); text-decoration: none; }
+        .ebook-list a:hover { text-decoration: underline; }
 
-        /* LOADING SUPERIOR */
-        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: 0.3s;}
-        
-        /* Area HTML RPP Hasil AI (Tetap Ditampilkan di Layar jika mau, atau disembunyikan) */
-        #ai-result-area { font-size: 11pt; line-height: 1.6; margin-top: 30px; padding: 20px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; display: none;}
+        /* ── HONOR BOX ── */
+        .gaji-box {
+            background: var(--success-bg);
+            border: 1.5px solid #bbf7d0;
+            padding: 28px 24px;
+            border-radius: 12px;
+            margin-top: 28px;
+            text-align: center;
+        }
+        .gaji-box .label { margin: 0 0 8px 0; color: var(--success); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .gaji-box .amount { margin: 0; color: #14532d; font-size: 2.3rem; font-weight: 700; font-family: 'Playfair Display', serif; }
+        .gaji-box .info { margin: 10px 0 0 0; font-size: 0.85rem; color: #166534; }
+
+        /* ── AI RESULT (hidden, jadi source untuk PDF) ── */
+        #ai-result-area { display: none; }
+
+        /* ── STATUS BADGE ── */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 12px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 600;
+            background: #eff6ff; color: var(--primary-light);
+            border: 1px solid #bfdbfe; margin-top: 10px;
+        }
+        .status-badge.success { background: var(--success-bg); color: var(--success); border-color: #bbf7d0; }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay">
-        <i class="fa-solid fa-spinner fa-spin" style="font-size: 3rem; color: #003366;"></i>
-        <p id="loading-text" style="margin-top: 15px; font-weight: bold; color: #333;">Mengambil Data Guru...</p>
+        <div class="loader-ring"></div>
+        <p id="loading-text">Mengambil Data Pengajar...</p>
     </div>
 
     <div class="container">
         <div class="page-header">
-            <h2><i class="fa-solid fa-chalkboard-user"></i> Portal Pengajar</h2>
-            <a href="index.html" class="btn btn-primary" style="text-decoration:none; width: auto;"><i class="fa-solid fa-arrow-left"></i> Dasbor Admin</a>
+            <h2><i class="fa-solid fa-chalkboard-user" style="color:var(--accent);margin-right:10px;"></i> Portal <span>Pengajar</span></h2>
+            <a href="index.html" class="btn btn-nav" style="text-decoration:none; width:auto;">
+                <i class="fa-solid fa-arrow-left"></i> Dasbor Admin
+            </a>
         </div>
 
         <div class="grid-panel">
+            <!-- ── KIRI: RPP AI ── -->
             <div class="panel-card">
-                <h3 class="panel-title"><i class="fa-solid fa-robot"></i> Asisten Modul & RPP AI</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <h3 class="panel-title"><i class="fa-solid fa-robot"></i> Asisten Penyusun RPP — Gemini AI</h3>
+
+                <div class="form-row">
                     <div class="form-group">
-                        <label>Pilih Semester</label>
+                        <label>Semester</label>
                         <select id="input-semester" class="form-control">
                             <option value="1">Semester 1</option>
                             <option value="2">Semester 2</option>
@@ -87,173 +224,188 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Fokus Capaian & Topik Khusus</label>
-                    <input type="text" id="input-topik" class="form-control" placeholder="Contoh: Menulis cerpen dengan sudut pandang orang ketiga...">
+                    <input type="text" id="input-topik" class="form-control"
+                        placeholder="Contoh: Menulis cerpen dengan sudut pandang orang ketiga...">
                 </div>
 
                 <button id="btn-generate" class="btn btn-full btn-ai" onclick="generateRPP()">
                     <i class="fa-solid fa-wand-magic-sparkles"></i> Susun RPP Detail
                 </button>
 
-                <div class="ebook-list">
-                    <strong><i class="fa-solid fa-book"></i> Referensi E-Book Semester Ini:</strong>
-                    <ul style="padding-left: 20px; margin-bottom: 0; font-size: 1rem; line-height: 1.8;">
-                        <li><a href="#">Buku Panduan Pengajar Cendekia (PDF)</a></li>
-                        <li><a href="#">Modul Kreatif - Cetakan Berjalan</a></li>
-                    </ul>
-                </div>
-
                 <div id="ai-result-area"></div>
 
                 <button id="btn-download-pdf" class="btn btn-full btn-pdf" style="display:none;" onclick="unduhRPP()">
-                    <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen RPP (PDF Resmi)
                 </button>
+
+                <div class="ebook-list">
+                    <strong><i class="fa-solid fa-book-open" style="color:var(--accent);margin-right:6px;"></i> Referensi E-Book Semester Ini</strong>
+                    <ul>
+                        <li><a href="#"><i class="fa-regular fa-file-pdf" style="color:#dc2626;margin-right:6px;"></i>Buku Panduan Pengajar Cendekia (PDF)</a></li>
+                        <li><a href="#"><i class="fa-regular fa-file-pdf" style="color:#dc2626;margin-right:6px;"></i>Modul Kreatif — Cetakan Berjalan</a></li>
+                    </ul>
+                </div>
             </div>
 
+            <!-- ── KANAN: ADMIN & HONOR ── -->
             <div class="panel-card">
                 <h3 class="panel-title"><i class="fa-solid fa-id-card"></i> Administrasi & Honor</h3>
-                
+
                 <div class="form-group">
-                    <label>Pilih Guru / Pengajar (@ac.id)</label>
+                    <label>Pilih Pengajar (akun @ac.id)</label>
                     <select id="select-pengajar" class="form-control" onchange="hitungGaji(this.value)">
-                        <option value="">-- Pilih Guru --</option>
+                        <option value="">— Pilih Pengajar —</option>
                     </select>
+                    <div id="status-pengajar"></div>
                 </div>
 
                 <div class="form-group">
                     <label>Mata Pelajaran Ampuan</label>
-                    <input type="text" id="display-mapel" class="form-control" value="Seni Menemukan Cerita" readonly style="background:#f8fafc;">
+                    <input type="text" id="display-mapel" class="form-control"
+                        value="Seni Menemukan Cerita" readonly>
                 </div>
-                
+
                 <div class="gaji-box">
-                    <p style="margin:0 0 5px 0; color:#15803d; font-size:1rem; font-weight:bold;">Honorarium (Rp 5.000/Sesi)</p>
-                    <h3 id="slip-gaji">Rp 0</h3>
-                    <p id="info-sesi" style="margin:5px 0 0 0; font-size:0.9rem; color:#166534;">Total Mengajar: 0 Sesi</p>
+                    <p class="label"><i class="fa-solid fa-coins" style="margin-right:5px;"></i>Honorarium (Rp 5.000 / Sesi)</p>
+                    <h3 class="amount" id="slip-gaji">Rp 0</h3>
+                    <p class="info" id="info-sesi">Total Mengajar: 0 Sesi</p>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Hidden metadata untuk PDF -->
     <span id="pdf-mapel" style="display:none;"></span>
     <span id="pdf-sem-topik" style="display:none;"></span>
-    <span id="pdf-pengajar" style="display:none;">-</span>
+    <span id="pdf-pengajar" style="display:none;">—</span>
+    <span id="pdf-tanggal" style="display:none;"></span>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-            authDomain: "mading-cf676.firebaseapp.com", 
-            projectId: "mading-cf676", 
-            storageBucket: "mading-cf676.firebasestorage.app", 
-            messagingSenderId: "72175203671", 
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+            authDomain: "mading-cf676.firebaseapp.com",
+            projectId: "mading-cf676",
+            storageBucket: "mading-cf676.firebasestorage.app",
+            messagingSenderId: "72175203671",
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Helper: Convert Image URL to Base64
-        async function getBase64ImageFromUrl(imageUrl) {
-            try {
-                const response = await fetch(imageUrl, { mode: 'cors' });
-                const blob = await response.blob();
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // 1. AMBIL GURU REALTIME
+        // ── AMBIL SEMUA USER YANG EMAILNYA MENGANDUNG @ac.id ──
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const qGuru = query(collection(db, 'users'), where('role', '==', 'admin'));
-                    const snapGuru = await getDocs(qGuru);
-                    const select = document.getElementById('select-pengajar');
-                    
-                    snapGuru.forEach(doc => {
-                        const data = doc.data();
-                        if(data.email && data.email.includes('@ac.id')) {
-                            const option = document.createElement('option');
-                            option.value = doc.id; 
-                            option.text = data.name || "Guru Tanpa Nama";
-                            option.dataset.name = data.name;
-                            select.appendChild(option);
-                        }
-                    });
-                    document.getElementById('loading-overlay').style.display = 'none';
-                } catch (e) {
-                    document.getElementById('loading-overlay').style.display = 'none';
+            if (!user) { window.location.href = '../index.html'; return; }
+
+            try {
+                // Query: ambil semua dokumen di collection 'users'
+                // kemudian filter di sisi klien berdasarkan email @ac.id
+                // (Firestore tidak support LIKE / contains pada string)
+                const snapAll = await getDocs(collection(db, 'users'));
+                const select = document.getElementById('select-pengajar');
+                let jumlah = 0;
+
+                snapAll.forEach(doc => {
+                    const data = doc.data();
+                    const email = data.email || '';
+                    // Filter: hanya yang emailnya berakhiran @ac.id atau mengandung @ac.id
+                    if (email.toLowerCase().includes('@ac.id')) {
+                        const opt = document.createElement('option');
+                        opt.value = doc.id;
+                        opt.text = (data.name || data.displayName || 'Pengajar') + ` (${email})`;
+                        opt.dataset.name = data.name || data.displayName || 'Pengajar';
+                        opt.dataset.email = email;
+                        select.appendChild(opt);
+                        jumlah++;
+                    }
+                });
+
+                if (jumlah === 0) {
+                    const opt = document.createElement('option');
+                    opt.disabled = true;
+                    opt.text = 'Belum ada pengajar dengan akun @ac.id';
+                    select.appendChild(opt);
                 }
-            } else {
-                window.location.href = '../index.html';
+
+                document.getElementById('loading-overlay').style.display = 'none';
+            } catch (e) {
+                console.error('Error ambil data pengajar:', e);
+                document.getElementById('loading-overlay').style.display = 'none';
             }
         });
 
-        document.getElementById('input-mapel').addEventListener('change', function() {
+        // ── SINKRONISASI MAPEL ──
+        document.getElementById('input-mapel').addEventListener('change', function () {
             document.getElementById('display-mapel').value = this.value;
         });
 
-        // 2. HITUNG GAJI DARI PRESENSI
+        // ── HITUNG GAJI ──
         window.hitungGaji = async (guruUid) => {
-            if(!guruUid) {
-                document.getElementById('slip-gaji').innerText = "Rp 0";
-                document.getElementById('info-sesi').innerText = "Total Mengajar: 0 Sesi";
-                document.getElementById('pdf-pengajar').innerText = "-";
+            const statusEl = document.getElementById('status-pengajar');
+            if (!guruUid) {
+                document.getElementById('slip-gaji').innerText = 'Rp 0';
+                document.getElementById('info-sesi').innerText = 'Total Mengajar: 0 Sesi';
+                document.getElementById('pdf-pengajar').innerText = '—';
+                statusEl.innerHTML = '';
                 return;
             }
 
             const select = document.getElementById('select-pengajar');
-            document.getElementById('pdf-pengajar').innerText = select.options[select.selectedIndex].dataset.name;
-            document.getElementById('slip-gaji').innerText = "Menghitung...";
+            const namaGuru = select.options[select.selectedIndex].dataset.name;
+            document.getElementById('pdf-pengajar').innerText = namaGuru;
+            document.getElementById('slip-gaji').innerText = 'Menghitung...';
+            statusEl.innerHTML = '<span class="status-badge"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat data sesi...</span>';
 
             try {
                 const qSesi = query(collection(db, 'presensi_logs'), where('guruUid', '==', guruUid));
                 const snapSesi = await getDocs(qSesi);
-                
-                const totalSesi = snapSesi.size; 
-                const tarifPerSesi = 5000;
-                
-                document.getElementById('slip-gaji').innerText = "Rp " + (totalSesi * tarifPerSesi).toLocaleString('id-ID');
+                const totalSesi = snapSesi.size;
+                const honor = totalSesi * 5000;
+
+                document.getElementById('slip-gaji').innerText = 'Rp ' + honor.toLocaleString('id-ID');
                 document.getElementById('info-sesi').innerText = `Total Mengajar: ${totalSesi} Sesi | Periode Ini`;
+                statusEl.innerHTML = `<span class="status-badge success"><i class="fa-solid fa-check"></i> ${namaGuru} — ${totalSesi} sesi tercatat</span>`;
             } catch (e) {
-                document.getElementById('slip-gaji').innerText = "Belum Ada Presensi";
+                document.getElementById('slip-gaji').innerText = 'Belum Ada Presensi';
+                document.getElementById('info-sesi').innerText = 'Data presensi tidak tersedia';
+                statusEl.innerHTML = '<span class="status-badge">Belum ada data presensi</span>';
             }
         };
 
-        // 3. GENERATE RPP
+        // ── GENERATE RPP ──
         window.generateRPP = async () => {
             const btn = document.getElementById('btn-generate');
             const btnPdf = document.getElementById('btn-download-pdf');
             const resultArea = document.getElementById('ai-result-area');
-            
+
             const mapel = document.getElementById('input-mapel').value;
             const semester = document.getElementById('input-semester').value;
-            const topik = document.getElementById('input-topik').value || "Pendalaman Materi Lanjutan";
-            const guruDipilih = document.getElementById('select-pengajar').value;
+            const topik = document.getElementById('input-topik').value.trim() || 'Pendalaman Materi Lanjutan';
+            const guruUid = document.getElementById('select-pengajar').value;
 
-            if(!guruDipilih) return alert("Pilih nama Pengajar terlebih dahulu agar RPP tercatat atas nama beliau!");
+            if (!guruUid) {
+                alert('Pilih nama Pengajar terlebih dahulu agar RPP tercatat atas nama beliau!');
+                return;
+            }
 
             document.getElementById('pdf-mapel').innerText = mapel;
-            document.getElementById('pdf-sem-topik').innerText = `Semester ${semester} - ${topik}`;
+            document.getElementById('pdf-sem-topik').innerText = `Semester ${semester} — ${topik}`;
+            document.getElementById('pdf-tanggal').innerText = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun RPP Detail...';
             btnPdf.style.display = 'none';
-            resultArea.style.display = 'none';
+            resultArea.innerHTML = '';
 
-            document.getElementById('loading-text').innerText = "AI sedang menyusun CP, TP, dan Skenario...";
+            document.getElementById('loading-text').innerText = 'Gemini AI sedang menyusun RPP...';
             document.getElementById('loading-overlay').style.display = 'flex';
 
             try {
@@ -263,92 +415,256 @@
                     body: JSON.stringify({ mapel, semester, topik })
                 });
 
-                if (!response.ok) throw new Error("Gagal mengambil data dari AI");
+                if (!response.ok) throw new Error('Respons server tidak OK: ' + response.status);
                 const data = await response.json();
 
-                // Masukkan hasil HTML ke layar
-                resultArea.innerHTML = data.htmlRpp; 
-                resultArea.style.display = 'block';
-                
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Disusun';
-                btnPdf.style.display = 'flex'; 
+                if (!data.rpp) throw new Error('Data RPP kosong dari server');
+
+                // Simpan data terstruktur untuk dirender ke PDF
+                window.__rppData = data.rpp;
+
+                btn.innerHTML = '<i class="fa-solid fa-check-circle"></i> RPP Berhasil Disusun';
+                btnPdf.style.display = 'flex';
 
             } catch (error) {
-                alert("Gagal memproses AI. Pastikan file API di Vercel sudah diupdate.");
-                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Coba Lagi';
+                console.error(error);
+                alert('Gagal memproses AI: ' + error.message + '\nPastikan API sudah dikonfigurasi dengan benar.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Susun RPP Detail';
             } finally {
                 document.getElementById('loading-overlay').style.display = 'none';
-                setTimeout(() => { if(!btn.disabled) return; btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Susun Ulang RPP'; }, 4000);
+                setTimeout(() => {
+                    if (btn.disabled) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Susun Ulang RPP';
+                    }
+                }, 5000);
             }
         };
 
-        // 4. UNDUH PDF MURNI TEKS (PDFMAKE)
+        // ── HELPER: KONVERSI LOGO KE BASE64 ──
+        async function getLogoBase64(url) {
+            try {
+                const resp = await fetch(url, { mode: 'cors' });
+                const blob = await resp.blob();
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { return null; }
+        }
+
+        // ── UNDUH PDF PROFESIONAL ──
         window.unduhRPP = async () => {
             const btn = document.getElementById('btn-download-pdf');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membangun PDF...';
-            
-            try {
-                // Konversi logo
-                const logoBase64 = await getBase64ImageFromUrl("https://i.imgur.com/5Srjyo4.png");
-                
-                // Ambil HTML RPP mentah dari AI dan konversi ke PDFMake format
-                const rawHtml = document.getElementById('ai-result-area').innerHTML;
-                const convertedHtml = htmlToPdfmake(rawHtml);
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membangun Dokumen PDF...';
 
-                const docDefinition = {
-                    pageSize: 'A4',
-                    pageMargins: [40, 40, 40, 40],
-                    content: [
-                        // KOP SURAT
-                        {
-                            table: {
-                                widths: ['auto', '*'],
-                                body: [
-                                    [
-                                        logoBase64 ? { image: logoBase64, width: 60, margin: [0, 0, 15, 0], border: [false, false, false, true] } : { text: '', border: [false, false, false, true] },
-                                        {
-                                            stack: [
-                                                { text: 'RANCANGAN PELAKSANAAN PEMBELAJARAN (RPP)', fontSize: 16, bold: true, color: '#003366', margin: [0, 5, 0, 5] },
-                                                { text: 'Komunitas Literasi Cendekia Aksara', fontSize: 12, color: '#d4af37', bold: true }
-                                            ],
-                                            border: [false, false, false, true],
-                                            alignment: 'left'
-                                        }
-                                    ]
-                                ]
-                            },
-                            margin: [0, 0, 0, 20]
-                        },
-                        // META DATA (Mata Pelajaran, Guru, dll)
-                        {
-                            table: {
-                                widths: [120, 'auto', '*'],
-                                body: [
-                                    [{ text: 'Mata Pelajaran', bold: true }, ':', document.getElementById('pdf-mapel').innerText],
-                                    [{ text: 'Semester / Topik', bold: true }, ':', document.getElementById('pdf-sem-topik').innerText],
-                                    [{ text: 'Nama Pengajar', bold: true }, ':', document.getElementById('pdf-pengajar').innerText],
-                                    [{ text: 'Durasi Pertemuan', bold: true }, ':', '80 Menit']
-                                ]
-                            },
-                            layout: 'noBorders',
-                            margin: [0, 0, 0, 25]
-                        },
-                        // HASIL AI (Dikonversi dari HTML)
-                        convertedHtml
+            const rpp = window.__rppData;
+            if (!rpp) { alert('Data RPP tidak tersedia. Harap susun RPP terlebih dahulu.'); btn.disabled = false; return; }
+
+            const namaGuru = document.getElementById('pdf-pengajar').innerText;
+            const mapel = document.getElementById('pdf-mapel').innerText;
+            const semTopik = document.getElementById('pdf-sem-topik').innerText;
+            const tanggal = document.getElementById('pdf-tanggal').innerText;
+
+            const logoB64 = await getLogoBase64('https://i.imgur.com/5Srjyo4.png');
+
+            // ── WARNA & STYLE ──
+            const C = { primary: '#003366', accent: '#d4af37', light: '#f0f4f8', red: '#b91c1c', white: '#ffffff', muted: '#5a6a82' };
+
+            // ── HELPER TABLE ROW ──
+            function buildSkenarioRows(sesi) {
+                return (sesi || []).map((s, i) => ([
+                    { text: [{ text: s.waktu + '\n', bold: true, color: C.primary }, { text: s.fase, fontSize: 9, color: C.muted }], border: [true, true, true, true], fillColor: i % 2 === 0 ? C.light : C.white, alignment: 'center', margin: [6, 8, 6, 8] },
+                    { stack: [{ text: 'Menjelaskan:', bold: true, fontSize: 10 }, { text: s.menjelaskan, fontSize: 10, margin: [0, 3, 0, 8] }, { text: 'Memadankan (Analogi):', bold: true, fontSize: 10, color: '#065f46' }, { text: s.memadankan, fontSize: 10, color: '#065f46', margin: [0, 3, 0, 0] }], border: [true, true, true, true], margin: [8, 8, 8, 8] },
+                    { text: s.aktivitasSiswa, fontSize: 10, border: [true, true, true, true], margin: [8, 8, 8, 8] },
+                    { text: s.poinPenting, fontSize: 10, bold: true, color: C.red, border: [true, true, true, true], margin: [8, 8, 8, 8] }
+                ]));
+            }
+
+            const docDef = {
+                pageSize: 'A4',
+                pageMargins: [50, 40, 50, 55],
+                footer: (currentPage, pageCount) => ({
+                    columns: [
+                        { text: 'Komunitas Literasi Cendekia Aksara — Dokumen Resmi', fontSize: 8, color: C.muted, margin: [50, 0, 0, 0] },
+                        { text: `Halaman ${currentPage} dari ${pageCount}`, fontSize: 8, color: C.muted, alignment: 'right', margin: [0, 0, 50, 0] }
                     ],
-                    styles: {
-                        // html-to-pdfmake akan mewarisi style default ini
-                        html: { fontSize: 11, lineHeight: 1.5, color: '#333' }
-                    }
-                };
+                    margin: [0, 10, 0, 0]
+                }),
+                content: [
+                    // ── KOP SURAT ──
+                    {
+                        table: {
+                            widths: logoB64 ? [65, '*'] : ['*'],
+                            body: [[
+                                ...(logoB64 ? [{ image: logoB64, width: 60, margin: [0, 5, 10, 5], border: [false, false, false, false] }] : []),
+                                {
+                                    stack: [
+                                        { text: 'KOMUNITAS LITERASI', fontSize: 9, bold: true, color: C.muted, letterSpacing: 2 },
+                                        { text: 'CENDEKIA AKSARA', fontSize: 20, bold: true, color: C.primary, margin: [0, 2, 0, 2], font: 'Roboto' },
+                                        { text: 'Mendidik Jiwa, Menghidupkan Kata', fontSize: 9, italics: true, color: C.accent }
+                                    ],
+                                    border: [false, false, false, false],
+                                    margin: [0, 4, 0, 0]
+                                }
+                            ]]
+                        },
+                        layout: 'noBorders',
+                        margin: [0, 0, 0, 0]
+                    },
+                    // GARIS KOP
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 3, lineColor: C.primary }, { type: 'line', x1: 0, y1: 5, x2: 495, y2: 5, lineWidth: 1, lineColor: C.accent }], margin: [0, 8, 0, 14] },
 
-                // Cetak dan Unduh
-                pdfMake.createPdf(docDefinition).download(`RPP_${document.getElementById('pdf-mapel').innerText}.pdf`);
-            } catch (error) {
-                alert("Terjadi kesalahan saat memproses PDF.");
-                console.error(error);
+                    // ── JUDUL DOKUMEN ──
+                    { text: 'RANCANGAN PELAKSANAAN PEMBELAJARAN', fontSize: 15, bold: true, color: C.primary, alignment: 'center', margin: [0, 0, 0, 4] },
+                    { text: '( R P P )', fontSize: 11, color: C.muted, alignment: 'center', letterSpacing: 4, margin: [0, 0, 0, 18] },
+
+                    // ── TABEL IDENTITAS ──
+                    {
+                        table: {
+                            widths: [140, 10, '*'],
+                            body: [
+                                [{ text: 'Mata Pelajaran / Modul', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: mapel, fontSize: 10 }],
+                                [{ text: 'Semester / Topik', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: semTopik, fontSize: 10 }],
+                                [{ text: 'Nama Pengajar', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: namaGuru, fontSize: 10 }],
+                                [{ text: 'Tanggal Penyusunan', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: tanggal, fontSize: 10 }],
+                                [{ text: 'Durasi Pertemuan', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: '80 Menit (1 Pertemuan)', fontSize: 10 }],
+                                [{ text: 'Jumlah Peserta Didik', bold: true, fontSize: 10 }, { text: ':', fontSize: 10 }, { text: rpp.jumlahSiswa || '15–25 orang', fontSize: 10 }],
+                            ]
+                        },
+                        layout: 'noBorders',
+                        margin: [0, 0, 0, 20]
+                    },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: '#dde3ed' }], margin: [0, 0, 0, 20] },
+
+                    // ── A. CAPAIAN PEMBELAJARAN ──
+                    { text: 'A.  Capaian Pembelajaran (CP) & Tujuan Pembelajaran (TP)', fontSize: 12, bold: true, color: C.primary, decoration: 'underline', margin: [0, 0, 0, 10] },
+                    { text: 'Capaian Pembelajaran:', bold: true, fontSize: 10.5, margin: [0, 0, 0, 4] },
+                    { text: rpp.cp || '-', fontSize: 10.5, margin: [0, 0, 0, 12], lineHeight: 1.5 },
+                    { text: 'Tujuan Pembelajaran:', bold: true, fontSize: 10.5, margin: [0, 0, 0, 6] },
+                    {
+                        ol: (rpp.tp || []).map(t => ({ text: t, fontSize: 10.5, lineHeight: 1.5, margin: [0, 0, 0, 4] })),
+                        margin: [0, 0, 0, 20]
+                    },
+
+                    // ── B. MATERI & METODE ──
+                    { text: 'B.  Materi Pokok & Metode Pembelajaran', fontSize: 12, bold: true, color: C.primary, decoration: 'underline', margin: [0, 0, 0, 10] },
+                    {
+                        columns: [
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: 'Materi Pokok:', bold: true, fontSize: 10.5, margin: [0, 0, 0, 6] },
+                                    { ul: (rpp.materiPokok || []).map(m => ({ text: m, fontSize: 10.5, lineHeight: 1.6 })), margin: [0, 0, 10, 0] }
+                                ]
+                            },
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: 'Metode & Model Pembelajaran:', bold: true, fontSize: 10.5, margin: [0, 0, 0, 6] },
+                                    { ul: (rpp.metode || []).map(m => ({ text: m, fontSize: 10.5, lineHeight: 1.6 })), margin: [0, 0, 0, 0] }
+                                ]
+                            }
+                        ],
+                        margin: [0, 0, 0, 20]
+                    },
+
+                    // ── C. SKENARIO PEMBELAJARAN ──
+                    { text: 'C.  Skenario Pembelajaran Rinci (80 Menit)', fontSize: 12, bold: true, color: C.primary, decoration: 'underline', margin: [0, 0, 0, 12] },
+                    {
+                        table: {
+                            widths: [80, '*', 120, 100],
+                            headerRows: 1,
+                            keepWithHeaderRows: 1,
+                            body: [
+                                // Header
+                                [
+                                    { text: 'Waktu & Fase', bold: true, fontSize: 10, color: C.white, fillColor: C.primary, alignment: 'center', margin: [5, 8, 5, 8] },
+                                    { text: 'Aktivitas Guru\n(Menjelaskan & Memadankan)', bold: true, fontSize: 10, color: C.white, fillColor: C.primary, alignment: 'center', margin: [5, 8, 5, 8] },
+                                    { text: 'Aktivitas Peserta Didik', bold: true, fontSize: 10, color: C.white, fillColor: C.primary, alignment: 'center', margin: [5, 8, 5, 8] },
+                                    { text: 'Poin Penting', bold: true, fontSize: 10, color: C.white, fillColor: C.primary, alignment: 'center', margin: [5, 8, 5, 8] }
+                                ],
+                                ...buildSkenarioRows(rpp.skenario)
+                            ]
+                        },
+                        layout: {
+                            hLineWidth: () => 0.5,
+                            vLineWidth: () => 0.5,
+                            hLineColor: () => '#cbd5e1',
+                            vLineColor: () => '#cbd5e1',
+                        },
+                        margin: [0, 0, 0, 20]
+                    },
+
+                    // ── D. PENILAIAN ──
+                    { text: 'D.  Rancangan Penilaian', fontSize: 12, bold: true, color: C.primary, decoration: 'underline', margin: [0, 0, 0, 10] },
+                    {
+                        table: {
+                            widths: ['*', '*', '*'],
+                            body: [
+                                [
+                                    { text: 'Jenis Penilaian', bold: true, fontSize: 10, fillColor: C.light, alignment: 'center', margin: [5, 8, 5, 8] },
+                                    { text: 'Teknik', bold: true, fontSize: 10, fillColor: C.light, alignment: 'center', margin: [5, 8, 5, 8] },
+                                    { text: 'Instrumen', bold: true, fontSize: 10, fillColor: C.light, alignment: 'center', margin: [5, 8, 5, 8] }
+                                ],
+                                ...(rpp.penilaian || []).map(p => ([
+                                    { text: p.jenis, fontSize: 10, margin: [6, 6, 6, 6] },
+                                    { text: p.teknik, fontSize: 10, margin: [6, 6, 6, 6] },
+                                    { text: p.instrumen, fontSize: 10, margin: [6, 6, 6, 6] }
+                                ]))
+                            ]
+                        },
+                        layout: {
+                            hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+                            hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1'
+                        },
+                        margin: [0, 0, 0, 20]
+                    },
+
+                    // ── E. CATATAN REFLEKSI ──
+                    { text: 'E.  Catatan Refleksi & Tindak Lanjut', fontSize: 12, bold: true, color: C.primary, decoration: 'underline', margin: [0, 0, 0, 10] },
+                    { text: rpp.catatanRefleksi || '-', fontSize: 10.5, lineHeight: 1.6, margin: [0, 0, 0, 30] },
+
+                    // ── TANDA TANGAN ──
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 0.5, lineColor: '#dde3ed' }], margin: [0, 0, 0, 20] },
+                    {
+                        columns: [
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: 'Mengetahui,', fontSize: 10 },
+                                    { text: 'Koordinator Program', fontSize: 10, bold: true, margin: [0, 2, 0, 0] },
+                                    { canvas: [{ type: 'line', x1: 0, y1: 50, x2: 160, y2: 50, lineWidth: 0.8, lineColor: C.primary }] },
+                                    { text: '(____________________________)', fontSize: 9, color: C.muted }
+                                ]
+                            },
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: `${tanggal || '.....................'}`, fontSize: 10 },
+                                    { text: 'Pengajar,', fontSize: 10, bold: true, margin: [0, 2, 0, 0] },
+                                    { canvas: [{ type: 'line', x1: 0, y1: 50, x2: 160, y2: 50, lineWidth: 0.8, lineColor: C.primary }] },
+                                    { text: namaGuru, fontSize: 9, bold: true, color: C.muted }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 }
+            };
+
+            try {
+                pdfMake.createPdf(docDef).download(`RPP_${mapel.replace(/\s+/g, '_')}.pdf`);
+            } catch (err) {
+                console.error(err);
+                alert('Gagal membuat PDF: ' + err.message);
             } finally {
-                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen (PDF)';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Unduh Dokumen RPP (PDF Resmi)';
             }
         };
     </script>
