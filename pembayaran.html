@@ -194,7 +194,7 @@
             <p id="qris-amount" style="font-size:1.5rem; font-weight:800; color:#1e293b; margin:0 0 15px 0;">Rp -</p>
             
             <!-- Ditambahkan ID qris-image agar bisa diubah via Javascript -->
-            <img id="qris-image" src="https://imgur.com/ENHMOVk.png" style="width:100%; border-radius:12px; border:2px solid #eee; margin-bottom:15px;">
+            <img id="qris-image" src="https://imgur.com/ENHMOVk.png" style="width:100%; border-radius:12px; border:2px solid #eee; margin-bottom:15px;" alt="QR Code Pembayaran">
             
             <p class="modal-p" style="font-size:0.85rem; margin-bottom: 15px; font-weight: 600; color: #d97706;">
                 Transfer TEPAT sesuai nominal di atas.<br>Verifikasi otomatis dalam 1 menit.
@@ -289,16 +289,18 @@
 
         // --- PAYMENT FLOW OTOMATIS (TERHUBUNG KE VERCEL API) ---
         window.showQRIS = async (amount, label) => {
+            if (!currentUser) return; // Pastikan user sudah diload
             document.getElementById('modal-loading').classList.add('active');
 
             try {
-                // 1. Panggil API Vercel milikmu
+                // 1. Panggil API Vercel milikmu dengan menyertakan UID
                 const response = await fetch('https://cendekia-aksara.vercel.app/api/create-qris', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         paymentAmount: amount,
                         productDetails: label,
+                        uid: currentUser.uid, // <--- Ditambahkan agar Vercel tahu siapa yang bayar
                         customerDetail: {
                             name: currentUser.name || "Siswa Cendekia Aksara",
                             email: currentUser.email || "siswa@cendekiaaksara.com",
@@ -313,7 +315,7 @@
                     throw new Error(data.message || "Gagal membuat kode QRIS.");
                 }
 
-                // 2. Update Firebase (hapus unique code karena Duitku memproses otomatis nominal murni)
+                // 2. Update status ke 'waiting' di Firebase agar UI merespon
                 await updateDoc(doc(db, 'users', currentUser.uid), { 
                     paymentStatus: 'waiting', 
                     pendingAmount: amount 
@@ -364,7 +366,7 @@
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
-                // Listener untuk mendeteksi perubahan status lunas secara real-time
+                // Listener untuk mendeteksi perubahan status lunas secara real-time saat halaman diload
                 if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                     setWaitingUI();
                     onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
