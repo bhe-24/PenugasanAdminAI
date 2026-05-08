@@ -7,7 +7,7 @@
     
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         /* RESET & GLOBAL */
@@ -17,22 +17,34 @@
         
         .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
 
-        /* HEADER */
+        /* HEADER DENGAN LOGO */
         .page-header {
-            background: linear-gradient(135deg, #003366, #0f4c81);
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white; padding: 25px 30px; border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 51, 102, 0.2);
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; position: relative; overflow: hidden; gap: 15px;
+            margin-bottom: 25px; position: relative; overflow: hidden; flex-wrap: wrap; gap: 15px;
         }
-        .header-content h1 { margin: 0; font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
-        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; }
+        .page-header::after {
+            content: ''; position: absolute; top: -50%; right: -10%;
+            width: 300px; height: 300px; background: rgba(255,255,255,0.05);
+            border-radius: 50%; pointer-events: none;
+        }
+        .header-content-wrapper { display: flex; align-items: center; gap: 20px; z-index: 2; }
+        .header-logo-circle {
+            width: 70px; height: 70px; background: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; overflow: hidden;
+        }
+        .header-logo-circle img { width: 75%; height: auto; object-fit: contain; }
+        .header-content h1 { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 700; line-height: 1.2; letter-spacing: 0.5px;}
+        .header-content p { margin: 5px 0 0; opacity: 0.9; font-size: 0.9rem; color: #cbd5e1; }
         
         .btn-back {
-            background: rgba(255,255,255,0.2); color: white; text-decoration: none;
+            background: rgba(255,255,255,0.15); color: white; text-decoration: none;
             padding: 10px 18px; border-radius: 50px; font-weight: 600; backdrop-filter: blur(5px);
             transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;
-            white-space: nowrap; flex-shrink: 0;
+            white-space: nowrap; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.3); z-index: 2;
         }
         .btn-back:hover { background: white; color: var(--primary); }
 
@@ -112,6 +124,11 @@
         .btn-yes { background: #003366; color: white; }
         .btn-no { background: #f1f5f9; color: #475569; }
 
+        /* NEW CUSTOM MODAL (SUCCESS/ERROR) */
+        #modal-notification .modal-box { border-top: 5px solid var(--primary); }
+        #modal-notification.success .modal-box { border-top-color: #10b981; }
+        #modal-notification.error .modal-box { border-top-color: #ef4444; }
+
         @media (max-width: 768px) {
             .container { padding: 15px; }
             .page-header { flex-direction: column; align-items: flex-start; text-align: left; }
@@ -128,11 +145,19 @@
 
     <div class="container" id="main-content">
         <header class="page-header">
-            <div class="header-content">
-                <h1>Keuangan Siswa</h1>
-                <p>Kelola tagihan dan administrasi akademik Anda.</p>
+            <div class="header-content-wrapper">
+                <div class="header-logo-circle">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+                </div>
+                <div class="header-content">
+                    <h1>Keuangan Siswa</h1>
+                    <p>Kelola tagihan dan administrasi akademik Anda.</p>
+                </div>
             </div>
-            <a href="/dashboard/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard Utama</a>
+            <!-- LOGIKA TOMBOL KEMBALI DI JAVASCRIPT -->
+            <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
+                <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
+            </a>
         </header>
 
         <div class="content-grid">
@@ -167,123 +192,186 @@
             <h3 class="modal-h3">Scan QRIS</h3>
             <p id="qris-title" style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">-</p>
             <p id="qris-amount" style="font-size:1.5rem; font-weight:800; color:#1e293b; margin:0 0 15px 0;">Rp -</p>
-            <img src="https://imgur.com/ENHMOVk.png" style="width:100%; border-radius:12px; border:2px solid #eee; margin-bottom:15px;">
-            <p class="modal-p" style="font-size:0.8rem; margin-bottom: 15px;">Sudah transfer? Silakan upload bukti.</p>
-            <button onclick="triggerUploadFlow()" class="btn-action btn-receipt"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Bukti Pembayaran</button>
+            
+            <!-- Ditambahkan ID qris-image agar bisa diubah via Javascript -->
+            <img id="qris-image" src="https://imgur.com/ENHMOVk.png" style="width:100%; border-radius:12px; border:2px solid #eee; margin-bottom:15px;">
+            
+            <p class="modal-p" style="font-size:0.85rem; margin-bottom: 15px; font-weight: 600; color: #d97706;">
+                Transfer TEPAT sesuai nominal di atas.<br>Verifikasi otomatis dalam 1 menit.
+            </p>
+            <button class="btn-action btn-waiting" style="cursor: default; opacity: 0.7;">
+                <i class="fa-solid fa-hourglass-half"></i> Sistem Mengecek Otomatis
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-notification" class="modal-overlay">
+        <div class="modal-box">
+            <div id="noti-icon" class="modal-icon-lg"></div>
+            <h3 id="noti-title" class="modal-h3">Notifikasi</h3>
+            <p id="noti-msg" class="modal-p"></p>
+            <button class="btn-action btn-receipt" onclick="closeAllModals()">Tutup</button>
         </div>
     </div>
 
     <div id="modal-confirm" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-icon-lg">🤔</div>
-            <h3 class="modal-h3">Sudah Konfirmasi?</h3>
-            <p class="modal-p">Apakah Anda sudah berhasil mengupload bukti transfer di Google Form?</p>
-            <div class="modal-btn-grid">
-                <button class="btn-modal btn-no" onclick="handleConfirm(false)">Belum</button>
-                <button class="btn-modal btn-yes" onclick="handleConfirm(true)">Sudah</button>
-            </div>
+            <h3 class="modal-h3">Bantuan</h3>
+            <p class="modal-p">Jika dalam 5 menit belum lunas, hubungi admin via WhatsApp.</p>
+            <button class="btn-modal btn-yes" onclick="closeAllModals()">Oke</button>
         </div>
     </div>
 
     <div id="modal-timer" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-icon-lg">⏳</div>
-            <h3 class="modal-h3">Menunggu Verifikasi</h3>
-            <p class="modal-p">Data Anda sudah terkirim. Admin akan memverifikasi dalam 1x24 Jam.</p>
-            <div id="countdown" class="timer-display">23:59:59</div>
-            <button class="btn-action btn-receipt" onclick="closeAllModals()" style="background:#f1f5f9; color:#333; margin-top:15px;">Tutup & Tunggu</button>
+            <h3 class="modal-h3">Proses Verifikasi</h3>
+            <p class="modal-p">Sistem sedang memantau mutasi secara otomatis.</p>
+            <button class="btn-action btn-receipt" onclick="closeAllModals()" style="background:#f1f5f9; color:#333; margin-top:15px;">Tutup</button>
         </div>
     </div>
 
     <div id="modal-loading" class="modal-overlay">
         <div class="modal-box" style="width:auto; padding:30px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:#003366;"></i>
-            <p style="margin-top:15px; font-weight:600;">Mengirim data...</p>
+            <p style="margin-top:15px; font-weight:600;">Sedang memproses...</p>
         </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        let currentUser = null;
-        const GOOGLE_FORM_URL = "https://forms.gle/LHpkuvLxLH4DjpK9A";
-
-        // --- PAYMENT FLOW ---
-        window.triggerUploadFlow = () => {
-            localStorage.setItem('payment_status', 'uploading');
-            window.open(GOOGLE_FORM_URL, '_blank');
-            document.getElementById('modal-qris').classList.remove('active');
-        };
-
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === 'visible') {
-                if (localStorage.getItem('payment_status') === 'uploading') {
-                    document.getElementById('modal-confirm').classList.add('active');
-                    localStorage.removeItem('payment_status');
-                }
-            }
-        });
-
-        window.handleConfirm = async (isDone) => {
-            document.getElementById('modal-confirm').classList.remove('active');
-            if (isDone) {
-                document.getElementById('modal-loading').classList.add('active');
-                try {
-                    await updateDoc(doc(db, 'users', currentUser.uid), { paymentStatus: 'waiting', paymentDate: serverTimestamp() });
-                    const targetTime = new Date().getTime() + (24 * 60 * 60 * 1000);
-                    localStorage.setItem('payment_timer_target', targetTime);
-                    document.getElementById('modal-loading').classList.remove('active');
-                    location.reload(); 
-                } catch(e) {
-                    document.getElementById('modal-loading').classList.remove('active');
-                    alert("Gagal kirim data.");
-                }
+        // ============================================================
+        // LOGIKA DINAMIS TOMBOL KEMBALI
+        // ============================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromInkubasi = urlParams.get('ref') === 'inkubasi';
+        
+        const btnKembali = document.getElementById('btn-kembali');
+        const textKembali = document.getElementById('kembali-text');
+        
+        if (btnKembali && textKembali) {
+            if (fromInkubasi) {
+                // Jika asalnya dari Inkubasi
+                btnKembali.href = '/dashboard/inkubasi.html';
+                textKembali.innerText = 'Ruang Inkubasi'; 
             } else {
+                // Jika tidak, default arahkan ke Dashboard
+                btnKembali.href = '/dashboard/index.html'; 
+                textKembali.innerText = 'Dashboard Utama';
+            }
+        }
+        // ============================================================
+
+        let currentUser = null;
+        let unsubscribePayment = null;
+
+        // --- CUSTOM MODAL FUNCTION (GANTI ALERT) ---
+        window.showCustomModal = (type, title, message) => {
+            const modal = document.getElementById('modal-notification');
+            const icon = document.getElementById('noti-icon');
+            const titleEl = document.getElementById('noti-title');
+            const msgEl = document.getElementById('noti-msg');
+
+            modal.classList.remove('success', 'error');
+            modal.classList.add(type);
+
+            if (type === 'success') icon.innerHTML = '✅';
+            else if (type === 'error') icon.innerHTML = '❌';
+            else icon.innerHTML = 'ℹ️';
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            modal.classList.add('active');
+        };
+
+        // --- PAYMENT FLOW OTOMATIS (TERHUBUNG KE VERCEL API) ---
+        window.showQRIS = async (amount, label) => {
+            document.getElementById('modal-loading').classList.add('active');
+
+            try {
+                // 1. Panggil API Vercel milikmu
+                const response = await fetch('https://cendekia-aksara.vercel.app/api/create-qris', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        paymentAmount: amount,
+                        productDetails: label,
+                        customerDetail: {
+                            name: currentUser.name || "Siswa Cendekia Aksara",
+                            email: currentUser.email || "siswa@cendekiaaksara.com",
+                            phone: currentUser.phone || "08123456789"
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.message || "Gagal membuat kode QRIS.");
+                }
+
+                // 2. Update Firebase (hapus unique code karena Duitku memproses otomatis nominal murni)
+                await updateDoc(doc(db, 'users', currentUser.uid), { 
+                    paymentStatus: 'waiting', 
+                    pendingAmount: amount 
+                });
+
+                // 3. Tampilkan Data di Modal
+                document.getElementById('qris-amount').innerText = "Rp " + amount.toLocaleString('id-ID');
+                document.getElementById('qris-title').innerText = label;
+                
+                // Ubah gambar statis dengan gambar QR Dinamis yang digenerate oleh Duitku
+                document.getElementById('qris-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.qrString)}`;
+
+                document.getElementById('modal-loading').classList.remove('active');
                 document.getElementById('modal-qris').classList.add('active');
+
+                // 4. Pantau perubahan status pembayaran dari Webhook (Firebase)
+                if (unsubscribePayment) unsubscribePayment();
+                unsubscribePayment = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
+                    const snapData = docSnap.data();
+                    if (snapData.statusPembayaran === 'Lunas' || snapData.paymentStatus === 'verified') {
+                        if (unsubscribePayment) unsubscribePayment();
+                        handlePaymentSuccess();
+                    }
+                });
+
+            } catch(e) {
+                console.error(e);
+                document.getElementById('modal-loading').classList.remove('active');
+                showCustomModal('error', 'Gagal', 'Sistem pembayaran sedang gangguan: ' + e.message);
             }
         };
 
-        // --- TIMER ---
-        function showTimerModal() {
-            document.getElementById('modal-timer').classList.add('active');
-            updateTimer();
-            setInterval(updateTimer, 1000);
-        }
-        function updateTimer() {
-            const target = localStorage.getItem('payment_timer_target');
-            if (!target) return;
-            const now = new Date().getTime();
-            const distance = target - now;
-            if (distance < 0) {
-                document.getElementById('countdown').innerHTML = "00:00:00";
-                return;
-            }
-            const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((distance % (1000 * 60)) / 1000);
-            const el = document.getElementById('countdown');
-            if(el) el.innerHTML = (h<10?'0':'')+h + ":" + (m<10?'0':'')+m + ":" + (s<10?'0':'')+s;
+        function handlePaymentSuccess() {
+            closeAllModals();
+            showCustomModal('success', 'Berhasil', 'PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.');
+            setTimeout(() => { location.reload(); }, 2500);
         }
 
-        // --- RENDER LOGIC ---
+        window.closeAllModals = () => {
+            if (unsubscribePayment) unsubscribePayment();
+            document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+        };
+
         (async () => {
             currentUser = await checkAuth('siswa');
             if(currentUser) {
-                // Auto Clean Timer jika status sudah berubah
-                if (['Lunas', 'verified', 'rejected'].includes(currentUser.paymentStatus) || currentUser.statusPembayaran === 'Lunas') {
-                    localStorage.removeItem('payment_timer_target');
-                }
-
                 const rawSem = currentUser.semester || 1;
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
-                const savedTarget = localStorage.getItem('payment_timer_target');
-                if(savedTarget && savedTarget > new Date().getTime()) {
+                // Listener untuk mendeteksi perubahan status lunas secara real-time
+                if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                     setWaitingUI();
-                } else if (currentUser.paymentStatus === 'waiting') {
-                    setWaitingUI();
+                    onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
+                        if (docSnap.data().paymentStatus === 'verified' || docSnap.data().statusPembayaran === 'Lunas') {
+                            handlePaymentSuccess();
+                        }
+                    });
                 }
             }
         })();
@@ -291,8 +379,8 @@
         function setWaitingUI() {
             const badge = document.getElementById('status-badge');
             const actionArea = document.getElementById('action-area');
-            if(badge) { badge.className = 'status-badge st-waiting'; badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI'; }
-            if(actionArea) { actionArea.innerHTML = `<button onclick="showTimerModal()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Sedang Diproses Admin</button>`; }
+            if(badge) { badge.className = 'status-badge st-waiting'; badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU PEMBAYARAN'; }
+            if(actionArea) { actionArea.innerHTML = `<button onclick="location.reload()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Mengecek Otomatis...</button>`; }
         }
 
         async function renderData(user, sem) {
@@ -301,8 +389,8 @@
             document.getElementById('st-uid').innerText = user.uid.substring(0,6).toUpperCase();
             document.getElementById('st-ips').innerText = parseFloat(user.ips||0).toFixed(2);
 
-            const status = user.statusPembayaran; // 'Belum', 'Cicilan', 'Lunas'
-            const paymentStatus = user.paymentStatus; // 'waiting', 'verified', 'rejected', null
+            const status = user.statusPembayaran; 
+            const paymentStatus = user.paymentStatus;
             
             const badge = document.getElementById('status-badge');
             const amountEl = document.getElementById('amount-display');
@@ -310,28 +398,25 @@
             const actionArea = document.getElementById('action-area');
             const labelTagihan = document.getElementById('label-tagihan');
 
-            // Cek apakah sedang mode waiting
-            const isWaiting = (localStorage.getItem('payment_timer_target') || paymentStatus === 'waiting');
-
-            if (isWaiting && status !== 'Lunas') {
+            // --- JIKA PEMBAYARAN SEDANG DIPROSES (WAITING) ---
+            if (paymentStatus === 'waiting' && status !== 'Lunas') {
                 setWaitingUI();
-                // Tetap hitung info tagihan untuk display
                 if (sem < 3) {
                     const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                     const snap = await getDocs(q);
-                    labelTagihan.innerText = "Tagihan Ujian";
                     amountEl.innerText = "Rp " + (snap.size * 1000).toLocaleString('id-ID');
                 } else {
                     const nominal = (status === 'Cicilan') ? 37725 : 75450;
-                    labelTagihan.innerText = (status === 'Cicilan') ? "Sisa Tagihan" : "Tagihan SPP";
                     amountEl.innerText = "Rp " + nominal.toLocaleString('id-ID');
                 }
-                return; // STOP Render Tombol
+                return;
             }
 
-            // --- RENDER NORMAL ---
+            // ====================================================
+            // LOGIKA PEMBAYARAN SEMESTER 1 & 2
+            // ====================================================
             if (sem < 3) {
-                // SEMESTER 1-2
+                // Di Semester 1 & 2, jika admin menghapus/mematikan ujian, tagihan bisa 0.
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snap = await getDocs(q);
                 const count = snap.size;
@@ -346,59 +431,40 @@
                     actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Lihat Kwitansi</a>`;
                 } else {
                     badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
-                    if(totalBayar > 0) actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian (${count} Mapel)')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
+                    if(totalBayar > 0) {
+                        actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
+                    } else {
+                        // Jika tidak ada tagihan (Admin mematikan ujian)
+                        actionArea.innerHTML = `<div style="text-align:center; color:#64748b; font-size:0.9rem; margin-top:10px;"><i class="fa-solid fa-circle-check"></i> Tidak ada tagihan ujian aktif saat ini.</div>`;
+                    }
                 }
-
-            } else {
-                // SEMESTER 3+
+            } 
+            // ====================================================
+            // LOGIKA KHUSUS SEMESTER 3 (INDEPENDEN & PERMANEN)
+            // ====================================================
+            else {
+                // Di Semester 3, tagihan tidak mempedulikan ujian. Selalu muncul detail ini.
                 detailsEl.innerHTML = `<div class="detail-row"><span>Buku Rapor</span><span>Rp 20.450</span></div><div class="detail-row"><span>Special Book</span><span>Rp 25.000</span></div><div class="detail-row"><span>Administrasi</span><span>Rp 5.000</span></div><div class="detail-row"><span>Bimbingan</span><span>Rp 25.000</span></div><div class="detail-row detail-total"><span>TOTAL FULL</span><span>Rp 75.450</span></div>`;
 
+                // Jika sudah Lunas, akan SELAMANYA dikunci menjadi Lunas
                 if (status === 'Lunas') {
-                    // KASUS LUNAS
                     labelTagihan.innerText = "TOTAL ADMINISTRASI";
                     amountEl.innerText = "Rp 75.450";
                     badge.className = 'status-badge st-paid'; badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
                     actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Download Kwitansi</a>`;
-                
                 } else if (status === 'Cicilan') {
-                    // KASUS CICILAN (YANG TADI ERROR)
                     labelTagihan.innerText = "SISA TAGIHAN";
-                    amountEl.innerText = "Rp 37.725"; // Sisa 50%
+                    amountEl.innerText = "Rp 37.725"; 
                     badge.className = 'status-badge st-cicil'; badge.innerHTML = 'CICILAN AKTIF (50%)';
-                    
-                    actionArea.innerHTML = `
-                        <div class="action-grid">
-                            <button onclick="showQRIS(37725, 'Pelunasan Sisa Cicilan')" class="btn-action btn-pay">
-                                <i class="fa-solid fa-wallet"></i> Lunasi Sisa
-                            </button>
-                            <a href="kwitansi.html" class="btn-action btn-receipt" style="background:#64748b;">
-                                <i class="fa-solid fa-file-invoice"></i> Bukti DP
-                            </a>
-                        </div>
-                    `;
-
+                    actionArea.innerHTML = `<div class="action-grid"><button onclick="showQRIS(37725, 'Sisa Cicilan')" class="btn-action btn-pay"><i class="fa-solid fa-wallet"></i> Lunasi Sisa</button><a href="kwitansi.html" class="btn-action btn-receipt" style="background:#64748b;"><i class="fa-solid fa-file-invoice"></i> Bukti DP</a></div>`;
                 } else {
-                    // KASUS BELUM BAYAR
                     labelTagihan.innerText = "TOTAL ADMINISTRASI";
                     amountEl.innerText = "Rp 75.450";
                     badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
-                    actionArea.innerHTML = `
-                        <div class="action-grid">
-                            <button onclick="showQRIS(37725, 'Cicilan Tahap 1')" class="btn-action btn-cicil">Cicil 50%</button>
-                            <button onclick="showQRIS(75450, 'Pelunasan Penuh')" class="btn-action btn-pay">Lunas</button>
-                        </div>
-                    `;
+                    actionArea.innerHTML = `<div class="action-grid"><button onclick="showQRIS(37725, 'Cicilan 50%')" class="btn-action btn-cicil">Cicil 50%</button><button onclick="showQRIS(75450, 'Lunas Penuh')" class="btn-action btn-pay">Lunas</button></div>`;
                 }
             }
         }
-
-        window.showQRIS = (amount, label) => {
-            document.getElementById('qris-amount').innerText = "Rp " + amount.toLocaleString('id-ID');
-            document.getElementById('qris-title').innerText = label;
-            document.getElementById('modal-qris').classList.add('active');
-        }
-        window.closeAllModals = () => document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
-        window.showTimerModal = showTimerModal; 
     </script>
 </body>
 </html>
