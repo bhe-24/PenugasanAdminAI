@@ -72,7 +72,7 @@
         
         .badge-osis { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; box-shadow: 0 2px 4px rgba(212,175,55,0.3); }
 
-        /* WARNING BOX UNTUK STATUS KHUSUS */
+        /* WARNING BOX UNTUK STATUS KHUSUS & REKOMENDASI HAPUS */
         .status-warning-box {
             background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
             border-left: 4px solid;
@@ -86,35 +86,16 @@
             position: relative;
         }
 
-        .status-warning-box.cuti {
-            border-left-color: #3b82f6;
-            background: #eff6ff;
-        }
+        .status-warning-box.cuti { border-left-color: #3b82f6; background: #eff6ff; }
+        .status-warning-box.withdrawal { border-left-color: #f97316; background: #fff7ed; }
+        .status-warning-box.dropout { border-left-color: #dc2626; background: #fef2f2; }
 
-        .status-warning-box.withdrawal {
-            border-left-color: #f97316;
-            background: #fff7ed;
-        }
-
-        .status-warning-box.dropout {
-            border-left-color: #dc2626;
-            background: #fef2f2;
-        }
-
-        .status-warning-box i {
-            font-size: 1.2rem;
-        }
-
+        .status-warning-box i { font-size: 1.2rem; }
         .status-warning-box.cuti i { color: #3b82f6; }
         .status-warning-box.withdrawal i { color: #f97316; }
         .status-warning-box.dropout i { color: #dc2626; }
 
-        .status-warning-text {
-            font-size: 0.85rem;
-            font-weight: 600;
-            line-height: 1.4;
-        }
-
+        .status-warning-text { font-size: 0.85rem; font-weight: 600; line-height: 1.4; }
         .status-warning-box.cuti .status-warning-text { color: #1e40af; }
         .status-warning-box.withdrawal .status-warning-text { color: #92400e; }
         .status-warning-box.dropout .status-warning-text { color: #7f1d1d; }
@@ -286,41 +267,27 @@
             render(filtered);
         };
 
-        // --- FUNGSI MENCEGAH ERROR PETIK TUNGGAL ---
         function escapeString(str) {
             if (!str) return "";
             return str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         }
 
-        // --- FUNGSI UNTUK MENGAMBIL STATUS PESAN KHUSUS ---
         function getStatusWarning(status) {
             switch(status) {
                 case 'cuti':
                     return {
-                        badgeClass: 'status-cuti-badge',
-                        badgeText: '🔵 SEDANG CUTI',
-                        warningClass: 'cuti',
-                        icon: 'fa-hourglass-end',
-                        title: 'Siswa Sedang Cuti',
-                        message: 'Siswa ini sedang dalam status cuti dan tidak dapat mengakses sistem pembelajaran.'
+                        badgeClass: 'status-cuti-badge', badgeText: '🔵 SEDANG CUTI', warningClass: 'cuti',
+                        icon: 'fa-hourglass-end', title: 'Siswa Sedang Cuti', message: 'Siswa ini sedang dalam status cuti dan tidak dapat mengakses sistem pembelajaran.'
                     };
                 case 'mengundurkan_diri':
                     return {
-                        badgeClass: 'status-withdrawal-badge',
-                        badgeText: '🔶 MENGUNDURKAN DIRI',
-                        warningClass: 'withdrawal',
-                        icon: 'fa-person-hiking',
-                        title: 'Siswa Mengundurkan Diri',
-                        message: 'Siswa ini telah mengajukan pengunduran diri dan akun telah dikunci.'
+                        badgeClass: 'status-withdrawal-badge', badgeText: '🔶 MENGUNDURKAN DIRI', warningClass: 'withdrawal',
+                        icon: 'fa-person-hiking', title: 'Siswa Mengundurkan Diri', message: 'Siswa ini telah mengajukan pengunduran diri dan akun telah dikunci.'
                     };
                 case 'dropout':
                     return {
-                        badgeClass: 'status-dropout-badge',
-                        badgeText: '❌ DROPOUT',
-                        warningClass: 'dropout',
-                        icon: 'fa-ban',
-                        title: 'Siswa Dropout',
-                        message: 'Siswa ini telah ditetapkan status dropout dan tidak lagi terdaftar sebagai siswa aktif.'
+                        badgeClass: 'status-dropout-badge', badgeText: '❌ DROPOUT', warningClass: 'dropout',
+                        icon: 'fa-ban', title: 'Siswa Dropout', message: 'Siswa ini telah ditetapkan status dropout dan tidak lagi terdaftar aktif.'
                     };
                 default:
                     return null;
@@ -343,7 +310,9 @@
             let htmlBuffer = '';
 
             list.forEach(s => {
-                // LOGIKA MENGHITUNG TUGAS
+                // ==========================================
+                // 1. LOGIKA MENGHITUNG TUGAS
+                // ==========================================
                 let totalTugasTerisi = 0;
                 for(let i=1; i<=8; i++) {
                     if (s[`nilai_t${i}`] !== undefined && s[`nilai_t${i}`] !== null && s[`nilai_t${i}`] !== "") totalTugasTerisi++;
@@ -354,23 +323,85 @@
                 const isInactive = totalTugasTerisi < 5; 
                 const isSuspended = s.status === 'suspended';
                 const isOsis = s.is_osis === true;
+
+                // ==========================================
+                // 2. LOGIKA MENGHITUNG HARI TIDAK AKTIF
+                // ==========================================
+                // Cari data waktu aktivitas terakhir
+                const lastActiveObj = s.lastLogin || s.updatedAt || s.createdAt || s.timestamp || s.waktuDaftar;
+                let lastActiveDate = new Date();
                 
-                // CEK STATUS KHUSUS (CUTI, WITHDRAWAL, DROPOUT)
+                // Konversi Firebase Timestamp menjadi format Date aman
+                if (lastActiveObj && typeof lastActiveObj.toDate === 'function') {
+                    lastActiveDate = lastActiveObj.toDate();
+                } else if (lastActiveObj) {
+                    lastActiveDate = new Date(lastActiveObj);
+                }
+                
+                // Cegah NaN jika data formatnya aneh
+                if (isNaN(lastActiveDate.getTime())) lastActiveDate = new Date();
+
+                const diffTime = Math.abs(new Date() - lastActiveDate);
+                const inactiveDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                
+                let lastActiveText = inactiveDays === 0 ? "Hari ini" : (inactiveDays === 1 ? "Kemarin" : `${inactiveDays} hari lalu`);
+                
+                // ==========================================
+                // 3. REKOMENDASI DETEKSI AKUN MATI
+                // ==========================================
+                let recommendationHtml = '';
+                let forceShowDeleteBtn = false;
+
+                if (inactiveDays >= 90) {
+                    forceShowDeleteBtn = true; // Munculkan tombol delete otomatis
+                    if (totalTugasTerisi === 0) {
+                         // Akun bodong (daftar tapi ditinggal)
+                         recommendationHtml = `
+                            <div class="status-warning-box dropout">
+                                <i class="fa-solid fa-ghost"></i>
+                                <div class="status-warning-text">
+                                    <strong>Akun Bodong/Pasif Total</strong><br>
+                                    0 Tugas dikerjakan & Mati selama ${inactiveDays} hari. Rekomendasi: Hapus Permanen.
+                                </div>
+                            </div>
+                         `;
+                    } else {
+                         // Akun siswa lama yang sudah tidak aktif
+                         recommendationHtml = `
+                            <div class="status-warning-box dropout">
+                                <i class="fa-solid fa-skull-crossbones"></i>
+                                <div class="status-warning-text">
+                                    <strong>Akun Mati Kritis</strong><br>
+                                    Tidak aktif selama ${inactiveDays} hari (>90 hari). Rekomendasi: Hapus Permanen.
+                                </div>
+                            </div>
+                         `;
+                    }
+                } else if (inactiveDays >= 75) {
+                     // Peringatan mendekati masa kritis
+                     recommendationHtml = `
+                        <div class="status-warning-box withdrawal">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <div class="status-warning-text">
+                                <strong>Peringatan Pasif</strong><br>
+                                Sudah tidak aktif selama ${inactiveDays} hari. Mendekati batas kritis 90 hari.
+                            </div>
+                        </div>
+                     `;
+                }
+
+                // ==========================================
+                // 4. PEMBENTUKAN TAMPILAN KARTU
+                // ==========================================
                 const specialStatus = s.status;
                 const statusWarning = getStatusWarning(specialStatus);
 
-                // Tentukan Class dan Badge Status Utama
                 let cardClass = 'biodata-card';
                 if (isOsis) cardClass += ' is-osis';
-                
-                // TAMBAHKAN CLASS KHUSUS BERDASARKAN STATUS
-                if (statusWarning) {
-                    cardClass += ` status-${specialStatus === 'mengundurkan_diri' ? 'withdrawal' : specialStatus}`;
-                }
+                if (statusWarning) cardClass += ` status-${specialStatus === 'mengundurkan_diri' ? 'withdrawal' : specialStatus}`;
 
                 let statusHtml = `<span class="status-label status-active">AKTIF</span>`;
                 if (statusWarning) {
-                    // Gunakan badge status khusus
                     statusHtml = `<span class="status-label ${statusWarning.badgeClass}">${statusWarning.badgeText}</span>`;
                 } else if (isSuspended) {
                     cardClass += ' suspended';
@@ -381,11 +412,8 @@
                 }
                 
                 let osisBadgeHtml = isOsis ? `<span class="badge-osis"><i class="fa-solid fa-shield-halved"></i> OSIS</span>` : '';
-
-                // MENGGUNAKAN ESCAPE STRING AGAR AMAN DARI ERROR TANDA PETIK
                 const safeName = escapeString(s.name);
 
-                // BUAT WARNING BOX JIKA ADA STATUS KHUSUS
                 let warningBoxHtml = '';
                 if (statusWarning) {
                     warningBoxHtml = `
@@ -399,28 +427,31 @@
                     `;
                 }
 
+                // Gabungkan Peringatan Status Biasa dengan Rekomendasi Akun Mati
+                const finalWarningHtml = warningBoxHtml + recommendationHtml;
+
                 // Tombol-Tombol Aksi
                 const suspendBtn = isSuspended 
                     ? `<button onclick="window.toggleSuspend('${s.id}', false, '${safeName}')" class="btn btn-activate"><i class="fa-solid fa-check"></i> Aktifkan</button>`
                     : `<button onclick="window.toggleSuspend('${s.id}', true, '${safeName}')" class="btn btn-suspend"><i class="fa-solid fa-ban"></i> Bekukan</button>`;
 
-                const deleteBtn = isInactive || isSuspended || statusWarning
+                const deleteBtn = isInactive || isSuspended || statusWarning || forceShowDeleteBtn
                     ? `<button onclick="window.deleteSiswa('${s.id}', '${safeName}')" class="btn btn-delete"><i class="fa-solid fa-trash-can"></i> Hapus</button>`
                     : '';
 
-                // Tombol Sakelar Lantik / Cabut OSIS
                 const osisBtn = isOsis
                     ? `<button onclick="window.toggleOsis('${s.id}', false, '${safeName}')" class="btn btn-cabut-osis"><i class="fa-solid fa-user-minus"></i> Cabut OSIS</button>`
                     : `<button onclick="window.toggleOsis('${s.id}', true, '${safeName}')" class="btn btn-lantik-osis"><i class="fa-solid fa-user-tie"></i> Lantik OSIS</button>`;
 
                 htmlBuffer += `
                     <div class="${cardClass}">
-                        ${warningBoxHtml}
+                        ${finalWarningHtml}
                         <div class="info-group">
                             <h3>${s.name} <div>${osisBadgeHtml} ${statusHtml}</div></h3>
                             <p><i class="fa-regular fa-envelope"></i> ${s.email || 'Tidak ada email'}</p>
                             <p><i class="fa-solid fa-graduation-cap"></i> Semester ${s.semester || 1} &nbsp;|&nbsp; <i class="fa-solid fa-star"></i> IPS: ${parseFloat(s.ips||0).toFixed(2)}</p>
                             <p><i class="fa-solid fa-list-check"></i> Tugas Selesai: <b>${totalTugasTerisi} / 10</b></p>
+                            <p><i class="fa-solid fa-stopwatch"></i> Terakhir Aktif: <b style="color: ${inactiveDays >= 75 ? '#dc2626' : '#1e293b'}">${lastActiveText}</b></p>
                         </div>
                         <div class="action-group">
                             ${osisBtn}
@@ -470,11 +501,11 @@
         };
 
         window.deleteSiswa = async (id, name) => {
-            showModal('warning', 'Hapus Permanen?', `Anda akan menghapus siswa "${name}" dari sistem secara permanen.\n\nAksi ini tidak dapat dibatalkan!`, async () => {
+            showModal('warning', 'Hapus Permanen?', `Anda akan membumihanguskan data siswa "${name}" dari sistem secara permanen.\n\nAksi ini tidak dapat dibatalkan!`, async () => {
                 try {
                     await deleteDoc(doc(db, 'users', id));
                     loadData();
-                    showModal('success', 'Berhasil Dihapus', `Siswa ${name} telah dihapus dari sistem.`);
+                    showModal('success', 'Berhasil Dihapus', `Data siswa ${name} telah dihapus permanen dari sistem.`);
                 } catch(e) { 
                     showModal('error', 'Gagal', "Tidak dapat menghapus: " + e.message); 
                 }
