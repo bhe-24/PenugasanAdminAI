@@ -201,7 +201,7 @@
         </div>
     </div>
 
-    <!-- MODAL KHUSUS HAPUS AKUN (MUNCUL SETELAH DENDA LUNAS) -->
+    <!-- MODAL KHUSUS HAPUS AKUN -->
     <div id="modal-delete" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-icon-lg" style="color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -231,8 +231,9 @@
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        // IMPORT BARU: deleteDoc untuk menghapus data UID secara permanen
-        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot, deleteDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORT FIREBASE AUTH UNTUK MENGHAPUS SESI DAN AKUN LOGIN
+        import { getAuth, deleteUser, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         
         // ================== PARAMETER URL ==================
         const urlParams = new URLSearchParams(window.location.search);
@@ -242,13 +243,12 @@
         const activeDays = parseInt(urlParams.get('days')) || 0;
         const isWithdrawal = paymentType === 'withdrawal';
         
-        // ================== TOMBOL KEMBALI DINAMIS & PRESISI ==================
+        // ================== TOMBOL KEMBALI ==================
         const btnKembali = document.getElementById('btn-kembali');
         const textKembali = document.getElementById('kembali-text');
         
         if (btnKembali && textKembali) {
             if (isWithdrawal) {
-                // Pastikan kembali persis ke halaman cuti (dengan ref jika ada)
                 let backUrl = 'cuti.html'; 
                 if (refParam) {
                     backUrl += `?ref=${refParam}`;
@@ -288,25 +288,54 @@
             modal.classList.add('active');
         };
 
-        // --- FUNGSI HAPUS AKUN PERMANEN (KHUSUS WITHDRAWAL) ---
-        window.confirmDeleteAccount = () => {
+        // --- FUNGSI HAPUS AKUN PERMANEN (DIPERBAIKI) ---
+        window.confirmDeleteAccount = async () => {
             document.getElementById('modal-delete').classList.remove('active');
             document.getElementById('modal-loading').classList.add('active');
             
-            // Menghapus record User dari database berdasarkan UID
-            deleteDoc(doc(db, 'users', currentUser.uid)).then(() => {
-                // Bersihkan sesi di browser
+            try {
+                // 1. Catat ke Log Aktivitas bahwa siswa ini menghapus akun
+                await addDoc(collection(db, 'activity_logs'), {
+                    userName: currentUser.name,
+                    userId: currentUser.uid,
+                    action: 'WITHDRAWAL',
+                    detail: 'Siswa mengundurkan diri dan data dihapus permanen',
+                    timestamp: serverTimestamp()
+                });
+
+                // 2. Hapus Data Profil di Firestore
+                await deleteDoc(doc(db, 'users', currentUser.uid));
+                
+                // 3. Hapus Identitas Login di Firebase Authentication
+                const auth = getAuth();
+                const user = auth.currentUser;
+                
+                if (user) {
+                    try {
+                        await deleteUser(user);
+                    } catch (authError) {
+                        // Terkadang Firebase butuh pengguna login ulang untuk bisa deleteUser.
+                        // Jika gagal, kita paksa Sign Out saja. Karena data Firestore sudah hilang,
+                        // sistem tetap akan menolak mereka masuk.
+                        console.warn("Gagal menghapus Auth secara langsung, mengalihkan ke mode Sign Out paksa.", authError);
+                        await signOut(auth);
+                    }
+                }
+
+                // 4. Bersihkan Sesi Browser Sepenuhnya
                 localStorage.clear();
                 sessionStorage.clear();
                 
                 document.getElementById('modal-loading').classList.remove('active');
                 alert("Data akun Anda telah berhasil dihapus secara permanen dari sistem. Terima kasih.");
-                // Redirect ke halaman login/depan
+                
+                // 5. Kembali ke Halaman Depan
                 window.location.href = '../index.html'; 
-            }).catch(e => {
+                
+            } catch (e) {
                 document.getElementById('modal-loading').classList.remove('active');
                 showCustomModal('error', 'Gagal Menghapus', 'Terjadi kesalahan sistem: ' + e.message);
-            });
+            }
         };
 
         window.downloadQRISPoster = () => {
@@ -421,7 +450,7 @@
                 if (unsubscribePayment) unsubscribePayment();
                 unsubscribePayment = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
                     const snapData = docSnap.data();
-                    if (snapData.paymentStatus === 'verified' || snapData.statusPembayaran === 'Lunas') {
+                    if (snapData && (snapData.paymentStatus === 'verified' || snapData.statusPembayaran === 'Lunas')) {
                         if (unsubscribePayment) unsubscribePayment();
                         handlePaymentSuccess();
                     }
@@ -435,21 +464,18 @@
         };
 
         function handlePaymentSuccess() {
-            // Jika ini adalah pembayaran DENDA PENGUNDURAN DIRI (WITHDRAWAL)
             if (window.currentPaymentContext === 'withdrawal') {
                 updateDoc(doc(db, 'users', currentUser.uid), {
                     withdrawalPenaltyPaid: true,
                     paymentStatus: 'verified',
                     pendingAmount: 0
                 }).then(() => {
-                    // Tutup modal QRIS dan langsung munculkan Modal Hapus Akun
                     closeAllModals();
                     document.getElementById('modal-delete').classList.add('active');
                 });
                 return;
             }
 
-            // Jika pembayaran REGULER
             document.getElementById('qris-success-mark').style.display = 'flex';
             const header = document.getElementById('qris-header');
             header.innerText = 'Pembayaran Berhasil!';
@@ -477,7 +503,7 @@
                     if (currentUser.paymentStatus === 'waiting' && !currentUser.withdrawalPenaltyPaid) {
                         onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
                             const data = docSnap.data();
-                            if ((data.paymentStatus === 'verified' || data.statusPembayaran === 'Lunas') && data.withdrawalPenaltyPaid) {
+                            if (data && (data.paymentStatus === 'verified' || data.statusPembayaran === 'Lunas') && data.withdrawalPenaltyPaid) {
                                 handlePaymentSuccess();
                             }
                         });
@@ -487,7 +513,8 @@
                     if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                         setWaitingUI();
                         onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
-                            if (docSnap.data().paymentStatus === 'verified' || docSnap.data().statusPembayaran === 'Lunas') {
+                            const data = docSnap.data();
+                            if (data && (data.paymentStatus === 'verified' || data.statusPembayaran === 'Lunas')) {
                                 handlePaymentSuccess();
                             }
                         });
@@ -518,7 +545,7 @@
                 document.getElementById('st-uid').innerText = user.uid.substring(0,6).toUpperCase();
                 document.getElementById('st-ips').innerText = "-";
                 document.getElementById('st-status').innerText = "Proses Cuti";
-                document.getElementById('st-status').style.color = "#d97706"; // Warna orange untuk status cuti
+                document.getElementById('st-status').style.color = "#d97706";
                 
                 const statusPaid = user.withdrawalPenaltyPaid === true;
                 const badge = document.getElementById('status-badge');
@@ -538,7 +565,6 @@
                 if (statusPaid) {
                     badge.className = 'status-badge st-paid'; 
                     badge.innerHTML = '<i class="fa-solid fa-check"></i> DENDA LUNAS';
-                    // Tombol langsung diarahkan untuk menghapus akun, TIDAK ADA KWITANSI
                     actionArea.innerHTML = `<button class="btn-action" style="background:#ef4444; color:white;" onclick="confirmDeleteAccount()"><i class="fa-solid fa-trash"></i> Hapus Akun Permanen</button>`;
                 } else if (user.paymentStatus === 'waiting') {
                     badge.className = 'status-badge st-waiting'; 
