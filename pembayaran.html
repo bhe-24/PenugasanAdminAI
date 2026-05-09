@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
+        /* RESET & GLOBAL */
         * { box-sizing: border-box; }
         :root { --primary: #003366; --accent: #4361ee; --bg: #f4f6f9; }
         body { background-color: var(--bg); font-family: 'Outfit', sans-serif; color: #333; margin: 0; padding-bottom: 40px; }
@@ -103,7 +104,6 @@
         .modal-h3 { margin: 0 0 10px 0; color: #003366; font-size: 1.3rem; transition: 0.3s; }
         .modal-p { color: #64748b; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5; }
         .btn-modal { padding: 12px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; }
-        .btn-yes { background: #003366; color: white; }
 
         @keyframes scaleIn {
             0% { transform: scale(0); opacity: 0; }
@@ -140,7 +140,7 @@
                     <p>Kelola tagihan dan administrasi akademik Anda.</p>
                 </div>
             </div>
-            <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
+            <a href="#" class="btn-back" id="btn-kembali">
                 <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
             </a>
         </header>
@@ -153,7 +153,7 @@
                 <div style="margin-top: 25px; text-align: left;">
                     <div class="info-row"><span class="info-label">Semester</span><span class="info-val" id="header-sem">-</span></div>
                     <div class="info-row"><span class="info-label">IP Semester</span><span class="info-val" id="st-ips">-</span></div>
-                    <div class="info-row"><span class="info-label">Status Akademik</span><span class="info-val" style="color:#166534;">Aktif</span></div>
+                    <div class="info-row"><span class="info-label">Status Akademik</span><span class="info-val" id="st-status" style="color:#166534;">Aktif</span></div>
                 </div>
             </div>
 
@@ -171,6 +171,7 @@
         </div>
     </div>
 
+    <!-- MODAL QRIS (TIDAK BISA DITUTUP) -->
     <div id="modal-qris" class="modal-overlay">
         <div class="modal-box" style="padding: 35px 25px;">
             <h3 class="modal-h3" id="qris-header">Menyiapkan Pembayaran</h3>
@@ -200,6 +201,18 @@
         </div>
     </div>
 
+    <!-- MODAL KHUSUS HAPUS AKUN (MUNCUL SETELAH DENDA LUNAS) -->
+    <div id="modal-delete" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-icon-lg" style="color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 class="modal-h3">Pengunduran Diri Selesai</h3>
+            <p class="modal-p">Pembayaran denda Anda telah diverifikasi. Sesuai prosedur, seluruh data akademik dan akses akun Anda akan dihapus secara permanen dari sistem.</p>
+            <button class="btn-action" style="background:#ef4444; color:white; width: 100%;" onclick="confirmDeleteAccount()">
+                <i class="fa-solid fa-trash"></i> Hapus Akun & Data Saya
+            </button>
+        </div>
+    </div>
+
     <div id="modal-notification" class="modal-overlay">
         <div class="modal-box">
             <div id="noti-icon" class="modal-icon-lg"></div>
@@ -218,36 +231,35 @@
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORT BARU: deleteDoc untuk menghapus data UID secara permanen
+        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // ================== PARAMETER URL ==================
         const urlParams = new URLSearchParams(window.location.search);
-        const refParam = urlParams.get('ref');                  // bisa 'inkubasi' atau lainnya
+        const refParam = urlParams.get('ref');                  
         const paymentType = urlParams.get('type') || 'regular';
         const penaltyAmount = parseInt(urlParams.get('penalty')) || 0;
         const activeDays = parseInt(urlParams.get('days')) || 0;
         const isWithdrawal = paymentType === 'withdrawal';
         
-        // ================== TOMBOL KEMBALI DINAMIS ==================
+        // ================== TOMBOL KEMBALI DINAMIS & PRESISI ==================
         const btnKembali = document.getElementById('btn-kembali');
         const textKembali = document.getElementById('kembali-text');
         
         if (btnKembali && textKembali) {
             if (isWithdrawal) {
-                // Kembali ke halaman cuti dengan mempertahankan parameter ref jika ada
-                let backUrl = '/cuti.html';
+                // Pastikan kembali persis ke halaman cuti (dengan ref jika ada)
+                let backUrl = 'cuti.html'; 
                 if (refParam) {
                     backUrl += `?ref=${refParam}`;
                 }
                 btnKembali.href = backUrl;
                 textKembali.innerText = 'Kembali ke Form Cuti';
             } else {
-                // Bukan mode withdrawal, gunakan ref untuk menentukan halaman kembali
                 if (refParam === 'inkubasi') {
                     btnKembali.href = '/dashboard/inkubasi.html';
                     textKembali.innerText = 'Ruang Inkubasi';
                 } else {
-                    // Default: dashboard utama
                     btnKembali.href = '/dashboard/index.html';
                     textKembali.innerText = 'Dashboard Utama';
                 }
@@ -256,7 +268,7 @@
 
         let currentUser = null;
         let unsubscribePayment = null;
-        window.currentPaymentContext = 'regular';
+        window.currentPaymentContext = isWithdrawal ? 'withdrawal' : 'regular';
 
         window.showCustomModal = (type, title, message) => {
             const modal = document.getElementById('modal-notification');
@@ -274,6 +286,27 @@
             titleEl.innerText = title;
             msgEl.innerText = message;
             modal.classList.add('active');
+        };
+
+        // --- FUNGSI HAPUS AKUN PERMANEN (KHUSUS WITHDRAWAL) ---
+        window.confirmDeleteAccount = () => {
+            document.getElementById('modal-delete').classList.remove('active');
+            document.getElementById('modal-loading').classList.add('active');
+            
+            // Menghapus record User dari database berdasarkan UID
+            deleteDoc(doc(db, 'users', currentUser.uid)).then(() => {
+                // Bersihkan sesi di browser
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                document.getElementById('modal-loading').classList.remove('active');
+                alert("Data akun Anda telah berhasil dihapus secara permanen dari sistem. Terima kasih.");
+                // Redirect ke halaman login/depan
+                window.location.href = '../index.html'; 
+            }).catch(e => {
+                document.getElementById('modal-loading').classList.remove('active');
+                showCustomModal('error', 'Gagal Menghapus', 'Terjadi kesalahan sistem: ' + e.message);
+            });
         };
 
         window.downloadQRISPoster = () => {
@@ -352,7 +385,6 @@
         window.showQRIS = async (amount, label) => {
             if (!currentUser) return; 
             document.getElementById('modal-loading').classList.add('active');
-            window.currentPaymentContext = isWithdrawal ? 'withdrawal' : 'regular';
 
             try {
                 const response = await fetch('https://cendekia-aksara.vercel.app/api/create-qris', { 
@@ -403,26 +435,21 @@
         };
 
         function handlePaymentSuccess() {
+            // Jika ini adalah pembayaran DENDA PENGUNDURAN DIRI (WITHDRAWAL)
             if (window.currentPaymentContext === 'withdrawal') {
                 updateDoc(doc(db, 'users', currentUser.uid), {
                     withdrawalPenaltyPaid: true,
                     paymentStatus: 'verified',
                     pendingAmount: 0
                 }).then(() => {
-                    document.getElementById('qris-success-mark').style.display = 'flex';
-                    const header = document.getElementById('qris-header');
-                    header.innerText = 'Pembayaran Denda Berhasil!';
-                    header.style.color = '#10b981';
-                    document.getElementById('qris-controls').innerHTML = `
-                        <div style="font-size:0.95rem; color:#166534; font-weight:700; background: #dcfce7; padding: 15px; border-radius: 12px; border: 1px solid #bbf7d0; animation: scaleIn 0.5s ease-out;">
-                            <i class="fa-solid fa-check-double"></i> Denda withdrawal telah dilunasi. Silakan kembali ke form cuti.
-                        </div>
-                    `;
-                    setTimeout(() => { location.reload(); }, 3000);
+                    // Tutup modal QRIS dan langsung munculkan Modal Hapus Akun
+                    closeAllModals();
+                    document.getElementById('modal-delete').classList.add('active');
                 });
                 return;
             }
 
+            // Jika pembayaran REGULER
             document.getElementById('qris-success-mark').style.display = 'flex';
             const header = document.getElementById('qris-header');
             header.innerText = 'Pembayaran Berhasil!';
@@ -443,7 +470,7 @@
             currentUser = await checkAuth('siswa');
             if(currentUser) {
                 const rawSem = currentUser.semester || 1;
-                const sem = parseInt(String(rawSem).replace(/\\D/g, '')) || 1;
+                const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
 
                 if (isWithdrawal) {
                     renderData(currentUser, sem);
@@ -490,6 +517,8 @@
                 document.getElementById('st-name').innerText = user.name;
                 document.getElementById('st-uid').innerText = user.uid.substring(0,6).toUpperCase();
                 document.getElementById('st-ips').innerText = "-";
+                document.getElementById('st-status').innerText = "Proses Cuti";
+                document.getElementById('st-status').style.color = "#d97706"; // Warna orange untuk status cuti
                 
                 const statusPaid = user.withdrawalPenaltyPaid === true;
                 const badge = document.getElementById('status-badge');
@@ -509,10 +538,8 @@
                 if (statusPaid) {
                     badge.className = 'status-badge st-paid'; 
                     badge.innerHTML = '<i class="fa-solid fa-check"></i> DENDA LUNAS';
-                    // Tombol kembali ke halaman cuti dengan ref jika ada
-                    let backUrl = '/cuti.html';
-                    if (refParam) backUrl += `?ref=${refParam}`;
-                    actionArea.innerHTML = `<button class="btn-action btn-receipt" onclick="window.location.href='${backUrl}'"><i class="fa-solid fa-arrow-left"></i> Kembali ke Form Cuti</button>`;
+                    // Tombol langsung diarahkan untuk menghapus akun, TIDAK ADA KWITANSI
+                    actionArea.innerHTML = `<button class="btn-action" style="background:#ef4444; color:white;" onclick="confirmDeleteAccount()"><i class="fa-solid fa-trash"></i> Hapus Akun Permanen</button>`;
                 } else if (user.paymentStatus === 'waiting') {
                     badge.className = 'status-badge st-waiting'; 
                     badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU PEMBAYARAN';
@@ -530,7 +557,7 @@
                 return;
             }
 
-            // Mode reguler
+            // Mode Reguler
             document.getElementById('header-sem').innerText = "Semester " + sem;
             document.getElementById('st-name').innerText = user.name;
             document.getElementById('st-uid').innerText = user.uid.substring(0,6).toUpperCase();
