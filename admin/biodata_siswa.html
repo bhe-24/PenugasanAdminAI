@@ -249,7 +249,6 @@
                 allStudents = [];
                 snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
                 
-                // Urutkan A-Z
                 allStudents.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
                 
                 render(allStudents);
@@ -325,21 +324,41 @@
                 const isOsis = s.is_osis === true;
 
                 // ==========================================
-                // 2. LOGIKA MENGHITUNG HARI TIDAK AKTIF
+                // 2. LOGIKA MENGHITUNG HARI TIDAK AKTIF (DIPERBAIKI)
                 // ==========================================
-                // Cari data waktu aktivitas terakhir
-                const lastActiveObj = s.lastLogin || s.updatedAt || s.createdAt || s.timestamp || s.waktuDaftar;
-                let lastActiveDate = new Date();
+                // Kumpulkan semua kolom waktu yang mungkin ada di data siswa
+                const timeFields = [
+                    s.updatedAt, 
+                    s.timestamp, 
+                    s.lastLogin, 
+                    s.last_login, 
+                    s.lastActive, 
+                    s.createdAt, 
+                    s.waktuDaftar
+                ];
                 
-                // Konversi Firebase Timestamp menjadi format Date aman
-                if (lastActiveObj && typeof lastActiveObj.toDate === 'function') {
-                    lastActiveDate = lastActiveObj.toDate();
-                } else if (lastActiveObj) {
-                    lastActiveDate = new Date(lastActiveObj);
-                }
-                
-                // Cegah NaN jika data formatnya aneh
-                if (isNaN(lastActiveDate.getTime())) lastActiveDate = new Date();
+                let newestTime = 0;
+                const now = new Date().getTime();
+
+                // Loop semua kolom untuk mencari waktu yang PALING BARU (Maksimal)
+                timeFields.forEach(field => {
+                    if (field) {
+                        let t = 0;
+                        if (typeof field.toDate === 'function') {
+                            t = field.toDate().getTime();
+                        } else if (typeof field === 'string' || typeof field === 'number') {
+                            t = new Date(field).getTime();
+                        }
+                        
+                        // Validasi agar tanggalnya valid dan tidak melebihi waktu saat ini (bug tanggal masa depan)
+                        if (!isNaN(t) && t > newestTime && t <= now + 86400000) {
+                            newestTime = t;
+                        }
+                    }
+                });
+
+                // Jika tidak ditemukan field waktu sama sekali, jadikan hari ini sebagai default
+                let lastActiveDate = newestTime > 0 ? new Date(newestTime) : new Date();
 
                 const diffTime = Math.abs(new Date() - lastActiveDate);
                 const inactiveDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -353,9 +372,8 @@
                 let forceShowDeleteBtn = false;
 
                 if (inactiveDays >= 90) {
-                    forceShowDeleteBtn = true; // Munculkan tombol delete otomatis
+                    forceShowDeleteBtn = true; 
                     if (totalTugasTerisi === 0) {
-                         // Akun bodong (daftar tapi ditinggal)
                          recommendationHtml = `
                             <div class="status-warning-box dropout">
                                 <i class="fa-solid fa-ghost"></i>
@@ -366,7 +384,6 @@
                             </div>
                          `;
                     } else {
-                         // Akun siswa lama yang sudah tidak aktif
                          recommendationHtml = `
                             <div class="status-warning-box dropout">
                                 <i class="fa-solid fa-skull-crossbones"></i>
@@ -378,7 +395,6 @@
                          `;
                     }
                 } else if (inactiveDays >= 75) {
-                     // Peringatan mendekati masa kritis
                      recommendationHtml = `
                         <div class="status-warning-box withdrawal">
                             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -427,10 +443,8 @@
                     `;
                 }
 
-                // Gabungkan Peringatan Status Biasa dengan Rekomendasi Akun Mati
                 const finalWarningHtml = warningBoxHtml + recommendationHtml;
 
-                // Tombol-Tombol Aksi
                 const suspendBtn = isSuspended 
                     ? `<button onclick="window.toggleSuspend('${s.id}', false, '${safeName}')" class="btn btn-activate"><i class="fa-solid fa-check"></i> Aktifkan</button>`
                     : `<button onclick="window.toggleSuspend('${s.id}', true, '${safeName}')" class="btn btn-suspend"><i class="fa-solid fa-ban"></i> Bekukan</button>`;
@@ -465,7 +479,6 @@
             container.innerHTML = htmlBuffer;
         }
 
-        // --- FUNGSI BARU: TOGGLE OSIS (LANTIK/CABUT) ---
         window.toggleOsis = async (id, isPromoting, name) => {
             const pesan = isPromoting 
                 ? `Apakah Anda yakin ingin melantik ${name} sebagai Pengurus OSIS? Anak ini akan mendapatkan akses eksklusif ke Ruang OSIS.` 
