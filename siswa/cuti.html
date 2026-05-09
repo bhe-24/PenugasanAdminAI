@@ -120,6 +120,21 @@
             background: #fef3c7; padding: 15px; border-radius: 8px; border: 1px solid #fcd34d;
             margin-bottom: 20px; font-size: 0.9rem; color: #b45309; line-height: 1.5;
         }
+
+        .penalty-box {
+            background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fee2e2;
+            margin-bottom: 20px; font-size: 0.9rem; color: #991b1b;
+        }
+
+        .penalty-amount {
+            font-size: 1.5rem; font-weight: 800; color: #dc3545; text-align: center;
+            padding: 15px; background: white; border-radius: 8px; margin-bottom: 15px;
+        }
+
+        .penalty-detail {
+            font-size: 0.85rem; color: #64748b; text-align: center;
+            background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 10px;
+        }
         
         .checkbox-group {
             background: #f8fafc; padding: 15px; border-radius: 8px; 
@@ -230,14 +245,23 @@
                 
                 <div class="warning-box">
                     <strong><i class="fa-solid fa-triangle-exclamation"></i> Perhatian Penting!</strong><br>
-                    Tindakan ini akan menyebabkan akun Anda dinonaktifkan secara permanen dan Anda akan dikenakan <strong>DENDA PEMBATALAN</strong> sesuai dengan kebijakan akademik yang berlaku. Denda harus dibayarkan sebelum proses penyelesaian administrasi.
+                    Tindakan ini akan menyebabkan akun Anda dinonaktifkan secara permanen dan Anda akan dikenakan <strong>DENDA PEMBATALAN</strong> sesuai dengan periode keaktifan akun Anda.
+                </div>
+
+                <div class="penalty-box">
+                    <strong>💰 Rincian Denda Withdrawal:</strong><br>
+                    <div class="penalty-amount" id="penalty-display">Rp 0</div>
+                    <div class="penalty-detail">
+                        Akun Anda telah aktif selama <strong id="active-days-display">0 hari</strong><br>
+                        <span style="font-size:0.8rem;">(Tarif: Rp 1.000 per hari keaktifan)</span>
+                    </div>
                 </div>
 
                 <strong>Konsekuensi Withdrawal:</strong>
                 <ul style="margin: 10px 0; padding-left: 20px; color: #475569;">
                     <li>Akun akan dinonaktifkan selamanya</li>
                     <li>Akses ke semua layanan pembelajaran akan ditutup</li>
-                    <li>Wajib membayar denda pembatalan</li>
+                    <li>Wajib membayar denda pembatalan sesuai hari keaktifan</li>
                     <li>Data akademik akan diarsipkan</li>
                 </ul>
 
@@ -248,7 +272,7 @@
                     </div>
                     <div class="checkbox-item">
                         <input type="checkbox" id="consent-penalty" name="consent-penalty">
-                        <label for="consent-penalty">Saya setuju untuk <strong>membayar denda pembatalan</strong> yang ditetapkan</label>
+                        <label for="consent-penalty">Saya setuju untuk <strong>membayar denda sebesar</strong> yang ditampilkan di atas</label>
                     </div>
                     <div class="checkbox-item">
                         <input type="checkbox" id="consent-final" name="consent-final">
@@ -309,7 +333,7 @@
                 
                 <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; border: 1px solid #bae6fd; margin-bottom: 20px; font-size: 0.85rem; color: #0369a1; line-height: 1.5;">
                     <strong><i class="fa-solid fa-circle-info"></i> Perhatian:</strong> <br>
-                    Pengajuan yang dikirim akan diperiksa oleh Admin. Selama masa Cuti/Izin disetujui, beberapa fitur pembelajaran akan dikunci. Jika disetujui, Anda dapat mengunduh Surat Keterangan Resmi.
+                    Pengajuan yang dikirim akan diperiksa oleh Admin. Selama masa Cuti/Izin disetujui, beberapa fitur pembelajaran akan dikunci. Jika disetujui, Anda dapat mengunduh Surat Keterangan resmi.
                 </div>
 
                 <button type="submit" class="btn-submit">
@@ -325,7 +349,7 @@
             </div>
             <div class="withdrawal-desc">
                 <strong><i class="fa-solid fa-exclamation-circle"></i> Penting!</strong><br>
-                Jika Anda ingin berhenti mengikuti program Cendekia Aksara, gunakan tombol di bawah untuk mengajukan permohonan withdrawal. Tindakan ini akan memicu proses pembayaran denda dan tidak dapat dibatalkan tanpa permohonan formal.
+                Jika Anda ingin berhenti mengikuti program Cendekia Aksara, gunakan tombol di bawah untuk mengajukan permohonan withdrawal. Tindakan ini akan memicu proses pembayaran denda dan tidak dapat dibatalkan.
             </div>
             <button type="button" class="btn-withdrawal" onclick="openWithdrawalModal()">
                 <i class="fa-solid fa-right-from-bracket"></i> Ajukan Withdrawal Sekarang
@@ -344,7 +368,7 @@
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ⚠️ GANTI DENGAN URL APPS SCRIPT YANG BARU DIBUAT
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyRgMFFs57KCRCP0l7XWYfbAkwKy_vG9KpnWvlcaZng8KRLeQfUsJPJb3FWxrrqf2QxOA/exec"; 
@@ -391,11 +415,47 @@
         };
 
         // ============================================================
+        // HITUNG DENDA WITHDRAWAL BERDASARKAN HARI KEAKTIFAN
+        // ============================================================
+        function calculateWithdrawalPenalty(createdAt) {
+            const created = new Date(createdAt);
+            const today = new Date();
+            const diffTime = Math.abs(today - created);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const penaltyAmount = diffDays * 1000; // Rp 1.000 per hari
+            
+            return {
+                days: Math.max(1, diffDays),
+                amount: penaltyAmount
+            };
+        }
+
+        // ============================================================
         // MODAL WITHDRAWAL FUNCTIONS
         // ============================================================
-        window.openWithdrawalModal = () => {
-            document.getElementById('withdrawal-modal').classList.add('show');
-            resetWithdrawalForm();
+        window.openWithdrawalModal = async () => {
+            if (!currentUser) return;
+            
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const userData = userDoc.data();
+                const createdAt = userData.createdAt || new Date().toISOString();
+                
+                const penalty = calculateWithdrawalPenalty(createdAt);
+                
+                // Update display
+                document.getElementById('penalty-display').innerText = `Rp ${penalty.amount.toLocaleString('id-ID')}`;
+                document.getElementById('active-days-display').innerText = penalty.days;
+                
+                // Store penalty info in global scope untuk digunakan di submitWithdrawal
+                window.currentPenalty = penalty;
+                
+                document.getElementById('withdrawal-modal').classList.add('show');
+                resetWithdrawalForm();
+            } catch (e) {
+                console.error(e);
+                showToast("Gagal membuka modal withdrawal", 'error');
+            }
         };
 
         window.closeWithdrawalModal = () => {
@@ -440,23 +500,26 @@
             btn.disabled = true;
 
             try {
+                const penalty = window.currentPenalty || { days: 0, amount: 0 };
+                
                 // Simpan withdrawal request ke Firebase
                 await addDoc(collection(db, 'withdrawal_requests'), {
                     studentId: currentUser.uid,
                     studentName: currentUser.name,
                     requestType: 'withdrawal',
                     status: 'pending',
-                    reason: 'Pengajuan Mengundurkan Diri',
-                    timestamp: serverTimestamp(),
+                    activeDays: penalty.days,
+                    penaltyAmount: penalty.amount,
                     needsPayment: true,
-                    paymentStatus: 'pending'
+                    paymentStatus: 'pending',
+                    timestamp: serverTimestamp()
                 });
 
                 window.showToast("Pengajuan withdrawal berhasil dikirim. Anda akan dialihkan ke halaman pembayaran denda.", 'success');
                 
-                // Redirect ke halaman pembayaran setelah 2 detik
+                // Redirect ke halaman pembayaran setelah 2 detik dengan type withdrawal
                 setTimeout(() => {
-                    window.location.href = '/siswa/pembayaran.html?type=withdrawal';
+                    window.location.href = `/pembayaran.html?type=withdrawal&penalty=${penalty.amount}&days=${penalty.days}`;
                 }, 2000);
 
             } catch(err) {
@@ -529,7 +592,7 @@
                     endDate: end,
                     reason: reason,
                     status: 'pending', 
-                    url_surat_drive: urlDrive, // Menyimpan link drive (bisa null jika error)
+                    url_surat_drive: urlDrive,
                     timestamp: serverTimestamp()
                 });
                 
@@ -581,7 +644,6 @@
                     } else if (d.status === 'rejected') {
                         badgeHtml = `<span class="badge rejected"><i class="fa-solid fa-xmark"></i> Ditolak</span>`;
                     } else if (d.status === 'approved') {
-                        // Jika URL Drive ada, arahkan langsung ke Drive. Jika tidak ada, pakai fungsi lokal pdfmake
                         if (d.url_surat_drive) {
                              badgeHtml = `<a href="${d.url_surat_drive}" target="_blank" class="badge approved"><i class="fa-solid fa-cloud-arrow-down"></i> Unduh Surat (Drive)</a>`;
                         } else {
@@ -593,7 +655,7 @@
                     container.innerHTML += `
                         <div class="history-item">
                             <div class="h-info">
-                                <div><span style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:8px;">${d.type || 'Izin'}</span> ${d.reason.substring(0, 50)}...</div>
+                                <div><span style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:8px;">${d.type || 'Izin'}</span> ${d.reason.substring(0, 30)}...</div>
                                 <div class="h-date">
                                     <i class="fa-regular fa-calendar-days"></i> 
                                     ${formatDate(d.startDate)} s.d. ${formatDate(d.endDate)}
@@ -669,8 +731,8 @@
                             },
                             margin: [20, 0, 0, 20]
                         },
-                        { text: 'Telah sah tercatat dalam sistem dan DIBERIKAN IZIN untuk tidak mengikuti kegiatan operasional/pembelajaran (Cuti Akademik Sementara) sesuai dengan durasi waktu yang tersebut.', margin: [0, 0, 0, 15] },
-                        { text: 'Selama masa izin tersebut, sistem pembelajaran (Kuis, Ujian, Tugas) siswa ini dibekukan sementara hingga masa izin berakhir. Surat ini sah dicetak dari portal resmi Cendekia Aksara dan merupakan dokumen otentik berstandar HTTPS & enkripsi digital.', margin: [0, 0, 0, 25], fontSize: 0.9 },
+                        { text: 'Telah sah tercatat dalam sistem dan DIBERIKAN IZIN untuk tidak mengikuti kegiatan operasional/pembelajaran (Cuti Akademik Sementara) sesuai dengan durasi waktu yang tercantum di atas.', margin: [0, 0, 0, 15], alignment: 'justify' },
+                        { text: 'Selama masa izin tersebut, sistem pembelajaran (Kuis, Ujian, Tugas) siswa ini dibekukan sementara hingga masa izin berakhir. Surat ini sah dicetak dari portal resmi Cendekia Aksara dan memiliki kekuatan hukum yang sama dengan surat resmi bermaterai.', margin: [0, 0, 0, 20], alignment: 'justify' },
                         {
                             columns: [
                                 { text: '', width: '*' },
