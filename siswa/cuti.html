@@ -441,10 +441,25 @@
         };
 
         // ============================================================
-        // HITUNG DENDA WITHDRAWAL BERDASARKAN HARI KEAKTIFAN
+        // HITUNG DENDA WITHDRAWAL BERDASARKAN HARI KEAKTIFAN (MEMPERBAIKI ERROR NaN)
         // ============================================================
-        function calculateWithdrawalPenalty(createdAt) {
-            const created = new Date(createdAt);
+        function calculateWithdrawalPenalty(createdAtField) {
+            let created;
+            // Jika data dari Firebase berupa Timestamp khusus (memiliki fungsi toDate)
+            if (createdAtField && typeof createdAtField.toDate === 'function') {
+                created = createdAtField.toDate();
+            } else if (createdAtField) {
+                // Jika berupa string tanggal biasa
+                created = new Date(createdAtField);
+            } else {
+                created = new Date();
+            }
+
+            // Mencegah error "Invalid Date" yang menghasilkan NaN
+            if (isNaN(created.getTime())) {
+                created = new Date(); 
+            }
+
             const today = new Date();
             const diffTime = Math.abs(today - created);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -465,13 +480,15 @@
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const userData = userDoc.data();
-                const createdAt = userData.createdAt || new Date().toISOString();
+                
+                // Cek kemungkinan penamaan kolom dari database
+                const createdAt = userData.createdAt || userData.timestamp || userData.waktuDaftar || new Date();
                 
                 const penalty = calculateWithdrawalPenalty(createdAt);
                 
                 // Update display
                 document.getElementById('penalty-display').innerText = `Rp ${penalty.amount.toLocaleString('id-ID')}`;
-                document.getElementById('active-days-display').innerText = penalty.days;
+                document.getElementById('active-days-display').innerText = `${penalty.days} hari`;
                 
                 // Store penalty info in global scope untuk digunakan di submitWithdrawal
                 window.currentPenalty = penalty;
