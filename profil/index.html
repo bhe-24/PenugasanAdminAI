@@ -739,7 +739,7 @@
                         <div class="chart-legend">
                             <div class="legend-item">
                                 <div class="legend-dot" style="background:#3b82f6;"></div>
-                                IPS Harian
+                                IPS Aktual
                             </div>
                             <div class="legend-item">
                                 <div class="legend-dot" style="background:#e2e8f0; border: 1px dashed #94a3b8;"></div>
@@ -836,10 +836,9 @@
         }
 
         // ============================================================
-        // CHART
+        // CHART (DIPERBAIKI: HANYA MENGGUNAKAN DATA ASLI)
         // ============================================================
         async function loadIPSHistory(uid) {
-            // Coba ambil dari subcollection ipsHistory
             let historyData = [];
             try {
                 const histRef = collection(db, 'users', uid, 'ipsHistory');
@@ -847,20 +846,22 @@
                 const snap = await getDocs(q);
                 snap.forEach(d => historyData.push(d.data()));
             } catch (e) {
-                // Jika subcollection belum ada, pakai data dummy untuk preview
+                console.warn("History belum tersedia.");
             }
 
-            // Jika tidak ada history, generate dummy dari IPS saat ini
+            // Jika belum ada history, jangan buat angka acak.
+            // Gunakan satu titik data jujur dari IPS terkini.
             if (historyData.length === 0 && currentUser) {
                 const ipsNow = parseFloat(currentUser.ips || 0);
                 const today = new Date();
+                
+                // Menambahkan data lurus 7 hari ke belakang dengan nilai yang SAMA (ipsNow)
+                // Agar grafik terlihat sebagai garis stabil yang akurat, bukan titik kosong.
                 for (let i = 6; i >= 0; i--) {
                     const d = new Date(today);
                     d.setDate(d.getDate() - i);
                     const label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-                    // Variasi kecil dari IPS terkini (hanya untuk visualisasi)
-                    const v = i === 0 ? ipsNow : Math.max(0, Math.min(4, ipsNow + (Math.random() * 0.4 - 0.2)));
-                    historyData.push({ date: label, ips: parseFloat(v.toFixed(2)) });
+                    historyData.push({ date: label, ips: ipsNow });
                 }
             }
 
@@ -885,6 +886,9 @@
                     trendBadge.className = 'chart-trend trend-same';
                     trendBadge.innerHTML = '<i class="fa-solid fa-minus"></i> Stabil';
                 }
+            } else {
+                trendBadge.className = 'chart-trend trend-same';
+                trendBadge.innerHTML = '<i class="fa-solid fa-minus"></i> Stabil';
             }
 
             // Last date
@@ -947,7 +951,7 @@
                             displayColors: false,
                             callbacks: {
                                 label: ctx => ctx.dataset.label === 'IPS'
-                                    ? `IPS: ${ctx.parsed.y.toFixed(2)}`
+                                    ? `IPS Aktual: ${ctx.parsed.y.toFixed(2)}`
                                     : `Target: ${ctx.parsed.y.toFixed(2)}`
                             }
                         }
@@ -980,7 +984,7 @@
         }
 
         // ============================================================
-        // RENDER PROFIL
+        // RENDER PROFIL (DIPERBAIKI: HARI AKTIF REALISTIS)
         // ============================================================
         (async () => {
             currentUser = await checkAuth('siswa');
@@ -1003,10 +1007,24 @@
             document.getElementById('display-sem').innerText = `Semester ${sem}`;
             document.getElementById('display-ips').innerText = ips.toFixed(2);
 
+            // MENGHITUNG HARI AKTIF SECARA AKURAT
+            let hariAktif = 1;
+            const createdField = user.createdAt || user.timestamp || user.waktuDaftar;
+            
+            if (createdField) {
+                // Mengkonversi timestamp Firebase ke Date Javascript
+                const createdDate = createdField.toDate ? createdField.toDate() : new Date(createdField);
+                const now = new Date();
+                
+                // Menghitung selisih waktu dalam milidetik, lalu diubah ke hari
+                const diffTime = Math.abs(now - createdDate);
+                hariAktif = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); 
+            }
+
             // Stats
             document.getElementById('stat-sem').innerText = sem;
             document.getElementById('stat-ips-val').innerText = ips.toFixed(2);
-            document.getElementById('stat-days').innerText = user.hariAktif || Math.floor(Math.random() * 60 + 10);
+            document.getElementById('stat-days').innerText = hariAktif;
 
             // Chart top IPS
             document.getElementById('chart-current-ips').innerHTML = `${ips.toFixed(2)} <span>IPS terkini</span>`;
@@ -1097,7 +1115,7 @@
 
                 // Catat riwayat IPS hari ini (jika ada IPS)
                 const ipsNow = parseFloat(currentUser.ips || 0);
-                if (ipsNow > 0) {
+                if (ipsNow >= 0) {
                     const today = new Date();
                     const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
                     const label = today.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
