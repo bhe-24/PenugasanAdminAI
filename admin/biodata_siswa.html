@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biodata & Kontrol Siswa</title>
+    <title>Biodata & Kontrol Siswa - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
@@ -13,7 +13,6 @@
         * { box-sizing: border-box; outline: none; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
         
-        /* DIPERLEBAR AGAR LAPTOP FRIENDLY */
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
         /* --- 2. HEADER & SEARCH --- */
@@ -41,18 +40,15 @@
         }
         .biodata-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
         
-        /* EFEK KHUSUS KARTU OSIS */
         .biodata-card.is-osis { border-left-color: var(--gold); }
         .biodata-card.is-osis::before {
             content: '\f3ed'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
             position: absolute; top: -10px; right: -10px; font-size: 5rem; color: var(--gold); opacity: 0.1;
         }
 
-        /* WARNA KARTU BERDASARKAN STATUS */
         .biodata-card.suspended { border-left-color: var(--warning); background: #fff8f0; }
         .biodata-card.inactive { border-left-color: var(--danger); background: #fef2f2; border: 2px solid #fca5a5; border-left: 6px solid var(--danger); }
         
-        /* STATUS CUTI / LEAVE STYLES */
         .biodata-card.status-cuti { border-left-color: #3b82f6; background: #eff6ff; }
         .biodata-card.status-withdrawal { border-left-color: #f97316; background: #fff7ed; }
         .biodata-card.status-dropout { border-left-color: #dc2626; background: #fef2f2; }
@@ -65,14 +61,12 @@
         .status-suspend { background: #fef08a; color: #9a3412; }
         .status-inactive { background: #fee2e2; color: #991b1b; }
         
-        /* BADGE STATUS KHUSUS */
         .status-cuti-badge { background: #dbeafe; color: #1e40af; }
         .status-withdrawal-badge { background: #fed7aa; color: #92400e; }
         .status-dropout-badge { background: #fecaca; color: #7f1d1d; }
         
         .badge-osis { background: linear-gradient(135deg, #d4af37, #f59e0b); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; box-shadow: 0 2px 4px rgba(212,175,55,0.3); }
 
-        /* WARNING BOX UNTUK STATUS KHUSUS & REKOMENDASI HAPUS */
         .status-warning-box {
             background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
             border-left: 4px solid;
@@ -102,7 +96,6 @@
 
         .action-group { display: flex; gap: 10px; margin-top: 20px; border-top: 1px dashed #e2e8f0; padding-top: 15px; z-index: 2; position: relative; flex-wrap: wrap;}
         
-        /* TOMBOL */
         .btn { flex: 1; border: none; padding: 10px; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
         .btn:active { transform: scale(0.95); }
         .btn-suspend { background: var(--warning); }
@@ -112,7 +105,6 @@
         .btn-delete { background: white; color: var(--danger); border: 2px solid #fca5a5; }
         .btn-delete:hover { background: var(--danger); color: white; }
 
-        /* Tombol OSIS Toggle */
         .btn-lantik-osis { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
         .btn-lantik-osis:hover { background: #e2e8f0; color: #334155; }
         .btn-cabut-osis { background: var(--gold); color: white; box-shadow: 0 2px 5px rgba(212,175,55,0.3); border: 1px solid #c5a02e;}
@@ -198,7 +190,6 @@
             loadData();
         });
 
-        // --- FUNGSI MODAL POPUP MODERN ---
         window.showModal = (type, title, text, onConfirm = null, isDanger = false) => {
             const overlay = document.getElementById('custom-modal');
             const iconContainer = document.getElementById('modal-icon-container');
@@ -324,9 +315,9 @@
                 const isOsis = s.is_osis === true;
 
                 // ==========================================
-                // 2. LOGIKA MENGHITUNG HARI TIDAK AKTIF (DIPERBAIKI)
+                // 2. LOGIKA MENGHITUNG HARI TIDAK AKTIF (DIPERBAIKI TOTAL)
                 // ==========================================
-                // Kumpulkan semua kolom waktu yang mungkin ada di data siswa
+                // Kumpulkan semua kolom waktu yang mungkin pernah di-update
                 const timeFields = [
                     s.updatedAt, 
                     s.timestamp, 
@@ -340,24 +331,41 @@
                 let newestTime = 0;
                 const now = new Date().getTime();
 
-                // Loop semua kolom untuk mencari waktu yang PALING BARU (Maksimal)
+                // Telusuri satu per satu untuk mencari waktu paling baru (Paling dekat dengan hari ini)
                 timeFields.forEach(field => {
                     if (field) {
                         let t = 0;
-                        if (typeof field.toDate === 'function') {
-                            t = field.toDate().getTime();
-                        } else if (typeof field === 'string' || typeof field === 'number') {
+                        if (typeof field === 'object') {
+                            // Jika berupa Timestamp Firebase
+                            if (typeof field.toDate === 'function') {
+                                t = field.toDate().getTime();
+                            } 
+                            // Jika Timestamp Firebase kehilangan fungsi bawaannya (Raw)
+                            else if (field.seconds) {
+                                t = field.seconds * 1000;
+                            }
+                        } else if (typeof field === 'string') {
                             t = new Date(field).getTime();
+                            // Fix khusus untuk format lokal (DD-MM-YYYY) yang menghasilkan NaN di JS
+                            if (isNaN(t)) {
+                                const parts = field.split(/[-/]/);
+                                if (parts.length === 3 && parts[0].length <= 2) {
+                                    t = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`).getTime();
+                                }
+                            }
+                        } else if (typeof field === 'number') {
+                            // Jika berupa Epoch / Milliseconds
+                            t = field > 9999999999 ? field : field * 1000;
                         }
                         
-                        // Validasi agar tanggalnya valid dan tidak melebihi waktu saat ini (bug tanggal masa depan)
+                        // Set sebagai waktu terbaru jika valid dan tidak melebihi hari ini (mencegah bug tanggal masa depan)
                         if (!isNaN(t) && t > newestTime && t <= now + 86400000) {
                             newestTime = t;
                         }
                     }
                 });
 
-                // Jika tidak ditemukan field waktu sama sekali, jadikan hari ini sebagai default
+                // Jika benar-benar tidak ada data tanggal, asumsikan akun baru (Hari ini)
                 let lastActiveDate = newestTime > 0 ? new Date(newestTime) : new Date();
 
                 const diffTime = Math.abs(new Date() - lastActiveDate);
@@ -378,7 +386,7 @@
                             <div class="status-warning-box dropout">
                                 <i class="fa-solid fa-ghost"></i>
                                 <div class="status-warning-text">
-                                    <strong>Akun Bodong/Pasif Total</strong><br>
+                                    <strong>Akun Bodong / Pasif Total</strong><br>
                                     0 Tugas dikerjakan & Mati selama ${inactiveDays} hari. Rekomendasi: Hapus Permanen.
                                 </div>
                             </div>
@@ -389,7 +397,7 @@
                                 <i class="fa-solid fa-skull-crossbones"></i>
                                 <div class="status-warning-text">
                                     <strong>Akun Mati Kritis</strong><br>
-                                    Tidak aktif selama ${inactiveDays} hari (>90 hari). Rekomendasi: Hapus Permanen.
+                                    Selesai ${totalTugasTerisi} Tugas, tapi menghilang selama ${inactiveDays} hari. Rekomendasi: Hapus.
                                 </div>
                             </div>
                          `;
@@ -400,7 +408,7 @@
                             <i class="fa-solid fa-triangle-exclamation"></i>
                             <div class="status-warning-text">
                                 <strong>Peringatan Pasif</strong><br>
-                                Sudah tidak aktif selama ${inactiveDays} hari. Mendekati batas kritis 90 hari.
+                                Sudah menghilang selama ${inactiveDays} hari. Mendekati batas kritis 90 hari.
                             </div>
                         </div>
                      `;
