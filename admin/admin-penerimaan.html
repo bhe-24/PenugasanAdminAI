@@ -222,7 +222,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // IMPORT deleteDoc DI SINI
+        import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase
         const firebaseConfig = { 
@@ -352,7 +353,7 @@
                             <button class="btn-action btn-accept" onclick="terimaSiswa('${data.id}', '${data.name}')" title="Terima Siswa">
                                 <i class="fa-solid fa-check"></i>
                             </button>
-                            <button class="btn-action btn-reject" onclick="tolakSiswa('${data.id}', '${data.name}')" title="Tolak Siswa">
+                            <button class="btn-action btn-reject" onclick="tolakSiswa('${data.id}', '${data.name}')" title="Tolak & Hapus Siswa">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         `;
@@ -437,23 +438,24 @@
             });
         };
 
-        // 5. Aksi Tolak Siswa
+        // 5. Aksi Tolak Siswa (Menghapus Dokumen Secara Permanen)
         window.tolakSiswa = (uid, nama) => {
             Swal.fire({
-                title: 'Tolak Pendaftar?',
-                text: `Anda akan menolak pendaftaran ${nama}. Akses pendaftar ini akan ditutup.`,
+                title: 'Tolak & Hapus Data?',
+                text: `Anda akan menolak pendaftaran ${nama}. Seluruh data pendaftar ini akan dihapus secara permanen dari pangkalan data sistem.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Tolak',
+                confirmButtonText: 'Ya, Tolak & Hapus',
                 cancelButtonText: 'Batal'
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     try {
                         Swal.showLoading();
-                        await updateDoc(doc(db, 'users', uid), { status: 'ditolak' });
-                        Swal.fire('Ditolak', `Pendaftaran ${nama} telah ditolak.`, 'success');
+                        // Hapus dokumen user dari Firestore
+                        await deleteDoc(doc(db, 'users', uid));
+                        Swal.fire('Dihapus', `Pendaftaran ${nama} telah ditolak dan datanya dihapus dari sistem.`, 'success');
                     } catch (error) {
                         Swal.fire('Gagal!', error.message, 'error');
                     }
