@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tim Pengembang - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #003366; --accent: #d4af37; 
+            --bg-color: #f8fafc; --text-dark: #1e293b; --text-gray: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden;}
+
+        /* Header */
+        .header {
+            width: 100%; background: linear-gradient(135deg, var(--primary) 0%, #001f3f 100%);
+            padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 100;
+        }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { height: 40px; width: 40px; border-radius: 50%; background: white; padding: 2px; border: 2px solid var(--accent); }
+        .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: white; font-weight: 700; margin: 0;}
+        .btn-back { background: rgba(255,255,255,0.15); color: white; padding: 8px 15px; border-radius: 50px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+
+        /* Container & Card */
+        .container {
+            width: 95%; max-width: 800px; margin: 40px auto; flex: 1;
+            background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            border-top: 5px solid var(--primary); padding: 40px; text-align: center;
+        }
+        
+        .icon-top { font-size: 3rem; color: var(--accent); margin-bottom: 15px; }
+        .title { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 5vw, 2.5rem); color: var(--primary); margin-bottom: 20px; }
+        
+        .content-box {
+            background: #f1f5f9; padding: 25px; border-radius: 12px; text-align: left;
+            font-size: 1rem; color: #475569; line-height: 1.8; white-space: pre-line;
+            border-left: 4px solid var(--primary); overflow-wrap: break-word;
+        }
+
+        .loader { margin: 40px 0; color: var(--text-gray); font-weight: 600; }
+
+        .footer { background: var(--primary); color: #cbd5e1; padding: 20px; text-align: center; font-size: 0.85rem; width: 100%; margin-top: auto;}
+
+        @media (max-width: 600px) {
+            .container { padding: 30px 20px; }
+            .content-box { padding: 15px; font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="beranda.html" class="header-brand">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia">
+            <h1>Cendekia Aksara</h1>
+        </a>
+        <a href="beranda.html" class="btn-back"><i class="fa-solid fa-house"></i> Beranda</a>
+    </header>
+
+    <div class="container">
+        <i class="fa-solid fa-users-gear icon-top"></i>
+        <h1 class="title">Tim Pengembang Sistem</h1>
+        
+        <div id="loading" class="loader"><i class="fa-solid fa-spinner fa-spin"></i> Memuat Data Tim...</div>
+        
+        <div id="team-content" class="content-box" style="display: none;"></div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <!-- Firebase Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function loadTeamData() {
+            try {
+                const snap = await getDoc(doc(db, 'settings', 'beranda'));
+                document.getElementById('loading').style.display = 'none';
+                const contentBox = document.getElementById('team-content');
+                
+                if (snap.exists() && snap.data().teamDesc) {
+                    contentBox.innerText = snap.data().teamDesc; // Menggunakan innerText untuk keamanan (escape HTML)
+                    contentBox.style.display = 'block';
+                } else {
+                    contentBox.innerHTML = "<em>Informasi tim pengembang belum ditambahkan oleh administrator.</em>";
+                    contentBox.style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('loading').innerText = "Gagal memuat data dari server.";
+            }
+        }
+
+        window.onload = loadTeamData;
+    </script>
+</body>
+</html>
