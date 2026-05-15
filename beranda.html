@@ -55,6 +55,7 @@
             background-image: url('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=2070&auto=format&fit=crop');
             background-size: cover; background-position: center;
             border-bottom: 5px solid var(--accent);
+            transition: background-image 0.5s ease;
         }
         .hero::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 51, 102, 0.75); z-index: 1; }
         .hero-content { position: relative; z-index: 2; max-width: 800px; }
@@ -151,8 +152,8 @@
     <!-- Hero Banner (Data Real/Statis) -->
     <section class="hero" id="hero-section">
         <div class="hero-content">
-            <h1 class="hero-title">Portal Cendekia Aksara</h1>
-            <p class="hero-subtitle">Wadah resmi kreasi, literasi, dan inovasi digital. Menghubungkan karya siswa dan bimbingan pengajar dalam satu ekosistem pendidikan yang inspiratif dan berintegritas.</p>
+            <h1 class="hero-title" id="banner-title">Portal Cendekia Aksara</h1>
+            <p class="hero-subtitle" id="banner-subtitle">Wadah resmi kreasi, literasi, dan inovasi digital. Menghubungkan karya siswa dan bimbingan pengajar dalam satu ekosistem pendidikan yang inspiratif dan berintegritas.</p>
         </div>
     </section>
 
@@ -160,7 +161,7 @@
     <section class="section" id="program">
         <h2 class="section-title">Program Unggulan Kami</h2>
         <div class="section-divider"></div>
-        <div style="text-align: center; max-width: 800px; margin: 0 auto; color: var(--text-gray); line-height: 1.8; font-size: 1.1rem;">
+        <div id="program-desc" style="text-align: center; max-width: 800px; margin: 0 auto; color: var(--text-gray); line-height: 1.8; font-size: 1.1rem;">
             Cendekia Aksara hadir sebagai wadah inkubasi bagi siswa untuk menyalurkan bakat menulis, membaca opini, dan berbagi informasi akademik. Seluruh karya yang dipublikasikan akan melalui proses kurasi ketat oleh tenaga pengajar berkompeten untuk menjamin kualitas dan kredibilitas literasi digital.
         </div>
     </section>
@@ -203,16 +204,15 @@
     <!-- Papan Pengumuman / Pendaftaran -->
     <section class="board-section" id="pendaftaran">
         <div class="notice-board">
-            <h2 class="notice-title">Penerimaan Siswa Cendekia Aksara</h2>
-            <p class="notice-text">
+            <h2 class="notice-title" id="pengumuman-title">Penerimaan Siswa Cendekia Aksara</h2>
+            <p class="notice-text" id="pengumuman-desc">
                 Mari menjadi bagian dari generasi literat. Persiapkan berkas pendaftaran Anda dan bergabunglah bersama kami untuk mengembangkan potensi literasi, riset, dan publikasi digital.
             </p>
-            <!-- Mengarahkan ke daftar.html sesuai permintaan khusus -->
             <a href="daftar.html" class="btn-daftar"><i class="fa-solid fa-file-signature"></i> Melengkapi Berkas Pendaftaran</a>
         </div>
     </section>
 
-    <!-- Footer (Data Real/Statis Sementara) -->
+    <!-- Footer -->
     <footer class="footer">
         <div class="footer-grid">
             <div class="footer-col">
@@ -244,7 +244,7 @@
     <!-- Firebase & Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase
         const firebaseConfig = { 
@@ -270,11 +270,31 @@
             } catch(e) { return "-"; }
         };
 
-        // 1. Fetch Articles (Data Real Firebase)
+        // 1. Fetch Dynamic Settings from Admin (SUDAH DIAKTIFKAN KEMBALI)
+        async function fetchSettings() {
+            try {
+                const settingRef = doc(db, 'settings', 'beranda');
+                const snap = await getDoc(settingRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if(data.bannerTitle) document.getElementById('banner-title').innerText = data.bannerTitle;
+                    if(data.bannerSubtitle) document.getElementById('banner-subtitle').innerText = data.bannerSubtitle;
+                    if(data.programDesc) document.getElementById('program-desc').innerText = data.programDesc;
+                    if(data.pengumumanTitle) document.getElementById('pengumuman-title').innerText = data.pengumumanTitle;
+                    if(data.pengumumanDesc) document.getElementById('pengumuman-desc').innerText = data.pengumumanDesc;
+                    if(data.bannerImage) {
+                        document.getElementById('hero-section').style.backgroundImage = `url('${data.bannerImage}')`;
+                    }
+                }
+            } catch (error) {
+                console.log("Menggunakan pengaturan teks bawaan atau gagal mengambil data admin.");
+            }
+        }
+
+        // 2. Fetch Articles (Data Real Firebase)
         async function fetchArticles() {
             const slider = document.getElementById('article-slider');
             try {
-                // Fetch tanpa index query kompleks untuk keamanan
                 const articlesSnap = await getDocs(collection(db, 'articles'));
                 let articles = [];
                 
@@ -285,7 +305,6 @@
                     }
                 });
 
-                // Urutkan berdasarkan waktu terbaru di memory
                 articles.sort((a, b) => {
                     const ta = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : 0;
                     const tb = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : 0;
@@ -299,7 +318,6 @@
                     return;
                 }
 
-                // Tampilkan 8 artikel terbaru
                 articles.slice(0, 8).forEach(art => {
                     const img = (art.imageUrl && art.imageUrl.trim() !== '') ? art.imageUrl : 'https://i.imgur.com/5Srjyo4.png';
                     const imgClass = img.includes('imgur') ? 'card-img' : 'card-img'; 
@@ -328,7 +346,7 @@
             }
         }
 
-        // 2. Fetch Stats & Render Charts (Data Real Firebase)
+        // 3. Fetch Stats & Render Charts (Data Real Firebase)
         async function fetchAndRenderStats() {
             try {
                 const usersSnap = await getDocs(collection(db, 'users'));
@@ -337,7 +355,6 @@
 
                 usersSnap.forEach(doc => {
                     const data = doc.data();
-                    // Deteksi pengajar berdasarkan email @ac.id atau role
                     if (data.role === 'admin' || data.role === 'pengajar' || (data.email && data.email.endsWith('@ac.id'))) {
                         totalPengajar++;
                     } else {
@@ -345,7 +362,6 @@
                     }
                 });
 
-                // --- CHART SISWA ---
                 const ctxSiswa = document.getElementById('siswaChart').getContext('2d');
                 new Chart(ctxSiswa, {
                     type: 'doughnut',
@@ -360,14 +376,11 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom' }
-                        },
+                        plugins: { legend: { position: 'bottom' } },
                         cutout: '70%'
                     }
                 });
 
-                // --- CHART PENGAJAR ---
                 const ctxPengajar = document.getElementById('pengajarChart').getContext('2d');
                 new Chart(ctxPengajar, {
                     type: 'bar',
@@ -383,12 +396,8 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { precision: 0 } }
-                        },
-                        plugins: {
-                            legend: { display: false }
-                        }
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                        plugins: { legend: { display: false } }
                     }
                 });
 
@@ -399,7 +408,7 @@
 
         // Jalankan semua fungsi saat halaman dimuat
         document.addEventListener('DOMContentLoaded', () => {
-            // Fungsi fetchSettings() dinonaktifkan sementara sesuai permintaan
+            fetchSettings(); // <--- SEKARANG DIAKTIFKAN
             fetchArticles();
             fetchAndRenderStats();
         });
