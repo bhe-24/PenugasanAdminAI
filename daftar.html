@@ -268,6 +268,11 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // ==========================================================
+        // GANTI URL INI DENGAN URL DEPLOYMENT APPS SCRIPT ANDA
+        // ==========================================================
+        const APPS_SCRIPT_URL = "URL_APPS_SCRIPT_ANDA_DISINI";
+
         // UI Utilities
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
@@ -400,11 +405,28 @@
             doc.save(`Pakta_Integritas_${userDataCache.name.replace(/\s+/g, '_')}.pdf`);
         });
 
-        // --- TAHAP 2: UNGGAH BERKAS & SIMULASI PENGECEKAN ---
+        // --- FUNGSI HELPER: UBAH FILE KE BASE64 ---
+        const convertToBase64 = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]); // Ambil bagian Base64 saja
+                reader.onerror = error => reject(error);
+            });
+        };
+
+        // --- TAHAP 2: UNGGAH BERKAS & PENGECEKAN KE APPS SCRIPT ---
         const fileInput = document.getElementById('file-input');
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 selectedFile = e.target.files[0];
+                
+                // Pengecekan ukuran max 5MB
+                if(selectedFile.size > 5 * 1024 * 1024) {
+                    Swal.fire('Ukuran Terlalu Besar', 'Maksimal ukuran file adalah 5MB', 'warning');
+                    return;
+                }
+
                 document.getElementById('file-name-display').innerText = selectedFile.name;
                 document.getElementById('btn-upload').classList.remove('hidden');
             }
@@ -413,46 +435,61 @@
         document.getElementById('btn-upload').addEventListener('click', async () => {
             if (!selectedFile) return;
 
-            // Simulasi Proses Apps Script & AI Tanda Tangan
+            if (APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyT7L7btpHsFwD1QNC6076WAIPxyq2sCGkeFK2h6Mhw1XV_JskK3lbbH9szNBltXEXpnw/exec") {
+                Swal.fire('Sistem Belum Siap', 'URL Apps Script belum diatur oleh Admin.', 'warning');
+                return;
+            }
+
             let timerInterval;
             Swal.fire({
                 title: 'Memverifikasi Berkas',
-                html: 'Sistem sedang memindai tanda tangan... <b></b>',
-                timer: 4000,
-                timerProgressBar: true,
+                html: 'Sistem sedang memindai tanda tangan dan mengunggah... <b></b>',
                 allowOutsideClick: false,
-                didOpen: () => {
+                didOpen: async () => {
                     Swal.showLoading();
                     const b = Swal.getHtmlContainer().querySelector('b');
-                    const states = ['Mengirim ke Apps Script...', 'Ekstraksi dokumen...', 'Mendeteksi guratan tanda tangan...', 'Memvalidasi...'];
+                    const states = ['Ekstraksi dokumen...', 'Mengirim ke Drive...', 'Mendeteksi guratan tanda tangan...', 'Memvalidasi...'];
                     let i = 0;
                     timerInterval = setInterval(() => { b.textContent = states[i]; i = (i+1)%states.length; }, 1000);
-                },
-                willClose: () => { clearInterval(timerInterval); }
-            }).then(async (result) => {
-                if (result.dismiss === Swal.DismissReason.timer) {
                     
-                    // Simulasi Berhasil / Selesai scan
-                    showLoading('Mengirim data ke database...');
                     try {
-                        // Dummy fetch ke webhook App Script (Pura-pura ada endpoint)
-                        try {
-                            await fetch('https://script.google.com/macros/s/AKfycbwDummyEndpoint/exec', {
-                                method: 'POST', mode: 'no-cors', body: JSON.stringify({ uid: currentUser.uid, status: 'uploaded' })
-                            });
-                        } catch(e) {} // Abaikan error CORS/Not found karena ini mock
+                        // 1. Convert File to Base64
+                        const base64Data = await convertToBase64(selectedFile);
+                        
+                        // 2. Siapkan Payload (Data yang dikirim)
+                        const payload = {
+                            uid: currentUser.uid,
+                            name: userDataCache.name,
+                            email: userDataCache.email,
+                            fileName: selectedFile.name,
+                            mimeType: selectedFile.type,
+                            fileData: base64Data
+                        };
 
-                        // Update Firestore status ke pending_review
+                        // 3. Kirim ke Google Apps Script menggunakan Fetch
+                        // Menggunakan method POST dan plain text (stringify) untuk bypass preflight CORS
+                        await fetch(APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            body: JSON.stringify(payload)
+                        });
+
+                        // 4. Update status ke pending_review di Firestore setelah sukses dikirim
                         await setDoc(doc(db, 'users', currentUser.uid), { status: 'pending_review' }, { merge: true });
                         
-                        hideLoading();
-                        Swal.fire({ icon: 'success', title: 'Berkas Diterima!', text: 'Sistem mendeteksi tanda tangan. Berkas diteruskan ke Admin.' });
+                        clearInterval(timerInterval);
+                        Swal.fire({ 
+                            icon: 'success', 
+                            title: 'Berkas Diterima!', 
+                            text: 'Berkas berhasil dikirim ke Drive. Status diteruskan ke Admin untuk peninjauan.',
+                            confirmButtonColor: '#003366'
+                        });
 
                     } catch (error) {
-                        hideLoading();
-                        Swal.fire({ icon: 'error', title: 'Kesalahan Sistem', text: error.message });
+                        clearInterval(timerInterval);
+                        Swal.fire({ icon: 'error', title: 'Gagal Mengunggah', text: "Koneksi ke Apps Script gagal: " + error.message });
                     }
-                }
+                },
+                willClose: () => { clearInterval(timerInterval); }
             });
         });
 
