@@ -9,9 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
-    <!-- jsPDF untuk generate dokumen PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         :root {
@@ -58,7 +55,7 @@
             padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px;
             font-size: 0.95rem; background: #f8fafc; transition: 0.3s;
         }
-        .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: white; outline: none; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); background: white; outline: none; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
 
         /* --- PAKTA INTEGRITAS --- */
         .pakta-box {
@@ -69,6 +66,15 @@
         .pakta-item input[type="checkbox"] { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--danger); cursor: pointer;}
         .pakta-item label { font-size: 0.9rem; color: #4c0519; line-height: 1.6; font-weight: 500; cursor: pointer;}
 
+        /* --- SIGNATURE PAD --- */
+        .signature-container { margin-top: 25px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 15px; background: #f8fafc; }
+        .signature-container label { font-size: 0.85rem; font-weight: 600; color: #475569; display: block; margin-bottom: 10px; }
+        .signature-pad { width: 100%; height: 200px; background: white; border: 2px dashed #cbd5e1; border-radius: 8px; cursor: crosshair; touch-action: none; }
+        .signature-pad.error { border-color: var(--danger); }
+        .signature-controls { display: flex; justify-content: flex-end; margin-top: 10px; }
+        .btn-clear { background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; font-weight: 600; }
+        .btn-clear:hover { background: #cbd5e1; color: var(--danger); }
+
         /* --- BUTTONS --- */
         .btn {
             width: 100%; padding: 14px; color: white; border: none; border-radius: 10px;
@@ -77,18 +83,7 @@
         }
         .btn-primary { background: linear-gradient(135deg, var(--primary-light), var(--primary)); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
         .btn-primary:hover { box-shadow: 0 6px 15px rgba(0, 51, 102, 0.3); transform: translateY(-2px); }
-        .btn-accent { background: linear-gradient(135deg, #d4af37, #b8860b); color: #fff; }
-        .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
-
-        /* --- UPLOAD SECTION --- */
-        .upload-box {
-            border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px;
-            text-align: center; background: #f8fafc; cursor: pointer; transition: 0.3s; margin-top: 20px;
-        }
-        .upload-box:hover, .upload-box.dragover { border-color: var(--primary); background: #f0f7ff; }
-        .upload-box i { font-size: 3rem; color: #94a3b8; margin-bottom: 15px; }
-        .upload-box p { color: var(--text-gray); font-size: 0.9rem; }
-        #file-input { display: none; }
+        .btn-accent { background: linear-gradient(135deg, #d4af37, #b8860b); color: #fff; text-decoration: none;}
 
         /* --- RUANG TUNGGU --- */
         .waiting-room { text-align: center; padding: 20px 0; }
@@ -96,6 +91,7 @@
         .tips-carousel { background: #f1f5f9; padding: 20px; border-radius: 12px; margin-top: 30px; text-align: left; border-left: 4px solid var(--accent);}
         .tips-carousel h4 { color: var(--primary); margin-bottom: 10px; }
         .tips-carousel p { font-size: 0.9rem; color: var(--text-gray); line-height: 1.6; }
+        .pdf-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 10px; margin-top: 20px; display: inline-block; text-align: center; }
 
         .hidden { display: none !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -125,10 +121,10 @@
 
     <div class="container">
 
-        <!-- ================= TAHAP 1: FORM DATA DIRI & PAKTA ================= -->
+        <!-- ================= TAHAP 1: FORM DATA DIRI & TANDA TANGAN ================= -->
         <div id="step-1">
             <h2 class="step-title">Formulir Pendaftaran</h2>
-            <p class="step-subtitle">Lengkapi data diri Anda dan baca Pakta Integritas dengan saksama. Pendaftaran ini tanpa seleksi awal, namun menuntut komitmen penuh.</p>
+            <p class="step-subtitle">Lengkapi data diri Anda dan bubuhkan tanda tangan untuk menyetujui Pakta Integritas. Dokumen akan diotomatisasi oleh sistem.</p>
 
             <form id="reg-form">
                 <div class="form-grid">
@@ -178,50 +174,37 @@
                     </div>
                 </div>
 
+                <!-- TANDA TANGAN DIGITAL -->
+                <div class="signature-container">
+                    <label>Tanda Tangan Digital Calon Siswa</label>
+                    <canvas id="signature-pad" class="signature-pad"></canvas>
+                    <div class="signature-controls">
+                        <button type="button" class="btn-clear" id="btn-clear-sig"><i class="fa-solid fa-eraser"></i> Bersihkan Tanda Tangan</button>
+                    </div>
+                    <p id="sig-error" style="color:var(--danger); font-size: 0.8rem; display:none; margin-top:5px;">Silakan bubuhkan tanda tangan Anda.</p>
+                </div>
+
                 <button type="submit" class="btn btn-primary" id="btn-submit-step1">
-                    Lanjutkan & Buat Dokumen Pendaftaran <i class="fa-solid fa-arrow-right"></i>
+                    <i class="fa-solid fa-paper-plane"></i> Ajukan Pendaftaran & Otomatisasi Dokumen
                 </button>
             </form>
         </div>
 
-        <!-- ================= TAHAP 2: UNDUH & UNGGAH BERKAS ================= -->
-        <div id="step-2" class="hidden">
-            <h2 class="step-title">Pemberkasan Digital</h2>
-            <p class="step-subtitle">Sistem telah menyimpan data Anda. Silakan unduh dokumen, cetak/tanda tangani secara digital, lalu unggah kembali.</p>
-
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-                <h4 style="color: #166534; margin-bottom: 10px;">Langkah 1: Unduh Berkas</h4>
-                <p style="font-size: 0.85rem; color: #15803d; margin-bottom: 15px;">Dokumen ini berisi data diri Anda beserta Pakta Integritas yang mengikat secara administratif.</p>
-                <button class="btn btn-accent" id="btn-download" style="width: auto; margin: 0 auto; padding: 10px 25px;">
-                    <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen Pendaftaran (PDF)
-                </button>
-            </div>
-
-            <div style="text-align: center; margin: 30px 0;">
-                <h4 style="color: var(--primary);">Langkah 2: Unggah Dokumen Bertanda Tangan</h4>
-                <p style="font-size: 0.85rem; color: var(--text-gray);">Sistem Apps Script Cendekia Aksara akan memverifikasi keberadaan tanda tangan Anda secara otomatis.</p>
-                
-                <div class="upload-box" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <p><b>Klik disini</b> atau seret file PDF/Gambar ke area ini.<br><span style="font-size: 0.8rem;">Maksimal 5MB</span></p>
-                    <input type="file" id="file-input" accept=".pdf, image/jpeg, image/png">
-                </div>
-                <div id="file-name-display" style="margin-top: 10px; font-weight: 600; color: var(--primary);"></div>
-            </div>
-
-            <button class="btn btn-success hidden" id="btn-upload">
-                <i class="fa-solid fa-check-double"></i> Verifikasi & Kirim Dokumen
-            </button>
-        </div>
-
-        <!-- ================= TAHAP 3: RUANG TUNGGU ================= -->
+        <!-- ================= TAHAP 2: RUANG TUNGGU ================= -->
         <div id="step-3" class="hidden waiting-room">
             <i class="fa-solid fa-mug-hot" style="font-size: 5rem; color: var(--accent); margin-bottom: 20px;"></i>
             <h2 class="step-title">Ruang Tunggu</h2>
-            <p class="step-subtitle">Dokumen Anda telah masuk ke Google Drive sistem. Admin sedang meninjau validitas berkas dan komitmen Anda.</p>
+            <p class="step-subtitle">Sistem telah memproses dokumen Pakta Integritas Anda dan Admin sedang meninjau validitas komitmen Anda.</p>
             
             <div style="display: inline-flex; align-items: center; gap: 10px; background: #e0f2fe; color: #0369a1; padding: 8px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem;">
                 <i class="fa-solid fa-circle-notch fa-spin"></i> Status: Menunggu Verifikasi Admin
+            </div>
+
+            <div class="pdf-box hidden" id="pdf-download-box">
+                <p style="font-size: 0.85rem; color: #15803d; margin-bottom: 10px;">Berkas pendaftaran resmi Anda yang telah ditandatangani digital berhasil diterbitkan.</p>
+                <a href="#" target="_blank" class="btn btn-accent" id="btn-download-pdf" style="padding: 10px 20px; display: inline-flex; font-size:0.9rem;">
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Salinan Berkas Pendaftaran
+                </a>
             </div>
 
             <div class="tips-carousel">
@@ -230,7 +213,7 @@
             </div>
         </div>
 
-        <!-- ================= TAHAP 4: DITERIMA ================= -->
+        <!-- ================= TAHAP 3: DITERIMA ================= -->
         <div id="step-4" class="hidden waiting-room">
             <i class="fa-solid fa-user-graduate" style="font-size: 5rem; color: var(--success); margin-bottom: 20px;"></i>
             <h2 class="step-title">Selamat! Anda Diterima</h2>
@@ -253,7 +236,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
@@ -279,30 +262,101 @@
         
         const showStep = (stepNum) => {
             document.getElementById('step-1').classList.add('hidden');
-            document.getElementById('step-2').classList.add('hidden');
             document.getElementById('step-3').classList.add('hidden');
             document.getElementById('step-4').classList.add('hidden');
             document.getElementById(`step-${stepNum}`).classList.remove('hidden');
         };
 
-        // State & Data
-        let currentUser = null;
-        let userDataCache = {};
-        let selectedFile = null;
+        // --- SETUP SIGNATURE PAD ---
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let hasSignature = false;
+
+        // Set ukuran kanvas sesungguhnya
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            ctx.scale(ratio, ratio);
+            // Background putih agar saat diekspor tidak transparan/hitam di pdf
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        ctx.strokeStyle = "#0f172a"; // Warna tinta
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        function getPosition(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            hasSignature = true;
+            const pos = getPosition(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getPosition(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            e.preventDefault();
+        }
+
+        function stopDrawing() {
+            if(isDrawing) {
+                ctx.closePath();
+                isDrawing = false;
+            }
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing, {passive: false});
+        canvas.addEventListener('touchmove', draw, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing);
+
+        document.getElementById('btn-clear-sig').addEventListener('click', () => {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+            hasSignature = false;
+        });
 
         // --- AUTH & ROUTING LISTENER ---
+        let currentUser = null;
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                // Dengarkan perubahan status secara real-time
                 onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
                     if (docSnap.exists()) {
                         const data = docSnap.data();
-                        userDataCache = data;
                         
-                        if (data.status === 'pending_upload') {
-                            showStep(2);
-                        } else if (data.status === 'pending_review') {
+                        // Menampilkan tombol download jika ada PDF
+                        if(data.pdfUrl) {
+                            document.getElementById('pdf-download-box').classList.remove('hidden');
+                            document.getElementById('btn-download-pdf').href = data.pdfUrl;
+                        }
+
+                        if (data.status === 'pending_review') {
                             showStep(3);
                             startTipsCarousel();
                         } else if (data.status === 'active' || data.status === 'diterima') {
@@ -315,15 +369,28 @@
             }
         });
 
-        // --- TAHAP 1: SUBMIT DATA DIRI & BUAT AKUN ---
+        // --- TAHAP 1: SUBMIT DATA & EKSEKUSI APPS SCRIPT ---
         document.getElementById('reg-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            showLoading('Menyiapkan Berkas & Akun...');
+            
+            // Validasi Tanda Tangan
+            if (!hasSignature) {
+                canvas.classList.add('error');
+                document.getElementById('sig-error').style.display = 'block';
+                return;
+            }
+            canvas.classList.remove('error');
+            document.getElementById('sig-error').style.display = 'none';
+
+            if (APPS_SCRIPT_URL === "URL_APPS_SCRIPT_ANDA_DISINI") {
+                Swal.fire('Sistem Belum Siap', 'URL Apps Script belum diatur oleh Admin.', 'warning');
+                return;
+            }
 
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            userDataCache = {
+            const userDataCache = {
                 name: document.getElementById('nama').value,
                 instansi: document.getElementById('instansi').value,
                 whatsapp: document.getElementById('whatsapp').value,
@@ -331,169 +398,74 @@
                 email: email,
                 role: 'siswa',
                 semester: 1,
-                status: 'pending_upload', // Berhenti di tahap unggah berkas
+                status: 'pending_review', // Langsung review karena upload otomatis
                 createdAt: new Date().toISOString()
             };
 
-            try {
-                // Buat Akun Firebase Auth
-                const cred = await createUserWithEmailAndPassword(auth, email, password);
-                // Simpan ke Firestore
-                await setDoc(doc(db, 'users', cred.user.uid), userDataCache);
-                
-                hideLoading();
-                Swal.fire({
-                    icon: 'success', title: 'Data Tersimpan!',
-                    text: 'Lanjut ke tahap pengunduhan berkas Pakta Integritas.',
-                    confirmButtonColor: '#003366'
-                });
-                
-            } catch (error) {
-                hideLoading();
-                let msg = error.message;
-                if(error.code === 'auth/email-already-in-use') msg = 'Email sudah digunakan. Jika Anda keluar di tengah proses, silakan login dan selesaikan berkas di dashboard.';
-                Swal.fire({ icon: 'error', title: 'Pendaftaran Gagal', text: msg, confirmButtonColor: '#dc2626' });
-            }
-        });
-
-        // --- TAHAP 2: UNDUH PDF (Gunakan jsPDF) ---
-        document.getElementById('btn-download').addEventListener('click', () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const date = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-
-            // Header Kop Surat
-            doc.setFontSize(16);
-            doc.setFont("helvetica", "bold");
-            doc.text("CENDEKIA AKSARA", 105, 20, { align: "center" });
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text("Pusat Inkubasi Literasi & Riset Digital", 105, 26, { align: "center" });
-            doc.line(20, 30, 190, 30);
-
-            // Judul
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
-            doc.text("SURAT PERNYATAAN & PAKTA INTEGRITAS", 105, 45, { align: "center" });
-
-            // Isi Data
-            doc.setFontSize(11);
-            doc.setFont("helvetica", "normal");
-            doc.text("Yang bertanda tangan di bawah ini:", 20, 60);
-            doc.text(`Nama Lengkap   : ${userDataCache.name}`, 20, 70);
-            doc.text(`Instansi/Sekolah : ${userDataCache.instansi}`, 20, 78);
-            doc.text(`Email / No. WA   : ${userDataCache.email} / ${userDataCache.whatsapp}`, 20, 86);
-
-            // Pernyataan
-            const textPernyataan = "Dengan sadar dan tanpa paksaan dari pihak manapun, menyatakan dengan sungguh-sungguh bahwa saya berkomitmen menjadi bagian dari Cendekia Aksara dan menyetujui poin-poin berikut:";
-            const splitText = doc.splitTextToSize(textPernyataan, 170);
-            doc.text(splitText, 20, 100);
-
-            doc.text("1. Mengikuti seluruh komponen kegiatan tanpa terkecuali.", 25, 115);
-            doc.text("2. Siap menerima sanksi Drop Out (DO) tidak hormat apabila tingkat", 25, 123);
-            doc.text("   kehadiran di bawah 75%.", 25, 129);
-            doc.text("3. Bersedia membayar denda/penalti administrasi apabila", 25, 137);
-            doc.text("   mengundurkan diri secara sepihak.", 25, 143);
-
-            // Tanda Tangan Area
-            doc.text(`Dibuat pada tanggal: ${date}`, 130, 170);
-            doc.text("Calon Siswa,", 130, 180);
-            doc.text("(.............................................)", 130, 210);
-            doc.text(userDataCache.name, 130, 218);
-
-            // Save PDF
-            doc.save(`Pakta_Integritas_${userDataCache.name.replace(/\s+/g, '_')}.pdf`);
-        });
-
-        // --- FUNGSI HELPER: UBAH FILE KE BASE64 ---
-        const convertToBase64 = (file) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result.split(',')[1]); // Ambil bagian Base64 saja
-                reader.onerror = error => reject(error);
-            });
-        };
-
-        // --- TAHAP 2: UNGGAH BERKAS & PENGECEKAN KE APPS SCRIPT ---
-        const fileInput = document.getElementById('file-input');
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                selectedFile = e.target.files[0];
-                
-                // Pengecekan ukuran max 5MB
-                if(selectedFile.size > 5 * 1024 * 1024) {
-                    Swal.fire('Ukuran Terlalu Besar', 'Maksimal ukuran file adalah 5MB', 'warning');
-                    return;
-                }
-
-                document.getElementById('file-name-display').innerText = selectedFile.name;
-                document.getElementById('btn-upload').classList.remove('hidden');
-            }
-        });
-
-        document.getElementById('btn-upload').addEventListener('click', async () => {
-            if (!selectedFile) return;
-
-            if (APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyT7L7btpHsFwD1QNC6076WAIPxyq2sCGkeFK2h6Mhw1XV_JskK3lbbH9szNBltXEXpnw/exec") {
-                Swal.fire('Sistem Belum Siap', 'URL Apps Script belum diatur oleh Admin.', 'warning');
-                return;
-            }
+            // Ambil gambar TTD sebagai base64 (hilangkan prefix data:image/png;base64,)
+            const signatureBase64 = canvas.toDataURL("image/png").split(',')[1];
 
             let timerInterval;
             Swal.fire({
-                title: 'Memverifikasi Berkas',
-                html: 'Sistem sedang memindai tanda tangan dan mengunggah... <b></b>',
+                title: 'Memproses Pendaftaran',
+                html: 'Sistem sedang membuat akun dan merakit dokumen resmi Anda... <b></b>',
                 allowOutsideClick: false,
                 didOpen: async () => {
                     Swal.showLoading();
                     const b = Swal.getHtmlContainer().querySelector('b');
-                    const states = ['Ekstraksi dokumen...', 'Mengirim ke Drive...', 'Mendeteksi guratan tanda tangan...', 'Memvalidasi...'];
+                    const states = ['Menyimpan Data Diri...', 'Mengamankan Sandi...', 'Merakit Dokumen PDF...', 'Mengirim ke Drive...', 'Menyelesaikan...'];
                     let i = 0;
-                    timerInterval = setInterval(() => { b.textContent = states[i]; i = (i+1)%states.length; }, 1000);
-                    
+                    timerInterval = setInterval(() => { b.textContent = states[i]; i = Math.min(i+1, states.length-1); }, 1500);
+
                     try {
-                        // 1. Convert File to Base64
-                        const base64Data = await convertToBase64(selectedFile);
-                        
-                        // 2. Siapkan Payload (Data yang dikirim)
+                        // 1. Buat Akun Firebase Auth
+                        const cred = await createUserWithEmailAndPassword(auth, email, password);
+                        const uid = cred.user.uid;
+
+                        // 2. Kirim data dan TTD ke Apps Script
                         const payload = {
-                            uid: currentUser.uid,
+                            uid: uid,
                             name: userDataCache.name,
+                            instansi: userDataCache.instansi,
                             email: userDataCache.email,
-                            fileName: selectedFile.name,
-                            mimeType: selectedFile.type,
-                            fileData: base64Data
+                            whatsapp: userDataCache.whatsapp,
+                            signatureBase64: signatureBase64
                         };
 
-                        // 3. Kirim ke Google Apps Script menggunakan Fetch
-                        // Menggunakan method POST dan plain text (stringify) untuk bypass preflight CORS
-                        await fetch(APPS_SCRIPT_URL, {
+                        const response = await fetch(APPS_SCRIPT_URL, {
                             method: 'POST',
                             body: JSON.stringify(payload)
                         });
+                        
+                        const result = await response.json();
 
-                        // 4. Update status ke pending_review di Firestore setelah sukses dikirim
-                        await setDoc(doc(db, 'users', currentUser.uid), { status: 'pending_review' }, { merge: true });
+                        if(result.status === "error") {
+                            throw new Error(result.message);
+                        }
+
+                        // 3. Update Firestore dengan pdfUrl
+                        userDataCache.pdfUrl = result.pdfUrl;
+                        await setDoc(doc(db, 'users', uid), userDataCache);
                         
                         clearInterval(timerInterval);
-                        Swal.fire({ 
-                            icon: 'success', 
-                            title: 'Berkas Diterima!', 
-                            text: 'Berkas berhasil dikirim ke Drive. Status diteruskan ke Admin untuk peninjauan.',
+                        Swal.fire({
+                            icon: 'success', title: 'Pendaftaran Berhasil!',
+                            text: 'Dokumen Pakta Integritas telah otomatis dibuat dan diteruskan ke Admin.',
                             confirmButtonColor: '#003366'
                         });
-
+                        
                     } catch (error) {
                         clearInterval(timerInterval);
-                        Swal.fire({ icon: 'error', title: 'Gagal Mengunggah', text: "Koneksi ke Apps Script gagal: " + error.message });
+                        let msg = error.message;
+                        if(error.code === 'auth/email-already-in-use') msg = 'Email sudah terdaftar. Silakan login.';
+                        Swal.fire({ icon: 'error', title: 'Pendaftaran Gagal', text: msg, confirmButtonColor: '#dc2626' });
                     }
                 },
                 willClose: () => { clearInterval(timerInterval); }
             });
         });
 
-        // --- TAHAP 3: TIPS CAROUSEL (RUANG TUNGGU) ---
+        // --- TIPS CAROUSEL (RUANG TUNGGU) ---
         const tips = [
             "Tahukah Anda? Cendekia Aksara mempublikasikan karya terbaik setiap minggu.",
             "Persiapkan ide tulisan pertama Anda. Kami sangat menghargai orisinalitas.",
@@ -513,7 +485,6 @@
             }, 5000);
             textEl.style.transition = "opacity 0.5s ease";
         }
-
     </script>
 </body>
 </html>
