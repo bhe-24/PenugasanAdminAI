@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pendaftaran - Cendekia Aksara</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <!-- jsPDF untuk generate dokumen PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #003366; 
+            --primary-light: #005a9c;
+            --accent: #d4af37; 
+            --bg-color: #f8fafc;
+            --text-dark: #1e293b;
+            --text-gray: #64748b;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-dark); background-image: url('https://www.transparenttextures.com/patterns/cubes.png'); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        /* --- HEADER --- */
+        .header {
+            width: 100%; background: linear-gradient(135deg, var(--primary) 0%, #001f3f 100%);
+            padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; justify-content: center; align-items: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 100;
+        }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { height: 40px; width: 40px; border-radius: 50%; background: white; padding: 2px; border: 2px solid var(--accent); }
+        .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: white; font-weight: 700; margin: 0;}
+        .header-brand h1 span { color: var(--accent); }
+
+        /* --- CONTAINER UTAMA --- */
+        .container {
+            width: 95%; max-width: 800px; background: white; margin: 40px auto;
+            border-radius: 20px; box-shadow: 0 15px 35px rgba(0, 51, 102, 0.1);
+            border-top: 5px solid var(--primary); padding: 40px; position: relative;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .step-title { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--primary); margin-bottom: 10px; text-align: center; }
+        .step-subtitle { text-align: center; color: var(--text-gray); margin-bottom: 30px; font-size: 0.95rem; }
+
+        /* --- FORM --- */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label { font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px;
+            font-size: 0.95rem; background: #f8fafc; transition: 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); background: white; outline: none; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+
+        /* --- PAKTA INTEGRITAS --- */
+        .pakta-box {
+            background: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 25px; margin-top: 30px;
+        }
+        .pakta-box h3 { color: var(--danger); font-size: 1.2rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;}
+        .pakta-item { display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-start; }
+        .pakta-item input[type="checkbox"] { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--danger); cursor: pointer;}
+        .pakta-item label { font-size: 0.9rem; color: #4c0519; line-height: 1.6; font-weight: 500; cursor: pointer;}
+
+        /* --- BUTTONS --- */
+        .btn {
+            width: 100%; padding: 14px; color: white; border: none; border-radius: 10px;
+            font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 20px;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--primary-light), var(--primary)); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+        .btn-primary:hover { box-shadow: 0 6px 15px rgba(0, 51, 102, 0.3); transform: translateY(-2px); }
+        .btn-accent { background: linear-gradient(135deg, #d4af37, #b8860b); color: #fff; }
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+
+        /* --- UPLOAD SECTION --- */
+        .upload-box {
+            border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px;
+            text-align: center; background: #f8fafc; cursor: pointer; transition: 0.3s; margin-top: 20px;
+        }
+        .upload-box:hover, .upload-box.dragover { border-color: var(--primary); background: #f0f7ff; }
+        .upload-box i { font-size: 3rem; color: #94a3b8; margin-bottom: 15px; }
+        .upload-box p { color: var(--text-gray); font-size: 0.9rem; }
+        #file-input { display: none; }
+
+        /* --- RUANG TUNGGU --- */
+        .waiting-room { text-align: center; padding: 20px 0; }
+        .waiting-room img { width: 150px; margin-bottom: 20px; }
+        .tips-carousel { background: #f1f5f9; padding: 20px; border-radius: 12px; margin-top: 30px; text-align: left; border-left: 4px solid var(--accent);}
+        .tips-carousel h4 { color: var(--primary); margin-bottom: 10px; }
+        .tips-carousel p { font-size: 0.9rem; color: var(--text-gray); line-height: 1.6; }
+
+        .hidden { display: none !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.9); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+        }
+        .spinner { width: 50px; height: 50px; border: 5px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; gap: 15px;}
+            .container { padding: 25px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="beranda.html" class="header-brand">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia">
+            <h1>Cendekia <span>Aksara</span></h1>
+        </a>
+    </header>
+
+    <div class="container">
+
+        <!-- ================= TAHAP 1: FORM DATA DIRI & PAKTA ================= -->
+        <div id="step-1">
+            <h2 class="step-title">Formulir Pendaftaran</h2>
+            <p class="step-subtitle">Lengkapi data diri Anda dan baca Pakta Integritas dengan saksama. Pendaftaran ini tanpa seleksi awal, namun menuntut komitmen penuh.</p>
+
+            <form id="reg-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nama Lengkap (Sesuai Identitas)</label>
+                        <input type="text" id="nama" required placeholder="Contoh: Budi Santoso">
+                    </div>
+                    <div class="form-group">
+                        <label>Asal Sekolah / Instansi</label>
+                        <input type="text" id="instansi" required placeholder="Contoh: SMA Negeri 1 Jakarta">
+                    </div>
+                    <div class="form-group">
+                        <label>Alamat Email</label>
+                        <input type="email" id="email" required placeholder="nama@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Nomor WhatsApp Aktif</label>
+                        <input type="tel" id="whatsapp" required placeholder="081234567890">
+                    </div>
+                    <div class="form-group full">
+                        <label>Alasan Bergabung di Cendekia Aksara</label>
+                        <textarea id="alasan" rows="3" required placeholder="Jelaskan motivasi Anda..."></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label>Buat Kata Sandi (Untuk Login Nanti)</label>
+                        <input type="password" id="password" required minlength="6" placeholder="Minimal 6 karakter">
+                    </div>
+                </div>
+
+                <div class="pakta-box">
+                    <h3><i class="fa-solid fa-triangle-exclamation"></i> Pakta Integritas & Komitmen</h3>
+                    <p style="font-size: 0.85rem; color: var(--danger); margin-bottom: 20px; font-weight: 600;">
+                        Jika Anda tidak berniat bersungguh-sungguh, silakan tutup halaman ini sekarang. Kami hanya mencari individu yang berkomitmen.
+                    </p>
+                    
+                    <div class="pakta-item">
+                        <input type="checkbox" id="pakta1" required>
+                        <label for="pakta1">Saya bersedia mengikuti <b>seluruh komponen kegiatan</b> Cendekia Aksara tanpa terkecuali dan tanpa alasan yang tidak dapat dipertanggungjawabkan.</label>
+                    </div>
+                    <div class="pakta-item">
+                        <input type="checkbox" id="pakta2" required>
+                        <label for="pakta2">Saya siap menerima sanksi <b>Drop Out (DO)</b> dengan tidak hormat apabila tingkat kehadiran/partisipasi saya berada di bawah batas minimal (75%).</label>
+                    </div>
+                    <div class="pakta-item">
+                        <input type="checkbox" id="pakta3" required>
+                        <label for="pakta3">Saya bersedia membayar <b>denda/penalti administrasi</b> apabila saya mengundurkan diri secara sepihak di tengah berjalannya program setelah saya dinyatakan resmi diterima.</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="btn-submit-step1">
+                    Lanjutkan & Buat Dokumen Pendaftaran <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- ================= TAHAP 2: UNDUH & UNGGAH BERKAS ================= -->
+        <div id="step-2" class="hidden">
+            <h2 class="step-title">Pemberkasan Digital</h2>
+            <p class="step-subtitle">Sistem telah menyimpan data Anda. Silakan unduh dokumen, cetak/tanda tangani secara digital, lalu unggah kembali.</p>
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+                <h4 style="color: #166534; margin-bottom: 10px;">Langkah 1: Unduh Berkas</h4>
+                <p style="font-size: 0.85rem; color: #15803d; margin-bottom: 15px;">Dokumen ini berisi data diri Anda beserta Pakta Integritas yang mengikat secara administratif.</p>
+                <button class="btn btn-accent" id="btn-download" style="width: auto; margin: 0 auto; padding: 10px 25px;">
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Dokumen Pendaftaran (PDF)
+                </button>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <h4 style="color: var(--primary);">Langkah 2: Unggah Dokumen Bertanda Tangan</h4>
+                <p style="font-size: 0.85rem; color: var(--text-gray);">Sistem Apps Script Cendekia Aksara akan memverifikasi keberadaan tanda tangan Anda secara otomatis.</p>
+                
+                <div class="upload-box" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <p><b>Klik disini</b> atau seret file PDF/Gambar ke area ini.<br><span style="font-size: 0.8rem;">Maksimal 5MB</span></p>
+                    <input type="file" id="file-input" accept=".pdf, image/jpeg, image/png">
+                </div>
+                <div id="file-name-display" style="margin-top: 10px; font-weight: 600; color: var(--primary);"></div>
+            </div>
+
+            <button class="btn btn-success hidden" id="btn-upload">
+                <i class="fa-solid fa-check-double"></i> Verifikasi & Kirim Dokumen
+            </button>
+        </div>
+
+        <!-- ================= TAHAP 3: RUANG TUNGGU ================= -->
+        <div id="step-3" class="hidden waiting-room">
+            <i class="fa-solid fa-mug-hot" style="font-size: 5rem; color: var(--accent); margin-bottom: 20px;"></i>
+            <h2 class="step-title">Ruang Tunggu</h2>
+            <p class="step-subtitle">Dokumen Anda telah masuk ke Google Drive sistem. Admin sedang meninjau validitas berkas dan komitmen Anda.</p>
+            
+            <div style="display: inline-flex; align-items: center; gap: 10px; background: #e0f2fe; color: #0369a1; padding: 8px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem;">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Status: Menunggu Verifikasi Admin
+            </div>
+
+            <div class="tips-carousel">
+                <h4><i class="fa-regular fa-lightbulb"></i> Info & Tips</h4>
+                <p id="tips-text">Persiapkan ide tulisan pertama Anda. Cendekia Aksara sangat menghargai orisinalitas dan gagasan kritis.</p>
+            </div>
+        </div>
+
+        <!-- ================= TAHAP 4: DITERIMA ================= -->
+        <div id="step-4" class="hidden waiting-room">
+            <i class="fa-solid fa-user-graduate" style="font-size: 5rem; color: var(--success); margin-bottom: 20px;"></i>
+            <h2 class="step-title">Selamat! Anda Diterima</h2>
+            <p class="step-subtitle">Admin telah memverifikasi berkas Anda. Selamat datang di keluarga besar Cendekia Aksara.</p>
+            
+            <button class="btn btn-primary" onclick="window.location.href='index.html'" style="margin-top: 30px;">
+                <i class="fa-solid fa-door-open"></i> Siap Menjadi Siswa (Ke Halaman Login)
+            </button>
+        </div>
+
+    </div>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p id="loading-text" style="margin-top: 20px; font-weight: 600; color: var(--primary);">Memproses Data...</p>
+    </div>
+
+    <!-- Firebase & Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // UI Utilities
+        const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
+        const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
+        
+        const showStep = (stepNum) => {
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-3').classList.add('hidden');
+            document.getElementById('step-4').classList.add('hidden');
+            document.getElementById(`step-${stepNum}`).classList.remove('hidden');
+        };
+
+        // State & Data
+        let currentUser = null;
+        let userDataCache = {};
+        let selectedFile = null;
+
+        // --- AUTH & ROUTING LISTENER ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                // Dengarkan perubahan status secara real-time
+                onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        userDataCache = data;
+                        
+                        if (data.status === 'pending_upload') {
+                            showStep(2);
+                        } else if (data.status === 'pending_review') {
+                            showStep(3);
+                            startTipsCarousel();
+                        } else if (data.status === 'active' || data.status === 'diterima') {
+                            showStep(4);
+                        }
+                    }
+                });
+            } else {
+                showStep(1);
+            }
+        });
+
+        // --- TAHAP 1: SUBMIT DATA DIRI & BUAT AKUN ---
+        document.getElementById('reg-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading('Menyiapkan Berkas & Akun...');
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            userDataCache = {
+                name: document.getElementById('nama').value,
+                instansi: document.getElementById('instansi').value,
+                whatsapp: document.getElementById('whatsapp').value,
+                alasan: document.getElementById('alasan').value,
+                email: email,
+                role: 'siswa',
+                semester: 1,
+                status: 'pending_upload', // Berhenti di tahap unggah berkas
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                // Buat Akun Firebase Auth
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                // Simpan ke Firestore
+                await setDoc(doc(db, 'users', cred.user.uid), userDataCache);
+                
+                hideLoading();
+                Swal.fire({
+                    icon: 'success', title: 'Data Tersimpan!',
+                    text: 'Lanjut ke tahap pengunduhan berkas Pakta Integritas.',
+                    confirmButtonColor: '#003366'
+                });
+                
+            } catch (error) {
+                hideLoading();
+                let msg = error.message;
+                if(error.code === 'auth/email-already-in-use') msg = 'Email sudah digunakan. Jika Anda keluar di tengah proses, silakan login dan selesaikan berkas di dashboard.';
+                Swal.fire({ icon: 'error', title: 'Pendaftaran Gagal', text: msg, confirmButtonColor: '#dc2626' });
+            }
+        });
+
+        // --- TAHAP 2: UNDUH PDF (Gunakan jsPDF) ---
+        document.getElementById('btn-download').addEventListener('click', () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const date = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Header Kop Surat
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text("CENDEKIA AKSARA", 105, 20, { align: "center" });
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("Pusat Inkubasi Literasi & Riset Digital", 105, 26, { align: "center" });
+            doc.line(20, 30, 190, 30);
+
+            // Judul
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("SURAT PERNYATAAN & PAKTA INTEGRITAS", 105, 45, { align: "center" });
+
+            // Isi Data
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text("Yang bertanda tangan di bawah ini:", 20, 60);
+            doc.text(`Nama Lengkap   : ${userDataCache.name}`, 20, 70);
+            doc.text(`Instansi/Sekolah : ${userDataCache.instansi}`, 20, 78);
+            doc.text(`Email / No. WA   : ${userDataCache.email} / ${userDataCache.whatsapp}`, 20, 86);
+
+            // Pernyataan
+            const textPernyataan = "Dengan sadar dan tanpa paksaan dari pihak manapun, menyatakan dengan sungguh-sungguh bahwa saya berkomitmen menjadi bagian dari Cendekia Aksara dan menyetujui poin-poin berikut:";
+            const splitText = doc.splitTextToSize(textPernyataan, 170);
+            doc.text(splitText, 20, 100);
+
+            doc.text("1. Mengikuti seluruh komponen kegiatan tanpa terkecuali.", 25, 115);
+            doc.text("2. Siap menerima sanksi Drop Out (DO) tidak hormat apabila tingkat", 25, 123);
+            doc.text("   kehadiran di bawah 75%.", 25, 129);
+            doc.text("3. Bersedia membayar denda/penalti administrasi apabila", 25, 137);
+            doc.text("   mengundurkan diri secara sepihak.", 25, 143);
+
+            // Tanda Tangan Area
+            doc.text(`Dibuat pada tanggal: ${date}`, 130, 170);
+            doc.text("Calon Siswa,", 130, 180);
+            doc.text("(.............................................)", 130, 210);
+            doc.text(userDataCache.name, 130, 218);
+
+            // Save PDF
+            doc.save(`Pakta_Integritas_${userDataCache.name.replace(/\s+/g, '_')}.pdf`);
+        });
+
+        // --- TAHAP 2: UNGGAH BERKAS & SIMULASI PENGECEKAN ---
+        const fileInput = document.getElementById('file-input');
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                document.getElementById('file-name-display').innerText = selectedFile.name;
+                document.getElementById('btn-upload').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('btn-upload').addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // Simulasi Proses Apps Script & AI Tanda Tangan
+            let timerInterval;
+            Swal.fire({
+                title: 'Memverifikasi Berkas',
+                html: 'Sistem sedang memindai tanda tangan... <b></b>',
+                timer: 4000,
+                timerProgressBar: true,
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                    const b = Swal.getHtmlContainer().querySelector('b');
+                    const states = ['Mengirim ke Apps Script...', 'Ekstraksi dokumen...', 'Mendeteksi guratan tanda tangan...', 'Memvalidasi...'];
+                    let i = 0;
+                    timerInterval = setInterval(() => { b.textContent = states[i]; i = (i+1)%states.length; }, 1000);
+                },
+                willClose: () => { clearInterval(timerInterval); }
+            }).then(async (result) => {
+                if (result.dismiss === Swal.DismissReason.timer) {
+                    
+                    // Simulasi Berhasil / Selesai scan
+                    showLoading('Mengirim data ke database...');
+                    try {
+                        // Dummy fetch ke webhook App Script (Pura-pura ada endpoint)
+                        try {
+                            await fetch('https://script.google.com/macros/s/AKfycbwDummyEndpoint/exec', {
+                                method: 'POST', mode: 'no-cors', body: JSON.stringify({ uid: currentUser.uid, status: 'uploaded' })
+                            });
+                        } catch(e) {} // Abaikan error CORS/Not found karena ini mock
+
+                        // Update Firestore status ke pending_review
+                        await setDoc(doc(db, 'users', currentUser.uid), { status: 'pending_review' }, { merge: true });
+                        
+                        hideLoading();
+                        Swal.fire({ icon: 'success', title: 'Berkas Diterima!', text: 'Sistem mendeteksi tanda tangan. Berkas diteruskan ke Admin.' });
+
+                    } catch (error) {
+                        hideLoading();
+                        Swal.fire({ icon: 'error', title: 'Kesalahan Sistem', text: error.message });
+                    }
+                }
+            });
+        });
+
+        // --- TAHAP 3: TIPS CAROUSEL (RUANG TUNGGU) ---
+        const tips = [
+            "Tahukah Anda? Cendekia Aksara mempublikasikan karya terbaik setiap minggu.",
+            "Persiapkan ide tulisan pertama Anda. Kami sangat menghargai orisinalitas.",
+            "Jangan ragu untuk berdiskusi dengan mentor jika Anda sudah resmi diterima.",
+            "Integritas adalah kunci. Kami menolak keras segala bentuk plagiarisme."
+        ];
+        function startTipsCarousel() {
+            let i = 0;
+            const textEl = document.getElementById('tips-text');
+            setInterval(() => {
+                textEl.style.opacity = 0;
+                setTimeout(() => {
+                    i = (i + 1) % tips.length;
+                    textEl.innerText = tips[i];
+                    textEl.style.opacity = 1;
+                }, 500);
+            }, 5000);
+            textEl.style.transition = "opacity 0.5s ease";
+        }
+
+    </script>
+</body>
+</html>
