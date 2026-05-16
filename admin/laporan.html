@@ -428,148 +428,158 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // State Penyimpanan Real-time
         let books = [];
         let sales = [];
-
-        // FIX 4: Flag untuk memastikan QR Code hanya dibuat sekali
         let qrCodeGenerated = false;
 
-        // Utilities
+        // ============================================================
+        // UTILITIES
+        // ============================================================
+
+        // Global loader — HANYA untuk PDF generation, BUKAN operasi Firestore
         const showLoader = () => document.getElementById('global-loader').classList.remove('hidden');
         const hideLoader = () => document.getElementById('global-loader').classList.add('hidden');
-        
-        const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-        
-        const getMonthName = (yearMonthStr) => {
-            if(!yearMonthStr) return "-";
-            const [year, month] = yearMonthStr.split('-');
-            const date = new Date(year, parseInt(month) - 1, 1);
-            return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-        };
-        const getRomanMonth = (monthIndex) => ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"][monthIndex];
 
-        // --- MANAJEMEN TAB ---
-        // FIX 5: Ekspos semua fungsi ke window agar bisa dipanggil dari HTML (scope module terisolasi)
+        // Loading per-tombol (tidak memblokir seluruh layar)
+        const btnLoading = (btn, text = 'Memproses...') => {
+            const ori = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> ${text}`;
+            return () => { btn.disabled = false; btn.innerHTML = ori; };
+        };
+
+        const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+
+        const getMonthName = (s) => {
+            if (!s) return "-";
+            const [y, m] = s.split('-');
+            return new Date(y, parseInt(m) - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        };
+
+        const getRomanMonth = (i) => ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][i];
+
+        // ============================================================
+        // TAB SWITCHING
+        // ============================================================
         window.switchTab = (tabId) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
-            
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(tabId.replace('tab', 'nav')).classList.add('active');
 
-            if(tabId === 'tab-penjualan') populateBookDropdown();
-            if(tabId === 'tab-laporan') {
-                if(!document.getElementById('filter-bulan').value) {
-                    const today = new Date();
-                    document.getElementById('filter-bulan').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            if (tabId === 'tab-penjualan') populateBookDropdown();
+            if (tabId === 'tab-laporan') {
+                if (!document.getElementById('filter-bulan').value) {
+                    const t = new Date();
+                    document.getElementById('filter-bulan').value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
                 }
-                generateAutoMeta(); 
-                generateReportPreview();
-                initGPSAndQR(); 
+                generateAutoMeta();
+                window.generateReportPreview();
+                initGPSAndQR();
             }
         };
 
-        // --- MENGAMBIL DATA DARI FIRESTORE (REAL-TIME) ---
+        // ============================================================
+        // FIRESTORE REAL-TIME LISTENERS
+        // TIDAK menggunakan showLoader/hideLoader — data mengalir otomatis
+        // ============================================================
         function listenToDatabase() {
             const qBooks = query(collection(db, "marketing_books"), orderBy("createdAt", "desc"));
             onSnapshot(qBooks, (snap) => {
-                books = [];
-                snap.forEach(d => books.push({ id: d.id, ...d.data() }));
+                books = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderBooks();
-                // FIX 6: Setelah data buku siap, perbarui dropdown jika tab penjualan sedang aktif
                 if (!document.getElementById('tab-penjualan').classList.contains('hidden')) {
                     populateBookDropdown();
                 }
-            }, (error) => {
-                console.error("Error mengambil buku:", error);
-                document.getElementById('empty-buku').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p class="text-sm text-red-500">Akses ditolak atau gagal memuat data pangkalan buku.</p>`;
+            }, (err) => {
+                console.error("Firestore books error:", err);
+                document.getElementById('empty-buku').innerHTML =
+                    `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2 text-red-400"></i><p class="text-sm text-red-500 mt-1">Gagal memuat data buku: ${err.code}</p>`;
             });
 
             const qSales = query(collection(db, "marketing_sales"), orderBy("bulan", "desc"));
             onSnapshot(qSales, (snap) => {
-                sales = [];
-                snap.forEach(d => sales.push({ id: d.id, ...d.data() }));
+                sales = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderSales();
-                // FIX 7: Perbarui preview laporan secara otomatis saat data sales berubah, 
-                // hanya jika tab laporan sedang aktif agar tidak error DOM tidak siap
                 if (!document.getElementById('tab-laporan').classList.contains('hidden')) {
-                    generateReportPreview();
+                    window.generateReportPreview();
                 }
-            }, (error) => {
-                console.error("Error mengambil penjualan:", error);
-                document.getElementById('empty-penjualan').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p class="text-sm text-red-500">Akses ditolak atau gagal memuat data rekap penjualan.</p>`;
+            }, (err) => {
+                console.error("Firestore sales error:", err);
+                document.getElementById('empty-penjualan').innerHTML =
+                    `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2 text-red-400"></i><p class="text-sm text-red-500 mt-1">Gagal memuat rekap penjualan: ${err.code}</p>`;
             });
         }
 
-        // --- OPERASI BUKU ---
+        // ============================================================
+        // MASTER BUKU
+        // ============================================================
         document.getElementById('form-buku').addEventListener('submit', async (e) => {
             e.preventDefault();
             const judul = document.getElementById('buku-judul').value.trim();
             const penulis = document.getElementById('buku-penulis').value.trim();
-            
-            if(!judul || !penulis) return;
-            showLoader();
+            if (!judul || !penulis) return;
+
+            const restoreBtn = btnLoading(e.target.querySelector('button[type="submit"]'), 'Menyimpan...');
             try {
-                await addDoc(collection(db, "marketing_books"), {
-                    judul, penulis, createdAt: new Date().toISOString()
-                });
+                await addDoc(collection(db, "marketing_books"), { judul, penulis, createdAt: new Date().toISOString() });
                 document.getElementById('form-buku').reset();
                 Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Buku tersimpan ke pangkalan data.', timer: 1500, showConfirmButton: false });
-            } catch (error) {
-                Swal.fire('Error', error.message, 'error');
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            } finally {
+                restoreBtn();
             }
-            hideLoader();
         });
 
         window.deleteBook = (id) => {
             Swal.fire({
                 title: 'Hapus Buku?', text: "Data ini akan terhapus dari server.", icon: 'warning',
-                showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#64748b'
+                showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus', cancelButtonText: 'Batal'
             }).then(async (res) => {
                 if (res.isConfirmed) {
-                    showLoader();
-                    await deleteDoc(doc(db, "marketing_books", id));
-                    hideLoader();
+                    try {
+                        await deleteDoc(doc(db, "marketing_books", id));
+                        Swal.fire({ icon: 'success', title: 'Dihapus', timer: 1000, showConfirmButton: false });
+                    } catch (err) {
+                        Swal.fire('Error', err.message, 'error');
+                    }
                 }
             });
         };
 
         function renderBooks() {
             const tbody = document.getElementById('table-buku-body');
-            const emptyState = document.getElementById('empty-buku');
+            const empty = document.getElementById('empty-buku');
             tbody.innerHTML = '';
-
             if (books.length === 0) {
-                emptyState.innerHTML = `<i class="fa-solid fa-swatchbook text-4xl mb-3 text-gray-300"></i><p class="text-sm">Belum ada karya yang diregistrasikan.</p>`;
-                emptyState.classList.remove('hidden');
+                empty.innerHTML = `<i class="fa-solid fa-swatchbook text-4xl mb-3 text-gray-300"></i><p class="text-sm">Belum ada karya yang diregistrasikan.</p>`;
+                empty.classList.remove('hidden');
             } else {
-                emptyState.classList.add('hidden');
-                books.forEach((b) => {
-                    const shortId = b.id.substring(0, 5).toUpperCase();
+                empty.classList.add('hidden');
+                books.forEach(b => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="p-3 border-t border-gray-100 font-mono text-xs text-gray-400">#${shortId}</td>
+                            <td class="p-3 border-t border-gray-100 font-mono text-xs text-gray-400">#${b.id.substring(0,5).toUpperCase()}</td>
                             <td class="p-3 border-t border-gray-100 font-bold text-primary">${b.judul}</td>
                             <td class="p-3 border-t border-gray-100">${b.penulis}</td>
                             <td class="p-3 border-t border-gray-100 text-center">
-                                <button onclick="window.deleteBook('${b.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Karya"><i class="fa-solid fa-trash-can"></i></button>
+                                <button onclick="window.deleteBook('${b.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                 });
             }
         }
 
-        // --- OPERASI PENJUALAN ---
+        // ============================================================
+        // PENJUALAN
+        // ============================================================
         function populateBookDropdown() {
-            const select = document.getElementById('jual-bukuId');
-            if(books.length === 0) {
-                select.innerHTML = '<option value="">-- Pangkalan Data Kosong --</option>';
-            } else {
-                select.innerHTML = '<option value="">-- Pilih Karya Terdaftar --</option>';
-                books.forEach(b => { select.innerHTML += `<option value="${b.id}">${b.judul} (${b.penulis})</option>`; });
-            }
+            const sel = document.getElementById('jual-bukuId');
+            sel.innerHTML = books.length === 0
+                ? '<option value="">-- Pangkalan Data Kosong --</option>'
+                : '<option value="">-- Pilih Karya Terdaftar --</option>' + books.map(b => `<option value="${b.id}">${b.judul} (${b.penulis})</option>`).join('');
         }
 
         document.getElementById('form-penjualan').addEventListener('submit', async (e) => {
@@ -577,56 +587,59 @@
             const bulan = document.getElementById('jual-bulan').value;
             const bukuId = document.getElementById('jual-bukuId').value;
             const omzet = parseFloat(document.getElementById('jual-omzet').value);
-
-            if(!bulan || !bukuId || isNaN(omzet)) return;
+            if (!bulan || !bukuId || isNaN(omzet) || omzet <= 0) return;
 
             const book = books.find(b => b.id === bukuId);
-            if(!book) return;
+            if (!book) return;
 
-            const cetak = omzet * 0.35;
-            const admin = omzet * 0.05;
-            const royalti = omzet * 0.10;
-            const laba = omzet * 0.50;
-
-            showLoader();
+            const restoreBtn = btnLoading(e.target.querySelector('button[type="submit"]'), 'Menyimpan...');
             try {
                 await addDoc(collection(db, "marketing_sales"), {
-                    bulan, bukuId, judul: book.judul, penulis: book.penulis,
-                    omzet, cetak, admin, royalti, laba,
+                    bulan, bukuId,
+                    judul: book.judul, penulis: book.penulis,
+                    omzet,
+                    cetak: omzet * 0.35,
+                    admin: omzet * 0.05,
+                    royalti: omzet * 0.10,
+                    laba: omzet * 0.50,
                     createdAt: new Date().toISOString()
                 });
                 document.getElementById('jual-omzet').value = '';
                 Swal.fire({ icon: 'success', title: 'Terekap', text: 'Data penjualan disinkronkan ke server.', timer: 1500, showConfirmButton: false });
-            } catch (error) {
-                Swal.fire('Error', error.message, 'error');
+            } catch (err) {
+                Swal.fire('Error', err.message, 'error');
+            } finally {
+                restoreBtn();
             }
-            hideLoader();
         });
 
         window.deleteSale = (id) => {
             Swal.fire({
                 title: 'Hapus Riwayat Kas?', text: "Aksi ini tidak bisa dibatalkan.", icon: 'warning',
-                showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#64748b'
+                showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus', cancelButtonText: 'Batal'
             }).then(async (res) => {
                 if (res.isConfirmed) {
-                    showLoader();
-                    await deleteDoc(doc(db, "marketing_sales", id));
-                    hideLoader();
+                    try {
+                        await deleteDoc(doc(db, "marketing_sales", id));
+                        Swal.fire({ icon: 'success', title: 'Dihapus', timer: 1000, showConfirmButton: false });
+                    } catch (err) {
+                        Swal.fire('Error', err.message, 'error');
+                    }
                 }
             });
         };
 
         function renderSales() {
             const tbody = document.getElementById('table-penjualan-body');
-            const emptyState = document.getElementById('empty-penjualan');
+            const empty = document.getElementById('empty-penjualan');
             tbody.innerHTML = '';
-
             if (sales.length === 0) {
-                emptyState.innerHTML = `<i class="fa-solid fa-receipt text-4xl mb-3 text-gray-300"></i><p class="text-sm">Belum ada rekap kas bulan ini.</p>`;
-                emptyState.classList.remove('hidden');
+                empty.innerHTML = `<i class="fa-solid fa-receipt text-4xl mb-3 text-gray-300"></i><p class="text-sm">Belum ada rekap kas.</p>`;
+                empty.classList.remove('hidden');
             } else {
-                emptyState.classList.add('hidden');
-                sales.forEach((s) => {
+                empty.classList.add('hidden');
+                sales.forEach(s => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50 transition">
                             <td class="p-3 border-t border-gray-100 font-semibold text-gray-700">${s.bulan}</td>
@@ -634,185 +647,141 @@
                             <td class="p-3 border-t border-gray-100 text-right font-medium">${formatRupiah(s.omzet)}</td>
                             <td class="p-3 border-t border-gray-100 text-right text-emerald-600 font-bold">${formatRupiah(s.royalti)}</td>
                             <td class="p-3 border-t border-gray-100 text-center">
-                                <button onclick="window.deleteSale('${s.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Riwayat"><i class="fa-solid fa-trash-can"></i></button>
+                                <button onclick="window.deleteSale('${s.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                 });
             }
         }
 
-        // --- LAPORAN PDF & MANIPULASI DOM ---
+        // ============================================================
+        // LAPORAN PDF
+        // ============================================================
         function generateAutoMeta() {
             const today = new Date();
-            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-            const tglString = today.toLocaleDateString('id-ID', options);
-            
-            document.getElementById('lap-tanggal').value = `Temanggung, ${tglString}`;
-
-            const randomCode = Math.floor(Math.random() * 900) + 100;
-            const romanMonth = getRomanMonth(today.getMonth());
-            const noSurat = `${randomCode}/MKT-CA/${romanMonth}/${today.getFullYear()}`;
-            
+            document.getElementById('lap-tanggal').value = `Temanggung, ${today.toLocaleDateString('id-ID', { year:'numeric', month:'long', day:'numeric' })}`;
+            const noSurat = `${Math.floor(Math.random()*900)+100}/MKT-CA/${getRomanMonth(today.getMonth())}/${today.getFullYear()}`;
             document.getElementById('lap-nosurat').value = noSurat;
-            // FIX 8: Gunakan querySelectorAll dengan safe check agar tidak error jika elemen belum ada
             document.querySelectorAll('.ref-nosurat').forEach(el => el.innerText = noSurat);
         }
 
         function initGPSAndQR() {
-            document.getElementById('timestamp-text').innerText = new Date().toLocaleString('id-ID');
+            const tsEl = document.getElementById('timestamp-text');
+            if (tsEl) tsEl.innerText = new Date().toLocaleString('id-ID');
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        const gpsEl = document.getElementById('gps-text');
-                        if (gpsEl) {
-                            gpsEl.innerHTML = `<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="underline hover:text-blue-900">[${lat.toFixed(5)}, ${lng.toFixed(5)}] Server Log Valid</a>`;
-                        }
+                        const el = document.getElementById('gps-text');
+                        if (el) el.innerHTML = `<a href="https://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}" target="_blank" class="underline">[${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}] Valid</a>`;
                     },
                     () => {
-                        const gpsEl = document.getElementById('gps-text');
-                        if (gpsEl) gpsEl.innerText = "Temanggung, ID (Fallback)";
+                        const el = document.getElementById('gps-text');
+                        if (el) el.innerText = "Temanggung, ID (Fallback)";
                     }
                 );
             }
 
-            // FIX 9: Cek flag agar QR Code tidak di-generate ulang (mencegah double render & error)
             const qrContainer = document.getElementById("qrcode-container");
             if (qrContainer && !qrCodeGenerated) {
                 qrCodeGenerated = true;
-                qrContainer.innerHTML = ''; // Bersihkan sebelum generate
-                new QRCode(qrContainer, {
-                    text: "https://cendekia-aksara.vercel.app",
-                    width: 80,
-                    height: 80,
-                    colorDark: "#003366",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, { text: "https://cendekia-aksara.vercel.app", width: 80, height: 80, colorDark: "#003366", correctLevel: QRCode.CorrectLevel.H });
             }
         }
 
-        // FIX 10: Ekspos generateReportPreview ke window agar bisa dipanggil dari luar module
         window.generateReportPreview = () => {
             const noSurat = document.getElementById('lap-nosurat').value;
             const tanggal = document.getElementById('lap-tanggal').value;
-
-            const prevNoSurat = document.getElementById('prev-nosurat');
-            const prevTanggal = document.getElementById('prev-tanggal');
-            if (prevNoSurat) prevNoSurat.innerText = noSurat;
-            if (prevTanggal) prevTanggal.innerText = tanggal;
-            
             const filterBulan = document.getElementById('filter-bulan').value;
             const namaBulan = getMonthName(filterBulan);
 
-            const prevBulan = document.getElementById('prev-bulan');
-            if (prevBulan) prevBulan.innerText = namaBulan;
-            document.querySelectorAll('.ref-bulan').forEach(el => el.innerText = namaBulan);
+            const el = (id) => document.getElementById(id);
+            if (el('prev-nosurat')) el('prev-nosurat').innerText = noSurat;
+            if (el('prev-tanggal')) el('prev-tanggal').innerText = tanggal;
+            if (el('prev-bulan')) el('prev-bulan').innerText = namaBulan;
+            document.querySelectorAll('.ref-bulan').forEach(e => e.innerText = namaBulan);
 
-            const tbody = document.getElementById('print-tbody');
-            const tfoot = document.getElementById('print-tfoot');
-            if (!tbody || !tfoot) return; // Guard: elemen belum tersedia di DOM
-            
+            const tbody = el('print-tbody');
+            const tfoot = el('print-tfoot');
+            if (!tbody || !tfoot) return;
+
             tbody.innerHTML = '';
             tfoot.innerHTML = '';
 
             const filtered = sales.filter(s => s.bulan === filterBulan);
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center italic py-4">Belum ada transaksi terekam pada periode ini.</td></tr>`;
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center italic py-4 text-gray-500">Belum ada transaksi pada periode ini.</td></tr>`;
                 return;
             }
 
-            // Grup per buku
             const summary = {};
             filtered.forEach(s => {
-                if(!summary[s.bukuId]) summary[s.bukuId] = { ...s };
-                else {
-                    summary[s.bukuId].omzet += s.omzet;
-                    summary[s.bukuId].cetak += s.cetak;
-                    summary[s.bukuId].admin += s.admin;
-                    summary[s.bukuId].royalti += s.royalti;
-                    summary[s.bukuId].laba += s.laba;
-                }
+                if (!summary[s.bukuId]) summary[s.bukuId] = { ...s };
+                else { summary[s.bukuId].omzet += s.omzet; summary[s.bukuId].cetak += s.cetak; summary[s.bukuId].admin += s.admin; summary[s.bukuId].royalti += s.royalti; summary[s.bukuId].laba += s.laba; }
             });
 
-            let no = 1;
-            let totOmzet = 0, totCetak = 0, totAdmin = 0, totRoyalti = 0, totLaba = 0;
-
-            for(let key in summary) {
+            let no = 1, totO = 0, totC = 0, totA = 0, totR = 0, totL = 0;
+            for (const key in summary) {
                 const i = summary[key];
-                totOmzet += i.omzet; totCetak += i.cetak; totAdmin += i.admin;
-                totRoyalti += i.royalti; totLaba += i.laba;
-
+                totO += i.omzet; totC += i.cetak; totA += i.admin; totR += i.royalti; totL += i.laba;
                 tbody.innerHTML += `
                     <tr>
                         <td class="text-center">${no++}</td>
                         <td class="font-bold text-[9pt]">${i.judul}</td>
                         <td class="text-[9pt]">${i.penulis}</td>
-                        <td class="text-right font-medium">${formatRupiah(i.omzet)}</td>
-                        <td class="text-right text-gray-700">${formatRupiah(i.cetak)}</td>
-                        <td class="text-right text-gray-700">${formatRupiah(i.admin)}</td>
+                        <td class="text-right">${formatRupiah(i.omzet)}</td>
+                        <td class="text-right">${formatRupiah(i.cetak)}</td>
+                        <td class="text-right">${formatRupiah(i.admin)}</td>
                         <td class="text-right font-bold text-green-700">${formatRupiah(i.royalti)}</td>
                         <td class="text-right font-bold text-blue-900">${formatRupiah(i.laba)}</td>
-                    </tr>
-                `;
+                    </tr>`;
             }
-
             tfoot.innerHTML = `
                 <tr>
-                    <td colspan="3" class="text-center uppercase tracking-wider">Akumulasi Total</td>
-                    <td class="text-right font-black text-black">${formatRupiah(totOmzet)}</td>
-                    <td class="text-right">${formatRupiah(totCetak)}</td>
-                    <td class="text-right">${formatRupiah(totAdmin)}</td>
-                    <td class="text-right font-black text-green-800">${formatRupiah(totRoyalti)}</td>
-                    <td class="text-right font-black text-blue-900">${formatRupiah(totLaba)}</td>
-                </tr>
-            `;
+                    <td colspan="3" class="text-center uppercase tracking-wider font-bold">Akumulasi Total</td>
+                    <td class="text-right font-black">${formatRupiah(totO)}</td>
+                    <td class="text-right">${formatRupiah(totC)}</td>
+                    <td class="text-right">${formatRupiah(totA)}</td>
+                    <td class="text-right font-black text-green-800">${formatRupiah(totR)}</td>
+                    <td class="text-right font-black text-blue-900">${formatRupiah(totL)}</td>
+                </tr>`;
         };
 
-        // FIX 11: Pasang listener filter-bulan setelah DOM ready, bukan langsung di top-level
-        document.getElementById('filter-bulan').addEventListener('change', () => {
-            window.generateReportPreview();
-        });
+        document.getElementById('filter-bulan').addEventListener('change', window.generateReportPreview);
 
         window.downloadPDF = () => {
-            const bulanStr = getMonthName(document.getElementById('filter-bulan').value).replace(' ', '_');
-            const element = document.getElementById('print-area');
-            
-            Swal.fire({ title: 'Menyiapkan Dokumen', text: 'Melakukan rendering dua halaman...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-            const opt = {
+            const bulanStr = getMonthName(document.getElementById('filter-bulan').value).replace(/\s/g, '_');
+            Swal.fire({ title: 'Menyiapkan Dokumen', text: 'Rendering halaman...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            html2pdf().set({
                 margin: 0,
                 filename: `Laporan_Marketing_Cendekia_${bulanStr}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                Swal.close();
-            });
+            }).from(document.getElementById('print-area')).save().then(() => Swal.close());
         };
 
-        // --- INISIALISASI UTAMA: Tunggu status auth sebelum apapun ---
+        // ============================================================
+        // INIT — Cek auth dulu, baru mulai listener
+        // Loader TIDAK dipakai di sini; halaman sudah menampilkan konten
+        // ============================================================
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 listenToDatabase();
             } else {
                 Swal.fire('Akses Ditolak', 'Silakan login sebagai admin terlebih dahulu.', 'error')
-                    .then(() => window.location.href = '../index.html');
+                    .then(() => { window.location.href = '../index.html'; });
             }
         });
 
         // Set default bulan penjualan ke bulan ini
-        const d = new Date();
         const inputBulan = document.getElementById('jual-bulan');
         if (inputBulan) {
-            inputBulan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const t = new Date();
+            inputBulan.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
         }
-        
+
     </script>
 </body>
 </html>
