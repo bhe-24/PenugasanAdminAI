@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Laporan Keuangan - Cendekia Aksara</title>
 
-    <!-- Tailwind play CDN — hanya untuk dev/internal tool, warning ini aman diabaikan untuk sistem internal -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -20,8 +19,11 @@
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <!-- PDFMake Library (Pengganti html2pdf) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     <style>
@@ -40,23 +42,16 @@
         .tab-btn:hover { background:#f8fafc; color:var(--primary); border-color:var(--primary); }
         .tab-btn.active { background:linear-gradient(135deg,#003366,#005a9c); color:white; border-color:#003366; box-shadow:0 4px 10px rgba(0,51,102,.2); }
 
-        /* Print/PDF area */
-        #print-area { background:white; color:black; font-family:'Times New Roman',Times,serif; position:relative; line-height:1.5; }
-        .kop-surat { border-bottom:3px solid black; margin-bottom:2px; padding-bottom:15px; }
-        .kop-surat-inner { border-bottom:1px solid black; margin-bottom:20px; }
-        table.print-table { width:100%; border-collapse:collapse; font-size:11pt; margin:15px 0; }
-        table.print-table th, table.print-table td { border:1px solid black; padding:8px; }
-        table.print-table th { background:#f3f4f6; text-align:center; font-weight:bold; }
-        .html2pdf__page-break { page-break-before:always; margin-top:40px; padding-top:40px; border-top:2px dashed #cbd5e1; }
-
-        .preview-wrapper { overflow-x:auto; background:#e2e8f0; padding:20px; border-radius:16px; display:flex; flex-direction:column; align-items:center; gap:20px; }
-
         .animate-fade-in { animation:fadeIn .4s ease; }
         @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 
-        /* Spinner tombol inline */
         @keyframes spin { to { transform:rotate(360deg); } }
         .fa-spin { animation: spin 1s linear infinite; }
+
+        /* Tampilan Tabel Pratinjau Web */
+        .preview-table { width:100%; border-collapse:collapse; font-size:0.9rem; margin-top:20px; }
+        .preview-table th, .preview-table td { border:1px solid #cbd5e1; padding:10px; }
+        .preview-table th { background:#f1f5f9; text-align:center; font-weight:bold; color:var(--primary); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -187,127 +182,30 @@
                     <input type="text" id="lap-tanggal" readonly class="w-full p-2.5 border-0 bg-transparent text-gray-700 font-medium text-sm outline-none">
                 </div>
             </div>
-            <button onclick="window.downloadPDF()" class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex justify-center items-center gap-2 text-sm flex-shrink-0">
+            <button onclick="window.downloadVektorPDF()" class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex justify-center items-center gap-2 text-sm flex-shrink-0">
                 <i class="fa-solid fa-file-pdf"></i> Unduh PDF Resmi
             </button>
         </div>
 
-        <div class="preview-wrapper" id="pdf-container">
-            <div id="print-area" class="w-full max-w-[210mm] shadow-2xl bg-white text-black relative" style="padding:25mm 20mm 20mm 25mm">
-
-                <!-- HALAMAN 1: SURAT PENGANTAR -->
-                <div id="halaman-1" style="min-height:240mm">
-                    <div class="kop-surat">
-                        <div class="kop-surat-inner flex items-center justify-between pb-4">
-                            <div class="text-center flex-shrink-0" style="width:7rem">
-                                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" style="width:6rem;height:auto;margin:0 auto;display:block">
-                            </div>
-                            <div class="flex-1 text-center px-4">
-                                <div style="font-family:Arial,sans-serif;font-size:18pt;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#003366">MARKETING CENDEKIA AKSARA</div>
-                                <div style="font-size:10pt;font-weight:600;text-transform:uppercase;margin-top:2px">Pusat Inkubasi Literasi & Distribusi Buku Nasional</div>
-                                <div style="font-size:9pt;margin-top:4px">Jl. Pahlawan No. 45, Cendekia Building Lt. 2, Temanggung, Jawa Tengah</div>
-                                <div style="font-size:8pt;color:#555;margin-top:2px">Telp: +62 821-4455-6677 | Email: admin@cendekia-aksara.ac.id</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex;justify-content:space-between;font-size:11pt;margin-top:24px;margin-bottom:32px">
-                        <table>
-                            <tr><td style="padding-right:12px;padding-bottom:4px;vertical-align:top">Nomor</td><td style="vertical-align:top">: <span id="prev-nosurat"></span></td></tr>
-                            <tr><td style="padding-right:12px;padding-bottom:4px;vertical-align:top">Lampiran</td><td style="vertical-align:top">: 1 (Satu) Berkas Tabel Rekapitulasi</td></tr>
-                            <tr><td style="padding-right:12px;font-weight:bold;vertical-align:top">Perihal</td><td style="font-weight:bold;vertical-align:top">: Pengantar Laporan Keuangan & Royalti</td></tr>
-                        </table>
-                        <div style="text-align:right"><span id="prev-tanggal"></span></div>
-                    </div>
-
-                    <div style="font-size:11pt;margin-bottom:32px;line-height:1.8">
-                        <div>Kepada Yth,</div>
-                        <div style="font-weight:bold">Direktur Utama Cendekia Aksara</div>
-                        <div>serta Seluruh Penulis Rekanan</div>
-                        <div>di Tempat</div>
-                    </div>
-
-                    <div style="font-size:11pt;text-align:justify;line-height:1.8">
-                        <div>Dengan hormat,</div>
-                        <div style="margin-top:16px;text-indent:2em">Bersama surat ini, kami dari Departemen Keuangan & Marketing menyajikan rekapitulasi laporan akumulasi pendapatan dari penjualan buku, beserta rincian distribusi bagi hasil untuk periode tutup buku bulan <strong id="prev-bulan" style="text-transform:uppercase"></strong>.</div>
-                        <div style="margin-top:8px;text-indent:2em">Laporan ini disusun dengan menjunjung tinggi asas transparansi berdasarkan kebijakan institusi, dengan skema: Biaya Cetak (35%), Administrasi (5%), Royalti Penulis (10%), dan Kas Perusahaan (50%).</div>
-                        <div style="margin-top:8px;text-indent:2em">Rincian lengkap kami sajikan pada <strong>lembar lampiran</strong> yang merupakan kesatuan tak terpisahkan dari surat pengantar ini.</div>
-                        <div style="margin-top:8px;text-indent:2em">Demikian surat pengantar ini kami perbuat dengan integritas dan akuntabilitas agar dapat diaudit sebagaimana mestinya.</div>
-                    </div>
-
-                    <div style="display:flex;justify-content:flex-end;margin-top:48px;font-size:11pt">
-                        <div style="width:18rem;text-align:center">
-                            <div>Hormat Kami,</div>
-                            <div style="font-weight:bold">Departemen Marketing Cendekia</div>
-                            <div style="position:relative;display:inline-block;width:6rem;height:6rem;margin:24px auto">
-                                <div id="qrcode-container" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;background:white"></div>
-                                <img src="https://i.imgur.com/5Srjyo4.png" style="position:absolute;inset:0;margin:auto;width:1.5rem;height:1.5rem;background:white;border-radius:2px">
-                                <div style="position:absolute;top:-24px;left:-48px;width:8rem;height:8rem;border:3px solid #1e3a8a;border-radius:50%;opacity:.35;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-12deg);pointer-events:none">
-                                    <span style="font-size:6pt;font-weight:bold;color:#1e3a8a;text-transform:uppercase;letter-spacing:1px">Cendekia Aksara</span>
-                                    <span style="font-size:12pt;font-weight:900;color:#1e3a8a;text-transform:uppercase">VERIFIED</span>
-                                    <span style="font-size:6pt;font-weight:bold;color:#1e3a8a;text-transform:uppercase">Marketing Div.</span>
-                                </div>
-                            </div>
-                            <div style="font-weight:bold;text-decoration:underline;text-transform:uppercase;letter-spacing:1px">Saras Triana, S.Pd</div>
-                            <div style="font-size:10pt;margin-top:4px">NIP. 19950817 2020 02</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PAGE BREAK -->
-                <div class="html2pdf__page-break">
-                    <div style="text-align:center;font-size:10px;color:#94a3b8;margin-top:8px">-- Halaman Lampiran --</div>
-                </div>
-
-                <!-- HALAMAN 2: LAMPIRAN TABEL -->
-                <div id="halaman-2" style="margin-top:2rem;padding-top:1rem;position:relative;min-height:250mm">
-                    <div style="border-bottom:2px solid black;padding-bottom:8px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end">
-                        <div>
-                            <div style="font-weight:bold;font-size:12pt;text-transform:uppercase">Lampiran Surat Laporan Keuangan</div>
-                            <div style="font-size:10pt;font-style:italic">Nomor Rujukan: <span class="ref-nosurat"></span></div>
-                        </div>
-                        <img src="https://i.imgur.com/5Srjyo4.png" style="width:3rem;height:auto;opacity:.4;filter:grayscale(1)">
-                    </div>
-
-                    <div style="text-align:center;font-size:13pt;font-weight:bold;text-transform:uppercase;margin-bottom:16px">Tabel Rincian Alokasi Distribusi Dana Finansial</div>
-                    <div style="text-align:center;font-size:11pt;margin-bottom:24px">Periode: <strong class="ref-bulan" style="text-transform:uppercase"></strong></div>
-
-                    <table class="print-table">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width:2rem">No</th>
-                                <th rowspan="2">Judul Karya</th>
-                                <th rowspan="2">Penulis</th>
-                                <th rowspan="2">Omzet Bruto (Rp)</th>
-                                <th colspan="4">Alokasi Distribusi (Rp)</th>
-                            </tr>
-                            <tr style="font-size:9pt">
-                                <th>Cetak 35%</th><th>Admin 5%</th><th>Royalti 10%</th><th>Kas 50%</th>
-                            </tr>
-                        </thead>
-                        <tbody id="print-tbody"></tbody>
-                        <tfoot id="print-tfoot" style="font-weight:bold;background:#f3f4f6;font-size:10pt"></tfoot>
-                    </table>
-
-                    <div style="font-size:10pt;margin-top:32px;padding:16px;background:#f9fafb;border:1px solid #d1d5db">
-                        <div style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:8px">Catatan Verifikasi Akuntansi:</div>
-                        <ul style="padding-left:20px;line-height:2">
-                            <li><strong>Omzet Bruto</strong> adalah pendapatan kotor sebelum dipotong pajak PPN.</li>
-                            <li>Dana <strong>Kas Organisasi</strong> disetor otomatis ke rekening giro yayasan.</li>
-                            <li>Dana <strong>Royalti</strong> ditransfer paling lambat tanggal 10 bulan berikutnya.</li>
-                        </ul>
-                    </div>
-
-                    <div style="position:absolute;bottom:0;left:0;font-size:8pt;border:1px dashed #9ca3af;padding:8px;border-radius:4px;background:white;width:50%">
-                        <div style="font-weight:bold;color:#003366;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin-bottom:4px">Autentikasi Server</div>
-                        <table style="width:100%">
-                            <tr><td style="width:80px;padding-bottom:2px">Waktu Cetak</td><td>: <span id="timestamp-text">-</span></td></tr>
-                            <tr><td style="padding-bottom:2px">GPS Log</td><td>: <span id="gps-text" style="color:#1d4ed8;font-style:italic">Mendeteksi...</span></td></tr>
-                            <tr><td>Operator</td><td>: SYS-MKT-001 (Saras Triana)</td></tr>
-                        </table>
-                    </div>
-                </div>
-
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+            <h3 class="font-semibold text-primary mb-4 pb-2 border-b"><i class="fa-solid fa-magnifying-glass mr-2 text-accent"></i>Pratinjau Data Laporan</h3>
+            <div id="preview-container">
+                <!-- Tabel Pratinjau Web Saja (PDF Dibuat Terpisah oleh JS) -->
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Judul Karya / Penulis</th>
+                            <th>Omzet Bruto (Rp)</th>
+                            <th>Biaya Cetak</th>
+                            <th>Admin</th>
+                            <th>Royalti Penulis</th>
+                            <th>Kas Organisasi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="preview-tbody"></tbody>
+                    <tfoot id="preview-tfoot" class="bg-gray-50 font-bold"></tfoot>
+                </table>
             </div>
         </div>
     </div>
@@ -331,14 +229,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let books = [], sales = [], qrDone = false;
+let books = [], sales = [];
 
 // ── UTILS ──────────────────────────────────────────────────────────
 const fmt = n => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(n);
 const monthName = s => { if(!s) return '-'; const [y,m]=s.split('-'); return new Date(y,+m-1,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'}); };
 const roman = i => ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][i];
 
-// Loading per-tombol — tidak pakai overlay fullscreen
 const btnLoad = (btn, txt='Menyimpan...') => {
     const ori = btn.innerHTML;
     btn.disabled = true;
@@ -358,29 +255,23 @@ window.switchTab = id => {
             const t=new Date();
             document.getElementById('filter-bulan').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
         }
-        autoMeta(); window.preview(); initQrGps();
+        autoMeta(); window.previewData();
     }
 };
 
-// ── FIRESTORE LISTENERS (tanpa blokir UI) ──────────────────────────
+// ── FIRESTORE LISTENERS ──────────────────────────
 const qB = query(collection(db,'marketing_books'), orderBy('createdAt','desc'));
 onSnapshot(qB, snap => {
     books = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderBooks();
     if (!document.getElementById('tab-penjualan').classList.contains('hidden')) fillDrop();
-}, err => {
-    console.error(err);
-    document.getElementById('empty-buku').innerHTML = `<p class="text-red-500 text-sm">Gagal memuat buku: ${err.code}</p>`;
 });
 
 const qS = query(collection(db,'marketing_sales'), orderBy('bulan','desc'));
 onSnapshot(qS, snap => {
     sales = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderSales();
-    if (!document.getElementById('tab-laporan').classList.contains('hidden')) window.preview();
-}, err => {
-    console.error(err);
-    document.getElementById('empty-penjualan').innerHTML = `<p class="text-red-500 text-sm">Gagal memuat penjualan: ${err.code}</p>`;
+    if (!document.getElementById('tab-laporan').classList.contains('hidden')) window.previewData();
 });
 
 // ── MASTER BUKU ────────────────────────────────────────────────────
@@ -401,10 +292,7 @@ document.getElementById('form-buku').addEventListener('submit', async e => {
 window.deleteBook = id => {
     Swal.fire({title:'Hapus Buku?',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonText:'Batal',confirmButtonText:'Hapus'})
     .then(async r => {
-        if (r.isConfirmed) {
-            try { await deleteDoc(doc(db,'marketing_books',id)); }
-            catch(err){ Swal.fire('Error',err.message,'error'); }
-        }
+        if (r.isConfirmed) { try { await deleteDoc(doc(db,'marketing_books',id)); } catch(err){} }
     });
 };
 
@@ -454,10 +342,7 @@ document.getElementById('form-penjualan').addEventListener('submit', async e => 
 window.deleteSale = id => {
     Swal.fire({title:'Hapus Kas?',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonText:'Batal',confirmButtonText:'Hapus'})
     .then(async r => {
-        if (r.isConfirmed) {
-            try { await deleteDoc(doc(db,'marketing_sales',id)); }
-            catch(err){ Swal.fire('Error',err.message,'error'); }
-        }
+        if (r.isConfirmed) { try { await deleteDoc(doc(db,'marketing_sales',id)); } catch(err){} }
     });
 };
 
@@ -477,44 +362,22 @@ function renderSales() {
     });
 }
 
-// ── LAPORAN ────────────────────────────────────────────────────────
+// ── LAPORAN PDFMAKE ────────────────────────────────────────────────────────
 function autoMeta() {
     const t=new Date();
     document.getElementById('lap-tanggal').value=`Temanggung, ${t.toLocaleDateString('id-ID',{year:'numeric',month:'long',day:'numeric'})}`;
     const no=`${Math.floor(Math.random()*900)+100}/MKT-CA/${roman(t.getMonth())}/${t.getFullYear()}`;
     document.getElementById('lap-nosurat').value=no;
-    document.querySelectorAll('.ref-nosurat').forEach(el=>el.innerText=no);
 }
 
-function initQrGps() {
-    const ts=document.getElementById('timestamp-text');
-    if (ts) ts.innerText=new Date().toLocaleString('id-ID');
-    navigator.geolocation?.getCurrentPosition(
-        p=>{ const el=document.getElementById('gps-text'); if(el) el.innerHTML=`<a href="https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}" target="_blank">[${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}]</a>`; },
-        ()=>{ const el=document.getElementById('gps-text'); if(el) el.innerText='Temanggung, ID (Fallback)'; }
-    );
-    const qc=document.getElementById('qrcode-container');
-    if (qc&&!qrDone) { qrDone=true; qc.innerHTML=''; new QRCode(qc,{text:'https://cendekia-aksara.vercel.app',width:80,height:80,colorDark:'#003366',correctLevel:QRCode.CorrectLevel.H}); }
-}
-
-window.preview = () => {
-    const noSurat=document.getElementById('lap-nosurat').value;
-    const tanggal=document.getElementById('lap-tanggal').value;
-    const bulanVal=document.getElementById('filter-bulan').value;
-    const bulanNama=monthName(bulanVal);
-
-    const g=id=>document.getElementById(id);
-    if(g('prev-nosurat')) g('prev-nosurat').innerText=noSurat;
-    if(g('prev-tanggal')) g('prev-tanggal').innerText=tanggal;
-    if(g('prev-bulan')) g('prev-bulan').innerText=bulanNama;
-    document.querySelectorAll('.ref-bulan').forEach(el=>el.innerText=bulanNama);
-
-    const tb=g('print-tbody'), tf=g('print-tfoot');
-    if (!tb||!tf) return;
+window.previewData = () => {
+    const bulanVal = document.getElementById('filter-bulan').value;
+    const tb = document.getElementById('preview-tbody');
+    const tf = document.getElementById('preview-tfoot');
     tb.innerHTML=''; tf.innerHTML='';
 
-    const filtered=sales.filter(s=>s.bulan===bulanVal);
-    if (!filtered.length) { tb.innerHTML=`<tr><td colspan="8" style="text-align:center;font-style:italic;padding:16px">Belum ada transaksi pada periode ini.</td></tr>`; return; }
+    const filtered = sales.filter(s=>s.bulan===bulanVal);
+    if (!filtered.length) { tb.innerHTML=`<tr><td colspan="7" class="text-center italic py-6 text-gray-400">Belum ada transaksi di bulan ini.</td></tr>`; return; }
 
     const sum={};
     filtered.forEach(s=>{ if(!sum[s.bukuId]) sum[s.bukuId]={...s}; else { sum[s.bukuId].omzet+=s.omzet; sum[s.bukuId].cetak+=s.cetak; sum[s.bukuId].admin+=s.admin; sum[s.bukuId].royalti+=s.royalti; sum[s.bukuId].laba+=s.laba; } });
@@ -522,21 +385,159 @@ window.preview = () => {
     let no=1,tO=0,tC=0,tA=0,tR=0,tL=0;
     for (const k in sum) {
         const i=sum[k]; tO+=i.omzet; tC+=i.cetak; tA+=i.admin; tR+=i.royalti; tL+=i.laba;
-        tb.innerHTML+=`<tr><td style="text-align:center">${no++}</td><td style="font-weight:bold;font-size:9pt">${i.judul}</td><td style="font-size:9pt">${i.penulis}</td><td style="text-align:right">${fmt(i.omzet)}</td><td style="text-align:right">${fmt(i.cetak)}</td><td style="text-align:right">${fmt(i.admin)}</td><td style="text-align:right;font-weight:bold;color:green">${fmt(i.royalti)}</td><td style="text-align:right;font-weight:bold;color:#1e3a8a">${fmt(i.laba)}</td></tr>`;
+        tb.innerHTML+=`<tr>
+            <td class="text-center">${no++}</td>
+            <td><strong class="text-primary">${i.judul}</strong><br><span class="text-xs text-gray-500">${i.penulis}</span></td>
+            <td class="text-right font-medium">${fmt(i.omzet)}</td>
+            <td class="text-right text-gray-600">${fmt(i.cetak)}</td>
+            <td class="text-right text-gray-600">${fmt(i.admin)}</td>
+            <td class="text-right font-bold text-emerald-600">${fmt(i.royalti)}</td>
+            <td class="text-right font-bold text-primary">${fmt(i.laba)}</td>
+        </tr>`;
     }
-    tf.innerHTML=`<tr><td colspan="3" style="text-align:center;text-transform:uppercase">Total Akumulasi</td><td style="text-align:right;font-weight:900">${fmt(tO)}</td><td style="text-align:right">${fmt(tC)}</td><td style="text-align:right">${fmt(tA)}</td><td style="text-align:right;font-weight:900;color:green">${fmt(tR)}</td><td style="text-align:right;font-weight:900;color:#1e3a8a">${fmt(tL)}</td></tr>`;
+    tf.innerHTML=`<tr>
+        <td colspan="2" class="text-center uppercase tracking-wide text-primary">TOTAL AKUMULASI</td>
+        <td class="text-right text-lg">${fmt(tO)}</td><td class="text-right">${fmt(tC)}</td><td class="text-right">${fmt(tA)}</td>
+        <td class="text-right text-emerald-600 text-lg">${fmt(tR)}</td><td class="text-right text-primary text-lg">${fmt(tL)}</td>
+    </tr>`;
 };
 
-document.getElementById('filter-bulan').addEventListener('change', window.preview);
+document.getElementById('filter-bulan').addEventListener('change', window.previewData);
 
-window.downloadPDF = () => {
-    const nama=monthName(document.getElementById('filter-bulan').value).replace(/\s/g,'_');
-    Swal.fire({title:'Menyiapkan PDF...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
-    html2pdf().set({margin:0,filename:`Laporan_Cendekia_${nama}.pdf`,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}})
-    .from(document.getElementById('print-area')).save().then(()=>Swal.close());
+// Fungsi Utama PDFMake (Vektor)
+window.downloadVektorPDF = async () => {
+    Swal.fire({title:'Menyiapkan PDF Resmi...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+
+    const noSurat = document.getElementById('lap-nosurat').value;
+    const tanggal = document.getElementById('lap-tanggal').value;
+    const bulanVal = document.getElementById('filter-bulan').value;
+    const bulanNama = monthName(bulanVal);
+    
+    const filtered = sales.filter(s=>s.bulan===bulanVal);
+    const sum={};
+    filtered.forEach(s=>{ if(!sum[s.bukuId]) sum[s.bukuId]={...s}; else { sum[s.bukuId].omzet+=s.omzet; sum[s.bukuId].cetak+=s.cetak; sum[s.bukuId].admin+=s.admin; sum[s.bukuId].royalti+=s.royalti; sum[s.bukuId].laba+=s.laba; } });
+
+    // Header Tabel PDF
+    const tableBody = [
+        [
+            {text: 'No', style: 'th', rowSpan: 2}, {text: 'Judul Karya', style: 'th', rowSpan: 2}, {text: 'Penulis Utama', style: 'th', rowSpan: 2}, {text: 'Omzet Bruto (Rp)', style: 'th', rowSpan: 2},
+            {text: 'Alokasi Distribusi Potongan (Rp)', style: 'th', colSpan: 4}, {}, {}, {}
+        ],
+        [
+            {}, {}, {}, {},
+            {text: 'Cetak (35%)', style: 'thSub'}, {text: 'Admin (5%)', style: 'thSub'}, {text: 'Royalti (10%)', style: 'thSub'}, {text: 'Kas (50%)', style: 'thSub'}
+        ]
+    ];
+
+    let no=1,tO=0,tC=0,tA=0,tR=0,tL=0;
+    for (const k in sum) {
+        const i=sum[k]; tO+=i.omzet; tC+=i.cetak; tA+=i.admin; tR+=i.royalti; tL+=i.laba;
+        tableBody.push([
+            {text: no++, alignment: 'center'}, {text: i.judul, bold: true}, i.penulis, {text: fmt(i.omzet), alignment: 'right'},
+            {text: fmt(i.cetak), alignment: 'right'}, {text: fmt(i.admin), alignment: 'right'},
+            {text: fmt(i.royalti), alignment: 'right', bold: true, color: 'green'}, {text: fmt(i.laba), alignment: 'right', bold: true, color: '#003366'}
+        ]);
+    }
+    tableBody.push([
+        {text: 'TOTAL AKUMULASI', colSpan: 3, alignment: 'center', bold: true, fillColor: '#f3f4f6'}, {}, {},
+        {text: fmt(tO), alignment: 'right', bold: true, fillColor: '#f3f4f6'}, {text: fmt(tC), alignment: 'right', bold: true, fillColor: '#f3f4f6'}, {text: fmt(tA), alignment: 'right', bold: true, fillColor: '#f3f4f6'},
+        {text: fmt(tR), alignment: 'right', bold: true, color: 'green', fillColor: '#f3f4f6'}, {text: fmt(tL), alignment: 'right', bold: true, color: '#003366', fillColor: '#f3f4f6'}
+    ]);
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [50, 60, 50, 60],
+        defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.3 },
+        styles: {
+            kopTitle: { fontSize: 16, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 2] },
+            kopSubtitle: { fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 2] },
+            kopInfo: { fontSize: 9, alignment: 'center', color: '#444' },
+            hrLine: { margin: [0, 10, 0, 20] },
+            suratMeta: { margin: [0, 0, 0, 20] },
+            suratBody: { alignment: 'justify', margin: [0, 0, 0, 10] },
+            ttdBox: { margin: [0, 40, 0, 0], alignment: 'right' },
+            th: { bold: true, fillColor: '#e2e8f0', alignment: 'center', margin: [0, 5, 0, 5] },
+            thSub: { bold: true, fillColor: '#f8fafc', alignment: 'center', fontSize: 9, margin: [0, 5, 0, 5] },
+            catatanTitle: { bold: true, fontSize: 10, margin: [0, 20, 0, 5] },
+            catatanList: { fontSize: 10, margin: [10, 0, 0, 0] }
+        },
+        content: [
+            // --- HALAMAN 1: SURAT PENGANTAR ---
+            { text: 'MARKETING CENDEKIA AKSARA', style: 'kopTitle' },
+            { text: 'Pusat Inkubasi Literasi & Distribusi Buku Nasional', style: 'kopSubtitle' },
+            { text: 'Kantor Pusat: Jl. Pahlawan No. 45, Cendekia Building Lt. 2, Temanggung, Jawa Tengah', style: 'kopInfo' },
+            { text: 'Telp: +62 821-4455-6677 | Email: admin@cendekia-aksara.ac.id', style: 'kopInfo' },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }], style: 'hrLine' },
+
+            {
+                columns: [
+                    { width: '*', text: [ {text: 'Nomor     : ', bold: true}, noSurat, '\n', {text: 'Lampiran : ', bold: true}, '1 (Satu) Berkas Tabel', '\n', {text: 'Perihal     : ', bold: true}, 'Laporan Keuangan & Royalti' ] },
+                    { width: 'auto', text: tanggal, alignment: 'right' }
+                ],
+                style: 'suratMeta'
+            },
+
+            { text: 'Kepada Yth,\nDirektur Utama Cendekia Aksara\nserta Seluruh Penulis Rekanan\ndi Tempat\n\n', style: 'suratBody' },
+            { text: 'Dengan hormat,', style: 'suratBody' },
+            { text: `Bersama surat ini, kami dari Departemen Keuangan & Marketing menyajikan rekapitulasi laporan akumulasi pendapatan dari penjualan buku, beserta rincian distribusi bagi hasil untuk periode tutup buku bulan ${bulanNama.toUpperCase()}.`, style: 'suratBody' },
+            { text: 'Laporan ini disusun dengan menjunjung tinggi asas transparansi berdasarkan kebijakan institusi, dengan skema persentase alokasi yang ditetapkan sebagai berikut: Biaya Cetak Produksi (35%), Biaya Administrasi & Operasional (5%), Royalti Murni Penulis (10%), dan Arus Kas Masuk Perusahaan (50%).', style: 'suratBody' },
+            { text: 'Sebagai wujud pertanggungjawaban audit, rincian matrikulasi data buku, nominal pendapatan omzet bruto, beserta alokasi pemotongan dana secara terperinci kami sajikan secara utuh pada lembar lampiran yang merupakan kesatuan tak terpisahkan dari surat pengantar ini.', style: 'suratBody' },
+            { text: 'Demikian surat pengantar laporan keuangan ini kami perbuat dengan berlandaskan integritas dan akuntabilitas akuntansi agar dapat diperiksa, diaudit, serta dipergunakan sebagaimana mestinya.', style: 'suratBody' },
+
+            {
+                style: 'ttdBox',
+                text: [
+                    'Hormat Kami,\n', {text: 'Departemen Marketing Cendekia\n\n\n\n\n', bold: true},
+                    {text: 'Saras Triana, S.Pd\n', bold: true, decoration: 'underline'}, 'NIP. 19950817 2020 02'
+                ]
+            },
+
+            // --- HALAMAN 2: LAMPIRAN TABEL ---
+            { text: '', pageBreak: 'before' }, // Paksa ganti halaman
+            
+            {
+                columns: [
+                    { text: 'LAMPIRAN SURAT KEPUTUSAN LAPORAN KEUANGAN\nNomor Rujukan: ' + noSurat, bold: true, fontSize: 10 },
+                    { text: 'Cendekia Aksara', alignment: 'right', color: '#94a3b8', bold: true }
+                ],
+                margin: [0, 0, 0, 10]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1 }], margin: [0, 0, 0, 20] },
+
+            { text: 'TABEL RINCIAN ALOKASI DISTRIBUSI DANA FINANSIAL', bold: true, alignment: 'center', fontSize: 12 },
+            { text: 'Periode Pencatatan: ' + bulanNama.toUpperCase(), alignment: 'center', margin: [0, 0, 0, 20] },
+
+            {
+                table: {
+                    headerRows: 2,
+                    widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    body: tableBody
+                },
+                layout: {
+                    hLineWidth: function () { return 0.5; },
+                    vLineWidth: function () { return 0.5; },
+                    hLineColor: function () { return '#9ca3af'; },
+                    vLineColor: function () { return '#9ca3af'; }
+                }
+            },
+
+            { text: 'Catatan Verifikasi Akuntansi:', style: 'catatanTitle' },
+            {
+                ul: [
+                    'Omzet Bruto adalah pendapatan kotor sebelum dipotong pajak PPN.',
+                    'Dana Kas Organisasi disetorkan secara otomatis ke rekening giro yayasan.',
+                    'Dana Royalti Penulis ditransfer maksimal tanggal 10 bulan berikutnya.'
+                ],
+                style: 'catatanList'
+            }
+        ]
+    };
+
+    pdfMake.createPdf(docDefinition).download(`Laporan_Marketing_Cendekia_${bulanNama.replace(/\s/g,'_')}.pdf`, () => {
+        Swal.close();
+    });
 };
 
-// Set default bulan
 const t=new Date();
 document.getElementById('jual-bulan').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
 
