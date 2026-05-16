@@ -20,9 +20,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- PDFMake Library (Pengganti html2pdf) -->
+    <!-- PDFMake Library (Vektor PDF) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    
+    <!-- QRCode Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
@@ -52,6 +55,8 @@
         .preview-table { width:100%; border-collapse:collapse; font-size:0.9rem; margin-top:20px; }
         .preview-table th, .preview-table td { border:1px solid #cbd5e1; padding:10px; }
         .preview-table th { background:#f1f5f9; text-align:center; font-weight:bold; color:var(--primary); }
+        
+        #hidden-qr { display: none; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -190,7 +195,6 @@
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
             <h3 class="font-semibold text-primary mb-4 pb-2 border-b"><i class="fa-solid fa-magnifying-glass mr-2 text-accent"></i>Pratinjau Data Laporan</h3>
             <div id="preview-container">
-                <!-- Tabel Pratinjau Web Saja (PDF Dibuat Terpisah oleh JS) -->
                 <table class="preview-table">
                     <thead>
                         <tr>
@@ -209,6 +213,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Elemen Tersembunyi untuk Generate QR Code Base64 -->
+    <div id="hidden-qr"></div>
 
 </main>
 
@@ -243,6 +250,26 @@ const btnLoad = (btn, txt='Menyimpan...') => {
     return () => { btn.disabled=false; btn.innerHTML=ori; };
 };
 
+// State untuk Data Lokasi Server/PDF
+let coordsStr = "Sedang Mendeteksi...";
+let userLat = 0, userLng = 0;
+
+// Menarik Lokasi & QR Code secara Background
+function initGPS() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                userLat = pos.coords.latitude;
+                userLng = pos.coords.longitude;
+                coordsStr = `[${userLat.toFixed(5)}, ${userLng.toFixed(5)}] Server Log Valid`;
+            },
+            () => { coordsStr = "Temanggung, Jawa Tengah (Fallback)"; }
+        );
+    } else {
+        coordsStr = "Lokasi Tidak Tersedia";
+    }
+}
+
 // ── TAB ────────────────────────────────────────────────────────────
 window.switchTab = id => {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -255,7 +282,7 @@ window.switchTab = id => {
             const t=new Date();
             document.getElementById('filter-bulan').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
         }
-        autoMeta(); window.previewData();
+        autoMeta(); window.previewData(); initGPS();
     }
 };
 
@@ -404,6 +431,48 @@ window.previewData = () => {
 
 document.getElementById('filter-bulan').addEventListener('change', window.previewData);
 
+// Mengubah URL gambar ke Base64 (Syarat wajib PDFMake untuk gambar)
+const getBase64ImageFromURL = (url) => {
+    return new Promise((resolve, reject) => {
+        var img = new Image();
+        img.setAttribute("crossOrigin", "anonymous");
+        img.onload = () => {
+            var canvas = document.createElement("canvas");
+            canvas.width = img.width; canvas.height = img.height;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            var dataURL = canvas.toDataURL("image/png");
+            resolve(dataURL);
+        };
+        img.onerror = error => { reject(error); };
+        img.src = url;
+    });
+};
+
+// Mendapatkan Base64 dari QR Code
+const generateQRCodeBase64 = () => {
+    return new Promise((resolve) => {
+        const qrContainer = document.getElementById('hidden-qr');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: "https://cendekia-aksara.vercel.app",
+            width: 100, height: 100,
+            colorDark: "#003366", colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+        
+        // Sedikit delay agar QR code selesai dirender ke tag <img> atau <canvas>
+        setTimeout(() => {
+            let canvas = qrContainer.querySelector('canvas');
+            if (canvas) {
+                resolve(canvas.toDataURL("image/png"));
+            } else {
+                resolve(null);
+            }
+        }, 100);
+    });
+};
+
 // Fungsi Utama PDFMake (Vektor)
 window.downloadVektorPDF = async () => {
     Swal.fire({title:'Menyiapkan PDF Resmi...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
@@ -412,6 +481,17 @@ window.downloadVektorPDF = async () => {
     const tanggal = document.getElementById('lap-tanggal').value;
     const bulanVal = document.getElementById('filter-bulan').value;
     const bulanNama = monthName(bulanVal);
+    const ts_waktu_cetak = new Date().toLocaleString('id-ID');
+    
+    // Ambil Data Base64 untuk Logo dan QR Code
+    let logoBase64 = null;
+    let qrBase64 = null;
+    try {
+        logoBase64 = await getBase64ImageFromURL("https://i.imgur.com/5Srjyo4.png");
+        qrBase64 = await generateQRCodeBase64();
+    } catch(e) {
+        console.warn("Gagal mengambil gambar/qr base64", e);
+    }
     
     const filtered = sales.filter(s=>s.bulan===bulanVal);
     const sum={};
@@ -438,12 +518,15 @@ window.downloadVektorPDF = async () => {
             {text: fmt(i.royalti), alignment: 'right', bold: true, color: 'green'}, {text: fmt(i.laba), alignment: 'right', bold: true, color: '#003366'}
         ]);
     }
+    
+    // Baris Total Akumulasi
     tableBody.push([
         {text: 'TOTAL AKUMULASI', colSpan: 3, alignment: 'center', bold: true, fillColor: '#f3f4f6'}, {}, {},
         {text: fmt(tO), alignment: 'right', bold: true, fillColor: '#f3f4f6'}, {text: fmt(tC), alignment: 'right', bold: true, fillColor: '#f3f4f6'}, {text: fmt(tA), alignment: 'right', bold: true, fillColor: '#f3f4f6'},
         {text: fmt(tR), alignment: 'right', bold: true, color: 'green', fillColor: '#f3f4f6'}, {text: fmt(tL), alignment: 'right', bold: true, color: '#003366', fillColor: '#f3f4f6'}
     ]);
 
+    // Struktur Utama PDF
     const docDefinition = {
         pageSize: 'A4',
         pageMargins: [50, 60, 50, 60],
@@ -459,14 +542,27 @@ window.downloadVektorPDF = async () => {
             th: { bold: true, fillColor: '#e2e8f0', alignment: 'center', margin: [0, 5, 0, 5] },
             thSub: { bold: true, fillColor: '#f8fafc', alignment: 'center', fontSize: 9, margin: [0, 5, 0, 5] },
             catatanTitle: { bold: true, fontSize: 10, margin: [0, 20, 0, 5] },
-            catatanList: { fontSize: 10, margin: [10, 0, 0, 0] }
+            catatanList: { fontSize: 10, margin: [10, 0, 0, 0] },
+            authBox: { fontSize: 8, margin: [0, 30, 0, 0], fillColor: '#f9fafb', border: [true, true, true, true], padding: 5 }
         },
         content: [
             // --- HALAMAN 1: SURAT PENGANTAR ---
-            { text: 'MARKETING CENDEKIA AKSARA', style: 'kopTitle' },
-            { text: 'Pusat Inkubasi Literasi & Distribusi Buku Nasional', style: 'kopSubtitle' },
-            { text: 'Kantor Pusat: Jl. Pahlawan No. 45, Cendekia Building Lt. 2, Temanggung, Jawa Tengah', style: 'kopInfo' },
-            { text: 'Telp: +62 821-4455-6677 | Email: admin@cendekia-aksara.ac.id', style: 'kopInfo' },
+            // Blok Kop Surat dengan Logo jika ada
+            {
+                columns: [
+                    logoBase64 ? { image: logoBase64, width: 60, margin: [0, 0, 10, 0] } : { text: '', width: 60 },
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'MARKETING CENDEKIA AKSARA\n', style: 'kopTitle' },
+                            { text: 'Pusat Inkubasi Literasi & Distribusi Buku Nasional\n', style: 'kopSubtitle' },
+                            { text: 'Kantor Pusat: Jl. Pahlawan No. 45, Cendekia Building Lt. 2, Temanggung, Jawa Tengah\n', style: 'kopInfo' },
+                            { text: 'Telp: 08895615630 | Email: cendekia.aksara25@gmail.com', style: 'kopInfo' }
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            },
             { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }], style: 'hrLine' },
 
             {
@@ -484,21 +580,52 @@ window.downloadVektorPDF = async () => {
             { text: 'Sebagai wujud pertanggungjawaban audit, rincian matrikulasi data buku, nominal pendapatan omzet bruto, beserta alokasi pemotongan dana secara terperinci kami sajikan secara utuh pada lembar lampiran yang merupakan kesatuan tak terpisahkan dari surat pengantar ini.', style: 'suratBody' },
             { text: 'Demikian surat pengantar laporan keuangan ini kami perbuat dengan berlandaskan integritas dan akuntabilitas akuntansi agar dapat diperiksa, diaudit, serta dipergunakan sebagaimana mestinya.', style: 'suratBody' },
 
+            // Kotak TTD + QR Code
             {
-                style: 'ttdBox',
-                text: [
-                    'Hormat Kami,\n', {text: 'Departemen Marketing Cendekia\n\n\n\n\n', bold: true},
-                    {text: 'Saras Triana, S.Pd\n', bold: true, decoration: 'underline'}, 'NIP. 19950817 2020 02'
+                columns: [
+                    { width: '*', text: '' }, // Spacer kiri
+                    {
+                        width: 'auto',
+                        alignment: 'center',
+                        text: [
+                            'Hormat Kami,\n', 
+                            { text: 'Departemen Marketing Cendekia\n\n', bold: true }
+                        ]
+                    }
+                ],
+                margin: [0, 40, 0, 0]
+            },
+            
+            // Render QR code di tengah jika ada
+            {
+                columns: [
+                    { width: '*', text: '' },
+                    qrBase64 ? { image: qrBase64, width: 60, margin: [0, 5, 0, 15], alignment: 'center' } : { text: '\n\n\n' },
+                    { width: '*', text: '' }
+                ]
+            },
+
+            {
+                columns: [
+                    { width: '*', text: '' },
+                    {
+                        width: 'auto',
+                        alignment: 'center',
+                        text: [
+                            {text: 'Saras Triana, S.Pd\n', bold: true, decoration: 'underline'}, 
+                            'NIP. 19950817 2020 02'
+                        ]
+                    }
                 ]
             },
 
             // --- HALAMAN 2: LAMPIRAN TABEL ---
-            { text: '', pageBreak: 'before' }, // Paksa ganti halaman
+            { text: '', pageBreak: 'before' }, 
             
             {
                 columns: [
                     { text: 'LAMPIRAN SURAT KEPUTUSAN LAPORAN KEUANGAN\nNomor Rujukan: ' + noSurat, bold: true, fontSize: 10 },
-                    { text: 'Cendekia Aksara', alignment: 'right', color: '#94a3b8', bold: true }
+                    logoBase64 ? { image: logoBase64, width: 30, opacity: 0.5, alignment: 'right' } : { text: 'Cendekia Aksara', alignment: 'right', color: '#94a3b8', bold: true }
                 ],
                 margin: [0, 0, 0, 10]
             },
@@ -529,6 +656,30 @@ window.downloadVektorPDF = async () => {
                     'Dana Royalti Penulis ditransfer maksimal tanggal 10 bulan berikutnya.'
                 ],
                 style: 'catatanList'
+            },
+            
+            // Kotak Autentikasi Server di sudut kiri bawah
+            {
+                table: {
+                    widths: ['100%'],
+                    body: [
+                        [
+                            {
+                                text: [
+                                    { text: 'Autentikasi Server Cendekia\n', bold: true, color: '#003366', fontSize: 9 },
+                                    { text: `Waktu Cetak: ${ts_waktu_cetak}\n` },
+                                    { text: `Log GPS: ${coordsStr}\n`, color: 'blue', italics: true },
+                                    { text: `Operator ID: SYS-MKT-001 (Saras Triana)` }
+                                ],
+                                margin: [5, 5, 5, 5],
+                                fillColor: '#f8fafc'
+                            }
+                        ]
+                    ]
+                },
+                layout: 'lightHorizontalLines',
+                margin: [0, 40, 0, 0],
+                width: 250 // Batasi lebarnya
             }
         ]
     };
