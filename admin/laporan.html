@@ -24,6 +24,13 @@
     </script>
 
     <style>
+        /* FIX 1: Definisikan CSS custom properties agar var(--primary) berfungsi */
+        :root {
+            --primary: #003366;
+            --accent: #d4af37;
+            --primaryLight: #005a9c;
+        }
+
         body { background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
@@ -104,9 +111,10 @@
                 <p class="text-sm text-gray-500">Kelola pangkalan data buku, rekapitulasi penjualan, dan dokumen PDF resmi.</p>
             </div>
             <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full md:w-auto">
-                <button onclick="switchTab('tab-buku')" id="nav-buku" class="tab-btn active"><i class="fa-solid fa-swatchbook"></i> Master Buku</button>
-                <button onclick="switchTab('tab-penjualan')" id="nav-penjualan" class="tab-btn"><i class="fa-solid fa-cart-plus"></i> Rekap Penjualan</button>
-                <button onclick="switchTab('tab-laporan')" id="nav-laporan" class="tab-btn"><i class="fa-solid fa-file-invoice-dollar"></i> Surat Laporan PDF</button>
+                <!-- FIX 2: Gunakan onclick yang memanggil fungsi global window.switchTab -->
+                <button onclick="window.switchTab('tab-buku')" id="nav-buku" class="tab-btn active"><i class="fa-solid fa-swatchbook"></i> Master Buku</button>
+                <button onclick="window.switchTab('tab-penjualan')" id="nav-penjualan" class="tab-btn"><i class="fa-solid fa-cart-plus"></i> Rekap Penjualan</button>
+                <button onclick="window.switchTab('tab-laporan')" id="nav-laporan" class="tab-btn"><i class="fa-solid fa-file-invoice-dollar"></i> Surat Laporan PDF</button>
             </div>
         </div>
 
@@ -234,7 +242,8 @@
                         <input type="text" id="lap-tanggal" readonly class="w-full p-2.5 border border-transparent bg-transparent text-gray-700 font-medium text-sm outline-none">
                     </div>
                 </div>
-                <button onclick="downloadPDF()" class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex justify-center items-center gap-2 transition text-sm flex-shrink-0">
+                <!-- FIX 3: Panggil window.downloadPDF agar konsisten dengan scope module -->
+                <button onclick="window.downloadPDF()" class="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex justify-center items-center gap-2 transition text-sm flex-shrink-0">
                     <i class="fa-solid fa-file-pdf"></i> Unduh Salinan Resmi
                 </button>
             </div>
@@ -403,11 +412,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // PERBAIKAN: Menambahkan module getAuth dan onAuthStateChanged
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Konfigurasi Cendekia Aksara
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
             authDomain: "mading-cf676.firebaseapp.com", 
@@ -418,13 +425,15 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        // PERBAIKAN: Inisialisasi Auth
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         // State Penyimpanan Real-time
         let books = [];
         let sales = [];
+
+        // FIX 4: Flag untuk memastikan QR Code hanya dibuat sekali
+        let qrCodeGenerated = false;
 
         // Utilities
         const showLoader = () => document.getElementById('global-loader').classList.remove('hidden');
@@ -441,6 +450,7 @@
         const getRomanMonth = (monthIndex) => ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"][monthIndex];
 
         // --- MANAJEMEN TAB ---
+        // FIX 5: Ekspos semua fungsi ke window agar bisa dipanggil dari HTML (scope module terisolasi)
         window.switchTab = (tabId) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
@@ -462,29 +472,33 @@
 
         // --- MENGAMBIL DATA DARI FIRESTORE (REAL-TIME) ---
         function listenToDatabase() {
-            // Dengar Koleksi Buku
             const qBooks = query(collection(db, "marketing_books"), orderBy("createdAt", "desc"));
             onSnapshot(qBooks, (snap) => {
                 books = [];
                 snap.forEach(d => books.push({ id: d.id, ...d.data() }));
                 renderBooks();
-                populateBookDropdown();
+                // FIX 6: Setelah data buku siap, perbarui dropdown jika tab penjualan sedang aktif
+                if (!document.getElementById('tab-penjualan').classList.contains('hidden')) {
+                    populateBookDropdown();
+                }
             }, (error) => {
-                // PERBAIKAN: Menangani error akses dari Firestore
                 console.error("Error mengambil buku:", error);
-                document.getElementById('empty-buku').innerHTML = `<p class="text-sm text-red-500"><i class="fa-solid fa-triangle-exclamation mb-2 text-2xl"></i><br>Akses ditolak atau gagal memuat data pangkalan buku.</p>`;
+                document.getElementById('empty-buku').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p class="text-sm text-red-500">Akses ditolak atau gagal memuat data pangkalan buku.</p>`;
             });
 
-            // Dengar Koleksi Penjualan
             const qSales = query(collection(db, "marketing_sales"), orderBy("bulan", "desc"));
             onSnapshot(qSales, (snap) => {
                 sales = [];
                 snap.forEach(d => sales.push({ id: d.id, ...d.data() }));
                 renderSales();
+                // FIX 7: Perbarui preview laporan secara otomatis saat data sales berubah, 
+                // hanya jika tab laporan sedang aktif agar tidak error DOM tidak siap
+                if (!document.getElementById('tab-laporan').classList.contains('hidden')) {
+                    generateReportPreview();
+                }
             }, (error) => {
-                // PERBAIKAN: Menangani error akses dari Firestore
                 console.error("Error mengambil penjualan:", error);
-                document.getElementById('empty-penjualan').innerHTML = `<p class="text-sm text-red-500"><i class="fa-solid fa-triangle-exclamation mb-2 text-2xl"></i><br>Akses ditolak atau gagal memuat data rekap penjualan.</p>`;
+                document.getElementById('empty-penjualan').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i><p class="text-sm text-red-500">Akses ditolak atau gagal memuat data rekap penjualan.</p>`;
             });
         }
 
@@ -531,8 +545,7 @@
                 emptyState.classList.remove('hidden');
             } else {
                 emptyState.classList.add('hidden');
-                books.forEach((b, idx) => {
-                    // Gunakan 4 digit pertama ID sebagai penanda visual
+                books.forEach((b) => {
                     const shortId = b.id.substring(0, 5).toUpperCase();
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50 transition">
@@ -540,7 +553,7 @@
                             <td class="p-3 border-t border-gray-100 font-bold text-primary">${b.judul}</td>
                             <td class="p-3 border-t border-gray-100">${b.penulis}</td>
                             <td class="p-3 border-t border-gray-100 text-center">
-                                <button onclick="deleteBook('${b.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Karya"><i class="fa-solid fa-trash-can"></i></button>
+                                <button onclick="window.deleteBook('${b.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Karya"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
                         </tr>
                     `;
@@ -570,7 +583,6 @@
             const book = books.find(b => b.id === bukuId);
             if(!book) return;
 
-            // Rumus Distribusi
             const cetak = omzet * 0.35;
             const admin = omzet * 0.05;
             const royalti = omzet * 0.10;
@@ -622,7 +634,7 @@
                             <td class="p-3 border-t border-gray-100 text-right font-medium">${formatRupiah(s.omzet)}</td>
                             <td class="p-3 border-t border-gray-100 text-right text-emerald-600 font-bold">${formatRupiah(s.royalti)}</td>
                             <td class="p-3 border-t border-gray-100 text-center">
-                                <button onclick="deleteSale('${s.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Riwayat"><i class="fa-solid fa-trash-can"></i></button>
+                                <button onclick="window.deleteSale('${s.id}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg" title="Hapus Riwayat"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
                         </tr>
                     `;
@@ -636,7 +648,6 @@
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
             const tglString = today.toLocaleDateString('id-ID', options);
             
-            // Lokasi diatur ke Temanggung
             document.getElementById('lap-tanggal').value = `Temanggung, ${tglString}`;
 
             const randomCode = Math.floor(Math.random() * 900) + 100;
@@ -644,7 +655,8 @@
             const noSurat = `${randomCode}/MKT-CA/${romanMonth}/${today.getFullYear()}`;
             
             document.getElementById('lap-nosurat').value = noSurat;
-            document.querySelector('.ref-nosurat').innerText = noSurat;
+            // FIX 8: Gunakan querySelectorAll dengan safe check agar tidak error jika elemen belum ada
+            document.querySelectorAll('.ref-nosurat').forEach(el => el.innerText = noSurat);
         }
 
         function initGPSAndQR() {
@@ -653,31 +665,58 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
-                        const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-                        document.getElementById('gps-text').innerHTML = `<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="underline hover:text-blue-900">[${lat.toFixed(5)}, ${lng.toFixed(5)}] Server Log Valid</a>`;
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        const gpsEl = document.getElementById('gps-text');
+                        if (gpsEl) {
+                            gpsEl.innerHTML = `<a href="https://maps.google.com/?q=${lat},${lng}" target="_blank" class="underline hover:text-blue-900">[${lat.toFixed(5)}, ${lng.toFixed(5)}] Server Log Valid</a>`;
+                        }
                     },
-                    () => { document.getElementById('gps-text').innerText = "Temanggung, ID (Fallback)"; }
+                    () => {
+                        const gpsEl = document.getElementById('gps-text');
+                        if (gpsEl) gpsEl.innerText = "Temanggung, ID (Fallback)";
+                    }
                 );
             }
 
+            // FIX 9: Cek flag agar QR Code tidak di-generate ulang (mencegah double render & error)
             const qrContainer = document.getElementById("qrcode-container");
-            if (qrContainer.innerHTML === "") {
-                new QRCode(qrContainer, { text: "https://cendekia-aksara.vercel.app", width: 80, height: 80, colorDark : "#003366", correctLevel: QRCode.CorrectLevel.H });
+            if (qrContainer && !qrCodeGenerated) {
+                qrCodeGenerated = true;
+                qrContainer.innerHTML = ''; // Bersihkan sebelum generate
+                new QRCode(qrContainer, {
+                    text: "https://cendekia-aksara.vercel.app",
+                    width: 80,
+                    height: 80,
+                    colorDark: "#003366",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
             }
         }
 
+        // FIX 10: Ekspos generateReportPreview ke window agar bisa dipanggil dari luar module
         window.generateReportPreview = () => {
-            document.getElementById('prev-nosurat').innerText = document.getElementById('lap-nosurat').value;
-            document.getElementById('prev-tanggal').innerText = document.getElementById('lap-tanggal').value;
+            const noSurat = document.getElementById('lap-nosurat').value;
+            const tanggal = document.getElementById('lap-tanggal').value;
+
+            const prevNoSurat = document.getElementById('prev-nosurat');
+            const prevTanggal = document.getElementById('prev-tanggal');
+            if (prevNoSurat) prevNoSurat.innerText = noSurat;
+            if (prevTanggal) prevTanggal.innerText = tanggal;
             
             const filterBulan = document.getElementById('filter-bulan').value;
             const namaBulan = getMonthName(filterBulan);
-            document.getElementById('prev-bulan').innerText = namaBulan;
-            document.querySelector('.ref-bulan').innerText = namaBulan;
+
+            const prevBulan = document.getElementById('prev-bulan');
+            if (prevBulan) prevBulan.innerText = namaBulan;
+            document.querySelectorAll('.ref-bulan').forEach(el => el.innerText = namaBulan);
 
             const tbody = document.getElementById('print-tbody');
             const tfoot = document.getElementById('print-tfoot');
-            tbody.innerHTML = ''; tfoot.innerHTML = '';
+            if (!tbody || !tfoot) return; // Guard: elemen belum tersedia di DOM
+            
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '';
 
             const filtered = sales.filter(s => s.bulan === filterBulan);
 
@@ -691,8 +730,10 @@
             filtered.forEach(s => {
                 if(!summary[s.bukuId]) summary[s.bukuId] = { ...s };
                 else {
-                    summary[s.bukuId].omzet += s.omzet; summary[s.bukuId].cetak += s.cetak;
-                    summary[s.bukuId].admin += s.admin; summary[s.bukuId].royalti += s.royalti;
+                    summary[s.bukuId].omzet += s.omzet;
+                    summary[s.bukuId].cetak += s.cetak;
+                    summary[s.bukuId].admin += s.admin;
+                    summary[s.bukuId].royalti += s.royalti;
                     summary[s.bukuId].laba += s.laba;
                 }
             });
@@ -729,43 +770,43 @@
                     <td class="text-right font-black text-blue-900">${formatRupiah(totLaba)}</td>
                 </tr>
             `;
-        }
+        };
 
-        document.getElementById('filter-bulan').addEventListener('change', generateReportPreview);
+        // FIX 11: Pasang listener filter-bulan setelah DOM ready, bukan langsung di top-level
+        document.getElementById('filter-bulan').addEventListener('change', () => {
+            window.generateReportPreview();
+        });
 
         window.downloadPDF = () => {
             const bulanStr = getMonthName(document.getElementById('filter-bulan').value).replace(' ', '_');
             const element = document.getElementById('print-area');
             
-            Swal.fire({ title: 'Menyiapkan Dokumen', text: 'Melakukan rendering dua halaman...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+            Swal.fire({ title: 'Menyiapkan Dokumen', text: 'Melakukan rendering dua halaman...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             const opt = {
-                margin:       0,
-                filename:     `Laporan_Marketing_Cendekia_${bulanStr}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                // Orientasi A4, JS menangani class pemisah halaman secara otomatis
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                margin: 0,
+                filename: `Laporan_Marketing_Cendekia_${bulanStr}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
                 Swal.close();
             });
-        }
+        };
 
-        // PERBAIKAN: Hapus window.onload. 
-        // Dalam script type="module", kode langsung dieksekusi di level root agar tidak terlewat.
-        
+        // --- INISIALISASI UTAMA: Tunggu status auth sebelum apapun ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // User sudah login, langsung tarik data real-time
                 listenToDatabase();
             } else {
                 Swal.fire('Akses Ditolak', 'Silakan login sebagai admin terlebih dahulu.', 'error')
-                .then(() => window.location.href = '../index.html');
+                    .then(() => window.location.href = '../index.html');
             }
         });
 
+        // Set default bulan penjualan ke bulan ini
         const d = new Date();
         const inputBulan = document.getElementById('jual-bulan');
         if (inputBulan) {
