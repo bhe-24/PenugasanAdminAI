@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sesi Mengajar - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
+                }
+            }
+        }
+    </script>
+    <!-- pdfMake Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+</head>
+<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
+
+    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex justify-between items-center sticky top-0 z-50">
+        <a href="index.html" class="flex items-center gap-3">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
+            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Sesi <span class="text-accent">Presensi</span></h1>
+        </a>
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
+    </header>
+
+    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+        
+        <!-- STEP 1: SETUP KELAS -->
+        <div id="step-setup" class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+            <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2">1. Persiapan Sesi Mengajar</h3>
+            <div class="space-y-6">
+                <div class="flex flex-col">
+                    <label class="text-sm font-bold text-gray-700 mb-2">Mata Pelajaran / Topik Utama</label>
+                    <input type="text" id="setup-matkul" required class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base" placeholder="Contoh: Menulis Cerita Fiksi Pendek">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-bold text-gray-700 mb-2">Pilih Kelas / Semester</label>
+                    <select id="setup-semester" class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base">
+                        <option value="">-- Pilih Tingkat Kelas --</option>
+                        <option value="1">Kelas Pemula (Semester 1)</option>
+                        <option value="2">Kelas Menengah (Semester 2)</option>
+                    </select>
+                </div>
+                <button onclick="tarikSiswa()" class="w-full bg-primary hover:bg-primaryLight text-white font-bold py-3 rounded-xl transition duration-300 shadow-md flex items-center justify-center gap-2"><i class="fa-solid fa-users-viewfinder"></i> Tarik Data Siswa & Mulai</button>
+            </div>
+        </div>
+
+        <!-- STEP 2: DAFTAR HADIR & JURNAL -->
+        <div id="step-absen" class="hidden space-y-8">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+                <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2">2. Daftar Hadir Siswa (Semester <span id="lbl-semester"></span>)</h3>
+                <div class="flex flex-col gap-3" id="student-list-container">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+                <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2">3. Jurnal Mengajar</h3>
+                <div class="space-y-6">
+                    <div class="flex flex-col">
+                        <label class="text-sm font-bold text-gray-700 mb-2">Uraian Materi yang Diajarkan</label>
+                        <textarea id="jurnal-materi" rows="4" required class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base" placeholder="Jelaskan secara singkat topik pembelajaran hari ini..."></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col">
+                            <label class="text-sm font-bold text-gray-700 mb-2">Jam Mulai</label>
+                            <input type="time" id="jurnal-start" onchange="hitungDurasi()" class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white outline-none text-sm md:text-base">
+                        </div>
+                        <div class="flex flex-col">
+                            <label class="text-sm font-bold text-gray-700 mb-2">Jam Selesai</label>
+                            <input type="time" id="jurnal-end" onchange="hitungDurasi()" class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white outline-none text-sm md:text-base">
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 text-primaryLight p-4 rounded-xl font-bold text-center border border-blue-200 text-sm md:text-base">
+                        Total Waktu Mengajar: <span id="jurnal-durasi">0</span> Menit
+                    </div>
+                    <button onclick="simpanPresensiFinal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition duration-300 shadow-lg flex items-center justify-center gap-2 text-base md:text-lg"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan Laporan & Terima Honor (Rp5.000)</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
+        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center hidden">
+        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
+        <h3 id="loading-text" class="text-primary font-bold mt-4">Memproses...</h3>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let sessionData = {};
+
+        const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
+        const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().role === 'pengajar') {
+                    currentUser = { uid: user.uid, ...userDoc.data() };
+                } else {
+                    window.location.href = '../index.html';
+                }
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
+
+        window.tarikSiswa = async () => {
+            const matkul = document.getElementById('setup-matkul').value.trim();
+            const semester = parseInt(document.getElementById('setup-semester').value);
+
+            if(!matkul || !semester) {
+                Swal.fire('Data Belum Lengkap', 'Lengkapi kolom mata pelajaran dan semester.', 'warning');
+                return;
+            }
+
+            sessionData = {
+                pengajarId: currentUser.uid,
+                pengajarName: currentUser.name,
+                matkul,
+                semester,
+                presensi: {},
+                materi: '', jamMulai: '', jamSelesai: '', durasi: 0
+            };
+
+            document.getElementById('lbl-semester').innerText = semester;
+            showLoading("Mengambil data siswa...");
+
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'), where('status', '==', 'active'), where('semester', '==', semester));
+                const snap = await getDocs(q);
+
+                const list = document.getElementById('student-list-container');
+                list.innerHTML = '';
+                let count = 0;
+
+                snap.forEach(d => {
+                    count++;
+                    const s = d.data();
+                    sessionData.presensi[d.id] = { name: s.name, status: null };
+
+                    list.innerHTML += `
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border border-gray-100 rounded-xl gap-3">
+                            <div class="font-semibold text-textDark">${count}. ${s.name}</div>
+                            <div class="flex gap-2 w-full sm:w-auto" data-uid="${d.id}">
+                                <button class="flex-1 sm:flex-none py-1.5 px-4 rounded-full text-xs font-bold border border-emerald-500 text-emerald-500 bg-white transition cursor-pointer hover:bg-emerald-50" onclick="setAbsen('${d.id}', 'Hadir', this)">Hadir</button>
+                                <button class="flex-1 sm:flex-none py-1.5 px-4 rounded-full text-xs font-bold border border-amber-500 text-amber-500 bg-white transition cursor-pointer hover:bg-amber-50" onclick="setAbsen('${d.id}', 'Izin', this)">Izin</button>
+                                <button class="flex-1 sm:flex-none py-1.5 px-4 rounded-full text-xs font-bold border border-red-500 text-red-500 bg-white transition cursor-pointer hover:bg-red-50" onclick="setAbsen('${d.id}', 'Absen', this)">Absen</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                hideLoading();
+                if(count === 0) {
+                    Swal.fire('Data Siswa Kosong', `Tidak ditemukan siswa aktif di semester ${semester}.`, 'info');
+                } else {
+                    document.getElementById('step-setup').classList.add('hidden');
+                    document.getElementById('step-absen').classList.remove('hidden');
+                }
+            } catch(e) { hideLoading(); Swal.fire('Error', e.message, 'error'); }
+        };
+
+        window.setAbsen = (uid, status, btn) => {
+            sessionData.presensi[uid].status = status;
+            btn.parentElement.querySelectorAll('button').forEach(b => {
+                b.className = b.className.replace(/bg-.*-500|text-white/, "bg-white");
+                if (b.className.includes("border-emerald-500")) b.className += " text-emerald-500";
+                if (b.className.includes("border-amber-500")) b.className += " text-amber-500";
+                if (b.className.includes("border-red-500")) b.className += " text-red-500";
+            });
+
+            if (status === 'Hadir') btn.className = btn.className.replace("text-emerald-500 bg-white", "bg-emerald-500 text-white");
+            else if (status === 'Izin') btn.className = btn.className.replace("text-amber-500 bg-white", "bg-amber-500 text-white");
+            else if (status === 'Absen') btn.className = btn.className.replace("text-red-500 bg-white", "bg-red-500 text-white");
+        };
+
+        window.hitungDurasi = () => {
+            const start = document.getElementById('jurnal-start').value;
+            const end = document.getElementById('jurnal-end').value;
+            if(start && end) {
+                const s = new Date(`1970-01-01T${start}`);
+                const e = new Date(`1970-01-01T${end}`);
+                if (e > s) {
+                    const diff = Math.round((e - s) / 60000);
+                    sessionData.durasi = diff;
+                    document.getElementById('jurnal-durasi').innerText = diff;
+                } else {
+                    document.getElementById('jurnal-durasi').innerText = "Tidak Valid";
+                    sessionData.durasi = 0;
+                }
+            }
+        };
+
+        window.simpanPresensiFinal = async () => {
+            sessionData.materi = document.getElementById('jurnal-materi').value.trim();
+            sessionData.jamMulai = document.getElementById('jurnal-start').value;
+            sessionData.jamSelesai = document.getElementById('jurnal-end').value;
+
+            if(!sessionData.materi || sessionData.durasi <= 0) {
+                Swal.fire('Data Belum Lengkap', 'Periksa isian materi dan jam mengajar.', 'warning');
+                return;
+            }
+
+            const missed = Object.values(sessionData.presensi).filter(s => s.status === null);
+            if(missed.length > 0) {
+                Swal.fire('Belum Selesai', 'Ada siswa yang belum diabsen.', 'warning');
+                return;
+            }
+
+            showLoading("Mengirim Laporan...");
+            try {
+                const payload = {
+                    ...sessionData,
+                    tanggal: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
+                    createdAt: serverTimestamp()
+                };
+
+                await addDoc(collection(db, "arsipPresensi"), payload);
+                await updateDoc(doc(db, 'users', currentUser.uid), { salary: increment(5000) });
+
+                // PDF Make Generation
+                generatePDF(payload);
+
+                hideLoading();
+                Swal.fire('Laporan Tersimpan!', 'Gaji Rp5.000 telah masuk ke dompet Anda.', 'success')
+                .then(() => window.location.href = 'index.html');
+            } catch(e) { hideLoading(); Swal.fire('Error', e.message, 'error'); }
+        };
+
+        function generatePDF(data) {
+            const tableBody = [[{text:'No', style:'th'}, {text:'Nama Siswa', style:'th'}, {text:'Kehadiran', style:'th'}]];
+            let i = 1;
+            Object.values(data.presensi).sort((a,b)=>a.name.localeCompare(b.name)).forEach(s => {
+                const color = s.status==='Hadir' ? '#16a34a' : (s.status==='Izin'?'#d97706':'#dc2626');
+                tableBody.push([{text: i++, alignment:'center'}, s.name, {text: s.status, color, bold:true, alignment:'center'}]);
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                content: [
+                    { text: 'LAPORAN PRESENSI & JURNAL KELAS', style: 'header' },
+                    { text: 'CENDEKIA AKSARA', style: 'subheader' },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }] },
+                    { text: `\nPengajar: ${data.pengajarName}`, bold:true },
+                    { text: `Mata Pelajaran: ${data.matkul} (Semester ${data.semester})` },
+                    { text: `Waktu: ${data.tanggal} (${data.jamMulai} - ${data.jamSelesai} WIB)` },
+                    { text: `Durasi: ${data.durasi} Menit` },
+                    { text: `Materi Pokok: ${data.materi}\n\n` },
+                    { table: { headerRows:1, widths:['auto', '*', 'auto'], body:tableBody }, layout:'lightHorizontalLines' }
+                ],
+                styles: {
+                    header: { fontSize: 16, bold: true, alignment: 'center', color: '#003366' },
+                    subheader: { fontSize: 12, alignment: 'center', margin: [0, 5, 0, 10], color: '#64748b' },
+                    th: { bold: true, fillColor: '#f1f5f9', alignment: 'center', margin: [0,5,0,5] }
+                }
+            };
+            pdfMake.createPdf(docDefinition).download(`Presensi_${data.matkul.replace(/\s/g,'_')}.pdf`);
+        }
+    </script>
+</body>
+</html>
