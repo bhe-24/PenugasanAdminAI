@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arsip Mengajar - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
+                }
+            }
+        }
+    </script>
+    <!-- pdfMake -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+</head>
+<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
+
+    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
+            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Arsip <span class="text-accent">Mengajar</span></h1>
+        </div>
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
+    </header>
+
+    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+            <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2"><i class="fa-solid fa-clock-rotate-left mr-2"></i>Histori Jurnal & Presensi Kelas</h3>
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-left text-xs md:text-sm whitespace-nowrap">
+                    <thead class="bg-primary text-white">
+                        <tr>
+                            <th class="p-3 rounded-l-lg">Tanggal</th>
+                            <th class="p-3">Mata Pelajaran & Topik</th>
+                            <th class="p-3">Semester</th>
+                            <th class="p-3">Durasi</th>
+                            <th class="p-3 rounded-r-lg text-center">Cetak PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="arsip-tbody" class="divide-y divide-gray-100">
+                        <!-- Data disuntikkan dari JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
+        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
+        <h3 class="text-primary font-bold mt-4">Menghubungkan database...</h3>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let records = [];
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().role === 'pengajar') {
+                    currentUser = { uid: user.uid, ...userDoc.data() };
+                    loadArsip();
+                } else {
+                    window.location.href = '../index.html';
+                }
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
+
+        async function loadArsip() {
+            const tbody = document.getElementById('arsip-tbody');
+            try {
+                const q = query(collection(db, 'arsipPresensi'), where('pengajarId', '==', currentUser.uid), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                tbody.innerHTML = '';
+                records = [];
+
+                if(snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-400">Belum ada riwayat mengajar yang terekam.</td></tr>';
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    records.push({id: d.id, ...data});
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50 border-b border-gray-100 transition">
+                            <td class="p-3 font-semibold text-gray-500">${data.tanggal}</td>
+                            <td class="p-3"><strong class="text-primary">${data.matkul}</strong><br><span class="text-xs text-gray-400">${data.materi}</span></td>
+                            <td class="p-3 font-medium text-gray-600 text-center">Smt ${data.semester}</td>
+                            <td class="p-3 font-bold text-primaryLight text-center">${data.durasi} Menit</td>
+                            <td class="p-3 text-center">
+                                <button onclick="reprintPDF('${d.id}')" class="text-red-500 hover:text-white bg-red-50 hover:bg-red-500 p-2 rounded-lg border border-red-200 transition"><i class="fa-solid fa-file-pdf"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('loading-overlay').classList.add('hidden');
+            } catch(e) { console.error(e); }
+        }
+
+        window.reprintPDF = (id) => {
+            const data = records.find(r => r.id === id);
+            if(!data) return;
+
+            const tableBody = [[{text:'No', style:'th'}, {text:'Nama Siswa', style:'th'}, {text:'Kehadiran', style:'th'}]];
+            let i = 1;
+            Object.values(data.presensi).sort((a,b)=>a.name.localeCompare(b.name)).forEach(s => {
+                const color = s.status==='Hadir' ? '#16a34a' : (s.status==='Izin'?'#d97706':'#dc2626');
+                tableBody.push([{text: i++, alignment:'center'}, s.name, {text: s.status, color, bold:true, alignment:'center'}]);
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                content: [
+                    { text: 'SALINAN LAPORAN PRESENSI & JURNAL KELAS', style: 'header' },
+                    { text: 'CENDEKIA AKSARA', style: 'subheader' },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }] },
+                    { text: `\nPengajar: ${data.pengajarName}`, bold:true },
+                    { text: `Mata Pelajaran: ${data.matkul} (Semester ${data.semester})` },
+                    { text: `Waktu: ${data.tanggal} (${data.jamMulai} - ${data.jamSelesai} WIB)` },
+                    { text: `Durasi: ${data.durasi} Menit` },
+                    { text: `Materi Pokok: ${data.materi}\n\n` },
+                    { table: { headerRows:1, widths:['auto', '*', 'auto'], body:tableBody }, layout:'lightHorizontalLines' }
+                ],
+                styles: {
+                    header: { fontSize: 16, bold: true, alignment: 'center', color: '#003366' },
+                    subheader: { fontSize: 12, alignment: 'center', margin: [0, 5, 0, 10], color: '#64748b' },
+                    th: { bold: true, fillColor: '#f1f5f9', alignment: 'center', margin: [0,5,0,5] }
+                }
+            };
+            pdfMake.createPdf(docDefinition).download(`Salinan_Presensi_${data.matkul.replace(/\s/g,'_')}.pdf`);
+        };
+    </script>
+</body>
+</html>
