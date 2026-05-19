@@ -318,7 +318,7 @@
             }
         };
 
-        // --- AUTH LISTENER (ROUTING SEMESTER 3) ---
+        // --- AUTH LISTENER (ROUTING SISTEM) ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 if(!localStorage.getItem('justRegistered')) {
@@ -330,10 +330,18 @@
                         const data = snap.data();
                         const semester = parseInt(data.semester) || 1;
 
-                        if (data.role === 'admin' || data.role === 'pengajar') {
+                        // 1. Cek jika dia ADMIN (Bisa lewat role 'admin' atau email berakhiran @ac.id)
+                        if (data.role === 'admin' || user.email.endsWith('@ac.id')) {
+                            // Perbarui role di DB menjadi admin jika sebelumnya belum
+                            if (data.role !== 'admin') await setDoc(doc(db, 'users', user.uid), { role: 'admin' }, { merge: true });
                             window.location.href = 'admin/index.html';
-                        } else {
-                            // Cek Semester Siswa untuk Routing Dasbor Inkubasi
+                        } 
+                        // 2. Cek jika dia PENGAJAR
+                        else if (data.role === 'pengajar') {
+                            window.location.href = 'pengajar/index.html';
+                        } 
+                        // 3. Jika dia SISWA BIASA
+                        else {
                             if (semester >= 3) {
                                 window.location.href = 'dashboard/inkubasi.html';
                             } else {
@@ -341,17 +349,20 @@
                             }
                         }
                     } else {
-                        // Jika siswa login dari Web Penerimaan, buat profilnya
+                        // Jika tidak ada data profil, anggap dia siswa baru
+                        let role = user.email.endsWith('@ac.id') ? 'admin' : 'siswa';
                         await setDoc(doc(db, 'users', user.uid), { 
-                            name: user.displayName || "Siswa Cendekia", 
+                            name: user.displayName || "Pengguna Baru", 
                             email: user.email, 
-                            role: 'siswa', 
+                            role: role, 
                             semester: 1, 
                             ips: 0, 
                             status: 'active',
                             createdAt: new Date().toISOString()
                         });
-                        window.location.href = 'dashboard/index.html';
+
+                        if(role === 'admin') window.location.href = 'admin/index.html';
+                        else window.location.href = 'dashboard/index.html';
                     }
                 } catch (e) {
                     console.error(e); hideLoading();
@@ -399,6 +410,7 @@
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
             
+            // Set role awal (jika email @ac.id, otomatis jadi admin. Selain itu, siswa)
             const role = email.endsWith('@ac.id') ? 'admin' : 'siswa'; 
 
             try {
@@ -424,10 +436,12 @@
 
             } catch (err) { 
                 hideLoading(); 
+                let errorMsg = err.message;
+                if (err.code === 'auth/email-already-in-use') errorMsg = "Email ini sudah terdaftar. Silakan login.";
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal Mendaftar',
-                    text: err.message,
+                    text: errorMsg,
                     confirmButtonColor: '#dc3545'
                 });
             }
