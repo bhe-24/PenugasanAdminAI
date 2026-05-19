@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slip Gaji & Rekening - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
+
+    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
+            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Slip <span class="text-accent">Gaji</span></h1>
+        </div>
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
+    </header>
+
+    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+        
+        <!-- Kartu Saku Pendapatan -->
+        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 md:p-8 shadow-lg text-center mb-8">
+            <p class="text-sm md:text-base font-medium opacity-90">Total Akumulasi Honor Mengajar Anda</p>
+            <div class="font-serif text-4xl md:text-5xl font-black my-3" id="salary-total">Rp 0</div>
+            <p class="text-xs opacity-75">Sistem secara otomatis menambahkan honorarium sebesar Rp 5.000 untuk setiap laporan presensi kelas yang disimpan.</p>
+        </div>
+
+        <!-- Form Info Rekening Aman -->
+        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
+            <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2">Informasi Rekening & Pencairan</h3>
+            <p class="text-xs text-red-600 font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-lock"></i> Data rekening Anda dienkripsi dan hanya dapat diakses oleh Admin Pusat demi privasi finansial Anda.</p>
+            
+            <form id="form-rekening" class="space-y-6">
+                <div class="flex flex-col">
+                    <label class="text-sm font-bold text-gray-700 mb-2">Nama Bank / E-Wallet (Contoh: BCA, DANA, OVO)</label>
+                    <input type="text" id="rek-bank" required class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base" placeholder="Daftarkan Nama Bank">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-bold text-gray-700 mb-2">Nomor Rekening / HP Akun E-Wallet</label>
+                    <input type="text" id="rek-nomor" required class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base" placeholder="Daftarkan No Rekening">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-bold text-gray-700 mb-2">Atas Nama (Pemilik Rekening)</label>
+                    <input type="text" id="rek-nama" required class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none transition text-sm md:text-base" placeholder="Daftarkan Pemilik Rekening">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition shadow-md"><i class="fa-solid fa-floppy-disk"></i> Perbarui Data Rekening</button>
+            </form>
+        </div>
+
+    </main>
+
+    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
+        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
+        <h3 class="text-primary font-bold mt-4">Mengamankan Saldo...</h3>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().role === 'pengajar') {
+                    currentUser = { uid: user.uid, ...userDoc.data() };
+                    loadGajiRekening();
+                } else {
+                    window.location.href = '../index.html';
+                }
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
+
+        async function loadGajiRekening() {
+            try {
+                const snap = await getDoc(doc(db, 'users', currentUser.uid));
+                const data = snap.data();
+
+                const salary = data.salary || 0;
+                document.getElementById('salary-total').innerText = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(salary);
+
+                document.getElementById('rek-bank').value = data.bankName || '';
+                document.getElementById('rek-nomor').value = data.bankAccount || '';
+                document.getElementById('rek-nama').value = data.bankOwner || '';
+                document.getElementById('loading-overlay').classList.add('hidden');
+            } catch(e) { console.error(e); }
+        }
+
+        document.getElementById('form-rekening').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const bankName = document.getElementById('rek-bank').value.trim();
+            const bankAccount = document.getElementById('rek-nomor').value.trim();
+            const bankOwner = document.getElementById('rek-nama').value.trim();
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    bankName, bankAccount, bankOwner
+                });
+                document.getElementById('loading-overlay').classList.add('hidden');
+                Swal.fire('Berhasil Disimpan!', 'Informasi pencairan berhasil diamankan dalam pangkalan data.', 'success');
+            } catch(e) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                Swal.fire('Gagal', e.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
