@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Portal Pengajar - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
+
+    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
+            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Portal <span class="text-accent">Pengajar</span></h1>
+        </div>
+        <button id="btn-logout" class="bg-red-100 hover:bg-red-200 text-red-600 border border-red-300 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition flex items-center gap-2"><i class="fa-solid fa-power-off"></i> Keluar</button>
+    </header>
+
+    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 mb-8 animate-[fadeIn_0.4s_ease]">
+            <h2 class="font-serif text-2xl md:text-3xl text-primary font-bold mb-2">Selamat Datang, <span id="pengajar-name" class="text-primaryLight">Memuat...</span></h2>
+            <p class="text-gray-500 text-sm md:text-base">Kelola seluruh aktivitas kelas, absensi siswa, materi, dan tinjau slip gaji Anda secara aman.</p>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <a href="presensi.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-sky-50 text-sky-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-chalkboard-user"></i></div>
+                <h3 class="font-semibold text-sm md:text-base text-textDark">Mulai Kelas</h3>
+            </a>
+            <a href="arsip.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-folder-open"></i></div>
+                <h3 class="font-semibold text-sm md:text-base text-textDark">Arsip Mengajar</h3>
+            </a>
+            <a href="gaji.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-wallet"></i></div>
+                <h3 class="font-semibold text-sm md:text-base text-textDark">Slip Gaji</h3>
+            </a>
+            <a href="pedoman.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-scale-balanced"></i></div>
+                <h3 class="font-semibold text-sm md:text-base text-textDark">Pedoman</h3>
+            </a>
+        </div>
+    </main>
+
+    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
+        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
+        <h3 id="loading-text" class="text-primary font-bold mt-4">Memverifikasi Hak Akses...</h3>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists() && userDoc.data().role === 'pengajar') {
+                        document.getElementById('pengajar-name').innerText = userDoc.data().name;
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    } else {
+                        Swal.fire('Akses Ditolak', 'Halaman khusus Pengajar.', 'error')
+                        .then(() => window.location.href = '../index.html');
+                    }
+                } catch(e) { console.error(e); }
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            Swal.fire({ title: 'Keluar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Keluar' })
+            .then((result) => { if(result.isConfirmed) signOut(auth); });
+        });
+    </script>
+</body>
+</html>
