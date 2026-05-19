@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -31,16 +33,45 @@
         <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
     </header>
 
-    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8 space-y-6">
         
         <!-- Kartu Saku Pendapatan -->
-        <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 md:p-8 shadow-lg text-center mb-8">
+        <div class="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-2xl p-6 md:p-8 shadow-lg text-center">
             <p class="text-sm md:text-base font-medium opacity-90">Total Akumulasi Honor Mengajar Anda</p>
             <div class="font-serif text-4xl md:text-5xl font-black my-3" id="salary-total">Rp 0</div>
-            <p class="text-xs opacity-75">Sistem secara otomatis menambahkan honorarium sebesar Rp 5.000 untuk setiap laporan presensi kelas yang disimpan.</p>
+            <p class="text-xs opacity-75 mb-4">Sistem secara otomatis menambahkan honorarium sebesar Rp 5.000 untuk setiap laporan presensi kelas yang disimpan.</p>
+            <div class="grid grid-cols-3 gap-3 mt-4">
+                <div class="bg-white/20 rounded-xl p-3">
+                    <p class="text-xs opacity-80">Total Sesi</p>
+                    <p class="font-bold text-xl" id="total-sesi">0</p>
+                </div>
+                <div class="bg-white/20 rounded-xl p-3">
+                    <p class="text-xs opacity-80">Sudah Cair</p>
+                    <p class="font-bold text-xl" id="total-cair">Rp 0</p>
+                </div>
+                <div class="bg-white/20 rounded-xl p-3">
+                    <p class="text-xs opacity-80">Sisa Saldo</p>
+                    <p class="font-bold text-xl" id="sisa-saldo">Rp 0</p>
+                </div>
+            </div>
         </div>
 
-        <!-- Form Info Rekening Aman -->
+        <!-- Status Slip Gaji Diterima -->
+        <div id="slip-section" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-4 border-b pb-3">
+                <h3 class="font-serif text-xl text-primary font-bold">Slip Gaji Diterima</h3>
+                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full" id="slip-count-badge">0 Slip</span>
+            </div>
+            <div id="slip-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Grafik Honorarium -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 class="font-serif text-xl text-primary font-bold mb-4 border-b pb-2">Grafik Honorarium Bulanan</h3>
+            <canvas id="salary-chart" height="120"></canvas>
+        </div>
+
+        <!-- Form Info Rekening -->
         <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
             <h3 class="font-serif text-xl md:text-2xl text-primary font-bold mb-4 border-b pb-2">Informasi Rekening & Pencairan</h3>
             <p class="text-xs text-red-600 font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-lock"></i> Data rekening Anda dienkripsi dan hanya dapat diakses oleh Admin Pusat demi privasi finansial Anda.</p>
@@ -78,7 +109,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
@@ -93,14 +124,16 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
         let currentUser = null;
+        let salaryChartInstance = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (userDoc.exists() && userDoc.data().role === 'pengajar') {
                     currentUser = { uid: user.uid, ...userDoc.data() };
-                    loadGajiRekening();
+                    await loadGajiRekening();
                 } else {
                     window.location.href = '../index.html';
                 }
@@ -115,13 +148,371 @@
                 const data = snap.data();
 
                 const salary = data.salary || 0;
-                document.getElementById('salary-total').innerText = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(salary);
+                const disbursed = data.salaryDisbursed || 0;
+                const sesi = data.totalSesi || Math.floor(salary / 5000);
+                const sisa = salary - disbursed;
+
+                document.getElementById('salary-total').innerText = fmt(salary);
+                document.getElementById('total-sesi').innerText = sesi + ' sesi';
+                document.getElementById('total-cair').innerText = fmt(disbursed);
+                document.getElementById('sisa-saldo').innerText = fmt(sisa);
 
                 document.getElementById('rek-bank').value = data.bankName || '';
                 document.getElementById('rek-nomor').value = data.bankAccount || '';
                 document.getElementById('rek-nama').value = data.bankOwner || '';
+
+                // Load slip gaji yang diterima
+                await loadSlipGaji();
+
+                // Load grafik
+                await loadGrafik(data);
+
                 document.getElementById('loading-overlay').classList.add('hidden');
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error(e); 
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        }
+
+        async function loadSlipGaji() {
+            try {
+                const q = query(
+                    collection(db, 'slipGaji'),
+                    where('pengajarId', '==', currentUser.uid),
+                    orderBy('createdAt', 'desc')
+                );
+                const snaps = await getDocs(q);
+                const slips = [];
+                snaps.forEach(d => slips.push({ id: d.id, ...d.data() }));
+
+                const slipSection = document.getElementById('slip-section');
+                const slipList = document.getElementById('slip-list');
+                const slipBadge = document.getElementById('slip-count-badge');
+
+                if (slips.length > 0) {
+                    slipSection.classList.remove('hidden');
+                    slipBadge.innerText = slips.length + ' Slip';
+                    slipList.innerHTML = '';
+                    slips.forEach(slip => {
+                        const statusColor = slip.status === 'lunas' ? 'emerald' : (slip.status === 'diproses' ? 'yellow' : 'blue');
+                        const statusLabel = slip.status === 'lunas' ? 'Lunas' : (slip.status === 'diproses' ? 'Diproses' : 'Diterbitkan');
+                        const tgl = slip.createdAt?.toDate ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).format(slip.createdAt.toDate()) : '-';
+                        
+                        const el = document.createElement('div');
+                        el.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-primary transition';
+                        el.innerHTML = `
+                            <div>
+                                <p class="font-bold text-sm text-primary">${slip.periodeLabel || 'Periode ' + tgl}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">${tgl} &bull; ${slip.jumlahSesi || 0} sesi &bull; ${fmt(slip.nominalBersih || 0)}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-${statusColor}-100 text-${statusColor}-700 text-xs font-bold px-2 py-1 rounded-full">${statusLabel}</span>
+                                <button onclick="downloadSlipPDF('${slip.id}')" class="bg-primary hover:bg-primaryLight text-white text-xs px-3 py-1.5 rounded-lg transition font-semibold">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </button>
+                            </div>
+                        `;
+                        slipList.appendChild(el);
+                    });
+                }
+            } catch(e) {
+                console.warn('Slip gaji tidak tersedia:', e.message);
+            }
+        }
+
+        async function loadGrafik(userData) {
+            // Ambil data bulanan dari history jika ada, atau buat dummy dari salary
+            const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            const now = new Date();
+            const labels = [];
+            const values = [];
+
+            // Coba ambil dari subcollection salaryHistory
+            try {
+                const q = query(
+                    collection(db, 'salaryHistory'),
+                    where('pengajarId', '==', currentUser.uid),
+                    orderBy('bulan', 'asc')
+                );
+                const snaps = await getDocs(q);
+                if (!snaps.empty) {
+                    snaps.forEach(d => {
+                        const data = d.data();
+                        labels.push(data.label || data.bulan);
+                        values.push(data.nominal || 0);
+                    });
+                } else {
+                    // Fallback: tampilkan 6 bulan terakhir dengan data dari salary total di bulan ini
+                    for (let i = 5; i >= 0; i--) {
+                        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                        labels.push(bulan[d.getMonth()] + ' ' + d.getFullYear());
+                        values.push(i === 0 ? (userData.salary || 0) : 0);
+                    }
+                }
+            } catch(e) {
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    labels.push(bulan[d.getMonth()] + ' ' + d.getFullYear());
+                    values.push(i === 0 ? (userData.salary || 0) : 0);
+                }
+            }
+
+            const ctx = document.getElementById('salary-chart').getContext('2d');
+            if (salaryChartInstance) salaryChartInstance.destroy();
+            salaryChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Honorarium (Rp)',
+                        data: values,
+                        backgroundColor: 'rgba(0, 51, 102, 0.75)',
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => fmt(ctx.parsed.y)
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (val) => 'Rp ' + (val / 1000) + 'rb'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fungsi download PDF slip gaji pengajar
+        window.downloadSlipPDF = async function(slipId) {
+            try {
+                Swal.fire({ title: 'Menyiapkan PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const slipSnap = await getDoc(doc(db, 'slipGaji', slipId));
+                if (!slipSnap.exists()) { Swal.fire('Error', 'Data slip tidak ditemukan', 'error'); return; }
+                
+                const slip = slipSnap.data();
+                const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+                const user = userSnap.data();
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                
+                generateSlipPDF(pdf, slip, user);
+                
+                pdf.save(`Slip_Gaji_${user.nama || user.displayName || 'Pengajar'}_${slip.periodeLabel || slipId}.pdf`);
+                Swal.close();
+            } catch(e) {
+                Swal.fire('Gagal', e.message, 'error');
+            }
+        };
+
+        function generateSlipPDF(pdf, slip, user) {
+            const pageW = 210;
+            const margin = 15;
+            let y = margin;
+
+            // Header
+            pdf.setFillColor(0, 51, 102);
+            pdf.rect(0, 0, pageW, 38, 'F');
+            
+            pdf.setFillColor(212, 175, 55);
+            pdf.rect(0, 38, pageW, 2, 'F');
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(18);
+            pdf.setTextColor(255, 255, 255);
+            pdf.text('CENDEKIA AKSARA', pageW / 2, 16, { align: 'center' });
+            
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text('Lembaga Pendidikan Unggulan', pageW / 2, 23, { align: 'center' });
+
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(212, 175, 55);
+            pdf.text('SLIP HONORARIUM PENGAJAR', pageW / 2, 32, { align: 'center' });
+
+            y = 50;
+
+            // Info Slip
+            pdf.setFontSize(9);
+            pdf.setTextColor(100, 100, 100);
+            const tglCetak = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date());
+            const slipNo = slip.slipNumber || ('SGA-' + Date.now());
+            pdf.text(`No. Slip: ${slipNo}`, margin, y);
+            pdf.text(`Tanggal Cetak: ${tglCetak}`, pageW - margin, y, { align: 'right' });
+
+            y += 8;
+            pdf.setDrawColor(220, 220, 220);
+            pdf.line(margin, y, pageW - margin, y);
+            y += 8;
+
+            // Data Pengajar
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 51, 102);
+            pdf.text('DATA PENGAJAR', margin, y);
+            y += 7;
+
+            const dataRows = [
+                ['Nama Lengkap', user.nama || user.displayName || '-'],
+                ['User ID', currentUser?.uid || slip.pengajarId || '-'],
+                ['Email', user.email || '-'],
+                ['Mata Pelajaran', user.mapel || user.mataPelajaran || '-'],
+                ['Status', 'Pengajar Aktif'],
+            ];
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(60, 60, 60);
+            pdf.setFontSize(9);
+            dataRows.forEach(([label, val]) => {
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(label, margin, y);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(': ' + val, margin + 40, y);
+                y += 6;
+            });
+
+            y += 4;
+            pdf.line(margin, y, pageW - margin, y);
+            y += 8;
+
+            // Periode
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.setTextColor(0, 51, 102);
+            pdf.text('PERIODE PENCAIRAN', margin, y);
+            y += 7;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(slip.periodeLabel || '-', margin, y);
+            y += 10;
+
+            // Tabel Rincian
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.setTextColor(0, 51, 102);
+            pdf.text('RINCIAN HONORARIUM', margin, y);
+            y += 6;
+
+            // Tabel header
+            pdf.setFillColor(0, 51, 102);
+            pdf.rect(margin, y, pageW - margin * 2, 8, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8.5);
+            pdf.text('Keterangan', margin + 2, y + 5.5);
+            pdf.text('Jumlah', 130, y + 5.5);
+            pdf.text('Satuan', 155, y + 5.5);
+            pdf.text('Total', 178, y + 5.5);
+            y += 8;
+
+            // Rows
+            const rows = [
+                ['Honor Mengajar per Sesi', slip.jumlahSesi || 0, 'Rp 5.000', (slip.jumlahSesi || 0) * 5000],
+                ...(slip.bonusItems || []).map(b => [b.label, 1, fmt(b.nominal), b.nominal]),
+            ];
+
+            pdf.setTextColor(40, 40, 40);
+            rows.forEach((row, i) => {
+                pdf.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 250 : 255, i % 2 === 0 ? 252 : 255);
+                pdf.rect(margin, y, pageW - margin * 2, 7, 'F');
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(8.5);
+                pdf.text(String(row[0]), margin + 2, y + 4.8);
+                pdf.text(String(row[1]), 130, y + 4.8);
+                pdf.text(String(row[2]), 155, y + 4.8);
+                pdf.text(fmt(row[3]), pageW - margin - 2, y + 4.8, { align: 'right' });
+                y += 7;
+            });
+
+            // Potongan
+            if (slip.potonganItems && slip.potonganItems.length > 0) {
+                slip.potonganItems.forEach((pot, i) => {
+                    pdf.setFillColor(255, 245, 245);
+                    pdf.rect(margin, y, pageW - margin * 2, 7, 'F');
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(8.5);
+                    pdf.setTextColor(180, 0, 0);
+                    pdf.text(pot.label, margin + 2, y + 4.8);
+                    pdf.text('-', 130, y + 4.8);
+                    pdf.text('-', 155, y + 4.8);
+                    pdf.text('- ' + fmt(pot.nominal), pageW - margin - 2, y + 4.8, { align: 'right' });
+                    y += 7;
+                });
+            }
+
+            // Total
+            y += 2;
+            pdf.setFillColor(0, 51, 102);
+            pdf.rect(margin, y, pageW - margin * 2, 10, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.text('TOTAL HONORARIUM BERSIH', margin + 2, y + 6.5);
+            pdf.text(fmt(slip.nominalBersih || 0), pageW - margin - 2, y + 6.5, { align: 'right' });
+            y += 14;
+
+            // Info Rekening
+            pdf.setTextColor(60, 60, 60);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(10);
+            pdf.setTextColor(0, 51, 102);
+            pdf.text('INFORMASI PENCAIRAN', margin, y);
+            y += 7;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(`Bank / E-Wallet : ${slip.bankName || user.bankName || '-'}`, margin, y); y += 6;
+            pdf.text(`No. Rekening     : ${slip.bankAccount || user.bankAccount || '-'}`, margin, y); y += 6;
+            pdf.text(`Atas Nama         : ${slip.bankOwner || user.bankOwner || '-'}`, margin, y); y += 6;
+            pdf.text(`Status Pencairan : ${slip.status === 'lunas' ? 'SUDAH DITRANSFER' : 'MENUNGGU TRANSFER'}`, margin, y); y += 10;
+
+            // Bukti Transfer
+            if (slip.buktiFoto) {
+                try {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(0, 51, 102);
+                    pdf.text('BUKTI TRANSFER', margin, y); y += 6;
+                    pdf.addImage(slip.buktiFoto, 'JPEG', margin, y, 80, 50);
+                    y += 55;
+                } catch(e) {}
+            }
+
+            // Footer
+            y = 265;
+            pdf.setDrawColor(212, 175, 55);
+            pdf.setLineWidth(0.5);
+            pdf.line(margin, y, pageW - margin, y);
+            y += 6;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(130, 130, 130);
+            pdf.text('Slip gaji ini diterbitkan secara resmi oleh sistem Cendekia Aksara dan ditandatangani secara digital oleh Admin.', pageW / 2, y, { align: 'center' });
+            y += 5;
+            pdf.text('Dokumen ini sah tanpa tanda tangan basah. Simpan dokumen ini sebagai bukti penerimaan honorarium Anda.', pageW / 2, y, { align: 'center' });
+
+            // Tanda tangan admin
+            y += 8;
+            const ttdX = pageW - margin - 50;
+            pdf.setTextColor(60, 60, 60);
+            pdf.text('Yogyakarta, ' + new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(new Date()), ttdX, y, { align: 'center' });
+            y += 5;
+            pdf.text('Kepala Admin Cendekia Aksara', ttdX, y, { align: 'center' });
+            y += 18;
+            pdf.setFont('helvetica', 'bold');
+            pdf.text(slip.adminNama || 'Admin Pusat', ttdX, y, { align: 'center' });
         }
 
         document.getElementById('form-rekening').addEventListener('submit', async (e) => {
