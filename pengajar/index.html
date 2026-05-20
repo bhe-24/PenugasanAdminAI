@@ -8,104 +8,488 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
-                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
 
-    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex flex-col sm:flex-row justify-between items-center gap-4 sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
-            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Portal <span class="text-accent">Pengajar</span></h1>
+    <style>
+        :root {
+            --primary: #003366;
+            --primary-light: #005a9c;
+            --accent: #d4af37;
+            --bg: #f1f5f9;
+            --text: #1e293b;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Poppins', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* ── LOADING ── */
+        #loading-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.5s ease;
+        }
+        #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+        #loading-overlay.hidden { display: none; }
+
+        .loader-logo {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: white;
+            padding: 6px;
+            border: 3px solid var(--accent);
+            box-shadow: 0 0 30px rgba(212,175,55,0.4);
+            animation: pulse 2s infinite;
+        }
+        .loader-ring {
+            width: 56px; height: 56px;
+            border: 4px solid rgba(255,255,255,0.15);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loader-text {
+            color: rgba(255,255,255,0.85);
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+        .loader-brand {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            color: white;
+            font-weight: 700;
+        }
+        .loader-brand span { color: var(--accent); }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{ box-shadow: 0 0 20px rgba(212,175,55,0.3); } 50%{ box-shadow: 0 0 40px rgba(212,175,55,0.7); } }
+        @keyframes fadeInUp { from { opacity:0; transform: translateY(24px); } to { opacity:1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform: translateY(0); } }
+
+        /* ── HEADER ── */
+        header {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, #001f3f 100%);
+            padding: 14px 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border-bottom: 3px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0; z-index: 100;
+            animation: slideDown 0.4s ease;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-logo {
+            height: 42px; width: 42px;
+            border-radius: 50%; background: white;
+            padding: 3px; border: 2px solid var(--accent);
+            box-shadow: 0 0 12px rgba(212,175,55,0.3);
+            object-fit: cover;
+        }
+        header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.15rem;
+            color: white;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }
+        header h1 span { color: var(--accent); }
+
+        .btn-logout {
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: #fca5a5;
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: 0.3s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn-logout:hover { background: rgba(239,68,68,0.3); color: white; }
+
+        /* ── MAIN ── */
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        /* Welcome Card */
+        .welcome-card {
+            background: linear-gradient(135deg, var(--primary) 0%, #005a9c 100%);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 28px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.5s ease;
+            box-shadow: 0 8px 32px rgba(0,51,102,0.25);
+        }
+        .welcome-card::before {
+            content: '';
+            position: absolute;
+            top: -40px; right: -40px;
+            width: 180px; height: 180px;
+            background: rgba(212,175,55,0.12);
+            border-radius: 50%;
+        }
+        .welcome-card::after {
+            content: '';
+            position: absolute;
+            bottom: -60px; right: 80px;
+            width: 140px; height: 140px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .welcome-card .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(212,175,55,0.2);
+            border: 1px solid rgba(212,175,55,0.4);
+            color: var(--accent);
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 50px;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        .welcome-card h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .welcome-card h2 span { color: var(--accent); }
+        .welcome-card p { font-size: 0.85rem; color: rgba(255,255,255,0.7); line-height: 1.6; }
+        .welcome-card .email-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 14px;
+            background: rgba(255,255,255,0.1);
+            padding: 5px 14px;
+            border-radius: 50px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Section Title */
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Menu Grid */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+            animation: fadeInUp 0.6s ease 0.1s both;
+        }
+        @media (min-width: 600px) { .menu-grid { grid-template-columns: repeat(4, 1fr); } }
+
+        .menu-card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 24px 16px;
+            text-align: center;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            text-decoration: none;
+            color: var(--text);
+            transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; flex-direction: column;
+            align-items: center; gap: 14px;
+        }
+        .menu-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(0,51,102,0.12);
+            border-color: rgba(0,51,102,0.2);
+        }
+        .menu-icon {
+            width: 58px; height: 58px;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.06);
+            transition: 0.3s;
+        }
+        .menu-card:hover .menu-icon { transform: scale(1.1); }
+        .menu-label { font-weight: 600; font-size: 0.82rem; }
+
+        /* Stat Row */
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 28px;
+            animation: fadeInUp 0.6s ease 0.2s both;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .stat-card .stat-label { font-size: 0.72rem; color: #94a3b8; font-weight: 500; margin-bottom: 6px; }
+        .stat-card .stat-value { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+        .stat-card .stat-sub { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+
+        /* Info Banner */
+        .info-banner {
+            background: linear-gradient(135deg, #fef9e7, #fef3c7);
+            border: 1px solid #fbbf24;
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex; align-items: flex-start; gap: 12px;
+            font-size: 0.82rem;
+            color: #92400e;
+            animation: fadeInUp 0.6s ease 0.3s both;
+            margin-bottom: 8px;
+        }
+        .info-banner i { color: #f59e0b; font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
+
+        /* Footer */
+        footer {
+            background: var(--primary);
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            padding: 14px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            border-top: 2px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loader-brand">Cendekia <span>Aksara</span></div>
+        <img src="https://i.imgur.com/5Srjyo4.png" class="loader-logo" alt="Logo">
+        <div class="loader-ring"></div>
+        <p class="loader-text">Memverifikasi Hak Akses Pengajar...</p>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <img src="https://i.imgur.com/5Srjyo4.png" class="header-logo" alt="Logo">
+            <h1>Portal <span>Pengajar</span></h1>
         </div>
-        <button id="btn-logout" class="bg-red-100 hover:bg-red-200 text-red-600 border border-red-300 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition flex items-center gap-2"><i class="fa-solid fa-power-off"></i> Keluar</button>
+        <button id="btn-logout" class="btn-logout">
+            <i class="fa-solid fa-power-off"></i> Keluar
+        </button>
     </header>
 
-    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
-        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 mb-8 animate-[fadeIn_0.4s_ease]">
-            <h2 class="font-serif text-2xl md:text-3xl text-primary font-bold mb-2">Selamat Datang, <span id="pengajar-name" class="text-primaryLight">Memuat...</span></h2>
-            <p class="text-gray-500 text-sm md:text-base">Kelola seluruh aktivitas kelas, absensi siswa, materi, dan tinjau slip gaji Anda secara aman.</p>
+    <main>
+        <!-- Welcome Card -->
+        <div class="welcome-card">
+            <div class="badge"><i class="fa-solid fa-chalkboard-user"></i> Pengajar Aktif</div>
+            <h2>Selamat Datang, <span id="pengajar-name">—</span></h2>
+            <p>Kelola seluruh aktivitas kelas, absensi siswa, materi, dan tinjau slip gaji Anda secara aman melalui portal terpusat Cendekia Aksara.</p>
+            <div class="email-tag"><i class="fa-solid fa-envelope"></i> <span id="pengajar-email">—</span></div>
         </div>
-        
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            <a href="presensi.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
-                <div class="w-16 h-16 rounded-2xl bg-sky-50 text-sky-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-chalkboard-user"></i></div>
-                <h3 class="font-semibold text-sm md:text-base text-textDark">Mulai Kelas</h3>
+
+        <!-- Stats -->
+        <p class="section-title"><i class="fa-solid fa-chart-line"></i> Rekap Aktivitas</p>
+        <div class="stat-row">
+            <div class="stat-card">
+                <p class="stat-label">Total Sesi</p>
+                <p class="stat-value" id="stat-sesi">—</p>
+                <p class="stat-sub">sesi mengajar</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Saldo Honorarium</p>
+                <p class="stat-value" id="stat-saldo">—</p>
+                <p class="stat-sub">berjalan</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Status Akun</p>
+                <p class="stat-value" id="stat-status" style="font-size:1rem;">—</p>
+                <p class="stat-sub">verifikasi sistem</p>
+            </div>
+        </div>
+
+        <!-- Menu -->
+        <p class="section-title"><i class="fa-solid fa-grid-2"></i> Menu Utama</p>
+        <div class="menu-grid">
+            <a href="presensi.html" class="menu-card">
+                <div class="menu-icon" style="background:#eff6ff; color:#3b82f6;">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <span class="menu-label">Mulai Kelas</span>
             </a>
-            <a href="arsip.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
-                <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-folder-open"></i></div>
-                <h3 class="font-semibold text-sm md:text-base text-textDark">Arsip Mengajar</h3>
+            <a href="arsip.html" class="menu-card">
+                <div class="menu-icon" style="background:#faf5ff; color:#a855f7;">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <span class="menu-label">Arsip Mengajar</span>
             </a>
-            <a href="gaji.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
-                <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-wallet"></i></div>
-                <h3 class="font-semibold text-sm md:text-base text-textDark">Slip Gaji</h3>
+            <a href="gaji.html" class="menu-card">
+                <div class="menu-icon" style="background:#f0fdf4; color:#22c55e;">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <span class="menu-label">Slip Gaji</span>
             </a>
-            <a href="pedoman.html" class="bg-white p-6 rounded-2xl text-center border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-4">
-                <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-3xl shadow-inner"><i class="fa-solid fa-scale-balanced"></i></div>
-                <h3 class="font-semibold text-sm md:text-base text-textDark">Pedoman</h3>
+            <a href="pedoman.html" class="menu-card">
+                <div class="menu-icon" style="background:#fffbeb; color:#f59e0b;">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+                <span class="menu-label">Pedoman</span>
             </a>
+        </div>
+
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+                <strong>Pengingat Penting:</strong> Setiap sesi mengajar wajib dilaporkan maksimal <strong>1×24 jam</strong> setelah kelas berakhir. Pastikan Anda telah membaca dan menyetujui <a href="pedoman.html" style="color:#b45309;font-weight:700;">Pedoman Mengajar</a> sebelum memulai kelas.
+            </div>
         </div>
     </main>
 
-    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
-        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    <footer>
+        &copy; 2026 Cendekia Aksara — Portal Pengajar. Hak Cipta Dilindungi.
     </footer>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center">
-        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
-        <h3 id="loading-text" class="text-primary font-bold mt-4">Memverifikasi Hak Akses...</h3>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-            authDomain: "mading-cf676.firebaseapp.com", 
-            projectId: "mading-cf676", 
-            storageBucket: "mading-cf676.firebasestorage.app", 
-            messagingSenderId: "72175203671", 
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+            authDomain: "mading-cf676.firebaseapp.com",
+            projectId: "mading-cf676",
+            storageBucket: "mading-cf676.firebasestorage.app",
+            messagingSenderId: "72175203671",
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        const overlay = document.getElementById('loading-overlay');
+        const hideOverlay = () => {
+            overlay.classList.add('fade-out');
+            setTimeout(() => overlay.classList.add('hidden'), 500);
+        };
+
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if (userDoc.exists() && userDoc.data().role === 'pengajar') {
-                        document.getElementById('pengajar-name').innerText = userDoc.data().name;
-                        document.getElementById('loading-overlay').classList.add('hidden');
-                    } else {
-                        Swal.fire('Akses Ditolak', 'Halaman khusus Pengajar.', 'error')
-                        .then(() => window.location.href = '../index.html');
-                    }
-                } catch(e) { console.error(e); }
-            } else {
+            if (!user) {
                 window.location.href = '../index.html';
+                return;
+            }
+
+            try {
+                const snap = await getDoc(doc(db, 'users', user.uid));
+
+                if (!snap.exists()) {
+                    Swal.fire('Profil Tidak Ditemukan', 'Data akun tidak tersedia.', 'error')
+                        .then(() => window.location.href = '../index.html');
+                    return;
+                }
+
+                const data = snap.data();
+
+                // Cek role — harus pengajar
+                if (data.role !== 'pengajar') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Akses Ditolak',
+                        text: 'Halaman ini hanya diperuntukkan bagi Pengajar.',
+                        confirmButtonColor: '#003366'
+                    }).then(() => window.location.href = '../index.html');
+                    return;
+                }
+
+                // Isi data di halaman
+                document.getElementById('pengajar-name').textContent = data.name || 'Pengajar';
+                document.getElementById('pengajar-email').textContent = user.email || '-';
+
+                // Stat: saldo honorarium
+                const saldo = data.saldo || 0;
+                document.getElementById('stat-saldo').textContent = 'Rp ' + saldo.toLocaleString('id-ID');
+
+                // Stat: status
+                const statusEl = document.getElementById('stat-status');
+                if (data.status === 'active') {
+                    statusEl.textContent = '✅ Aktif';
+                    statusEl.style.color = '#16a34a';
+                } else {
+                    statusEl.textContent = '⚠️ ' + (data.status || 'Tidak Diketahui');
+                    statusEl.style.color = '#dc2626';
+                }
+
+                // Stat: total sesi (dari koleksi presensi / arsip)
+                try {
+                    const presQ = query(collection(db, 'presensi'), where('pengajarId', '==', user.uid));
+                    const presSnap = await getDocs(presQ);
+                    document.getElementById('stat-sesi').textContent = presSnap.size;
+                } catch {
+                    document.getElementById('stat-sesi').textContent = data.totalSesi || 0;
+                }
+
+                hideOverlay();
+
+            } catch (err) {
+                console.error('Error loading portal:', err);
+                Swal.fire('Kesalahan Sistem', 'Gagal memuat data. Silakan coba lagi.', 'error')
+                    .then(() => hideOverlay());
             }
         });
 
         document.getElementById('btn-logout').addEventListener('click', () => {
-            Swal.fire({ title: 'Keluar?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Keluar' })
-            .then((result) => { if(result.isConfirmed) signOut(auth); });
+            Swal.fire({
+                title: 'Keluar dari Portal?',
+                text: 'Anda akan diarahkan ke halaman login.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#003366',
+                confirmButtonText: 'Ya, Keluar',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    signOut(auth).then(() => window.location.href = '../index.html');
+                }
+            });
         });
     </script>
 </body>
