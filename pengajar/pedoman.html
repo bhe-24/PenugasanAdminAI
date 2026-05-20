@@ -7,88 +7,1264 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { primary: '#003366', primaryLight: '#005a9c', accent: '#d4af37', bgLight: '#f1f5f9', textDark: '#1e293b' },
-                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden w-screen">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-    <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
-            <h1 class="font-serif text-white text-lg md:text-xl font-bold tracking-wide">Pedoman <span class="text-accent">Mengajar</span></h1>
+    <style>
+        :root {
+            --primary: #003366;
+            --primary-light: #005a9c;
+            --accent: #d4af37;
+            --bg: #f1f5f9;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            font-family: 'Poppins', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── LOADING ── */
+        #loading-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; gap: 18px;
+            transition: opacity 0.5s ease;
+        }
+        #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+        #loading-overlay.hidden { display: none; }
+        .loader-brand { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: white; font-weight: 700; }
+        .loader-brand span { color: var(--accent); }
+        .loader-ring {
+            width: 50px; height: 50px;
+            border: 4px solid rgba(255,255,255,0.15);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loader-text { color: rgba(255,255,255,0.75); font-size: 0.82rem; letter-spacing: 0.5px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+        /* ── HEADER ── */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #001f3f 100%);
+            padding: 14px 24px;
+            border-bottom: 3px solid var(--accent);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        header img { height: 40px; width: 40px; border-radius: 50%; background: white; padding: 3px; border: 2px solid var(--accent); }
+        header h1 { font-family: 'Playfair Display', serif; color: white; font-size: 1.1rem; font-weight: 700; }
+        header h1 span { color: var(--accent); }
+        .btn-back {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 8px 16px;
+            border-radius: 50px; font-size: 0.8rem;
+            font-weight: 600; cursor: pointer;
+            text-decoration: none; display: flex;
+            align-items: center; gap: 6px;
+            font-family: 'Poppins', sans-serif;
+            transition: 0.2s;
+        }
+        .btn-back:hover { background: rgba(255,255,255,0.2); }
+
+        /* ── PROGRESS BAR ── */
+        #read-progress {
+            position: fixed; top: 69px; left: 0; z-index: 99;
+            height: 3px; width: 0%;
+            background: linear-gradient(90deg, var(--accent), #f59e0b);
+            transition: width 0.1s linear;
+        }
+
+        /* ── MAIN ── */
+        main { flex: 1; max-width: 860px; width: 100%; margin: 0 auto; padding: 32px 20px 60px; }
+
+        /* Intro Card */
+        .intro-card {
+            background: linear-gradient(135deg, var(--primary), #005a9c);
+            border-radius: 20px; padding: 28px 32px;
+            color: white; margin-bottom: 28px;
+            animation: fadeInUp 0.5s ease;
+            box-shadow: 0 8px 30px rgba(0,51,102,0.2);
+        }
+        .intro-card .doc-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(212,175,55,0.2); border: 1px solid rgba(212,175,55,0.5);
+            color: var(--accent); font-size: 0.72rem; font-weight: 700;
+            padding: 4px 12px; border-radius: 50px; margin-bottom: 14px;
+            letter-spacing: 0.5px;
+        }
+        .intro-card h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 900; margin-bottom: 8px; }
+        .intro-card h2 span { color: var(--accent); }
+        .intro-card p { font-size: 0.82rem; color: rgba(255,255,255,0.75); line-height: 1.7; }
+        .intro-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+        .intro-meta span {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px; padding: 5px 12px;
+            font-size: 0.72rem; color: rgba(255,255,255,0.8);
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ── SCROLL NOTICE ── */
+        #scroll-notice {
+            background: #fef9e7; border: 1px solid #fbbf24;
+            border-radius: 12px; padding: 14px 18px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.8rem; color: #92400e; margin-bottom: 20px;
+            animation: fadeInUp 0.5s ease 0.1s both;
+        }
+        #scroll-notice i { color: #f59e0b; font-size: 1rem; flex-shrink: 0; }
+
+        /* ── DOCUMENT ── */
+        #document-body {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            overflow: hidden;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.5s ease 0.2s both;
+        }
+
+        /* Chapter Header */
+        .chapter-header {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 28px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .chapter-num {
+            width: 44px; height: 44px;
+            background: var(--primary);
+            color: white; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Playfair Display', serif;
+            font-weight: 700; font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .chapter-title h3 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--primary); font-weight: 700; }
+        .chapter-title p { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+
+        /* Article List */
+        .article-list { padding: 20px 28px; }
+        .article {
+            border-left: 3px solid var(--border);
+            padding: 14px 0 14px 20px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s;
+        }
+        .article:hover { border-left-color: var(--accent); }
+        .article:last-child { margin-bottom: 0; }
+        .article-num {
+            font-size: 0.7rem; font-weight: 700;
+            color: var(--accent); letter-spacing: 1px;
+            text-transform: uppercase; margin-bottom: 4px;
+        }
+        .article-title {
+            font-weight: 700; font-size: 0.88rem;
+            color: var(--primary); margin-bottom: 6px;
+        }
+        .article-body {
+            font-size: 0.82rem; color: #475569;
+            line-height: 1.8; text-align: justify;
+        }
+        .article-sub { margin-top: 8px; }
+        .article-sub li {
+            font-size: 0.8rem; color: #64748b;
+            margin-left: 18px; margin-bottom: 4px;
+            list-style: disc; line-height: 1.7;
+        }
+
+        /* Divider */
+        .chapter-divider { height: 1px; background: var(--border); margin: 0 28px; }
+
+        /* ── SIGN SECTION ── */
+        #sign-section {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            overflow: hidden;
+            animation: fadeInUp 0.5s ease 0.3s both;
+        }
+
+        .sign-header {
+            background: linear-gradient(135deg, var(--primary), #005a9c);
+            padding: 22px 28px;
+            color: white;
+        }
+        .sign-header h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; }
+        .sign-header p { font-size: 0.78rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+        .sign-body { padding: 24px 28px; }
+        
+        /* Locked state */
+        #sign-locked {
+            text-align: center; padding: 32px 20px;
+        }
+        .lock-icon { font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; }
+        .lock-text { font-size: 0.85rem; color: #94a3b8; line-height: 1.6; }
+
+        /* Unlocked state */
+        #sign-form { display: none; }
+
+        .check-agree {
+            display: flex; align-items: flex-start; gap: 10px;
+            background: #f8fafc; border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .check-agree input[type="checkbox"] { margin-top: 2px; accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
+        .check-agree label { font-size: 0.82rem; color: #475569; line-height: 1.6; cursor: pointer; }
+        .check-agree label strong { color: var(--primary); }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
+        .form-group label {
+            display: block; font-size: 0.75rem; font-weight: 700;
+            color: #475569; margin-bottom: 6px; letter-spacing: 0.3px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            color: var(--text);
+            background: #f8fafc;
+            transition: 0.3s;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--primary);
+            background: white; box-shadow: 0 0 0 4px rgba(0,51,102,0.08);
+        }
+        .form-group input:disabled, .form-group textarea:disabled {
+            background: #f1f5f9; color: #94a3b8; cursor: not-allowed;
+        }
+        .form-group textarea { resize: none; height: 80px; }
+
+        /* Canvas TTD */
+        .canvas-wrap {
+            border: 2px dashed var(--border);
+            border-radius: 12px; overflow: hidden;
+            background: #fafafa; position: relative;
+            margin-bottom: 8px; cursor: crosshair;
+        }
+        .canvas-wrap canvas { display: block; width: 100%; height: 120px; touch-action: none; }
+        .canvas-actions {
+            display: flex; gap: 8px; margin-bottom: 16px;
+        }
+        .btn-clear-canvas {
+            font-size: 0.75rem; font-weight: 600;
+            color: #ef4444; background: #fef2f2;
+            border: 1px solid #fecaca; border-radius: 8px;
+            padding: 6px 14px; cursor: pointer;
+            font-family: 'Poppins', sans-serif; transition: 0.2s;
+        }
+        .btn-clear-canvas:hover { background: #fee2e2; }
+
+        /* Submit Button */
+        .btn-submit {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--primary-light, #005a9c), var(--primary));
+            color: white; border: none; border-radius: 12px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem; font-weight: 700;
+            cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            box-shadow: 0 6px 20px rgba(0,51,102,0.25);
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,51,102,0.35); }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        /* Submitted state */
+        #sign-submitted { display: none; }
+        .submitted-box {
+            text-align: center; padding: 28px 20px;
+        }
+        .submitted-icon { font-size: 3rem; color: #22c55e; margin-bottom: 14px; }
+        .submitted-box h4 { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--primary); margin-bottom: 8px; }
+        .submitted-box p { font-size: 0.82rem; color: #64748b; line-height: 1.6; }
+        .submitted-data {
+            background: #f8fafc; border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px; margin: 16px 0;
+            text-align: left; font-size: 0.8rem; color: #475569;
+        }
+        .submitted-data span { display: block; margin-bottom: 6px; }
+        .submitted-data strong { color: var(--primary); }
+        .btn-pdf {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            color: white; border: none; border-radius: 10px;
+            padding: 11px 24px; font-family: 'Poppins', sans-serif;
+            font-size: 0.87rem; font-weight: 700; cursor: pointer;
+            transition: 0.3s; box-shadow: 0 4px 14px rgba(180,134,11,0.3);
+            margin-top: 8px;
+        }
+        .btn-pdf:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(180,134,11,0.4); }
+
+        /* Footer */
+        footer {
+            background: var(--primary);
+            color: rgba(255,255,255,0.7);
+            text-align: center; padding: 14px;
+            font-size: 0.72rem; font-weight: 500;
+            border-top: 2px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading -->
+    <div id="loading-overlay">
+        <div class="loader-brand">Cendekia <span>Aksara</span></div>
+        <div class="loader-ring"></div>
+        <p class="loader-text">Memuat Dokumen Pedoman...</p>
+    </div>
+
+    <!-- Read Progress Bar -->
+    <div id="read-progress"></div>
+
+    <header>
+        <div class="header-left">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia">
+            <h1>Pedoman <span>Mengajar</span></h1>
         </div>
-        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Beranda</a>
     </header>
 
-    <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
-        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 leading-relaxed text-textDark space-y-8 animate-[fadeIn_0.4s_ease]">
-            <h3 class="font-serif text-2xl text-primary font-bold border-b pb-2"><i class="fa-solid fa-scale-balanced mr-2 text-accent"></i>Pedoman & Aturan Mengajar Cendekia Aksara</h3>
-            
-            <div class="space-y-4">
-                <h4 class="font-bold text-primary text-base md:text-lg"><i class="fa-solid fa-hand-holding-hand text-accent mr-2"></i>1. Integritas Data Kehadiran</h4>
-                <p class="text-xs md:text-sm text-gray-500 text-justify">Pengajar diwajibkan memberikan data kehadiran yang jujur dan aktual. Segala bentuk manipulasi data kehadiran siswa akan diproses secara tegas melalui dewan komite kedisiplinan dan dapat berakibat pada pemutusan hak mengajar.</p>
-            </div>
-            
-            <div class="space-y-4">
-                <h4 class="font-bold text-primary text-base md:text-lg"><i class="fa-solid fa-clock-pulse text-accent mr-2"></i>2. Ketepatan Waktu Laporan</h4>
-                <p class="text-xs md:text-sm text-gray-500 text-justify">Setiap sesi mengajar wajib langsung dilaporkan melalui menu Presensi maksimal 1x24 jam sejak kelas berakhir guna menjaga sinkronisasi data Mading Digital dan progres kurikulum pembelajaran siswa.</p>
-            </div>
-            
-            <div class="space-y-4">
-                <h4 class="font-bold text-primary text-base md:text-lg"><i class="fa-solid fa-wallet text-accent mr-2"></i>3. Kebijakan Honorarium</h4>
-                <p class="text-xs md:text-sm text-gray-500 text-justify">Honorarium senilai Rp 5.000 otomatis dialokasikan ke dalam Slip Gaji setiap kali laporan presensi dan jurnal divalidasi sistem. Segala bentuk kecurangan rekap laporan akan membatalkan seluruh sisa saldo berjalan.</p>
-            </div>
-            
-            <div class="space-y-4">
-                <h4 class="font-bold text-primary text-base md:text-lg"><i class="fa-solid fa-ban text-accent mr-2"></i>4. Penolakan Diskriminasi</h4>
-                <p class="text-xs md:text-sm text-gray-500 text-justify">Setiap pengajar wajib mengayomi seluruh siswa dengan rukun, adil, ramah, dan tanpa ada perlakuan diskriminasi atau pembatasan berdasarkan Suku, Agama, Ras, dan Antargolongan (SARA).</p>
+    <main>
+        <!-- Intro -->
+        <div class="intro-card">
+            <div class="doc-badge"><i class="fa-solid fa-gavel"></i> Dokumen Resmi Lembaga</div>
+            <h2>Pedoman & <span>Ketentuan</span> Pengajar</h2>
+            <p>Dokumen ini memuat seluruh aturan, kewajiban, hak, dan sanksi yang berlaku bagi seluruh Pengajar di lingkungan Cendekia Aksara, merujuk pada perundang-undangan Republik Indonesia yang berlaku.</p>
+            <div class="intro-meta">
+                <span><i class="fa-solid fa-calendar"></i> Ditetapkan: 1 Januari 2026</span>
+                <span><i class="fa-solid fa-hashtag"></i> No. SK: CA/HRD/2026/001</span>
+                <span><i class="fa-solid fa-file-lines"></i> 80+ Pasal Ketentuan</span>
             </div>
         </div>
+
+        <!-- Scroll notice -->
+        <div id="scroll-notice">
+            <i class="fa-solid fa-eye"></i>
+            <span>Bacalah seluruh pedoman ini hingga akhir. Form persetujuan dan tanda tangan akan terbuka setelah Anda selesai membaca.</span>
+        </div>
+
+        <!-- ══════════════════ DOCUMENT BODY ══════════════════ -->
+        <div id="document-body">
+
+            <!-- ── BAB I ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">I</div>
+                <div class="chapter-title">
+                    <h3>Ketentuan Umum & Dasar Hukum</h3>
+                    <p>Definisi, ruang lingkup, dan landasan perundang-undangan yang berlaku</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 1</div>
+                    <div class="article-title">Definisi dan Pengertian</div>
+                    <div class="article-body">Dalam pedoman ini yang dimaksud dengan:
+                        <ul class="article-sub">
+                            <li><strong>Cendekia Aksara</strong> adalah lembaga kursus dan pelatihan non-formal berbadan hukum yang bergerak di bidang pendidikan penulisan kreatif dan literasi akademik.</li>
+                            <li><strong>Pengajar</strong> adalah setiap individu yang telah menandatangani perjanjian kerja sama pengajaran dengan Cendekia Aksara dan terdaftar dalam sistem manajemen platform.</li>
+                            <li><strong>Siswa</strong> adalah peserta didik yang terdaftar dan aktif mengikuti program pembelajaran di Cendekia Aksara.</li>
+                            <li><strong>Sesi Mengajar</strong> adalah pertemuan pembelajaran yang berlangsung antara Pengajar dan Siswa, baik secara daring maupun luring.</li>
+                            <li><strong>Presensi</strong> adalah catatan kehadiran dan aktivitas mengajar yang dicatatkan melalui sistem digital Cendekia Aksara.</li>
+                            <li><strong>Honorarium</strong> adalah imbalan jasa yang diberikan kepada Pengajar atas pelaksanaan Sesi Mengajar yang telah tervalidasi sistem.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 2</div>
+                    <div class="article-title">Dasar Hukum</div>
+                    <div class="article-body">Pedoman ini disusun dan berlaku dengan mengacu pada dasar hukum:
+                        <ul class="article-sub">
+                            <li>Undang-Undang Nomor 20 Tahun 2003 tentang Sistem Pendidikan Nasional.</li>
+                            <li>Undang-Undang Nomor 14 Tahun 2005 tentang Guru dan Dosen.</li>
+                            <li>Undang-Undang Nomor 13 Tahun 2003 tentang Ketenagakerjaan.</li>
+                            <li>Undang-Undang Nomor 28 Tahun 2014 tentang Hak Cipta.</li>
+                            <li>Undang-Undang Nomor 11 Tahun 2008 sebagaimana diubah oleh UU Nomor 19 Tahun 2016 tentang Informasi dan Transaksi Elektronik (ITE).</li>
+                            <li>Peraturan Pemerintah Nomor 19 Tahun 2005 tentang Standar Nasional Pendidikan.</li>
+                            <li>Peraturan Menteri Pendidikan dan Kebudayaan Nomor 81A Tahun 2013 tentang Implementasi Kurikulum.</li>
+                            <li>Peraturan lembaga internal Cendekia Aksara yang berlaku.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 3</div>
+                    <div class="article-title">Ruang Lingkup Berlaku</div>
+                    <div class="article-body">Pedoman ini berlaku bagi seluruh Pengajar Cendekia Aksara tanpa terkecuali, baik Pengajar tetap, Pengajar tidak tetap, Pengajar tamu, Pengajar mitra lembaga, maupun Pengajar yang berstatus magang atau relawan. Pedoman ini berlaku di seluruh kegiatan yang berkaitan dengan nama dan reputasi Cendekia Aksara, baik di dalam maupun di luar jam kedinasan, termasuk interaksi di media sosial.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB II ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">II</div>
+                <div class="chapter-title">
+                    <h3>Kewajiban Profesi Pengajar</h3>
+                    <p>Standar kompetensi, etika, dan tanggung jawab profesional</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 4</div>
+                    <div class="article-title">Kewajiban Utama Pengajar</div>
+                    <div class="article-body">Setiap Pengajar wajib:
+                        <ul class="article-sub">
+                            <li>Melaksanakan kegiatan pembelajaran secara profesional, jujur, dan bertanggung jawab.</li>
+                            <li>Mempersiapkan rencana pembelajaran (lesson plan) sebelum setiap sesi dimulai.</li>
+                            <li>Menjaga kualitas materi ajar agar sesuai dengan kurikulum yang ditetapkan lembaga.</li>
+                            <li>Mendokumentasikan dan melaporkan setiap sesi mengajar melalui sistem Presensi digital paling lambat 1×24 jam setelah sesi berakhir.</li>
+                            <li>Bersikap adil dan tidak diskriminatif kepada seluruh Siswa tanpa memandang latar belakang.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 5</div>
+                    <div class="article-title">Standar Kompetensi Pengajar</div>
+                    <div class="article-body">Pengajar diwajibkan memenuhi empat standar kompetensi dasar: kompetensi pedagogik (kemampuan mengelola pembelajaran), kompetensi kepribadian (akhlak dan integritas), kompetensi sosial (kemampuan berkomunikasi dengan Siswa dan rekan kerja), serta kompetensi profesional (penguasaan materi yang diajarkan). Cendekia Aksara berhak melakukan evaluasi kompetensi secara berkala.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 6</div>
+                    <div class="article-title">Ketepatan Waktu dan Kehadiran</div>
+                    <div class="article-body">Pengajar wajib hadir tepat waktu sesuai jadwal yang telah disepakati. Keterlambatan lebih dari 15 (lima belas) menit tanpa pemberitahuan terlebih dahulu dianggap sebagai absensi tidak resmi. Pengajar yang tidak dapat hadir wajib menyampaikan pemberitahuan kepada koordinator paling lambat 2 (dua) jam sebelum sesi dimulai disertai alasan yang dapat dipertanggungjawabkan.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 7</div>
+                    <div class="article-title">Kewajiban Melaporkan Presensi</div>
+                    <div class="article-body">Setiap Sesi Mengajar wajib dilaporkan melalui menu Presensi di Portal Pengajar. Laporan mencakup: tanggal dan waktu sesi, daftar kehadiran Siswa, materi yang disampaikan, jurnal singkat perkembangan Siswa, dan kendala yang dihadapi. Laporan yang diajukan melewati batas 1×24 jam tidak dapat diproses untuk keperluan honorarium pada periode berjalan.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 8</div>
+                    <div class="article-title">Pengembangan Diri Berkelanjutan</div>
+                    <div class="article-body">Pengajar dianjurkan untuk secara aktif mengikuti program pelatihan, seminar, dan workshop yang diselenggarakan oleh Cendekia Aksara maupun institusi mitra. Pengajar yang mengikuti minimal 2 (dua) kegiatan pengembangan diri dalam satu semester berhak mendapatkan sertifikat apresiasi dari lembaga.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 9</div>
+                    <div class="article-title">Komunikasi dan Koordinasi</div>
+                    <div class="article-body">Pengajar wajib aktif dalam saluran komunikasi resmi lembaga (grup WhatsApp, email resmi, atau platform komunikasi yang ditunjuk). Setiap informasi, perubahan jadwal, dan pengumuman yang disampaikan melalui saluran resmi dianggap telah diterima oleh Pengajar dalam jangka waktu 2×24 jam setelah pengiriman.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 10</div>
+                    <div class="article-title">Evaluasi Pembelajaran</div>
+                    <div class="article-body">Pengajar wajib melaksanakan evaluasi pembelajaran Siswa secara berkala sesuai panduan kurikulum, yang meliputi: penilaian formatif (harian/mingguan), penilaian sumatif (akhir program), serta penilaian proyek atau portofolio. Hasil evaluasi wajib diunggah ke sistem paling lambat 3 (tiga) hari setelah pelaksanaan evaluasi.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 11</div>
+                    <div class="article-title">Kerahasiaan Data Siswa</div>
+                    <div class="article-body">Pengajar dilarang keras membagikan data pribadi Siswa kepada pihak mana pun tanpa izin tertulis dari lembaga dan Siswa yang bersangkutan. Larangan ini mencakup: nama, alamat, nomor kontak, hasil evaluasi, kondisi psikologis, dan informasi keluarga Siswa. Pelanggaran terhadap pasal ini merupakan pelanggaran berat yang dapat dikenai tindakan hukum sesuai UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 12</div>
+                    <div class="article-title">Penggunaan Teknologi dalam Pembelajaran</div>
+                    <div class="article-body">Pengajar didorong untuk memanfaatkan teknologi digital dalam proses pembelajaran. Setiap media digital yang digunakan dalam pembelajaran wajib telah memperoleh lisensi yang sah atau berstatus Creative Commons. Pengajar dilarang menggunakan, mendistribusikan, atau mengajarkan konten yang melanggar hak cipta kepada Siswa.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB III ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">III</div>
+                <div class="chapter-title">
+                    <h3>Etika, Integritas & Anti-Diskriminasi</h3>
+                    <p>Standar perilaku, larangan, dan perlindungan kesetaraan</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 13</div>
+                    <div class="article-title">Kode Etik Profesi</div>
+                    <div class="article-body">Pengajar wajib menjunjung tinggi kode etik profesi yang meliputi: kejujuran akademik, objektivitas penilaian, tanggung jawab kepada Siswa dan lembaga, serta komitmen terhadap peningkatan mutu pendidikan. Kode etik ini merujuk pada Kode Etik Guru Indonesia yang ditetapkan oleh Persatuan Guru Republik Indonesia (PGRI).</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 14</div>
+                    <div class="article-title">Larangan Diskriminasi</div>
+                    <div class="article-body">Pengajar wajib memberikan perlakuan yang setara kepada seluruh Siswa tanpa membeda-bedakan berdasarkan Suku, Agama, Ras, dan Antargolongan (SARA), jenis kelamin, usia, kondisi disabilitas, latar belakang ekonomi, orientasi seksual yang tidak dinyatakan, atau faktor-faktor lain yang tidak relevan dengan proses pembelajaran. Pelanggaran terhadap pasal ini bersifat zero tolerance.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 15</div>
+                    <div class="article-title">Larangan Pelecehan dan Kekerasan</div>
+                    <div class="article-body">Pengajar dilarang keras melakukan segala bentuk pelecehan dan kekerasan kepada Siswa, yang mencakup: pelecehan verbal (penghinaan, intimidasi, ancaman), pelecehan fisik, pelecehan seksual, perundungan (bullying), dan kekerasan psikologis. Setiap laporan pelecehan akan ditindaklanjuti secara serius dan dapat berujung pada pemutusan hubungan kerja serta proses hukum.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 16</div>
+                    <div class="article-title">Hubungan Profesional dengan Siswa</div>
+                    <div class="article-body">Pengajar wajib menjaga batas hubungan yang profesional dengan Siswa. Segala interaksi di luar keperluan pembelajaran wajib dilakukan melalui saluran resmi yang dapat dipantau oleh lembaga. Pengajar dilarang menjalin hubungan personal yang bersifat romantis atau mengarah kepada eksploitasi dengan Siswa yang masih aktif terdaftar.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 17</div>
+                    <div class="article-title">Netralitas Politik dan Ideologi</div>
+                    <div class="article-body">Dalam kegiatan pembelajaran, Pengajar dilarang menyebarkan atau memengaruhi Siswa dengan pandangan politik, aliran kepercayaan, atau ideologi tertentu. Materi pembelajaran harus bersifat inklusif, akademik, dan tidak memihak. Pengajar tetap memiliki hak sebagai warga negara, namun tidak diperbolehkan menggunakan forum pembelajaran sebagai wadah kampanye.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 18</div>
+                    <div class="article-title">Penggunaan Media Sosial</div>
+                    <div class="article-body">Pengajar wajib menggunakan media sosial secara bijak. Segala unggahan yang mencantumkan nama atau atribut Cendekia Aksara harus mencerminkan citra positif lembaga. Pengajar dilarang: membocorkan informasi internal lembaga, mengunggah konten yang mempermalukan Siswa, serta membuat pernyataan yang dapat merusak reputasi lembaga di ruang publik.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 19</div>
+                    <div class="article-title">Pelarangan Gratifikasi</div>
+                    <div class="article-body">Pengajar dilarang menerima pemberian dalam bentuk apa pun dari Siswa atau wali Siswa yang dapat memengaruhi objektivitas penilaian. Penerimaan gratifikasi yang terbukti dapat mengakibatkan pembatalan seluruh nilai yang telah diberikan dan sanksi disiplin berat. Pemberian kenangan atau hadiah yang bersifat simbolis pada momen khusus dapat dikecualikan atas persetujuan koordinator.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 20</div>
+                    <div class="article-title">Konflik Kepentingan</div>
+                    <div class="article-body">Pengajar wajib melaporkan kepada pimpinan lembaga apabila terdapat potensi konflik kepentingan, termasuk: mengajar anggota keluarga sendiri tanpa sepengetahuan lembaga, memiliki usaha yang bersaing langsung dengan Cendekia Aksara, atau memiliki kepentingan finansial yang berkaitan dengan rekanan lembaga. Lembaga akan mengambil keputusan terbaik atas laporan tersebut.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB IV ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">IV</div>
+                <div class="chapter-title">
+                    <h3>Hak & Honorarium Pengajar</h3>
+                    <p>Hak-hak yang diperoleh dan kebijakan remunerasi</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 21</div>
+                    <div class="article-title">Hak-Hak Dasar Pengajar</div>
+                    <div class="article-body">Setiap Pengajar berhak mendapatkan:
+                        <ul class="article-sub">
+                            <li>Honorarium yang adil atas setiap Sesi Mengajar yang telah dilaksanakan dan divalidasi.</li>
+                            <li>Akses terhadap materi, sumber daya, dan fasilitas pembelajaran yang disediakan lembaga.</li>
+                            <li>Perlindungan dari perlakuan sewenang-wenang dan pemecatan tanpa prosedur yang adil.</li>
+                            <li>Penilaian kinerja yang transparan dan berkala dari pimpinan lembaga.</li>
+                            <li>Kesempatan untuk mengembangkan kompetensi melalui program pelatihan lembaga.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 22</div>
+                    <div class="article-title">Besaran dan Skema Honorarium</div>
+                    <div class="article-body">Honorarium Pengajar ditetapkan sebesar Rp 5.000 (lima ribu rupiah) per Sesi Mengajar yang telah divalidasi oleh sistem. Besaran honorarium dapat ditinjau dan disesuaikan oleh pimpinan lembaga setiap awal semester berdasarkan kinerja keseluruhan, jumlah sesi yang berhasil dilaksanakan, dan perkembangan Siswa yang diasuh.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 23</div>
+                    <div class="article-title">Mekanisme Pembayaran Honorarium</div>
+                    <div class="article-body">Honorarium yang telah terakumulasi dalam sistem akan dibayarkan kepada Pengajar berdasarkan mekanisme pencairan yang ditetapkan lembaga (mingguan/bulanan). Pencairan dapat dilakukan melalui transfer bank atau dompet digital sesuai data rekening yang telah didaftarkan. Lembaga berhak menahan pencairan apabila terdapat indikasi kecurangan data yang sedang dalam investigasi.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 24</div>
+                    <div class="article-title">Bonus dan Insentif Kinerja</div>
+                    <div class="article-body">Pengajar yang menunjukkan kinerja luar biasa berhak menerima bonus kinerja yang ketentuannya ditetapkan oleh pimpinan lembaga setiap akhir semester. Kriteria penilaian meliputi: konsistensi kehadiran, kualitas laporan presensi, perkembangan nilai Siswa, serta ulasan positif dari Siswa dan wali Siswa.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 25</div>
+                    <div class="article-title">Pengurangan dan Pemotongan Honorarium</div>
+                    <div class="article-body">Honorarium dapat dikurangi atau tidak dibayarkan apabila: laporan presensi tidak diajukan dalam batas waktu yang ditentukan, terdapat pemalsuan data presensi yang terbukti, atau Pengajar sedang dalam proses sanksi disiplin oleh lembaga. Setiap pengurangan akan diinformasikan secara transparan melalui Slip Gaji digital.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 26</div>
+                    <div class="article-title">Hak atas Cuti dan Izin</div>
+                    <div class="article-body">Pengajar berhak mengajukan izin tidak mengajar dengan alasan: sakit (dibuktikan dengan surat keterangan dokter untuk ketidakhadiran lebih dari 3 hari), kepentingan keluarga mendesak, atau kegiatan ilmiah. Pengajuan izin disampaikan melalui koordinator paling lambat 2 jam sebelum sesi dimulai. Izin yang disetujui tidak memengaruhi catatan kinerja Pengajar.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB V ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">V</div>
+                <div class="chapter-title">
+                    <h3>Hak Kekayaan Intelektual & Materi Ajar</h3>
+                    <p>Kepemilikan materi, hak cipta, dan ketentuan distribusi</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 27</div>
+                    <div class="article-title">Kepemilikan Materi yang Dibuat Selama Pengajaran</div>
+                    <div class="article-body">Seluruh materi ajar, modul, silabus, dan konten pembelajaran yang dibuat oleh Pengajar dalam kapasitasnya sebagai Pengajar Cendekia Aksara dan menggunakan sumber daya lembaga merupakan hak kekayaan intelektual bersama antara Pengajar dan lembaga. Pengajar berhak atas pengakuan nama (credit) dalam setiap penggunaan materi tersebut oleh lembaga.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 28</div>
+                    <div class="article-title">Larangan Distribusi Materi Tanpa Izin</div>
+                    <div class="article-body">Pengajar dilarang mendistribusikan, menjual, atau mempublikasikan materi yang dikembangkan bersama lembaga kepada pihak ketiga tanpa persetujuan tertulis dari pimpinan Cendekia Aksara. Pelanggaran terhadap pasal ini dapat dikenai tuntutan hukum berdasarkan Undang-Undang Nomor 28 Tahun 2014 tentang Hak Cipta.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 29</div>
+                    <div class="article-title">Penggunaan Referensi dan Sumber Belajar</div>
+                    <div class="article-body">Pengajar wajib mencantumkan sumber referensi secara jelas pada setiap materi ajar yang menggunakan karya pihak lain. Penggunaan karya berhak cipta dalam pembelajaran harus memenuhi prinsip fair use dan tidak untuk keperluan komersial. Plagiasi dalam pembuatan materi ajar adalah pelanggaran etika akademik yang dikenai sanksi tegas.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 30</div>
+                    <div class="article-title">Rekaman Sesi Pembelajaran</div>
+                    <div class="article-body">Rekaman video atau audio sesi pembelajaran hanya dapat dibuat atas persetujuan semua pihak yang terlibat. Rekaman yang dibuat dengan persetujuan merupakan aset lembaga dan tidak boleh disebarluaskan tanpa izin resmi. Pengajar yang secara mandiri merekam dan menyebarkan sesi pembelajaran tanpa izin dikenai sanksi berat.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB VI ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">VI</div>
+                <div class="chapter-title">
+                    <h3>Keamanan Digital & Penggunaan Platform</h3>
+                    <p>Ketentuan keamanan sistem informasi dan akun platform</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 31</div>
+                    <div class="article-title">Keamanan Akun Portal Pengajar</div>
+                    <div class="article-body">Pengajar bertanggung jawab penuh atas keamanan akun Portal Pengajar miliknya. Pengajar wajib menggunakan kata sandi yang kuat (minimal 8 karakter, kombinasi huruf besar, huruf kecil, angka, dan simbol) serta wajib menjaga kerahasiaannya. Peminjaman atau pembagian akun kepada pihak lain dalam kondisi apa pun merupakan pelanggaran berat.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 32</div>
+                    <div class="article-title">Larangan Manipulasi Data Sistem</div>
+                    <div class="article-body">Pengajar dilarang melakukan segala bentuk manipulasi, pemalsuan, atau perusakan data dalam sistem informasi Cendekia Aksara, termasuk: memalsukan data presensi, mengubah data Siswa tanpa wewenang, mengakses data Pengajar lain tanpa izin, atau melakukan tindakan yang termasuk dalam kejahatan siber sesuai UU ITE yang berlaku.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 33</div>
+                    <div class="article-title">Pelaporan Insiden Keamanan</div>
+                    <div class="article-body">Apabila Pengajar mengetahui atau menduga adanya pelanggaran keamanan sistem, pencurian data, atau akses tidak sah ke dalam platform, Pengajar wajib segera melaporkan kepada admin teknis lembaga melalui saluran darurat yang disediakan. Keterlambatan pelaporan yang disengaja dapat dikategorikan sebagai kelalaian berat.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 34</div>
+                    <div class="article-title">Penggunaan Perangkat Pribadi</div>
+                    <div class="article-body">Pengajar yang menggunakan perangkat pribadi untuk mengakses sistem Cendekia Aksara bertanggung jawab memastikan perangkat tersebut bebas dari malware dan memiliki proteksi keamanan yang memadai. Akses ke sistem tidak diperbolehkan melalui jaringan publik yang tidak aman (mis. WiFi publik tanpa VPN).</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB VII ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">VII</div>
+                <div class="chapter-title">
+                    <h3>Sanksi, Pelanggaran & Mekanisme Pengaduan</h3>
+                    <p>Klasifikasi pelanggaran, sanksi, dan prosedur penyelesaian</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 35</div>
+                    <div class="article-title">Klasifikasi Pelanggaran</div>
+                    <div class="article-body">Pelanggaran diklasifikasikan dalam 3 (tiga) tingkatan:
+                        <ul class="article-sub">
+                            <li><strong>Pelanggaran Ringan:</strong> Keterlambatan laporan presensi, ketidakhadiran tanpa pemberitahuan satu kali, penggunaan media sosial yang kurang bijak.</li>
+                            <li><strong>Pelanggaran Sedang:</strong> Pengabaian berulang kewajiban laporan, ketidakhadiran berulang tanpa alasan, pelanggaran etika komunikasi dengan Siswa.</li>
+                            <li><strong>Pelanggaran Berat:</strong> Pemalsuan data, pelecehan, diskriminasi, pembocoran data Siswa, manipulasi sistem, dan pelanggaran hukum pidana.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 36</div>
+                    <div class="article-title">Sanksi atas Pelanggaran</div>
+                    <div class="article-body">Sanksi yang dapat diberikan sesuai tingkatan pelanggaran:
+                        <ul class="article-sub">
+                            <li><strong>Sanksi Pelanggaran Ringan:</strong> Teguran lisan atau tertulis dari koordinator.</li>
+                            <li><strong>Sanksi Pelanggaran Sedang:</strong> Surat peringatan resmi, pemotongan honorarium periode berjalan, dan masa percobaan 30 hari.</li>
+                            <li><strong>Sanksi Pelanggaran Berat:</strong> Pemutusan hubungan kerja secara sepihak oleh lembaga tanpa uang pesangon, pemblokiran akun platform permanen, dan/atau penyerahan ke pihak berwajib sesuai hukum yang berlaku.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 37</div>
+                    <div class="article-title">Prosedur Dewan Disiplin</div>
+                    <div class="article-body">Setiap sanksi atas pelanggaran sedang dan berat diputuskan melalui sidang Dewan Disiplin Lembaga yang terdiri atas Direktur, Koordinator Pengajar, dan perwakilan Pengajar senior. Pengajar yang terlapor berhak membela diri dalam sidang tersebut. Keputusan Dewan Disiplin bersifat final dan mengikat.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 38</div>
+                    <div class="article-title">Mekanisme Pengaduan Internal</div>
+                    <div class="article-body">Pengajar yang merasa diperlakukan tidak adil atau menyaksikan pelanggaran berhak mengajukan pengaduan internal secara tertulis kepada Koordinator Pengajar atau langsung kepada Direktur Lembaga. Pengaduan yang diterima wajib ditanggapi dalam 7 (tujuh) hari kerja. Identitas pelapor dijaga kerahasiaannya (whistleblower protection).</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 39</div>
+                    <div class="article-title">Ketentuan Pengunduran Diri</div>
+                    <div class="article-body">Pengajar yang mengundurkan diri wajib menyampaikan pemberitahuan minimal 14 (empat belas) hari kalender sebelum tanggal efektif pengunduran diri. Selama masa transisi, Pengajar tetap wajib melaksanakan kewajiban mengajar dan administratif. Pengunduran diri tanpa pemberitahuan dapat memengaruhi pembayaran honorarium yang belum dicairkan.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB VIII ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">VIII</div>
+                <div class="chapter-title">
+                    <h3>Keselamatan, Kesehatan & Perlindungan Kerja</h3>
+                    <p>K3 dan perlindungan hak dasar Pengajar sebagai tenaga kerja</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 40</div>
+                    <div class="article-title">Hak atas Lingkungan Kerja yang Aman</div>
+                    <div class="article-body">Cendekia Aksara berkewajiban menyediakan lingkungan kerja yang aman, nyaman, dan kondusif bagi seluruh Pengajar, baik secara fisik maupun psikologis. Setiap laporan mengenai lingkungan kerja yang tidak aman wajib ditindaklanjuti dalam waktu 3 (tiga) hari kerja sejak laporan diterima.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 41</div>
+                    <div class="article-title">Perlindungan terhadap Beban Kerja Berlebih</div>
+                    <div class="article-body">Lembaga tidak diperbolehkan memaksakan penugasan kepada Pengajar yang telah melampaui kapasitas mengajar yang disepakati tanpa persetujuan tertulis dari Pengajar yang bersangkutan. Penambahan sesi mengajar wajib dikompensasi dengan honorarium tambahan sesuai tarif yang berlaku.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 42</div>
+                    <div class="article-title">Dukungan Kesejahteraan Psikologis</div>
+                    <div class="article-body">Pengajar yang mengalami tekanan psikologis terkait pekerjaan berhak mengajukan konsultasi kepada koordinator atau meminta rujukan ke layanan konseling yang bekerja sama dengan lembaga. Penggunaan layanan ini bersifat rahasia dan tidak memengaruhi status kepegawaian Pengajar.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 43</div>
+                    <div class="article-title">Penanganan Situasi Darurat</div>
+                    <div class="article-body">Dalam situasi darurat (bencana alam, gangguan keamanan, atau kondisi force majeure lainnya) yang menghalangi pelaksanaan sesi mengajar, Pengajar wajib segera menginformasikan kondisi tersebut kepada lembaga. Sesi yang tertunda akibat force majeure tidak dihitung sebagai ketidakhadiran dan dapat dijadwalkan ulang tanpa penalti.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB IX ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">IX</div>
+                <div class="chapter-title">
+                    <h3>Ketentuan Khusus Program & Kurikulum</h3>
+                    <p>Standar pelaksanaan kurikulum dan ketentuan program inkubasi</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 44</div>
+                    <div class="article-title">Kepatuhan terhadap Kurikulum Lembaga</div>
+                    <div class="article-body">Pengajar wajib mengikuti kurikulum dan capaian pembelajaran (learning outcomes) yang telah ditetapkan lembaga untuk setiap program. Modifikasi kurikulum hanya dapat dilakukan atas persetujuan Koordinator Kurikulum dengan alasan yang dapat dipertanggungjawabkan secara pedagogis.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 45</div>
+                    <div class="article-title">Ketentuan Program Inkubasi</div>
+                    <div class="article-body">Pengajar yang mengampu Program Inkubasi (Semester 3 ke atas) wajib memiliki pengalaman mengajar di Cendekia Aksara minimal 1 (satu) semester penuh. Program Inkubasi memiliki bobot evaluasi yang lebih tinggi dan menuntut pendampingan intensif terhadap proyek mandiri Siswa. Pengajar Program Inkubasi berhak mendapatkan insentif tambahan atas kompleksitas tanggungjawab yang diemban.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 46</div>
+                    <div class="article-title">Inovasi Pedagogis</div>
+                    <div class="article-body">Pengajar didorong untuk aktif berinovasi dalam metode pengajaran dan menyampaikan usulan pengembangan kurikulum kepada Koordinator Kurikulum. Setiap usulan yang diterima dan diimplementasikan akan dicatat sebagai kontribusi inovatif dalam rekam jejak kinerja Pengajar. Lembaga terbuka terhadap pendekatan pembelajaran berbasis proyek, gamifikasi, dan kolaborasi lintas program.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 47</div>
+                    <div class="article-title">Standar Minimal Kehadiran Siswa</div>
+                    <div class="article-body">Pengajar wajib memantau dan melaporkan kepada koordinator apabila terdapat Siswa yang tingkat kehadirannya di bawah 75% dalam satu periode program. Pengajar dilarang memberikan sertifikat atau nilai kelulusan kepada Siswa yang tidak memenuhi standar kehadiran minimal tanpa persetujuan dari Direktur Lembaga.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 48</div>
+                    <div class="article-title">Standar Dokumentasi Jurnal Mengajar</div>
+                    <div class="article-body">Setiap laporan presensi wajib disertai jurnal mengajar yang memuat: ringkasan materi yang disampaikan, metode pengajaran yang digunakan, catatan perkembangan individual Siswa yang menonjol, kendala yang dihadapi, dan rencana pembelajaran sesi berikutnya. Jurnal yang tidak lengkap akan dikembalikan untuk dilengkapi dan tidak divalidasi hingga perbaikan selesai.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB X ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">X</div>
+                <div class="chapter-title">
+                    <h3>Hubungan Kelembagaan & Kemitraan</h3>
+                    <p>Ketentuan terkait mitra, yayasan, dan institusi pendidikan lain</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 49</div>
+                    <div class="article-title">Representasi Lembaga kepada Pihak Ketiga</div>
+                    <div class="article-body">Pengajar tidak diperbolehkan membuat perjanjian, komitmen, atau pernyataan atas nama Cendekia Aksara kepada pihak ketiga (institusi mitra, sponsor, media, atau lembaga lain) tanpa surat kuasa resmi dari Direktur Lembaga. Pelanggaran pasal ini mengakibatkan tanggung jawab personal atas konsekuensi hukum yang timbul.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 50</div>
+                    <div class="article-title">Larangan Praktik Mengajar Kompetitif</div>
+                    <div class="article-body">Selama masih aktif sebagai Pengajar Cendekia Aksara, Pengajar dilarang secara aktif merekrut atau mengajak Siswa Cendekia Aksara untuk bergabung ke lembaga pendidikan lain yang bersifat kompetitif. Pengajar boleh memiliki pekerjaan sampingan selama tidak mengganggu kewajiban utama di Cendekia Aksara dan tidak menciptakan konflik kepentingan.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 51</div>
+                    <div class="article-title">Ketentuan bagi Pengajar Yayasan dan Institusi Mitra</div>
+                    <div class="article-body">Pengajar yang ditempatkan dari yayasan atau institusi mitra tetap tunduk pada seluruh ketentuan pedoman ini selama menjalankan tugas di lingkungan Cendekia Aksara. Koordinasi teknis dilakukan bersama koordinator yang ditunjuk, namun pembinaan etika dan disiplin tetap menjadi kewenangan Cendekia Aksara selama masa penugasan.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 52</div>
+                    <div class="article-title">Penghargaan dan Testimoni Lembaga</div>
+                    <div class="article-body">Cendekia Aksara berkomitmen untuk memberikan surat rekomendasi, sertifikat pengalaman mengajar, dan testimoni profesional yang akurat kepada Pengajar yang mengakhiri masa tugas dengan rekam jejak yang baik. Penghargaan tahunan Pengajar Terbaik akan diberikan berdasarkan akumulasi penilaian kinerja selama satu tahun ajaran.</div>
+                </div>
+            </div>
+            <div class="chapter-divider"></div>
+
+            <!-- ── BAB XI ── -->
+            <div class="chapter-header">
+                <div class="chapter-num">XI</div>
+                <div class="chapter-title">
+                    <h3>Ketentuan Penutup & Pembaruan Pedoman</h3>
+                    <p>Klausul akhir, pembaruan, dan kekuatan hukum pedoman</p>
+                </div>
+            </div>
+            <div class="article-list">
+                <div class="article">
+                    <div class="article-num">Pasal 53</div>
+                    <div class="article-title">Pemberlakuan Pedoman</div>
+                    <div class="article-body">Pedoman ini mulai berlaku sejak tanggal penetapan yang tercantum pada halaman pertama dokumen. Seluruh ketentuan sebelumnya yang bertentangan dengan pedoman ini dinyatakan tidak berlaku terhitung sejak tanggal yang sama. Pedoman ini mengikat secara penuh bagi seluruh Pengajar yang telah menandatangani persetujuan.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 54</div>
+                    <div class="article-title">Pembaruan Berkala</div>
+                    <div class="article-body">Cendekia Aksara berhak memperbarui isi pedoman ini setiap semester atau sewaktu-waktu apabila terdapat perubahan regulasi nasional yang berdampak pada operasional lembaga. Pembaruan akan diinformasikan kepada seluruh Pengajar melalui saluran komunikasi resmi minimal 7 (tujuh) hari sebelum berlaku. Pengajar wajib membaca dan menyetujui pembaruan tersebut.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 55</div>
+                    <div class="article-title">Penyelesaian Sengketa</div>
+                    <div class="article-body">Setiap sengketa yang timbul antara Pengajar dan Cendekia Aksara diupayakan diselesaikan melalui musyawarah mufakat terlebih dahulu. Apabila tidak tercapai kesepakatan dalam 14 (empat belas) hari, sengketa akan diselesaikan melalui mekanisme mediasi atau arbitrase sesuai ketentuan perundang-undangan Republik Indonesia yang berlaku di tempat kedudukan lembaga.</div>
+                </div>
+                <div class="article">
+                    <div class="article-num">Pasal 56 — 80</div>
+                    <div class="article-title">Ketentuan Tambahan dan Perincian Operasional</div>
+                    <div class="article-body">Pasal 56 s.d. 80 mencakup ketentuan operasional tambahan yang meliputi:
+                        <ul class="article-sub">
+                            <li><strong>Pasal 56:</strong> Tata cara penggunaan ruang kelas fisik dan fasilitas lembaga secara bertanggung jawab.</li>
+                            <li><strong>Pasal 57:</strong> Ketentuan pinjam-pakai perangkat dan perlengkapan mengajar milik lembaga.</li>
+                            <li><strong>Pasal 58:</strong> Prosedur penggantian jadwal sesi akibat kebutuhan mendesak Pengajar.</li>
+                            <li><strong>Pasal 59:</strong> Standar penampilan dan etika berpakaian dalam sesi luring.</li>
+                            <li><strong>Pasal 60:</strong> Larangan merokok dan konsumsi minuman beralkohol di area kegiatan lembaga.</li>
+                            <li><strong>Pasal 61:</strong> Ketentuan penggunaan nama lembaga dalam publikasi ilmiah Pengajar.</li>
+                            <li><strong>Pasal 62:</strong> Tata cara pelaporan temuan plagiarisme dalam karya Siswa.</li>
+                            <li><strong>Pasal 63:</strong> Prosedur Pengajar baru dalam masa orientasi dan onboarding selama 2 minggu pertama.</li>
+                            <li><strong>Pasal 64:</strong> Ketentuan peer teaching dan observasi kelas oleh sesama Pengajar.</li>
+                            <li><strong>Pasal 65:</strong> Standar umpan balik (feedback) yang diberikan kepada Siswa: konstruktif, spesifik, dan tepat waktu.</li>
+                            <li><strong>Pasal 66:</strong> Pengelolaan group belajar daring dan forum diskusi yang dipandu Pengajar.</li>
+                            <li><strong>Pasal 67:</strong> Ketentuan pelaksanaan sesi pengganti (make-up class) dan prosedur penjadwalannya.</li>
+                            <li><strong>Pasal 68:</strong> Larangan pengajaran konten yang bertentangan dengan nilai-nilai Pancasila dan NKRI.</li>
+                            <li><strong>Pasal 69:</strong> Kewajiban partisipasi dalam rapat bulanan Pengajar sebagai forum evaluasi dan koordinasi.</li>
+                            <li><strong>Pasal 70:</strong> Ketentuan penyimpanan dan pengelolaan arsip dokumen fisik dan digital selama mengajar.</li>
+                            <li><strong>Pasal 71:</strong> Prosedur pelaporan Siswa bermasalah (krisis akademik, psikologis, atau keamanan) kepada koordinator.</li>
+                            <li><strong>Pasal 72:</strong> Standar komunikasi tertulis dalam laporan dan jurnal mengajar: menggunakan Bahasa Indonesia yang baik dan benar.</li>
+                            <li><strong>Pasal 73:</strong> Ketentuan supervisi dan pendampingan Pengajar baru oleh Pengajar senior selama 1 bulan pertama.</li>
+                            <li><strong>Pasal 74:</strong> Perlindungan Pengajar dari tuduhan tidak berdasar melalui proses verifikasi dua arah yang adil.</li>
+                            <li><strong>Pasal 75:</strong> Ketentuan dokumentasi portofolio mengajar sebagai bukti pengembangan profesional Pengajar.</li>
+                            <li><strong>Pasal 76:</strong> Standar respon terhadap komunikasi Siswa: maksimal 24 jam pada hari kerja.</li>
+                            <li><strong>Pasal 77:</strong> Kewajiban Pengajar melaporkan potensi bencana atau kejadian luar biasa yang memengaruhi kegiatan pembelajaran.</li>
+                            <li><strong>Pasal 78:</strong> Ketentuan mengenai Pengajar yang merangkap jabatan struktural di dalam lembaga (koordinator, kurator, dll).</li>
+                            <li><strong>Pasal 79:</strong> Prosedur evaluasi diri (self-assessment) tahunan yang wajib diisi oleh setiap Pengajar.</li>
+                            <li><strong>Pasal 80:</strong> Segala hal yang belum diatur dalam pedoman ini akan ditetapkan melalui Surat Keputusan Direktur Cendekia Aksara yang bersifat mengikat dan merupakan bagian tidak terpisahkan dari pedoman ini.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <!-- ══════════════════ END DOCUMENT BODY ══════════════════ -->
+
+        <!-- ══════════════════ SIGN SECTION ══════════════════ -->
+        <div id="sign-section">
+            <div class="sign-header">
+                <h3><i class="fa-solid fa-file-signature" style="margin-right:8px;color:var(--accent)"></i>Persetujuan & Tanda Tangan Digital</h3>
+                <p>Bacalah seluruh dokumen sebelum menandatangani persetujuan.</p>
+            </div>
+            <div class="sign-body">
+
+                <!-- Locked -->
+                <div id="sign-locked">
+                    <div class="lock-icon"><i class="fa-solid fa-lock"></i></div>
+                    <p class="lock-text">Form tanda tangan akan terbuka setelah Anda menyelesaikan membaca seluruh dokumen pedoman di atas.</p>
+                </div>
+
+                <!-- Form -->
+                <div id="sign-form">
+                    <div class="check-agree">
+                        <input type="checkbox" id="chk-agree">
+                        <label for="chk-agree">Saya telah membaca, memahami, dan menyetujui seluruh <strong>Pedoman & Ketentuan Pengajar Cendekia Aksara</strong> (Pasal 1 s.d. 80) serta siap menjalankan seluruh kewajiban yang termuat di dalamnya dengan penuh tanggung jawab.</label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-user" style="margin-right:4px;color:var(--accent)"></i>Nama Lengkap Pengajar</label>
+                            <input type="text" id="sign-name" placeholder="Nama sesuai identitas" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-envelope" style="margin-right:4px;color:var(--accent)"></i>Email Terdaftar</label>
+                            <input type="text" id="sign-email" placeholder="Email pengajar" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-calendar" style="margin-right:4px;color:var(--accent)"></i>Tanggal Persetujuan</label>
+                            <input type="text" id="sign-date" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fa-solid fa-map-marker-alt" style="margin-right:4px;color:var(--accent)"></i>Kota / Tempat</label>
+                            <input type="text" id="sign-city" placeholder="Contoh: Yogyakarta">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fa-solid fa-pen-nib" style="margin-right:4px;color:var(--accent)"></i>Tanda Tangan Digital (Gambar di bawah ini)</label>
+                        <div class="canvas-wrap">
+                            <canvas id="sign-canvas"></canvas>
+                        </div>
+                        <div class="canvas-actions">
+                            <button class="btn-clear-canvas" id="btn-clear-canvas"><i class="fa-solid fa-eraser"></i> Hapus Tanda Tangan</button>
+                        </div>
+                    </div>
+                    <button class="btn-submit" id="btn-submit" disabled>
+                        <i class="fa-solid fa-paper-plane"></i> Kirim & Setujui Pedoman
+                    </button>
+                </div>
+
+                <!-- Submitted -->
+                <div id="sign-submitted">
+                    <div class="submitted-box">
+                        <div class="submitted-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <h4>Pedoman Telah Disetujui!</h4>
+                        <p>Tanda tangan dan persetujuan Anda telah berhasil disimpan dalam sistem Cendekia Aksara.</p>
+                        <div class="submitted-data">
+                            <span><strong>Nama:</strong> <span id="submitted-name">—</span></span>
+                            <span><strong>Email:</strong> <span id="submitted-email">—</span></span>
+                            <span><strong>Tanggal:</strong> <span id="submitted-date">—</span></span>
+                            <span><strong>Tempat:</strong> <span id="submitted-city">—</span></span>
+                        </div>
+                        <button class="btn-pdf" id="btn-download-pdf">
+                            <i class="fa-solid fa-file-pdf"></i> Unduh Salinan PDF
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </main>
 
-    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
-        <p>&copy; 2026 Cendekia Aksara. Hak Cipta Dilindungi.</p>
+    <footer>
+        &copy; 2026 Cendekia Aksara — Dokumen Resmi No. SK: CA/HRD/2026/001. Hak Cipta Dilindungi.
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- pdfmake -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-            authDomain: "mading-cf676.firebaseapp.com", 
-            projectId: "mading-cf676", 
-            storageBucket: "mading-cf676.firebasestorage.app", 
-            messagingSenderId: "72175203671", 
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+            authDomain: "mading-cf676.firebaseapp.com",
+            projectId: "mading-cf676",
+            storageBucket: "mading-cf676.firebasestorage.app",
+            messagingSenderId: "72175203671",
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
         };
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // ── State ──
+        let currentUser = null;
+        let userData = null;
+        let hasFinishedReading = false;
+        let signatureDataURL = null;
+
+        // ── Loading ──
+        const overlay = document.getElementById('loading-overlay');
+        const hideOverlay = () => {
+            overlay.classList.add('fade-out');
+            setTimeout(() => overlay.classList.add('hidden'), 500);
+        };
+
+        // ── Auth ──
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (userDoc.exists() && userDoc.data().role === 'pengajar') {
-                    // Approved
-                } else {
-                    window.location.href = '../index.html';
+            if (!user) { window.location.href = '../index.html'; return; }
+            try {
+                const snap = await getDoc(doc(db, 'users', user.uid));
+                if (!snap.exists() || snap.data().role !== 'pengajar') {
+                    window.location.href = '../index.html'; return;
                 }
-            } else {
-                window.location.href = '../index.html';
+                currentUser = user;
+                userData = snap.data();
+
+                // Fill form fields
+                document.getElementById('sign-name').value = userData.name || '';
+                document.getElementById('sign-email').value = user.email || '';
+                const now = new Date();
+                document.getElementById('sign-date').value = now.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+                // Check if already signed
+                const signSnap = await getDoc(doc(db, 'pedoman_agreements', user.uid));
+                if (signSnap.exists()) {
+                    showSubmittedState(signSnap.data());
+                    document.getElementById('sign-locked').style.display = 'none';
+                    document.getElementById('sign-form').style.display = 'none';
+                    document.getElementById('sign-submitted').style.display = 'block';
+                }
+
+                hideOverlay();
+            } catch (e) {
+                console.error(e);
+                hideOverlay();
             }
+        });
+
+        // ── Read Progress & Scroll Detection ──
+        const progressBar = document.getElementById('read-progress');
+        const docBody = document.getElementById('document-body');
+        const signLocked = document.getElementById('sign-locked');
+        const signForm = document.getElementById('sign-form');
+
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const pct = Math.min((scrollTop / docHeight) * 100, 100);
+            progressBar.style.width = pct + '%';
+
+            // Unlock when user has scrolled to >= 95% of the page
+            if (!hasFinishedReading && pct >= 95) {
+                hasFinishedReading = true;
+                unlockSignForm();
+            }
+        });
+
+        function unlockSignForm() {
+            const isAlreadySubmitted = document.getElementById('sign-submitted').style.display === 'block';
+            if (isAlreadySubmitted) return;
+
+            signLocked.style.display = 'none';
+            signForm.style.display = 'block';
+            signForm.style.animation = 'fadeInUp 0.5s ease';
+
+            document.getElementById('scroll-notice').innerHTML = `
+                <i class="fa-solid fa-check-circle" style="color:#22c55e"></i>
+                <span style="color:#166534">Anda telah membaca seluruh dokumen. Silakan lengkapi form persetujuan dan tanda tangan di bawah ini.</span>
+            `;
+            document.getElementById('scroll-notice').style.background = '#f0fdf4';
+            document.getElementById('scroll-notice').style.borderColor = '#86efac';
+        }
+
+        // ── Canvas Signature ──
+        const canvas = document.getElementById('sign-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let hasSigned = false;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = 120;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            if (e.touches) {
+                return {
+                    x: (e.touches[0].clientX - rect.left) * scaleX,
+                    y: (e.touches[0].clientY - rect.top) * scaleY
+                };
+            }
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvas.addEventListener('mousedown', e => { isDrawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', e => { if (!isDrawing) return; ctx.strokeStyle = '#003366'; ctx.lineWidth = 2; ctx.lineCap = 'round'; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSigned = true; validateForm(); });
+        canvas.addEventListener('mouseup', () => { isDrawing = false; signatureDataURL = canvas.toDataURL(); });
+        canvas.addEventListener('mouseleave', () => { isDrawing = false; });
+
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); isDrawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!isDrawing) return; ctx.strokeStyle = '#003366'; ctx.lineWidth = 2; ctx.lineCap = 'round'; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); hasSigned = true; validateForm(); });
+        canvas.addEventListener('touchend', () => { isDrawing = false; signatureDataURL = canvas.toDataURL(); });
+
+        document.getElementById('btn-clear-canvas').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSigned = false;
+            signatureDataURL = null;
+            validateForm();
+        });
+
+        // ── Validate Form ──
+        const chkAgree = document.getElementById('chk-agree');
+        const btnSubmit = document.getElementById('btn-submit');
+        chkAgree.addEventListener('change', validateForm);
+
+        function validateForm() {
+            const cityVal = document.getElementById('sign-city').value.trim();
+            btnSubmit.disabled = !(chkAgree.checked && hasSigned && cityVal.length > 0);
+        }
+        document.getElementById('sign-city').addEventListener('input', validateForm);
+
+        // ── Submit ──
+        btnSubmit.addEventListener('click', async () => {
+            if (!currentUser) return;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
+
+            const city = document.getElementById('sign-city').value.trim();
+            const dateStr = document.getElementById('sign-date').value;
+            signatureDataURL = canvas.toDataURL();
+
+            const agreementData = {
+                uid: currentUser.uid,
+                name: userData.name,
+                email: currentUser.email,
+                city,
+                dateStr,
+                signedAt: new Date().toISOString(),
+                signatureDataURL
+            };
+
+            try {
+                await setDoc(doc(db, 'pedoman_agreements', currentUser.uid), agreementData);
+                showSubmittedState(agreementData);
+                document.getElementById('sign-form').style.display = 'none';
+                document.getElementById('sign-submitted').style.display = 'block';
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Persetujuan Tersimpan!',
+                    text: 'Dokumen pedoman telah Anda tandatangani secara digital. Silakan unduh salinan PDF Anda.',
+                    confirmButtonColor: '#003366'
+                });
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Gagal Menyimpan', 'Terjadi kesalahan sistem. Silakan coba lagi.', 'error');
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim & Setujui Pedoman';
+            }
+        });
+
+        function showSubmittedState(data) {
+            document.getElementById('submitted-name').textContent = data.name || '—';
+            document.getElementById('submitted-email').textContent = data.email || '—';
+            document.getElementById('submitted-date').textContent = data.dateStr || data.signedAt || '—';
+            document.getElementById('submitted-city').textContent = data.city || '—';
+            window._agreementData = data;
+        }
+
+        // ── PDF Generation ──
+        document.getElementById('btn-download-pdf').addEventListener('click', () => {
+            const data = window._agreementData;
+            if (!data) return;
+
+            const signImg = data.signatureDataURL && data.signatureDataURL.startsWith('data:image') ? data.signatureDataURL : null;
+
+            const docDef = {
+                pageSize: 'A4',
+                pageMargins: [56, 72, 56, 72],
+                defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.6, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 20, bold: true, color: '#003366', alignment: 'center', margin: [0,0,0,4] },
+                    subheader: { fontSize: 11, color: '#64748b', alignment: 'center', margin: [0,0,0,16] },
+                    docNum: { fontSize: 9, color: '#94a3b8', alignment: 'center', margin: [0,0,0,24] },
+                    babTitle: { fontSize: 12, bold: true, color: '#003366', margin: [0,18,0,6], fillColor: '#f1f5f9', padding: [8,6,8,6] },
+                    pasalNum: { fontSize: 9, bold: true, color: '#d4af37', margin: [0,10,0,2] },
+                    pasalTitle: { fontSize: 10, bold: true, color: '#003366', margin: [0,0,0,3] },
+                    pasalBody: { fontSize: 9.5, color: '#475569', lineHeight: 1.7, margin: [0,0,0,8] },
+                    signSection: { fontSize: 11, bold: true, color: '#003366', margin: [0,30,0,10] },
+                    signLabel: { fontSize: 9, color: '#64748b', margin: [0,0,0,2] },
+                    signValue: { fontSize: 10, bold: true, color: '#1e293b', margin: [0,0,0,10] },
+                    footer: { fontSize: 8, color: '#94a3b8', alignment: 'center', margin: [0,24,0,0] }
+                },
+                content: [
+                    // Cover Header
+                    { text: 'CENDEKIA AKSARA', style: 'header' },
+                    { text: 'Pedoman & Ketentuan Pengajar — Dokumen Resmi Lembaga', style: 'subheader' },
+                    { text: 'No. SK: CA/HRD/2026/001 | Ditetapkan: 1 Januari 2026', style: 'docNum' },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 2, lineColor: '#d4af37' }], margin: [0,0,0,24] },
+
+                    // BAB I
+                    { text: 'BAB I — KETENTUAN UMUM & DASAR HUKUM', style: 'babTitle' },
+                    { text: 'Pasal 1 — Definisi dan Pengertian', style: 'pasalTitle', margin:[0,10,0,3] },
+                    { text: 'Dalam pedoman ini: (1) Cendekia Aksara adalah lembaga kursus dan pelatihan non-formal berbadan hukum yang bergerak di bidang pendidikan penulisan kreatif dan literasi akademik. (2) Pengajar adalah individu yang telah menandatangani perjanjian kerja sama pengajaran dan terdaftar dalam sistem manajemen platform. (3) Siswa adalah peserta didik yang terdaftar dan aktif mengikuti program pembelajaran. (4) Sesi Mengajar adalah pertemuan pembelajaran antara Pengajar dan Siswa, baik daring maupun luring. (5) Presensi adalah catatan kehadiran dan aktivitas mengajar yang dicatatkan melalui sistem digital. (6) Honorarium adalah imbalan jasa atas Sesi Mengajar yang telah tervalidasi sistem.', style: 'pasalBody' },
+                    { text: 'Pasal 2 — Dasar Hukum', style: 'pasalTitle', margin:[0,8,0,3] },
+                    { text: 'Pedoman ini mengacu pada: UU No. 20/2003 (Sisdiknas), UU No. 14/2005 (Guru dan Dosen), UU No. 13/2003 (Ketenagakerjaan), UU No. 28/2014 (Hak Cipta), UU No. 19/2016 (ITE), PP No. 19/2005 (SNP), Permendikbud No. 81A/2013, dan peraturan internal Cendekia Aksara.', style: 'pasalBody' },
+                    { text: 'Pasal 3 — Ruang Lingkup Berlaku', style: 'pasalTitle', margin:[0,8,0,3] },
+                    { text: 'Berlaku bagi seluruh Pengajar Cendekia Aksara tanpa terkecuali: Pengajar tetap, tidak tetap, tamu, mitra lembaga, magang, atau relawan, di dalam maupun di luar jam kedinasan termasuk interaksi di media sosial.', style: 'pasalBody' },
+
+                    // BAB II
+                    { text: 'BAB II — KEWAJIBAN PROFESI PENGAJAR', style: 'babTitle' },
+                    ...[4,5,6,7,8,9,10,11,12].map(n => ({
+                        text: `Pasal ${n} hingga 12 mencakup: kewajiban utama pengajar, standar kompetensi (pedagogik, kepribadian, sosial, profesional), ketepatan waktu, kewajiban laporan presensi, pengembangan diri berkelanjutan, komunikasi dan koordinasi, evaluasi pembelajaran, kerahasiaan data Siswa, dan penggunaan teknologi dalam pembelajaran secara bertanggung jawab dan berlisensi.`, style: 'pasalBody', margin:[0,0,0,0]
+                    })).slice(0,1),
+
+                    // BAB III
+                    { text: 'BAB III — ETIKA, INTEGRITAS & ANTI-DISKRIMINASI', style: 'babTitle' },
+                    { text: 'Pasal 13–20 mencakup kode etik profesi, larangan diskriminasi SARA, larangan pelecehan dan kekerasan (zero tolerance), hubungan profesional dengan Siswa, netralitas politik dan ideologi dalam kelas, penggunaan media sosial yang bijak, pelarangan gratifikasi, dan kewajiban melaporkan konflik kepentingan.', style: 'pasalBody' },
+
+                    // BAB IV
+                    { text: 'BAB IV — HAK & HONORARIUM PENGAJAR', style: 'babTitle' },
+                    { text: 'Pasal 21–26 mencakup hak-hak dasar Pengajar, besaran honorarium Rp 5.000/sesi tervalidasi, mekanisme pembayaran, bonus kinerja semester, pengurangan honorarium atas pelanggaran, dan hak cuti/izin tidak mengajar beserta prosedurnya.', style: 'pasalBody' },
+
+                    // BAB V
+                    { text: 'BAB V — HAK KEKAYAAN INTELEKTUAL & MATERI AJAR', style: 'babTitle' },
+                    { text: 'Pasal 27–30 mencakup kepemilikan materi ajar bersama lembaga, larangan distribusi tanpa izin, wajib mencantumkan referensi, dan ketentuan rekaman sesi pembelajaran.', style: 'pasalBody' },
+
+                    // BAB VI
+                    { text: 'BAB VI — KEAMANAN DIGITAL & PENGGUNAAN PLATFORM', style: 'babTitle' },
+                    { text: 'Pasal 31–34 mencakup keamanan akun portal, larangan manipulasi data sistem (UU ITE), kewajiban pelaporan insiden keamanan, dan ketentuan penggunaan perangkat pribadi.', style: 'pasalBody' },
+
+                    // BAB VII
+                    { text: 'BAB VII — SANKSI, PELANGGARAN & MEKANISME PENGADUAN', style: 'babTitle' },
+                    { text: 'Pasal 35–39 mencakup tiga klasifikasi pelanggaran (ringan, sedang, berat), sanksi yang berlaku, prosedur Dewan Disiplin, mekanisme pengaduan internal (whistleblower), dan ketentuan pengunduran diri.', style: 'pasalBody' },
+
+                    // BAB VIII
+                    { text: 'BAB VIII — KESELAMATAN, KESEHATAN & PERLINDUNGAN KERJA', style: 'babTitle' },
+                    { text: 'Pasal 40–43 mencakup hak lingkungan kerja yang aman, perlindungan dari beban kerja berlebih, dukungan kesejahteraan psikologis, dan penanganan situasi darurat/force majeure.', style: 'pasalBody' },
+
+                    // BAB IX
+                    { text: 'BAB IX — KETENTUAN KHUSUS PROGRAM & KURIKULUM', style: 'babTitle' },
+                    { text: 'Pasal 44–48 mencakup kepatuhan kurikulum, ketentuan Program Inkubasi (Semester 3+), inovasi pedagogis, standar minimal kehadiran Siswa 75%, dan standar dokumentasi jurnal mengajar.', style: 'pasalBody' },
+
+                    // BAB X
+                    { text: 'BAB X — HUBUNGAN KELEMBAGAAN & KEMITRAAN', style: 'babTitle' },
+                    { text: 'Pasal 49–52 mencakup representasi lembaga kepada pihak ketiga, larangan praktik mengajar kompetitif, ketentuan bagi Pengajar yayasan/mitra, dan penghargaan akhir masa tugas.', style: 'pasalBody' },
+
+                    // BAB XI
+                    { text: 'BAB XI — KETENTUAN PENUTUP & PEMBARUAN PEDOMAN', style: 'babTitle' },
+                    { text: 'Pasal 53–80 mencakup pemberlakuan pedoman, pembaruan berkala, penyelesaian sengketa melalui musyawarah, dan ketentuan operasional tambahan (Pasal 56–80) yang meliputi tata cara penggunaan fasilitas, prosedur penggantian jadwal, standar penampilan, larangan merokok dan alkohol, ketentuan publikasi ilmiah, pelaporan plagiarisme, onboarding Pengajar baru, peer teaching, standar umpan balik, pengelolaan forum diskusi daring, make-up class, larangan konten anti-Pancasila, kewajiban rapat bulanan, pengelolaan arsip, pelaporan Siswa bermasalah, standar bahasa laporan, supervisi Pengajar baru, perlindungan Pengajar dari tuduhan tak berdasar, dokumentasi portofolio, standar respon komunikasi Siswa, pelaporan bencana, Pengajar berrangkap jabatan, self-assessment tahunan, dan ketentuan umum SK Direktur.', style: 'pasalBody' },
+
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 1, lineColor: '#e2e8f0' }], margin: [0,20,0,0] },
+
+                    // Signature Block
+                    { text: 'LEMBAR PERSETUJUAN DAN TANDA TANGAN DIGITAL', style: 'signSection', alignment: 'center' },
+                    {
+                        columns: [
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: 'Nama Lengkap:', style: 'signLabel' },
+                                    { text: data.name || '—', style: 'signValue' },
+                                    { text: 'Email Terdaftar:', style: 'signLabel' },
+                                    { text: data.email || '—', style: 'signValue' },
+                                ]
+                            },
+                            {
+                                width: '50%',
+                                stack: [
+                                    { text: 'Tanggal Persetujuan:', style: 'signLabel' },
+                                    { text: data.dateStr || '—', style: 'signValue' },
+                                    { text: 'Tempat:', style: 'signLabel' },
+                                    { text: data.city || '—', style: 'signValue' },
+                                ]
+                            }
+                        ],
+                        margin: [0,0,0,16]
+                    },
+                    { text: 'Tanda Tangan Digital:', style: 'signLabel', margin:[0,0,0,6] },
+                    signImg ? { image: signImg, width: 200, height: 70, margin: [0,0,0,20], border: [true,true,true,true] } : { text: '[Tanda tangan tersedia di sistem]', italics: true, color: '#94a3b8', margin:[0,0,0,20] },
+                    { text: 'Dengan menandatangani dokumen ini, saya menyatakan telah membaca, memahami, dan menyetujui seluruh isi Pedoman & Ketentuan Pengajar Cendekia Aksara (Pasal 1 s.d. 80) dan siap melaksanakan seluruh kewajiban yang termuat di dalamnya.', italics: true, fontSize: 9, color: '#64748b', lineHeight: 1.7 },
+
+                    { text: '\n\u00A9 2026 Cendekia Aksara — Dokumen Resmi No. SK: CA/HRD/2026/001 | Dicetak secara digital oleh sistem Portal Pengajar.', style: 'footer' }
+                ]
+            };
+
+            pdfMake.createPdf(docDef).download(`Pedoman_Pengajar_Cendekia_Aksara_${(data.name||'Pengajar').replace(/\s/g,'_')}.pdf`);
         });
     </script>
 </body>
