@@ -12,9 +12,9 @@
 
     <style>
         :root {
-            --primary: #003366; /* Navy Cendekia */
+            --primary: #003366;
             --primary-light: #005a9c;
-            --accent: #d4af37; /* Emas Elegan */
+            --accent: #d4af37;
             --bg-color: #f8fafc;
             --text-dark: #1e293b;
             --text-gray: #64748b;
@@ -35,7 +35,6 @@
             overflow-x: hidden;
         }
 
-        /* --- 1. HEADER ELEGAN --- */
         .top-header {
             width: 100%;
             background: linear-gradient(135deg, var(--primary) 0%, #001f3f 100%);
@@ -63,14 +62,13 @@
         }
         .top-header span { color: var(--accent); }
 
-        /* --- 2. MAIN CONTAINER (FORM) --- */
         .spacer { height: 90px; }
 
         .container {
             width: 90%;
             max-width: 400px;
             background: white;
-            padding: 30px 25px; /* Padding dikecilkan */
+            padding: 30px 25px;
             border-radius: 20px;
             box-shadow: 0 15px 35px rgba(0, 51, 102, 0.1);
             text-align: center;
@@ -100,7 +98,7 @@
         }
 
         .form-group {
-            margin-bottom: 15px; /* Jarak antar input diperkecil */
+            margin-bottom: 15px;
             text-align: left;
             position: relative;
         }
@@ -112,7 +110,7 @@
         
         .form-group input {
             width: 100%;
-            padding: 12px 14px; /* Padding input diperkecil */
+            padding: 12px 14px;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
             transition: all 0.3s;
@@ -165,7 +163,6 @@
         }
         .forgot-link:hover { text-decoration: underline; color: var(--primary); }
 
-        /* --- 3. FOOTER --- */
         .footer {
             margin-top: 30px; margin-bottom: 20px;
             text-align: center; font-size: 0.75rem; color: #94a3b8; width: 100%;
@@ -173,7 +170,6 @@
         .footer a { color: var(--primary); text-decoration: none; font-weight: 500; }
         .footer a:hover { text-decoration: underline; }
 
-        /* --- UTILS --- */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
@@ -191,7 +187,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Responsif Ekstra untuk Layar Sangat Kecil (iPhone SE / Lipat) */
         @media (max-width: 380px) {
             .container { padding: 20px 15px; }
             h3 { font-size: 1.3rem; }
@@ -223,7 +218,7 @@
                 <form id="login-form">
                     <div class="form-group">
                         <label>Alamat Email</label>
-                        <input type="email" id="username" placeholder="contoh: nama@ac.id" required autocomplete="email">
+                        <input type="email" id="username" placeholder="contoh: nama@email.com" required autocomplete="email">
                     </div>
                     <div class="form-group">
                         <label>Kata Sandi</label>
@@ -246,7 +241,7 @@
                     </div>
                     <div class="form-group">
                         <label>Alamat Email</label>
-                        <input type="email" id="reg-email" placeholder="contoh: nama@ac.id" required>
+                        <input type="email" id="reg-email" placeholder="contoh: nama@email.com" required>
                     </div>
                     <div class="form-group">
                         <label>Buat Kata Sandi</label>
@@ -264,7 +259,7 @@
                 <form id="forgot-form">
                     <div class="form-group">
                         <label>Email Terdaftar</label>
-                        <input type="email" id="forgot-email" placeholder="contoh: nama@ac.id" required>
+                        <input type="email" id="forgot-email" placeholder="contoh: nama@email.com" required>
                     </div>
                     <button type="submit" class="btn" style="background: linear-gradient(135deg, #d4af37, #b8860b); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">Kirim Tautan Pemulihan</button>
                 </form>
@@ -302,7 +297,11 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- UTILS ---
+        // ─── KONSTANTA ADMIN ───────────────────────────────────────────────────
+        // Hanya email ini yang diarahkan ke halaman admin
+        const ADMIN_EMAIL = 'admin@ac.id';
+
+        // ─── UTILS ────────────────────────────────────────────────────────────
         const showLoading = (msg) => {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.remove('hidden');
@@ -318,80 +317,120 @@
             }
         };
 
-        // --- AUTH LISTENER (ROUTING SISTEM) ---
+        /**
+         * ─── FUNGSI ROUTING UTAMA ──────────────────────────────────────────────
+         *
+         * Urutan prioritas pengecekan:
+         *  1. Role 'admin' di DB  → admin/index.html
+         *  2. Email persis admin@ac.id → admin/index.html
+         *  3. Role 'pengajar' di DB → pengajar/index.html
+         *  4. Email berakhiran @ac.id (bukan admin) → pengajar/index.html
+         *  5. Siswa semester >= 3 → dashboard/inkubasi.html
+         *  6. Siswa semester < 3  → dashboard/index.html
+         */
+        function routeUser(data, email) {
+            const role = data.role || 'siswa';
+            const semester = parseInt(data.semester) || 1;
+
+            // 1 & 2 — Admin
+            if (role === 'admin' || email === ADMIN_EMAIL) {
+                return 'admin/index.html';
+            }
+
+            // 3 & 4 — Pengajar
+            if (role === 'pengajar' || email.endsWith('@ac.id')) {
+                return 'pengajar/index.html';
+            }
+
+            // 5 & 6 — Siswa
+            return semester >= 3 ? 'dashboard/inkubasi.html' : 'dashboard/index.html';
+        }
+
+        /**
+         * Tentukan role awal saat pendaftaran berdasarkan email:
+         *  - admin@ac.id      → 'admin'
+         *  - *@ac.id lainnya  → 'pengajar'
+         *  - email lain       → 'siswa'
+         */
+        function resolveInitialRole(email) {
+            if (email === ADMIN_EMAIL) return 'admin';
+            if (email.endsWith('@ac.id')) return 'pengajar';
+            return 'siswa';
+        }
+
+        // ─── AUTH LISTENER (ROUTING SISTEM) ───────────────────────────────────
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if(!localStorage.getItem('justRegistered')) {
+                if (!localStorage.getItem('justRegistered')) {
                     showLoading('Memverifikasi Identitas...');
                 }
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
+
                     if (snap.exists()) {
                         const data = snap.data();
-                        const semester = parseInt(data.semester) || 1;
 
-                        // 1. Cek jika dia ADMIN (Bisa lewat role 'admin' atau email berakhiran @ac.id)
-                        if (data.role === 'admin' || user.email.endsWith('@ac.id')) {
-                            // Perbarui role di DB menjadi admin jika sebelumnya belum
-                            if (data.role !== 'admin') await setDoc(doc(db, 'users', user.uid), { role: 'admin' }, { merge: true });
-                            window.location.href = 'admin/index.html';
-                        } 
-                        // 2. Cek jika dia PENGAJAR
-                        else if (data.role === 'pengajar') {
-                            window.location.href = 'pengajar/index.html';
-                        } 
-                        // 3. Jika dia SISWA BIASA
-                        else {
-                            if (semester >= 3) {
-                                window.location.href = 'dashboard/inkubasi.html';
-                            } else {
-                                window.location.href = 'dashboard/index.html';
-                            }
+                        // Sinkronisasi role jika email adalah admin@ac.id
+                        // tapi role di DB belum 'admin'
+                        if (user.email === ADMIN_EMAIL && data.role !== 'admin') {
+                            await setDoc(doc(db, 'users', user.uid), { role: 'admin' }, { merge: true });
+                            data.role = 'admin';
                         }
+
+                        // Sinkronisasi role jika email @ac.id (bukan admin)
+                        // tapi role di DB belum 'pengajar'
+                        if (user.email !== ADMIN_EMAIL && user.email.endsWith('@ac.id') && data.role !== 'pengajar' && data.role !== 'admin') {
+                            await setDoc(doc(db, 'users', user.uid), { role: 'pengajar' }, { merge: true });
+                            data.role = 'pengajar';
+                        }
+
+                        window.location.href = routeUser(data, user.email);
+
                     } else {
-                        // Jika tidak ada data profil, anggap dia siswa baru
-                        let role = user.email.endsWith('@ac.id') ? 'admin' : 'siswa';
-                        await setDoc(doc(db, 'users', user.uid), { 
-                            name: user.displayName || "Pengguna Baru", 
-                            email: user.email, 
-                            role: role, 
-                            semester: 1, 
-                            ips: 0, 
+                        // Profil belum ada — buat baru dengan role otomatis
+                        const role = resolveInitialRole(user.email);
+                        const newData = {
+                            name: user.displayName || 'Pengguna Baru',
+                            email: user.email,
+                            role,
+                            semester: 1,
+                            ips: 0,
                             status: 'active',
                             createdAt: new Date().toISOString()
-                        });
-
-                        if(role === 'admin') window.location.href = 'admin/index.html';
-                        else window.location.href = 'dashboard/index.html';
+                        };
+                        await setDoc(doc(db, 'users', user.uid), newData);
+                        window.location.href = routeUser(newData, user.email);
                     }
                 } catch (e) {
-                    console.error(e); hideLoading();
+                    console.error('Routing error:', e);
+                    hideLoading();
                 }
             } else {
                 hideLoading();
             }
         });
 
-        // --- NAVIGASI ANTAR FORM ---
-        const loginForm = document.getElementById('login-form-container');
-        const regForm = document.getElementById('register-form-container');
-        const forgotForm = document.getElementById('forgot-form-container');
+        // ─── NAVIGASI ANTAR FORM ───────────────────────────────────────────────
+        const loginForm   = document.getElementById('login-form-container');
+        const regForm     = document.getElementById('register-form-container');
+        const forgotForm  = document.getElementById('forgot-form-container');
 
-        document.getElementById('to-register').onclick = () => { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); };
-        document.getElementById('to-login').onclick = () => { regForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
-        document.getElementById('to-forgot').onclick = () => { loginForm.classList.add('hidden'); forgotForm.classList.remove('hidden'); };
+        document.getElementById('to-register').onclick           = () => { loginForm.classList.add('hidden');  regForm.classList.remove('hidden'); };
+        document.getElementById('to-login').onclick              = () => { regForm.classList.add('hidden');    loginForm.classList.remove('hidden'); };
+        document.getElementById('to-forgot').onclick             = () => { loginForm.classList.add('hidden');  forgotForm.classList.remove('hidden'); };
         document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
 
-        // --- 1. LOGIN ---
+        // ─── 1. LOGIN ──────────────────────────────────────────────────────────
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Membuka Portal...');
             const email = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
-            try { 
-                await signInWithEmailAndPassword(auth, email, pass); 
-            } catch (error) { 
-                hideLoading(); 
+            const pass  = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                // onAuthStateChanged akan menangani redirect
+            } catch (error) {
+                hideLoading();
                 Swal.fire({
                     icon: 'error',
                     title: 'Akses Ditolak',
@@ -402,28 +441,26 @@
             }
         };
 
-        // --- 2. REGISTER ---
+        // ─── 2. REGISTER ──────────────────────────────────────────────────────
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Mendaftarkan Identitas...');
-            const name = document.getElementById('reg-name').value;
+            const name  = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
-            const pass = document.getElementById('reg-pass').value;
-            
-            // Set role awal (jika email @ac.id, otomatis jadi admin. Selain itu, siswa)
-            const role = email.endsWith('@ac.id') ? 'admin' : 'siswa'; 
+            const pass  = document.getElementById('reg-pass').value;
+            const role  = resolveInitialRole(email);
 
             try {
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
-                await setDoc(doc(db, 'users', cred.user.uid), { 
-                    name, email, role, 
+                await setDoc(doc(db, 'users', cred.user.uid), {
+                    name, email, role,
                     semester: 1, ips: 0, status: 'active',
                     createdAt: new Date().toISOString()
                 });
-                
+
                 localStorage.setItem('justRegistered', 'true');
-                hideLoading(); 
-                
+                hideLoading();
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Pendaftaran Berhasil!',
@@ -431,13 +468,14 @@
                     timer: 2000,
                     showConfirmButton: false
                 }).then(() => {
-                    window.location.reload(); 
+                    localStorage.removeItem('justRegistered');
+                    window.location.reload();
                 });
 
-            } catch (err) { 
-                hideLoading(); 
+            } catch (err) {
+                hideLoading();
                 let errorMsg = err.message;
-                if (err.code === 'auth/email-already-in-use') errorMsg = "Email ini sudah terdaftar. Silakan login.";
+                if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan login.';
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal Mendaftar',
@@ -447,14 +485,13 @@
             }
         };
 
-        // --- 3. FORGOT PASSWORD ---
+        // ─── 3. FORGOT PASSWORD ────────────────────────────────────────────────
         document.getElementById('forgot-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Mengirim Tautan...');
             try {
                 await sendPasswordResetEmail(auth, document.getElementById('forgot-email').value);
                 hideLoading();
-                
                 Swal.fire({
                     icon: 'success',
                     title: 'Email Terkirim!',
@@ -462,13 +499,12 @@
                     confirmButtonColor: '#0f766e'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        forgotForm.classList.add('hidden'); 
-                        loginForm.classList.remove('hidden'); 
+                        forgotForm.classList.add('hidden');
+                        loginForm.classList.remove('hidden');
                     }
                 });
-
             } catch (error) {
-                hideLoading(); 
+                hideLoading();
                 Swal.fire({
                     icon: 'error',
                     title: 'Pengiriman Gagal',
