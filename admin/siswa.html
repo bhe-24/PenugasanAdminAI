@@ -17,10 +17,10 @@
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
         /* --- 2. HEADER & SEARCH --- */
-        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 3px solid var(--primary); padding-bottom: 15px; background: #fff; padding: 20px 30px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 3px solid var(--primary); padding-bottom: 15px; background: #fff; padding: 20px; border-radius: 12px; }
         .page-header h2 { margin: 0; color: var(--primary); font-size: 1.6rem; display: flex; align-items: center; gap: 10px; }
 
-        .search-box { display: flex; gap: 10px; margin-bottom: 25px; background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.03); max-width: 600px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 25px; background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.03); max-width: 60%; }
         .form-control { width: 100%; padding: 12px 15px; border: 2px solid #eee; border-radius: 8px; font-size: 1rem; transition: 0.3s; }
         .form-control:focus { border-color: var(--primary); }
 
@@ -60,7 +60,7 @@
         .ujian:focus { border-color: #ab47bc; background: #fff; }
 
         /* --- FITUR NILAI TAMBAHAN --- */
-        .extra-nilai-btn { width: 100%; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px; border-radius: 8px; color: #64748b; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 5px; margin-bottom: 20px;}
+        .extra-nilai-btn { width: 100%; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 8px; border-radius: 8px; color: #64748b; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .extra-nilai-btn:hover { background: #e2e8f0; color: #334155; }
         .extra-nilai-container { display: none; background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 20px; animation: fadeIn 0.3s ease; }
         .extra-nilai-container.show { display: block; }
@@ -68,15 +68,16 @@
         /* Modifikasi input nilai untuk Kuis/Tambahan */
         .nilai-input.tambahan { background-color: #fff; border-color: #fcd34d; color: #b45309; }
         .nilai-input.tambahan:focus { border-color: #d97706; background: #fff; }
+        .nilai-input.saving { border-color: #f59e0b; background: #fffaf0; opacity: 0.7; }
 
         /* Tombol */
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;}
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
         .btn-secondary { background: #f1f5f9; color: #334155; }
         .btn-secondary:hover { background: #e2e8f0; }
         .btn-primary { background: var(--primary); }
         
         .card-actions { display: flex; gap: 10px; flex-wrap: wrap;}
-        .btn-save { flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 6px rgba(0, 51, 102, 0.2); transition: 0.2s; min-width: 180px; }
+        .btn-save { flex: 1; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; box-shadow: 0 4px 6px rgba(0,51,102,0.2); }
         .btn-save:hover { background: #002244; transform: translateY(-2px); }
         .btn-save:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
         
@@ -90,7 +91,7 @@
 
         /* --- 4. TOAST --- */
         #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { min-width: 250px; padding: 15px 20px; background: #333; color: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; opacity: 0; transform: translateY(20px); animation: slideIn 0.4s forwards; font-size: 0.95rem; }
+        .toast { min-width: 250px; padding: 15px 20px; background: #333; color: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 12px; opacity: 0; animation: slideIn 0.3s forwards; }
         .toast.success { border-left: 5px solid #28a745; background: #fff; color: #333; }
         .toast.success i { color: #28a745; font-size: 1.2rem; }
         .toast.error { border-left: 5px solid #dc3545; background: #fff; color: #333; }
@@ -199,6 +200,27 @@
             }
         };
 
+        // --- FUNGSI AUTO-SAVE NILAI EXTRA (REAL-TIME) ---
+        window.autoSaveExtra = async (uid, fieldName, value) => {
+            const el = document.getElementById(`${fieldName}-${uid}`);
+            el.classList.add('saving');
+            
+            try {
+                const updateData = {};
+                const numValue = value.trim() === '' ? null : parseFloat(value.trim());
+                updateData[`nilai_${fieldName}`] = numValue;
+
+                await updateDoc(doc(db, 'users', uid), updateData);
+                
+                el.classList.remove('saving');
+                showToast(`✓ ${fieldName === 'extra1' ? 'Kuis/Keaktifan' : 'Tugas Tambahan'} tersimpan otomatis`, 'success');
+            } catch(e) {
+                console.error(e);
+                el.classList.remove('saving');
+                showToast(`Gagal menyimpan ${fieldName}`, 'error');
+            }
+        };
+
         // --- BAGIAN RENDER ---
         function render(list) {
             const div = document.getElementById('list-siswa');
@@ -240,7 +262,7 @@
                             <div>
                                 <h3 class="${nameClass}"><i class="fa-solid fa-user-graduate"></i> ${u.name}</h3>
                                 <small style="color:#64748b;">${u.email || 'Tanpa Email'}</small>
-                                ${isInactive ? '<br><span class="ips-badge badge-danger" style="margin-top:8px; display:inline-block;"><i class="fa-solid fa-triangle-exclamation"></i> Kurang Aktif (Tugas < 5)</span>' : ''}
+                                ${isInactive ? '<br><span class="ips-badge badge-danger" style="margin-top:8px; display:inline-block;"><i class="fa-solid fa-triangle-exclamation"></i> Kurang Aktif (Tugas Belum Cukup)</span>' : ''}
                             </div>
                             <div class="student-meta">
                                 <span class="ips-badge" id="ips-display-${u.id}">IPS: ${ips}</span>
@@ -266,14 +288,14 @@
                         </div>
 
                         <button class="extra-nilai-btn" onclick="window.toggleTambahan('${u.id}')">
-                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto;"></i>
+                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.8rem;"></i>
                         </button>
 
                         <div id="extra-${u.id}" class="extra-nilai-container">
-                            <p style="margin-top:0; font-size:0.8rem; color:#b45309; text-align:center;">Bobot Nilai Tambahan/Keaktifan maksimal 10% dari total IPS.</p>
+                            <p style="margin-top:0; font-size:0.8rem; color:#b45309; text-align:center;"><i class="fa-solid fa-bolt" style="color:#f59e0b;"></i> Nilai akan tersimpan otomatis saat diinput</p>
                             <div class="nilai-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom:0;">
-                                ${renderInput(u.id, 'extra1', 'Kuis/Keaktifan', n.nilai_extra1, false, 'tambahan')}
-                                ${renderInput(u.id, 'extra2', 'Tugas Tambahan', n.nilai_extra2, false, 'tambahan')}
+                                ${renderInputAuto(u.id, 'extra1', 'Kuis/Keaktifan', n.nilai_extra1)}
+                                ${renderInputAuto(u.id, 'extra2', 'Tugas Tambahan', n.nilai_extra2)}
                             </div>
                         </div>
 
@@ -310,6 +332,19 @@
                     <label>${label}</label>
                     <input type="number" id="${key}-${uid}" value="${val!==undefined && val!==null ? val : ''}" 
                         class="${cls}" placeholder="0" min="0" max="100">
+                </div>
+            `;
+        }
+
+        // Input untuk nilai extra (dengan auto-save)
+        function renderInputAuto(uid, key, label, val) {
+            return `
+                <div class="input-wrapper">
+                    <label>${label}</label>
+                    <input type="number" id="${key}-${uid}" value="${val!==undefined && val!==null ? val : ''}" 
+                        class="nilai-input tambahan" placeholder="0" min="0" max="100"
+                        onchange="window.autoSaveExtra('${uid}', '${key}', this.value)"
+                        onblur="window.autoSaveExtra('${uid}', '${key}', this.value)">
                 </div>
             `;
         }
