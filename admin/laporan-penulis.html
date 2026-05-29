@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pembayaran Royalti Penulis - Cendekia Aksara</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#003366', accent: '#d4af37', primaryLight: '#005a9c' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Playfair Display', 'serif'] }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- PDFMake Library (Vektor PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    
+    <!-- QRCode Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <style>
+        :root { --primary: #003366; --accent: #d4af37; }
+        body { background-color: #f8fafc; color: #1e293b; overflow-x: hidden; font-family: 'Poppins', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #f1f1f1; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .admin-header { width:100%; background:white; padding:15px 5%; box-shadow:0 4px 15px rgba(0,0,0,.05); display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid var(--primary); position:sticky; top:0; z-index:100; flex-wrap:wrap; gap:10px; }
+        .header-brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+        .header-brand img { height:40px; width:40px; border-radius:50%; border:2px solid var(--accent); padding:2px; }
+        .header-brand h1 { font-family:'Playfair Display',serif; font-size:1.3rem; color:var(--primary); font-weight:700; margin:0; }
+        .btn-back { background:#e2e8f0; color:#475569; padding:8px 15px; border-radius:8px; text-decoration:none; font-size:.85rem; font-weight:600; display:inline-flex; align-items:center; gap:8px; transition:.3s; }
+        .btn-back:hover { background:#cbd5e1; color:var(--primary); }
+
+        .tab-btn { padding:12px 20px; border-radius:12px; font-weight:600; font-size:.9rem; background:white; color:#64748b; border:1px solid #cbd5e1; transition:.3s; display:inline-flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap; cursor:pointer; }
+        .tab-btn:hover { background:#f8fafc; color:var(--primary); border-color:var(--primary); }
+        .tab-btn.active { background:linear-gradient(135deg,#003366,#005a9c); color:white; border-color:#003366; box-shadow:0 4px 10px rgba(0,51,102,.2); }
+
+        .animate-fade-in { animation:fadeIn .4s ease; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .fa-spin { animation: spin 1s linear infinite; }
+
+        .file-upload-wrapper { position: relative; width: 100%; height: 120px; border: 2px dashed #cbd5e1; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; cursor: pointer; transition: 0.3s; }
+        .file-upload-wrapper:hover { border-color: var(--primary); background: #f1f5f9; }
+        .file-upload-wrapper input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-preview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: #000; display: none; }
+        
+        #hidden-qr { display: none; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+<header class="admin-header">
+    <a href="#" class="header-brand">
+        <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+        <h1>Cendekia <span style="color:var(--accent)">Royalti</span></h1>
+    </a>
+    <a href="#" class="btn-back"><i class="fa-solid fa-house"></i> Dashboard</a>
+</header>
+
+<main class="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8">
+
+    <div class="mb-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-primary" style="font-family:'Playfair Display',serif">Distribusi Hak Cipta & Pembayaran</h2>
+            <p class="text-sm text-gray-500">Kelola buku, bayar royalti penulis, dan cetak surat lampiran pembayaran resmi.</p>
+        </div>
+        <div class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
+            <button onclick="window.switchTab('tab-buku')" id="nav-buku" class="tab-btn active"><i class="fa-solid fa-swatchbook"></i> Master Buku</button>
+            <button onclick="window.switchTab('tab-bayar')" id="nav-bayar" class="tab-btn"><i class="fa-solid fa-money-check-dollar"></i> Input Pembayaran</button>
+            <button onclick="window.switchTab('tab-arsip')" id="nav-arsip" class="tab-btn"><i class="fa-solid fa-folder-open"></i> Arsip & Cetak Laporan</button>
+        </div>
+    </div>
+
+    <!-- TAB 1: MASTER BUKU -->
+    <div id="tab-buku" class="tab-content animate-fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 h-fit">
+                <h3 class="font-semibold text-primary mb-4 border-b pb-2"><i class="fa-solid fa-plus-circle mr-2" style="color:var(--accent)"></i>Registrasi Karya Baru</h3>
+                <form id="form-buku" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Judul Buku Lengkap</label>
+                        <input type="text" id="buku-judul" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50" placeholder="Contoh: Antologi Puisi Senja">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Penulis Utama</label>
+                        <input type="text" id="buku-penulis" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50" placeholder="Contoh: Budi Darmawan">
+                    </div>
+                    <button type="submit" class="w-full text-white font-medium py-3 rounded-xl transition shadow-md text-sm" style="background:var(--primary)"><i class="fa-solid fa-floppy-disk mr-1"></i> Simpan ke Database</button>
+                </form>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 col-span-1 lg:col-span-2">
+                <h3 class="font-semibold text-primary mb-4 border-b pb-2"><i class="fa-solid fa-list mr-2" style="color:var(--accent)"></i>Daftar Karya Terekam</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-600 font-semibold">
+                            <tr><th class="p-3 rounded-tl-lg">ID</th><th class="p-3">Judul Buku</th><th class="p-3">Penulis</th><th class="p-3 text-center rounded-tr-lg">Aksi</th></tr>
+                        </thead>
+                        <tbody id="table-buku-body" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                    <div id="empty-buku" class="text-center py-10 text-gray-400">
+                        <i class="fa-solid fa-swatchbook text-4xl mb-3 text-gray-300 block"></i>
+                        <p class="text-sm">Belum ada karya yang diregistrasikan.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: INPUT PEMBAYARAN -->
+    <div id="tab-bayar" class="tab-content hidden animate-fade-in">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-3xl mx-auto">
+            <h3 class="font-semibold text-primary mb-4 border-b pb-2"><i class="fa-solid fa-hand-holding-dollar text-emerald-500 mr-2"></i>Form Pembayaran Penulis</h3>
+            
+            <form id="form-bayar" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Periode Transaksi (Bulan)</label>
+                        <input type="month" id="bayar-bulan" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Karya Tersimpan</label>
+                        <select id="bayar-bukuId" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50">
+                            <option value="">-- Pilih Karya --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Jumlah Terjual (Eksemplar)</label>
+                        <input type="number" id="bayar-terjual" required min="1" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50" placeholder="Contoh: 150">
+                        <p class="text-[10px] text-gray-400 mt-1">*Jika tembus 100 Eks, otomatis dapat bonus tambahan 5%</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Total Omzet Penjualan Buku (Rp)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500 font-semibold text-sm">Rp</span>
+                            <input type="number" id="bayar-omzet" required min="1" class="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 outline-none text-sm bg-gray-50" placeholder="1500000">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Upload Bukti Transfer Pembayaran (Gambar)</label>
+                    <div class="file-upload-wrapper" id="upload-wrapper">
+                        <div class="text-center" id="upload-placeholder">
+                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-1"></i>
+                            <p class="text-xs text-gray-500 font-medium">Klik untuk upload bukti</p>
+                        </div>
+                        <img id="preview-image" class="file-preview" alt="Preview">
+                        <input type="file" id="bayar-bukti" accept="image/*" required onchange="window.previewBukti(event)">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-900 mt-2">
+                    <strong class="block mb-1 text-sm"><i class="fa-solid fa-info-circle"></i> Simulasi Dana Penulis:</strong>
+                    <ul class="list-disc ml-4 space-y-1">
+                        <li>Royalti Dasar = 10% dari Total Omzet</li>
+                        <li>Bonus = 5% dari Royalti Dasar (Khusus penjualan &ge; 100 Eks)</li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 rounded-xl transition shadow-md text-sm">
+                    <i class="fa-solid fa-paper-plane mr-1"></i> Simpan Riwayat & Buat Bukti
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 3: ARSIP & CETAK -->
+    <div id="tab-arsip" class="tab-content hidden animate-fade-in">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="font-semibold text-primary mb-4 border-b pb-2 flex justify-between items-center">
+                <span><i class="fa-solid fa-folder-open text-accent mr-2"></i>Arsip Pembayaran Penulis</span>
+            </h3>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-gray-50 text-gray-600 font-semibold">
+                        <tr>
+                            <th class="p-3">Periode</th>
+                            <th class="p-3">Karya & Penulis</th>
+                            <th class="p-3 text-center">Terjual</th>
+                            <th class="p-3 text-right">Royalti (10%)</th>
+                            <th class="p-3 text-right">Bonus (5%)</th>
+                            <th class="p-3 text-right">Total Cair</th>
+                            <th class="p-3 text-center">Aksi (Cetak/Hapus)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-arsip-body" class="divide-y divide-gray-100"></tbody>
+                </table>
+                <div id="empty-arsip" class="text-center py-10 text-gray-400">
+                    <i class="fa-solid fa-box-open text-4xl mb-3 text-gray-300 block"></i>
+                    <p class="text-sm">Belum ada arsip pembayaran.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Elemen Tersembunyi untuk Generate QR Code Base64 -->
+    <div id="hidden-qr"></div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+    authDomain: "mading-cf676.firebaseapp.com",
+    projectId: "mading-cf676",
+    storageBucket: "mading-cf676.firebasestorage.app",
+    messagingSenderId: "72175203671",
+    appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let books = [], arsip = [];
+let base64BuktiTemp = "";
+
+const THRESHOLD_BONUS = 100; // Minimal penjualan untuk dapat bonus
+
+// ── UTILS ──────────────────────────────────────────────────────────
+const fmt = n => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(n);
+const monthName = s => { if(!s) return '-'; const [y,m]=s.split('-'); return new Date(y,+m-1,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'}); };
+
+const btnLoad = (btn, txt='Memproses...') => {
+    const ori = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${txt}`;
+    return () => { btn.disabled=false; btn.innerHTML=ori; };
+};
+
+// ── TAB & NAVIGATION ────────────────────────────────────────────────
+window.switchTab = id => {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id.replace('tab','nav')).classList.add('active');
+    
+    if (id==='tab-bayar') fillDrop();
+};
+
+// Set Default Bulan
+const t=new Date();
+document.getElementById('bayar-bulan').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
+
+// ── FIRESTORE LISTENERS ──────────────────────────
+const qB = query(collection(db,'marketing_books'), orderBy('createdAt','desc'));
+onSnapshot(qB, snap => {
+    books = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderBooks();
+    if (!document.getElementById('tab-bayar').classList.contains('hidden')) fillDrop();
+});
+
+const qA = query(collection(db,'marketing_arsip_penulis'), orderBy('createdAt','desc'));
+onSnapshot(qA, snap => {
+    arsip = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderArsip();
+});
+
+// ── MASTER BUKU ────────────────────────────────────────────────────
+document.getElementById('form-buku').addEventListener('submit', async e => {
+    e.preventDefault();
+    const judul=document.getElementById('buku-judul').value.trim();
+    const penulis=document.getElementById('buku-penulis').value.trim();
+    if (!judul||!penulis) return;
+    const restore = btnLoad(e.target.querySelector('button[type=submit]'));
+    try {
+        await addDoc(collection(db,'marketing_books'),{judul,penulis,createdAt:new Date().toISOString()});
+        e.target.reset();
+        Swal.fire({icon:'success',title:'Berhasil',text:'Karya berhasil didaftarkan.',timer:1500,showConfirmButton:false});
+    } catch(err){ Swal.fire('Error',err.message,'error'); }
+    finally { restore(); }
+});
+
+window.deleteBook = id => {
+    Swal.fire({title:'Hapus Buku?', text: 'Data tidak bisa dikembalikan', icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonText:'Batal',confirmButtonText:'Hapus'})
+    .then(async r => {
+        if (r.isConfirmed) { try { await deleteDoc(doc(db,'marketing_books',id)); } catch(err){} }
+    });
+};
+
+function renderBooks() {
+    const tb=document.getElementById('table-buku-body'), em=document.getElementById('empty-buku');
+    tb.innerHTML='';
+    if (!books.length) { em.style.display='block'; return; }
+    em.style.display='none';
+    books.forEach(b => {
+        tb.innerHTML+=`<tr class="hover:bg-gray-50 transition">
+            <td class="p-3 border-t border-gray-100 font-mono text-xs text-gray-400">#${b.id.slice(0,5).toUpperCase()}</td>
+            <td class="p-3 border-t border-gray-100 font-bold text-primary">${b.judul}</td>
+            <td class="p-3 border-t border-gray-100">${b.penulis}</td>
+            <td class="p-3 border-t border-gray-100 text-center"><button onclick="window.deleteBook('${b.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><i class="fa-solid fa-trash-can"></i></button></td>
+        </tr>`;
+    });
+}
+
+// ── INPUT PEMBAYARAN ────────────────────────────────────────────────
+function fillDrop() {
+    const s=document.getElementById('bayar-bukuId');
+    s.innerHTML = books.length
+        ? '<option value="">-- Pilih Karya Terdaftar --</option>'+books.map(b=>`<option value="${b.id}">${b.judul} (Oleh: ${b.penulis})</option>`).join('')
+        : '<option value="">-- Database Karya Kosong --</option>';
+}
+
+// Kompresi Gambar agar ukuran Base64 kecil dan aman masuk Firestore
+window.previewBukti = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 600; // Kompresi agar pas di PDF dan DB
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleSize;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            base64BuktiTemp = canvas.toDataURL('image/jpeg', 0.6); // Kompresi 60%
+            
+            const previewImg = document.getElementById('preview-image');
+            previewImg.src = base64BuktiTemp;
+            previewImg.style.display = 'block';
+            document.getElementById('upload-placeholder').style.display = 'none';
+        }
+    };
+    reader.readAsDataURL(file);
+};
+
+document.getElementById('form-bayar').addEventListener('submit', async e => {
+    e.preventDefault();
+    const bulan = document.getElementById('bayar-bulan').value;
+    const bukuId = document.getElementById('bayar-bukuId').value;
+    const terjual = parseInt(document.getElementById('bayar-terjual').value);
+    const omzet = parseFloat(document.getElementById('bayar-omzet').value);
+    
+    if (!bulan||!bukuId||!terjual||!omzet||omzet<=0) return;
+    if (!base64BuktiTemp) {
+        Swal.fire('Peringatan', 'Harap upload bukti transfer pembayaran.', 'warning');
+        return;
+    }
+
+    const book = books.find(b=>b.id===bukuId); if(!book) return;
+    
+    // PERHITUNGAN KEUANGAN PENULIS
+    let royaltiDasar = omzet * 0.10; // 10%
+    let bonus = 0;
+    
+    // Logika Bonus
+    if (terjual >= THRESHOLD_BONUS) {
+        bonus = royaltiDasar * 0.05; // 5% dari Royalti
+    }
+    
+    let totalCair = royaltiDasar + bonus;
+
+    const restore = btnLoad(e.target.querySelector('button[type=submit]'));
+    try {
+        await addDoc(collection(db,'marketing_arsip_penulis'), {
+            bulan, 
+            bukuId, 
+            judul: book.judul, 
+            penulis: book.penulis,
+            terjual,
+            omzet,
+            royalti: royaltiDasar,
+            bonus,
+            total: totalCair,
+            buktiBase64: base64BuktiTemp,
+            createdAt: new Date().toISOString()
+        });
+        
+        e.target.reset();
+        base64BuktiTemp = "";
+        document.getElementById('preview-image').style.display = 'none';
+        document.getElementById('upload-placeholder').style.display = 'block';
+        
+        Swal.fire({icon:'success',title:'Sukses',text:'Pembayaran tersimpan ke arsip.',timer:2000,showConfirmButton:false});
+        window.switchTab('tab-arsip');
+        
+    } catch(err){ 
+        Swal.fire('Error',err.message,'error'); 
+    }
+    finally { restore(); }
+});
+
+// ── ARSIP & CETAK PDF ────────────────────────────────────────────────
+window.deleteArsip = id => {
+    Swal.fire({title:'Hapus Arsip?',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33',cancelButtonText:'Batal',confirmButtonText:'Hapus'})
+    .then(async r => {
+        if (r.isConfirmed) { try { await deleteDoc(doc(db,'marketing_arsip_penulis',id)); } catch(err){} }
+    });
+};
+
+function renderArsip() {
+    const tb = document.getElementById('table-arsip-body');
+    const em = document.getElementById('empty-arsip');
+    tb.innerHTML = '';
+    
+    if (!arsip.length) { em.style.display='block'; return; }
+    em.style.display='none';
+    
+    arsip.forEach(a => {
+        tb.innerHTML += `<tr class="hover:bg-gray-50 transition">
+            <td class="p-3 border-t border-gray-100 font-semibold">${monthName(a.bulan)}</td>
+            <td class="p-3 border-t border-gray-100"><div class="font-bold text-primary">${a.judul}</div><div class="text-xs text-gray-500"><i class="fa-solid fa-pen-nib mr-1"></i>${a.penulis}</div></td>
+            <td class="p-3 border-t border-gray-100 text-center font-medium">${a.terjual} Eks</td>
+            <td class="p-3 border-t border-gray-100 text-right">${fmt(a.royalti)}</td>
+            <td class="p-3 border-t border-gray-100 text-right text-emerald-600">${a.bonus > 0 ? '+ '+fmt(a.bonus) : '-'}</td>
+            <td class="p-3 border-t border-gray-100 text-right font-bold text-primary">${fmt(a.total)}</td>
+            <td class="p-3 border-t border-gray-100 text-center space-x-1">
+                <button onclick="window.generateAuthorPDF('${a.id}')" class="text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-xs shadow-sm transition"><i class="fa-solid fa-file-pdf mr-1"></i> Cetak PDF</button>
+                <button onclick="window.deleteArsip('${a.id}')" class="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
+        </tr>`;
+    });
+}
+
+// Mengubah URL gambar ke Base64 (Untuk Logo Kop Surat)
+const getBase64ImageFromURL = (url) => {
+    return new Promise((resolve, reject) => {
+        var img = new Image();
+        img.setAttribute("crossOrigin", "anonymous");
+        img.onload = () => {
+            var canvas = document.createElement("canvas");
+            canvas.width = img.width; canvas.height = img.height;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = error => { reject(error); };
+        img.src = url;
+    });
+};
+
+const generateQRCodeBase64 = (text) => {
+    return new Promise((resolve) => {
+        const qrContainer = document.getElementById('hidden-qr');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, { text: text, width: 80, height: 80, colorDark: "#003366", colorLight: "#ffffff" });
+        setTimeout(() => {
+            let canvas = qrContainer.querySelector('canvas');
+            if (canvas) resolve(canvas.toDataURL("image/png"));
+            else resolve(null);
+        }, 100);
+    });
+};
+
+// PDF Generator Khusus Penulis
+window.generateAuthorPDF = async (id) => {
+    Swal.fire({title:'Menyiapkan Surat Penulis...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    
+    const data = arsip.find(a => a.id === id);
+    if(!data) { Swal.close(); return; }
+
+    const t = new Date();
+    const tglSurat = `Temanggung, ${t.toLocaleDateString('id-ID',{year:'numeric',month:'long',day:'numeric'})}`;
+    const noSurat = `${Math.floor(Math.random()*900)+100}/ROYALTI/${t.getFullYear()}`;
+    
+    let logoBase64 = null;
+    let qrBase64 = null;
+    try {
+        logoBase64 = await getBase64ImageFromURL("https://i.imgur.com/5Srjyo4.png");
+        qrBase64 = await generateQRCodeBase64(`VERIFIED: ${data.penulis} - ${fmt(data.total)}`);
+    } catch(e) {}
+    
+    // Status Bonus String
+    let bonusText = data.bonus > 0 
+        ? `Selamat! Buku Anda telah mencapai target penjualan (${data.terjual} Eksemplar). Anda mendapatkan bonus tambahan sebesar 5% dari royalti dasar.`
+        : `Terus semangat! Tingkatkan promosi untuk mencapai target minimum penjualan ${THRESHOLD_BONUS} Eksemplar agar mendapatkan Bonus Tambahan.`;
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [50, 60, 50, 60],
+        defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 },
+        styles: {
+            kopTitle: { fontSize: 16, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 2] },
+            kopSubtitle: { fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 2] },
+            kopInfo: { fontSize: 9, alignment: 'center', color: '#444' },
+            hrLine: { margin: [0, 10, 0, 20] },
+            suratMeta: { margin: [0, 0, 0, 20] },
+            bodyText: { alignment: 'justify', margin: [0, 0, 0, 10] },
+            th: { bold: true, fillColor: '#003366', color: 'white', alignment: 'center', margin: [0, 5, 0, 5] },
+            td: { alignment: 'center', margin: [0, 5, 0, 5] },
+            lampiranTitle: { fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 20] }
+        },
+        content: [
+            // --- KOP SURAT ---
+            {
+                columns: [
+                    logoBase64 ? { image: logoBase64, width: 60, margin: [0, 0, 10, 0] } : { text: '', width: 60 },
+                    {
+                        width: '*',
+                        text: [
+                            { text: 'CENDEKIA AKSARA PRESS\n', style: 'kopTitle' },
+                            { text: 'Divisi Keuangan & Royalti Penulis\n', style: 'kopSubtitle' },
+                            { text: 'Jl. Pahlawan No. 45, Cendekia Building Lt. 2, Temanggung, Jawa Tengah\n', style: 'kopInfo' },
+                            { text: 'Telp: 08895615630 | Email: cendekia.aksara25@gmail.com', style: 'kopInfo' }
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }], style: 'hrLine' },
+
+            // --- META SURAT ---
+            {
+                columns: [
+                    { width: '*', text: [ {text: 'Nomor\t\t\t: ', bold: true}, noSurat, '\n', {text: 'Lampiran\t: ', bold: true}, '1 (Satu) Lembar Bukti Transfer', '\n', {text: 'Perihal\t\t\t: ', bold: true}, 'Laporan & Pembayaran Royalti' ] },
+                    { width: 'auto', text: tglSurat, alignment: 'right' }
+                ],
+                style: 'suratMeta'
+            },
+
+            // --- ISI SURAT ---
+            { text: `Kepada Yth,\nSdr/i. ${data.penulis}\ndi Tempat\n\n`, style: 'bodyText', bold: true },
+            { text: 'Dengan hormat,', style: 'bodyText' },
+            { text: `Melalui surat ini, kami memberitahukan rincian pencairan royalti atas penjualan karya Anda yang berjudul "${data.judul}" untuk periode tutup buku ${monthName(data.bulan)}.`, style: 'bodyText' },
+            
+            // --- TABEL RINCIAN ---
+            {
+                margin: [0, 10, 0, 15],
+                table: {
+                    widths: ['*', '*', '*', '*'],
+                    body: [
+                        [
+                            { text: 'Penjualan (Eks)', style: 'th' }, 
+                            { text: 'Royalti Dasar (10%)', style: 'th' }, 
+                            { text: 'Bonus Target (5%)', style: 'th' }, 
+                            { text: 'Total Dibayarkan', style: 'th' }
+                        ],
+                        [
+                            { text: data.terjual, style: 'td' },
+                            { text: fmt(data.royalti), style: 'td' },
+                            { text: data.bonus > 0 ? fmt(data.bonus) : '-', style: 'td', color: data.bonus > 0 ? 'green' : 'black' },
+                            { text: fmt(data.total), style: 'td', bold: true, fillColor: '#f3f4f6' }
+                        ]
+                    ]
+                }
+            },
+
+            // --- INFO BONUS ---
+            { text: bonusText, style: 'bodyText', italics: true, color: '#475569' },
+            { text: 'Dana pencairan telah kami transfer ke rekening bank Anda yang terdaftar pada sistem kami. Salinan bukti transfer kami lampirkan pada halaman berikutnya.', style: 'bodyText' },
+            { text: 'Demikian laporan keuangan ini kami sampaikan. Terima kasih atas kerja sama dan karya luar biasa yang telah Anda ciptakan bersama Cendekia Aksara.', style: 'bodyText' },
+
+            // --- TTD (Dibuat Unbreakable agar tidak terpotong beda halaman) ---
+            {
+                unbreakable: true,
+                columns: [
+                    { width: '*', text: '' }, // Spacer agar TTD ke kanan
+                    {
+                        width: 'auto',
+                        alignment: 'center',
+                        stack: [
+                            { text: 'Hormat Kami,', margin: [0, 0, 0, 2] }, 
+                            { text: 'Divisi Keuangan Cendekia', bold: true, margin: [0, 0, 0, 5] },
+                            qrBase64 ? { image: qrBase64, width: 60, alignment: 'center', margin: [0, 5, 0, 10] } : { text: '\n\n\n' },
+                            { text: 'Saras Triana, S.Pd', bold: true, decoration: 'underline' }
+                        ]
+                    }
+                ],
+                margin: [0, 30, 0, 0]
+            },
+
+            // ==========================================
+            // HALAMAN 2: LAMPIRAN GAMBAR BUKTI TRANSFER
+            // ==========================================
+            { text: '', pageBreak: 'before' },
+            { text: 'LAMPIRAN BUKTI TRANSFER', style: 'lampiranTitle' },
+            { text: `Dibayarkan kepada: ${data.penulis} | Total: ${fmt(data.total)}`, alignment: 'center', margin: [0,0,0,20], color: '#64748b' },
+            data.buktiBase64 ? { image: data.buktiBase64, width: 400, alignment: 'center' } : { text: '[Gambar Bukti Transfer Tidak Tersedia]', alignment: 'center', italics: true, color: 'red' }
+        ]
+    };
+
+    pdfMake.createPdf(docDefinition).download(`Royalti_${data.penulis.replace(/\s/g,'_')}_${monthName(data.bulan)}.pdf`, () => {
+        Swal.close();
+    });
+};
+
+</script>
+</body>
+</html>
