@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Presensi & Kelas - Admin Cendekia</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root { --primary: #002244; --accent: #d4af37; --bg: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; padding-top: 100px; }
+        .container { max-width: 1200px; width: 95%; margin: 0 auto; padding: 20px; }
+
+        /* HEADER */
+        .brand-header {
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+            color: white; padding: 15px 5%; box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
+            display: flex; justify-content: space-between; align-items: center; gap: 15px; border-bottom: 4px solid var(--accent);
+        }
+        .header-content-wrapper { display: flex; align-items: center; gap: 15px; }
+        .header-logo-circle { width: 55px; height: 55px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; padding: 8px; box-sizing: border-box; }
+        .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+        .header-brand-name { font-family: 'Aleo', serif; font-size: 1.5rem; margin: 0; color: white; font-weight: 700; }
+        .header-greeting { font-size: 0.85rem; opacity: 0.9; margin-top: 2px; font-weight: 400; color: #bae6fd; }
+        .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.3); display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-back:hover { background: white; color: var(--primary); }
+
+        /* TABS */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px; }
+        .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 12px 25px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins', sans-serif; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+
+        /* CARD */
+        .admin-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px; }
+        .section-title { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.3rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 2px dashed #f1f5f9; padding-bottom: 15px; }
+
+        /* FORM */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: var(--text-dark); }
+        .form-input, .form-select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Poppins', sans-serif; font-size: 0.95rem; background: #f8fafc; transition: 0.3s; }
+        .form-input:focus, .form-select:focus, textarea:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .full-width { grid-column: 1 / -1; }
+        .btn-submit { background: var(--primary); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .btn-submit:hover { transform: translateY(-2px); background: #00122e; }
+
+        /* CLASS GRID */
+        .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .class-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; transition: 0.3s; }
+        .class-card:hover { border-color: #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .class-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
+        .class-name { font-family: 'Aleo', serif; font-size: 1.2rem; color: var(--primary); margin: 0; font-weight: 700; }
+        .class-badge { background: var(--accent); color: #001f3f; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+        .class-info { font-size: 0.85rem; color: var(--text-gray); margin: 10px 0; line-height: 1.6; }
+        .class-actions { display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+        .btn-sm { flex: 1; min-width: 80px; padding: 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: 0.3s; }
+        .btn-sm.blue { background: #e0f2fe; color: #0284c7; }
+        .btn-sm.blue:hover { background: #bae6fd; }
+        .btn-sm.green { background: #dcfce7; color: #166534; }
+        .btn-sm.green:hover { background: #bbf7d0; }
+        .btn-sm.red { background: #fee2e2; color: #991b1b; }
+        .btn-sm.red:hover { background: #fecaca; }
+
+        /* TABLE */
+        .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .report-table th, .report-table td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; font-size: 0.9rem; }
+        .report-table th { background: var(--primary); color: white; font-weight: 700; }
+        .report-table tr:nth-child(even) { background: #f8fafc; }
+        .status-badge { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-align: center; }
+        .status-hadir { background: #dcfce7; color: #166534; }
+        .status-izin { background: #fef3c7; color: #92400e; }
+        .status-absen { background: #fee2e2; color: #991b1b; }
+        .percentage-high { color: #166534; font-weight: 700; }
+        .percentage-low { color: #991b1b; font-weight: 700; }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.7); backdrop-filter:blur(5px); z-index:2000; display:none; justify-content:center; align-items:center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background:white; width:90%; max-width:500px; padding:30px; border-radius:20px; transform: scale(0.9); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-header { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.3rem; margin-bottom: 20px; font-weight: 700; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
+
+        /* LOADING */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #loading-screen.active { display: flex; }
+
+        /* MOBILE */
+        @media (max-width: 768px) {
+            body { padding-top: 20px; }
+            .container { padding: 15px; width: 100%; }
+            .brand-header { position: relative; top: auto; left: auto; width: 100%; border-radius: 12px; padding: 15px; margin-bottom: 20px; flex-direction: row; align-items: center; }
+            .header-logo-circle { width: 45px; height: 45px; padding: 6px; }
+            .header-brand-name { font-size: 1.25rem; }
+            .btn-back { width: 38px; height: 38px; padding: 0; display: flex; justify-content: center; align-items: center; border-radius: 50%; margin: 0; margin-left: auto; }
+            .btn-back span { display: none; }
+            .form-grid { grid-template-columns: 1fr; gap: 15px; }
+            .class-grid { grid-template-columns: 1fr; }
+            .report-table { font-size: 0.8rem; }
+            .report-table th, .report-table td { padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADING -->
+    <div id="loading-screen">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0;">Memproses...</h2>
+        <p style="color:#64748b;" id="loading-msg">Mohon tunggu</p>
+    </div>
+
+    <!-- HEADER -->
+    <header class="brand-header">
+        <div class="header-content-wrapper">
+            <div class="header-logo-circle">
+                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
+            </div>
+            <div class="header-info">
+                <h1 class="header-brand-name">Kelola Presensi & Kelas</h1>
+                <p class="header-greeting">Admin - Atur kelas dan laporan kehadiran siswa.</p>
+            </div>
+        </div>
+        <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span></a>
+    </header>
+
+    <div class="container">
+
+        <!-- TABS -->
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('setup')"><i class="fa-solid fa-plus-circle"></i> Buat Kelas</button>
+            <button class="tab-btn" onclick="switchTab('kelola')"><i class="fa-solid fa-list-check"></i> Kelola Kelas</button>
+            <button class="tab-btn" onclick="switchTab('laporan')"><i class="fa-solid fa-chart-bar"></i> Laporan Bulanan</button>
+        </div>
+
+        <!-- TAB 1: SETUP KELAS -->
+        <div id="tab-setup" class="admin-card">
+            <h2 class="section-title"><i class="fa-solid fa-plus"></i> Buat Kelas Baru</h2>
+            <form id="class-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Semester</label>
+                        <select id="setup-semester" class="form-select" required>
+                            <option value="">-- Pilih Semester --</option>
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                            <option value="3">Semester 3 (Inkubasi/Proses Kreatif)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nama Kelas</label>
+                        <input type="text" id="setup-class-name" class="form-input" placeholder="Contoh: Kelas A1, Kelas B2" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Pilih Pengajar</label>
+                        <select id="setup-teacher" class="form-select" required>
+                            <option value="">-- Pilih Pengajar --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deskripsi Kelas</label>
+                        <input type="text" id="setup-desc" class="form-input" placeholder="Contoh: Kelas Menulis Cerpen Dasar">
+                    </div>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Buat Kelas</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- TAB 2: KELOLA KELAS -->
+        <div id="tab-kelola" class="admin-card" style="display: none;">
+            <h2 class="section-title"><i class="fa-solid fa-edit"></i> Kelola Kelas & Siswa</h2>
+            <div id="class-list" class="class-grid">
+                <div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</div>
+            </div>
+        </div>
+
+        <!-- TAB 3: LAPORAN BULANAN -->
+        <div id="tab-laporan" class="admin-card" style="display: none;">
+            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi Bulanan</h2>
+            
+            <div class="form-grid" style="margin-bottom: 25px;">
+                <div class="form-group">
+                    <label class="form-label">Pilih Kelas</label>
+                    <select id="laporan-class" class="form-select" onchange="generateReportPreview()">
+                        <option value="">-- Pilih Kelas --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Bulan / Tahun</label>
+                    <input type="month" id="laporan-month" class="form-input" onchange="generateReportPreview()">
+                </div>
+            </div>
+
+            <div id="report-container" style="display: none;">
+                <table class="report-table" id="report-table">
+                    <thead>
+                        <tr>
+                            <th>Nama Siswa</th>
+                            <th>Minggu 1</th>
+                            <th>Minggu 2</th>
+                            <th>Minggu 3</th>
+                            <th>Minggu 4</th>
+                            <th>Kehadiran %</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-tbody"></tbody>
+                </table>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn-submit" onclick="exportReportPDF()" style="background: #059669;">
+                        <i class="fa-solid fa-file-pdf"></i> Unduh PDF
+                    </button>
+                    <button class="btn-submit" onclick="printReport()" style="background: #0284c7;">
+                        <i class="fa-solid fa-print"></i> Cetak
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL: Tambah Siswa -->
+    <div class="modal-overlay" id="modal-add-student">
+        <div class="modal-box">
+            <button onclick="closeModal('modal-add-student')" class="modal-close">&times;</button>
+            <h3 class="modal-header"><i class="fa-solid fa-user-plus"></i> Tambah Siswa ke Kelas</h3>
+            <form id="form-add-student">
+                <div class="form-group">
+                    <label class="form-label">Pilih Siswa</label>
+                    <select id="modal-student-select" class="form-select" required>
+                        <option value="">-- Pilih Siswa --</option>
+                    </select>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Tambahkan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Kelas -->
+    <div class="modal-overlay" id="modal-edit-class">
+        <div class="modal-box">
+            <button onclick="closeModal('modal-edit-class')" class="modal-close">&times;</button>
+            <h3 class="modal-header"><i class="fa-solid fa-edit"></i> Edit Kelas</h3>
+            <form id="form-edit-class">
+                <div class="form-group">
+                    <label class="form-label">Nama Kelas</label>
+                    <input type="text" id="edit-class-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status Kelas</label>
+                    <select id="edit-class-status" class="form-select">
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                    </select>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="btn-submit"><i class="fa-solid fa-save"></i> Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let allClasses = [];
+        let allStudents = [];
+        let allTeachers = [];
+        let currentClassId = null;
+
+        (async () => {
+            const admin = await checkAuth('admin');
+            if(!admin) {
+                window.location.href = '../index.html';
+                return;
+            }
+            await loadTeachers();
+            await loadClasses();
+            await loadStudents();
+        })();
+
+        // --- TAB NAVIGATION ---
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('tab-setup').style.display = tab === 'setup' ? 'block' : 'none';
+            document.getElementById('tab-kelola').style.display = tab === 'kelola' ? 'block' : 'none';
+            document.getElementById('tab-laporan').style.display = tab === 'laporan' ? 'block' : 'none';
+
+            if(tab === 'laporan') loadLaporanDropdown();
+        }
+
+        // --- LOAD DATA ---
+        async function loadTeachers() {
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'pengajar'));
+                const snap = await getDocs(q);
+                allTeachers = [];
+                snap.forEach(d => {
+                    allTeachers.push({ id: d.id, ...d.data() });
+                });
+                populateTeacherSelect();
+            } catch(e) { console.error(e); }
+        }
+
+        function populateTeacherSelect() {
+            const select = document.getElementById('setup-teacher');
+            select.innerHTML = '<option value="">-- Pilih Pengajar --</option>';
+            allTeachers.forEach(t => {
+                select.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+            });
+        }
+
+        async function loadStudents() {
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                allStudents = [];
+                snap.forEach(d => {
+                    allStudents.push({ id: d.id, ...d.data() });
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadClasses() {
+            try {
+                const snap = await getDocs(collection(db, 'classes'));
+                allClasses = [];
+                snap.forEach(d => {
+                    allClasses.push({ id: d.id, ...d.data() });
+                });
+                displayClasses();
+            } catch(e) { console.error(e); }
+        }
+
+        function displayClasses() {
+            const list = document.getElementById('class-list');
+            if(allClasses.length === 0) {
+                list.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8;">Belum ada kelas yang dibuat.</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            allClasses.forEach(cls => {
+                const teacher = allTeachers.find(t => t.id === cls.teacherId);
+                const studentCount = cls.students ? cls.students.length : 0;
+                const statusClass = cls.status === 'active' ? 'green' : 'gray';
+
+                list.innerHTML += `
+                    <div class="class-card">
+                        <div class="class-header">
+                            <h3 class="class-name">${cls.name}</h3>
+                            <span class="class-badge">Sem ${cls.semester}</span>
+                        </div>
+                        <div class="class-info">
+                            <div><strong>Pengajar:</strong> ${teacher?.name || '-'}</div>
+                            <div><strong>Siswa:</strong> ${studentCount} orang</div>
+                            <div><strong>Status:</strong> ${cls.status === 'active' ? '✅ Aktif' : '❌ Non-Aktif'}</div>
+                        </div>
+                        <div class="class-actions">
+                            <button class="btn-sm blue" onclick="openAddStudentModal('${cls.id}')"><i class="fa-solid fa-user-plus"></i> Siswa</button>
+                            <button class="btn-sm blue" onclick="openEditClassModal('${cls.id}')"><i class="fa-solid fa-edit"></i> Edit</button>
+                            <button class="btn-sm red" onclick="deleteClass('${cls.id}')"><i class="fa-solid fa-trash"></i> Hapus</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- BUAT KELAS ---
+        document.getElementById('class-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const semester = document.getElementById('setup-semester').value;
+            const name = document.getElementById('setup-class-name').value;
+            const teacherId = document.getElementById('setup-teacher').value;
+            const desc = document.getElementById('setup-desc').value;
+
+            document.querySelector('.btn-submit').disabled = true;
+            document.querySelector('.btn-submit').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membuat...';
+
+            try {
+                await addDoc(collection(db, 'classes'), {
+                    semester: parseInt(semester),
+                    name, teacherId, desc,
+                    students: [],
+                    status: 'active',
+                    createdAt: serverTimestamp()
+                });
+
+                document.getElementById('class-form').reset();
+                await loadClasses();
+                Swal.fire('Berhasil!', 'Kelas telah dibuat.', 'success');
+            } catch(e) {
+                Swal.fire('Error', e.message, 'error');
+            } finally {
+                document.querySelector('.btn-submit').disabled = false;
+                document.querySelector('.btn-submit').innerHTML = '<i class="fa-solid fa-check"></i> Buat Kelas';
+            }
+        };
+
+        // --- MODAL FUNCTIONS ---
+        window.openAddStudentModal = (classId) => {
+            currentClassId = classId;
+            const select = document.getElementById('modal-student-select');
+            select.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+            
+            const cls = allClasses.find(c => c.id === classId);
+            const existingStudents = cls.students || [];
+            
+            allStudents
+                .filter(s => !existingStudents.includes(s.id) && parseInt(s.semester || 1) === cls.semester)
+                .forEach(s => {
+                    select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            
+            document.getElementById('modal-add-student').classList.add('active');
+        };
+
+        document.getElementById('form-add-student').onsubmit = async (e) => {
+            e.preventDefault();
+            const studentId = document.getElementById('modal-student-select').value;
+
+            try {
+                const cls = allClasses.find(c => c.id === currentClassId);
+                const students = cls.students || [];
+                if(!students.includes(studentId)) {
+                    students.push(studentId);
+                    await updateDoc(doc(db, 'classes', currentClassId), { students });
+                    await loadClasses();
+                    window.closeModal('modal-add-student');
+                    Swal.fire('Berhasil!', 'Siswa ditambahkan ke kelas.', 'success');
+                }
+            } catch(e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+
+        window.openEditClassModal = (classId) => {
+            const cls = allClasses.find(c => c.id === classId);
+            currentClassId = classId;
+            document.getElementById('edit-class-name').value = cls.name;
+            document.getElementById('edit-class-status').value = cls.status;
+            document.getElementById('modal-edit-class').classList.add('active');
+        };
+
+        document.getElementById('form-edit-class').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+                await updateDoc(doc(db, 'classes', currentClassId), {
+                    name: document.getElementById('edit-class-name').value,
+                    status: document.getElementById('edit-class-status').value
+                });
+                await loadClasses();
+                window.closeModal('modal-edit-class');
+                Swal.fire('Berhasil!', 'Kelas diperbarui.', 'success');
+            } catch(e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        };
+
+        window.deleteClass = async (classId) => {
+            const result = await Swal.fire({
+                title: 'Hapus Kelas?',
+                text: 'Tindakan ini tidak bisa dibatalkan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Hapus'
+            });
+            if(result.isConfirmed) {
+                try {
+                    await deleteDoc(doc(db, 'classes', classId));
+                    await loadClasses();
+                    Swal.fire('Berhasil!', 'Kelas dihapus.', 'success');
+                } catch(e) {
+                    Swal.fire('Error', e.message, 'error');
+                }
+            }
+        };
+
+        window.closeModal = (id) => {
+            document.getElementById(id).classList.remove('active');
+        };
+
+        // --- LAPORAN BULANAN ---
+        function loadLaporanDropdown() {
+            const select = document.getElementById('laporan-class');
+            select.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            allClasses.forEach(cls => {
+                select.innerHTML += `<option value="${cls.id}">${cls.name} (Sem ${cls.semester})</option>`;
+            });
+        }
+
+        window.generateReportPreview = async () => {
+            const classId = document.getElementById('laporan-class').value;
+            const monthStr = document.getElementById('laporan-month').value;
+
+            if(!classId || !monthStr) {
+                document.getElementById('report-container').style.display = 'none';
+                return;
+            }
+
+            try {
+                const cls = allClasses.find(c => c.id === classId);
+                const studentIds = cls.students || [];
+                
+                const q = query(collection(db, 'dailyAttendance'), where('classId', '==', classId));
+                const snap = await getDocs(q);
+
+                const attendanceMap = {};
+                snap.forEach(d => {
+                    const data = d.data();
+                    const date = new Date(data.date.toDate());
+                    const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                    
+                    if(month === monthStr) {
+                        const week = Math.ceil(date.getDate() / 7);
+                        Object.entries(data.presensi || {}).forEach(([uid, status]) => {
+                            if(!attendanceMap[uid]) attendanceMap[uid] = { hadir: 0, izin: 0, absen: 0 };
+                            if(!attendanceMap[uid][`week${week}`]) attendanceMap[uid][`week${week}`] = null;
+                            attendanceMap[uid][`week${week}`] = status;
+                            if(status === 'Hadir') attendanceMap[uid].hadir++;
+                            else if(status === 'Izin') attendanceMap[uid].izin++;
+                            else if(status === 'Absen') attendanceMap[uid].absen++;
+                        });
+                    }
+                });
+
+                const tbody = document.getElementById('report-tbody');
+                tbody.innerHTML = '';
+                
+                studentIds.forEach(uid => {
+                    const student = allStudents.find(s => s.id === uid);
+                    const att = attendanceMap[uid] || {};
+                    const totalSessions = (att.hadir || 0) + (att.izin || 0) + (att.absen || 0);
+                    const percentage = totalSessions > 0 ? Math.round((att.hadir || 0) / totalSessions * 100) : 0;
+                    const status = percentage >= 60 ? '<span style="color:green; font-weight:700;">✅ Lulus</span>' : '<span style="color:red; font-weight:700;">❌ Gagal</span>';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${student?.name || 'Unknown'}</td>
+                            <td class="status-${att.week1 ? att.week1.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week1 ? att.week1.toLowerCase() : 'absen'}">${att.week1 || '-'}</span></td>
+                            <td class="status-${att.week2 ? att.week2.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week2 ? att.week2.toLowerCase() : 'absen'}">${att.week2 || '-'}</span></td>
+                            <td class="status-${att.week3 ? att.week3.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week3 ? att.week3.toLowerCase() : 'absen'}">${att.week3 || '-'}</span></td>
+                            <td class="status-${att.week4 ? att.week4.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week4 ? att.week4.toLowerCase() : 'absen'}">${att.week4 || '-'}</span></td>
+                            <td class="${percentage >= 60 ? 'percentage-high' : 'percentage-low'}">${percentage}%</td>
+                            <td>${status}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('report-container').style.display = 'block';
+            } catch(e) {
+                console.error(e);
+                Swal.fire('Error', 'Gagal memuat laporan.', 'error');
+            }
+        };
+
+        window.exportReportPDF = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(14);
+            doc.text('LAPORAN PRESENSI BULANAN', 105, 15, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text(`Kelas: ${document.getElementById('laporan-class').options[document.getElementById('laporan-class').selectedIndex].text}`, 15, 25);
+            doc.text(`Bulan: ${document.getElementById('laporan-month').value}`, 15, 32);
+
+            const table = document.getElementById('report-table');
+            doc.autoTable({ html: '#report-table', startY: 40, headStyles: { fillColor: [0, 51, 102] } });
+            doc.save('Laporan_Presensi.pdf');
+        };
+
+        window.printReport = () => {
+            window.print();
+        };
+
+    </script>
+</body>
+</html>
