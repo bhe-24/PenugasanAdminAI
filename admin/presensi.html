@@ -41,7 +41,7 @@
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
 
         /* CARD */
-        .admin-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px; }
+        .admin-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px; overflow-x: auto; }
         .section-title { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.3rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 2px dashed #f1f5f9; padding-bottom: 15px; }
 
         /* FORM */
@@ -72,14 +72,20 @@
         .btn-sm.red:hover { background: #fecaca; }
 
         /* TABLE */
-        .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .report-table th, .report-table td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; font-size: 0.9rem; }
+        .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; min-width: 900px; }
+        .report-table th, .report-table td { border: 1px solid #cbd5e1; padding: 10px 6px; text-align: center; font-size: 0.85rem; }
         .report-table th { background: var(--primary); color: white; font-weight: 700; }
+        .report-table th:first-child, .report-table td:first-child { text-align: left; padding-left: 12px; }
         .report-table tr:nth-child(even) { background: #f8fafc; }
-        .status-badge { padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-align: center; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-align: center; margin-bottom: 4px; width: 100%; box-sizing: border-box;}
+        
         .status-hadir { background: #dcfce7; color: #166534; }
         .status-izin { background: #fef3c7; color: #92400e; }
         .status-absen { background: #fee2e2; color: #991b1b; }
+        .status-bimbingan { background: #e0f2fe; color: #0284c7; }
+
+        .session-date { font-size: 0.7rem; color: #64748b; display: block; }
+        
         .percentage-high { color: #166534; font-weight: 700; }
         .percentage-low { color: #991b1b; font-weight: 700; }
 
@@ -106,21 +112,17 @@
             .btn-back span { display: none; }
             .form-grid { grid-template-columns: 1fr; gap: 15px; }
             .class-grid { grid-template-columns: 1fr; }
-            .report-table { font-size: 0.8rem; }
-            .report-table th, .report-table td { padding: 8px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- LOADING -->
     <div id="loading-screen">
         <i class="fa-solid fa-spinner fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;"></i>
         <h2 style="font-family:'Aleo', serif; margin:0;">Memproses...</h2>
         <p style="color:#64748b;" id="loading-msg">Mohon tunggu</p>
     </div>
 
-    <!-- HEADER -->
     <header class="brand-header">
         <div class="header-content-wrapper">
             <div class="header-logo-circle">
@@ -136,14 +138,12 @@
 
     <div class="container">
 
-        <!-- TABS -->
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab('setup')"><i class="fa-solid fa-plus-circle"></i> Buat Kelas</button>
             <button class="tab-btn" onclick="switchTab('kelola')"><i class="fa-solid fa-list-check"></i> Kelola Kelas</button>
             <button class="tab-btn" onclick="switchTab('laporan')"><i class="fa-solid fa-chart-bar"></i> Laporan Bulanan</button>
         </div>
 
-        <!-- TAB 1: SETUP KELAS -->
         <div id="tab-setup" class="admin-card">
             <h2 class="section-title"><i class="fa-solid fa-plus"></i> Buat Kelas Baru</h2>
             <form id="class-form">
@@ -178,7 +178,6 @@
             </form>
         </div>
 
-        <!-- TAB 2: KELOLA KELAS -->
         <div id="tab-kelola" class="admin-card" style="display: none;">
             <h2 class="section-title"><i class="fa-solid fa-edit"></i> Kelola Kelas & Siswa</h2>
             <div id="class-list" class="class-grid">
@@ -186,9 +185,8 @@
             </div>
         </div>
 
-        <!-- TAB 3: LAPORAN BULANAN -->
         <div id="tab-laporan" class="admin-card" style="display: none;">
-            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi Bulanan</h2>
+            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi (8 Sesi)</h2>
             
             <div class="form-grid" style="margin-bottom: 25px;">
                 <div class="form-group">
@@ -198,27 +196,33 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Bulan / Tahun</label>
+                    <label class="form-label">Bulan / Tahun Laporan</label>
                     <input type="month" id="laporan-month" class="form-input" onchange="generateReportPreview()">
                 </div>
             </div>
 
             <div id="report-container" style="display: none;">
-                <table class="report-table" id="report-table">
-                    <thead>
-                        <tr>
-                            <th>Nama Siswa</th>
-                            <th>Minggu 1</th>
-                            <th>Minggu 2</th>
-                            <th>Minggu 3</th>
-                            <th>Minggu 4</th>
-                            <th>Kehadiran %</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="report-tbody"></tbody>
-                </table>
-                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <div style="overflow-x: auto;">
+                    <table class="report-table" id="report-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Siswa</th>
+                                <th>Sesi 1</th>
+                                <th>Sesi 2</th>
+                                <th>Sesi 3</th>
+                                <th>Sesi 4</th>
+                                <th>Sesi 5</th>
+                                <th>Sesi 6</th>
+                                <th>Sesi 7</th>
+                                <th>Sesi 8</th>
+                                <th>Hadir %</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-tbody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px;">
                     <button class="btn-submit" onclick="exportReportPDF()" style="background: #059669;">
                         <i class="fa-solid fa-file-pdf"></i> Unduh PDF
                     </button>
@@ -231,7 +235,6 @@
 
     </div>
 
-    <!-- MODAL: Tambah Siswa -->
     <div class="modal-overlay" id="modal-add-student">
         <div class="modal-box">
             <button onclick="closeModal('modal-add-student')" class="modal-close">&times;</button>
@@ -250,7 +253,6 @@
         </div>
     </div>
 
-    <!-- MODAL: Edit Kelas -->
     <div class="modal-overlay" id="modal-edit-class">
         <div class="modal-box">
             <button onclick="closeModal('modal-edit-class')" class="modal-close">&times;</button>
@@ -276,7 +278,7 @@
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let allClasses = [];
         let allStudents = [];
@@ -292,6 +294,11 @@
             await loadTeachers();
             await loadClasses();
             await loadStudents();
+
+            // Set current month automatically
+            const today = new Date();
+            const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('laporan-month').value = currentMonth;
         })();
 
         // --- TAB NAVIGATION ---
@@ -360,8 +367,7 @@
             allClasses.forEach(cls => {
                 const teacher = allTeachers.find(t => t.id === cls.teacherId);
                 const studentCount = cls.students ? cls.students.length : 0;
-                const statusClass = cls.status === 'active' ? 'green' : 'gray';
-
+                
                 list.innerHTML += `
                     <div class="class-card">
                         <div class="class-header">
@@ -497,7 +503,7 @@
             document.getElementById(id).classList.remove('active');
         };
 
-        // --- LAPORAN BULANAN ---
+        // --- LAPORAN BULANAN (8 SESI) ---
         function loadLaporanDropdown() {
             const select = document.getElementById('laporan-class');
             select.innerHTML = '<option value="">-- Pilih Kelas --</option>';
@@ -519,25 +525,46 @@
                 const cls = allClasses.find(c => c.id === classId);
                 const studentIds = cls.students || [];
                 
-                const q = query(collection(db, 'dailyAttendance'), where('classId', '==', classId));
+                // Get attendance records ordered by date for this class
+                const q = query(collection(db, 'dailyAttendance'), where('classId', '==', classId), orderBy('date', 'asc'));
                 const snap = await getDocs(q);
 
-                const attendanceMap = {};
+                const attendanceMap = {}; // Format: { uid: { session1: {status, date}, session2: ... } }
+                
+                let sessionCount = 0;
+
                 snap.forEach(d => {
                     const data = d.data();
-                    const date = new Date(data.date.toDate());
-                    const month = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                    const fbDate = data.date ? data.date.toDate() : new Date();
+                    const recordMonth = fbDate.getFullYear() + '-' + String(fbDate.getMonth() + 1).padStart(2, '0');
                     
-                    if(month === monthStr) {
-                        const week = Math.ceil(date.getDate() / 7);
-                        Object.entries(data.presensi || {}).forEach(([uid, status]) => {
-                            if(!attendanceMap[uid]) attendanceMap[uid] = { hadir: 0, izin: 0, absen: 0 };
-                            if(!attendanceMap[uid][`week${week}`]) attendanceMap[uid][`week${week}`] = null;
-                            attendanceMap[uid][`week${week}`] = status;
-                            if(status === 'Hadir') attendanceMap[uid].hadir++;
-                            else if(status === 'Izin') attendanceMap[uid].izin++;
-                            else if(status === 'Absen') attendanceMap[uid].absen++;
-                        });
+                    if(recordMonth === monthStr) {
+                        sessionCount++; // Increment for each session found in this month
+                        
+                        // Limit to 8 sessions per month display
+                        if (sessionCount <= 8) {
+                            const dateString = fbDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+                            
+                            Object.entries(data.presensi || {}).forEach(([uid, status]) => {
+                                if(!attendanceMap[uid]) {
+                                    attendanceMap[uid] = { totalHadir: 0, totalValidSessions: 0 };
+                                }
+                                
+                                // Treat "Bimbingan X" as Hadir for calculation
+                                let calcStatus = status;
+                                if (status && status.includes('Bimbingan')) {
+                                    calcStatus = 'Hadir';
+                                }
+
+                                attendanceMap[uid][`session${sessionCount}`] = {
+                                    status: status,
+                                    date: dateString
+                                };
+                                
+                                attendanceMap[uid].totalValidSessions++;
+                                if(calcStatus === 'Hadir') attendanceMap[uid].totalHadir++;
+                            });
+                        }
                     }
                 });
 
@@ -546,44 +573,61 @@
                 
                 studentIds.forEach(uid => {
                     const student = allStudents.find(s => s.id === uid);
-                    const att = attendanceMap[uid] || {};
-                    const totalSessions = (att.hadir || 0) + (att.izin || 0) + (att.absen || 0);
-                    const percentage = totalSessions > 0 ? Math.round((att.hadir || 0) / totalSessions * 100) : 0;
-                    const status = percentage >= 60 ? '<span style="color:green; font-weight:700;">✅ Lulus</span>' : '<span style="color:red; font-weight:700;">❌ Gagal</span>';
+                    const att = attendanceMap[uid] || { totalHadir: 0, totalValidSessions: 0 };
+                    
+                    // Calculation percentage based ONLY on recorded sessions, not absolute 8.
+                    const percentage = att.totalValidSessions > 0 ? Math.round((att.totalHadir / att.totalValidSessions) * 100) : 0;
+                    const statusText = percentage >= 60 ? '<span style="color:green; font-weight:700;">✅ Lulus Ujian</span>' : '<span style="color:red; font-weight:700;">❌ Tidak Lulus</span>';
 
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${student?.name || 'Unknown'}</td>
-                            <td class="status-${att.week1 ? att.week1.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week1 ? att.week1.toLowerCase() : 'absen'}">${att.week1 || '-'}</span></td>
-                            <td class="status-${att.week2 ? att.week2.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week2 ? att.week2.toLowerCase() : 'absen'}">${att.week2 || '-'}</span></td>
-                            <td class="status-${att.week3 ? att.week3.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week3 ? att.week3.toLowerCase() : 'absen'}">${att.week3 || '-'}</span></td>
-                            <td class="status-${att.week4 ? att.week4.toLowerCase() : 'absen'}"><span class="status-badge status-${att.week4 ? att.week4.toLowerCase() : 'absen'}">${att.week4 || '-'}</span></td>
+                    let rowHTML = `<tr><td><strong>${student?.name || 'Unknown'}</strong></td>`;
+                    
+                    // Generate 8 Columns
+                    for (let i = 1; i <= 8; i++) {
+                        const sessionData = att[`session${i}`];
+                        if (sessionData) {
+                            let badgeClass = 'status-absen';
+                            if (sessionData.status === 'Hadir') badgeClass = 'status-hadir';
+                            else if (sessionData.status === 'Izin') badgeClass = 'status-izin';
+                            else if (sessionData.status.includes('Bimbingan')) badgeClass = 'status-bimbingan';
+
+                            rowHTML += `
+                                <td>
+                                    <span class="status-badge ${badgeClass}">${sessionData.status}</span>
+                                    <span class="session-date">${sessionData.date}</span>
+                                </td>
+                            `;
+                        } else {
+                            rowHTML += `<td><span style="color:#cbd5e1;">-</span></td>`;
+                        }
+                    }
+
+                    rowHTML += `
                             <td class="${percentage >= 60 ? 'percentage-high' : 'percentage-low'}">${percentage}%</td>
-                            <td>${status}</td>
+                            <td>${statusText}</td>
                         </tr>
                     `;
+                    tbody.innerHTML += rowHTML;
                 });
 
                 document.getElementById('report-container').style.display = 'block';
             } catch(e) {
                 console.error(e);
-                Swal.fire('Error', 'Gagal memuat laporan.', 'error');
+                Swal.fire('Error', 'Gagal memuat laporan. Pastikan Index Firebase sudah dibuat.', 'error');
             }
         };
 
         window.exportReportPDF = () => {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+            const doc = new jsPDF('landscape'); // Landscape to fit 8 columns
             
             doc.setFontSize(14);
-            doc.text('LAPORAN PRESENSI BULANAN', 105, 15, { align: 'center' });
+            doc.text('LAPORAN PRESENSI BULANAN (8 SESI)', 148, 15, { align: 'center' });
             doc.setFontSize(10);
             doc.text(`Kelas: ${document.getElementById('laporan-class').options[document.getElementById('laporan-class').selectedIndex].text}`, 15, 25);
             doc.text(`Bulan: ${document.getElementById('laporan-month').value}`, 15, 32);
 
-            const table = document.getElementById('report-table');
             doc.autoTable({ html: '#report-table', startY: 40, headStyles: { fillColor: [0, 51, 102] } });
-            doc.save('Laporan_Presensi.pdf');
+            doc.save('Laporan_Presensi_Bulanan.pdf');
         };
 
         window.printReport = () => {
