@@ -141,7 +141,7 @@
         <div class="nav-tabs">
             <button class="tab-btn active" onclick="switchTab('setup')"><i class="fa-solid fa-plus-circle"></i> Buat Kelas</button>
             <button class="tab-btn" onclick="switchTab('kelola')"><i class="fa-solid fa-list-check"></i> Kelola Kelas</button>
-            <button class="tab-btn" onclick="switchTab('laporan')"><i class="fa-solid fa-chart-bar"></i> Laporan Bulanan</button>
+            <button class="tab-btn" onclick="switchTab('laporan')"><i class="fa-solid fa-chart-bar"></i> Laporan Semester</button>
         </div>
 
         <div id="tab-setup" class="admin-card">
@@ -186,19 +186,14 @@
         </div>
 
         <div id="tab-laporan" class="admin-card" style="display: none;">
-            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi (8 Sesi)</h2>
+            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi Semester (8 Sesi)</h2>
             
-            <div class="form-grid" style="margin-bottom: 25px;">
-                <div class="form-group">
-                    <label class="form-label">Pilih Kelas</label>
-                    <select id="laporan-class" class="form-select" onchange="generateReportPreview()">
-                        <option value="">-- Pilih Kelas --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Bulan / Tahun Laporan</label>
-                    <input type="month" id="laporan-month" class="form-input" onchange="generateReportPreview()">
-                </div>
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label class="form-label">Tarik Laporan Berdasarkan Kelas</label>
+                <select id="laporan-class" class="form-select" onchange="generateReportPreview()">
+                    <option value="">-- Pilih Kelas --</option>
+                </select>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 6px;">*Menampilkan seluruh rekam jejak presensi kelas ini sejak awal kelas dibuat (maks. 8 sesi).</p>
             </div>
 
             <div id="report-container" style="display: none;">
@@ -294,11 +289,6 @@
             await loadTeachers();
             await loadClasses();
             await loadStudents();
-
-            // Set current month automatically
-            const today = new Date();
-            const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-            document.getElementById('laporan-month').value = currentMonth;
         })();
 
         // --- TAB NAVIGATION ---
@@ -503,7 +493,7 @@
             document.getElementById(id).classList.remove('active');
         };
 
-        // --- LAPORAN BULANAN (8 SESI) ---
+        // --- LAPORAN SEMESTER (8 SESI) ---
         function loadLaporanDropdown() {
             const select = document.getElementById('laporan-class');
             select.innerHTML = '<option value="">-- Pilih Kelas --</option>';
@@ -514,18 +504,21 @@
 
         window.generateReportPreview = async () => {
             const classId = document.getElementById('laporan-class').value;
-            const monthStr = document.getElementById('laporan-month').value;
 
-            if(!classId || !monthStr) {
+            if(!classId) {
                 document.getElementById('report-container').style.display = 'none';
                 return;
             }
+
+            // Tampilkan loading state manual di tabel
+            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Menarik data presensi...</td></tr>';
+            document.getElementById('report-container').style.display = 'block';
 
             try {
                 const cls = allClasses.find(c => c.id === classId);
                 const studentIds = cls.students || [];
                 
-                // Get attendance records ordered by date for this class
+                // Get all attendance records for this class, ordered from oldest to newest
                 const q = query(collection(db, 'dailyAttendance'), where('classId', '==', classId), orderBy('date', 'asc'));
                 const snap = await getDocs(q);
 
@@ -536,41 +529,44 @@
                 snap.forEach(d => {
                     const data = d.data();
                     const fbDate = data.date ? data.date.toDate() : new Date();
-                    const recordMonth = fbDate.getFullYear() + '-' + String(fbDate.getMonth() + 1).padStart(2, '0');
                     
-                    if(recordMonth === monthStr) {
-                        sessionCount++; // Increment for each session found in this month
+                    // Increment urutan sesi terlepas dari bulan apapun
+                    sessionCount++; 
+                    
+                    // Limit to 8 sessions display (1 Semester)
+                    if (sessionCount <= 8) {
+                        const dateString = fbDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
                         
-                        // Limit to 8 sessions per month display
-                        if (sessionCount <= 8) {
-                            const dateString = fbDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+                        Object.entries(data.presensi || {}).forEach(([uid, status]) => {
+                            if(!attendanceMap[uid]) {
+                                attendanceMap[uid] = { totalHadir: 0, totalValidSessions: 0 };
+                            }
                             
-                            Object.entries(data.presensi || {}).forEach(([uid, status]) => {
-                                if(!attendanceMap[uid]) {
-                                    attendanceMap[uid] = { totalHadir: 0, totalValidSessions: 0 };
-                                }
-                                
-                                // Treat "Bimbingan X" as Hadir for calculation
-                                let calcStatus = status;
-                                if (status && status.includes('Bimbingan')) {
-                                    calcStatus = 'Hadir';
-                                }
+                            // Treat "Bimbingan X" as Hadir for calculation
+                            let calcStatus = status;
+                            if (status && status.includes('Bimbingan')) {
+                                calcStatus = 'Hadir';
+                            }
 
-                                attendanceMap[uid][`session${sessionCount}`] = {
-                                    status: status,
-                                    date: dateString
-                                };
-                                
-                                attendanceMap[uid].totalValidSessions++;
-                                if(calcStatus === 'Hadir') attendanceMap[uid].totalHadir++;
-                            });
-                        }
+                            attendanceMap[uid][`session${sessionCount}`] = {
+                                status: status,
+                                date: dateString
+                            };
+                            
+                            attendanceMap[uid].totalValidSessions++;
+                            if(calcStatus === 'Hadir') attendanceMap[uid].totalHadir++;
+                        });
                     }
                 });
 
                 const tbody = document.getElementById('report-tbody');
                 tbody.innerHTML = '';
                 
+                if (studentIds.length === 0) {
+                     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada siswa di kelas ini.</td></tr>';
+                     return;
+                }
+
                 studentIds.forEach(uid => {
                     const student = allStudents.find(s => s.id === uid);
                     const att = attendanceMap[uid] || { totalHadir: 0, totalValidSessions: 0 };
@@ -609,10 +605,10 @@
                     tbody.innerHTML += rowHTML;
                 });
 
-                document.getElementById('report-container').style.display = 'block';
             } catch(e) {
                 console.error(e);
                 Swal.fire('Error', 'Gagal memuat laporan. Pastikan Index Firebase sudah dibuat.', 'error');
+                document.getElementById('report-container').style.display = 'none';
             }
         };
 
@@ -621,13 +617,16 @@
             const doc = new jsPDF('landscape'); // Landscape to fit 8 columns
             
             doc.setFontSize(14);
-            doc.text('LAPORAN PRESENSI BULANAN (8 SESI)', 148, 15, { align: 'center' });
+            doc.text('LAPORAN PRESENSI KELAS (SEMESTER)', 148, 15, { align: 'center' });
             doc.setFontSize(10);
-            doc.text(`Kelas: ${document.getElementById('laporan-class').options[document.getElementById('laporan-class').selectedIndex].text}`, 15, 25);
-            doc.text(`Bulan: ${document.getElementById('laporan-month').value}`, 15, 32);
+            const className = document.getElementById('laporan-class').options[document.getElementById('laporan-class').selectedIndex].text;
+            doc.text(`Kelas: ${className}`, 15, 25);
+            
+            const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            doc.text(`Dicetak pada: ${today}`, 15, 32);
 
             doc.autoTable({ html: '#report-table', startY: 40, headStyles: { fillColor: [0, 51, 102] } });
-            doc.save('Laporan_Presensi_Bulanan.pdf');
+            doc.save(`Laporan_Presensi_${className.replace(/\s/g,'_')}.pdf`);
         };
 
         window.printReport = () => {
