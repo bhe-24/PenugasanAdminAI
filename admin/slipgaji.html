@@ -11,6 +11,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -23,12 +24,13 @@
     </script>
     <style>
         .tab-btn.active { background: #003366; color: white; }
-        .tab-btn { transition: all 0.2s; }
+        .tab-btn { transition: all 0.2s; cursor: pointer; }
         #preview-slip { display: none; }
         #preview-slip.show { display: block; }
         .step-circle.done { background: #10b981; color: white; }
         .step-circle.active { background: #003366; color: white; }
         .step-circle { background: #e5e7eb; color: #6b7280; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden">
@@ -42,1244 +44,286 @@
                 <p class="text-white/60 text-xs">Panel Administrasi Cendekia Aksara</p>
             </div>
         </div>
-        <a href="../index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs font-semibold transition"><i class="fa-solid fa-house"></i> Beranda</a>
+        <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs font-semibold transition"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </header>
 
     <!-- Tab Navigasi -->
     <div class="w-full max-w-6xl mx-auto px-4 pt-6">
         <div class="flex gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-gray-100 overflow-x-auto">
-            <button class="tab-btn active flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" data-tab="dashboard">
+            <button class="tab-btn active flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('dashboard')" id="tab-btn-dashboard">
                 <i class="fa-solid fa-chart-pie mr-1"></i> Ringkasan
             </button>
-            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" data-tab="daftar-pengajar">
+            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('pengajar')" id="tab-btn-pengajar">
                 <i class="fa-solid fa-users mr-1"></i> Daftar Pengajar
             </button>
-            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" data-tab="buat-slip">
-                <i class="fa-solid fa-file-circle-plus mr-1"></i> Buat Slip
-            </button>
-            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" data-tab="riwayat">
-                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat
+            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('riwayat')" id="tab-btn-riwayat">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat Slip
             </button>
         </div>
     </div>
 
     <main class="flex-1 w-full max-w-6xl mx-auto px-4 py-6">
 
-        <!-- ===================== TAB: DASHBOARD ===================== -->
+        <!-- TAB: DASHBOARD -->
         <div id="tab-dashboard" class="tab-content space-y-6">
-            
-            <!-- Statistik -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-users text-2xl text-primary mb-2"></i>
-                    <p class="text-2xl font-bold font-serif text-primary" id="stat-total-pengajar">-</p>
+                    <p class="text-2xl font-bold font-serif text-primary" id="stat-pengajar">0</p>
                     <p class="text-xs text-gray-500 font-medium mt-1">Total Pengajar</p>
                 </div>
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-money-bill-wave text-2xl text-emerald-500 mb-2"></i>
-                    <p class="text-2xl font-bold font-serif text-emerald-600" id="stat-total-honor">-</p>
-                    <p class="text-xs text-gray-500 font-medium mt-1">Total Honor Terkumpul</p>
+                    <p class="text-2xl font-bold font-serif text-emerald-600" id="stat-honor">Rp 0</p>
+                    <p class="text-xs text-gray-500 font-medium mt-1">Total Honor</p>
                 </div>
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-file-invoice-dollar text-2xl text-accent mb-2"></i>
-                    <p class="text-2xl font-bold font-serif text-yellow-600" id="stat-total-slip">-</p>
+                    <p class="text-2xl font-bold font-serif text-yellow-600" id="stat-slip">0</p>
                     <p class="text-xs text-gray-500 font-medium mt-1">Slip Diterbitkan</p>
                 </div>
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-hourglass-half text-2xl text-orange-400 mb-2"></i>
-                    <p class="text-2xl font-bold font-serif text-orange-500" id="stat-pending">-</p>
-                    <p class="text-xs text-gray-500 font-medium mt-1">Menunggu Transfer</p>
+                    <p class="text-2xl font-bold font-serif text-orange-500" id="stat-pending">0</p>
+                    <p class="text-xs text-gray-500 font-medium mt-1">Pending Transfer</p>
                 </div>
             </div>
 
-            <!-- Pengajar Belum Cair -->
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <h3 class="font-serif text-lg text-primary font-bold mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-bell text-orange-400"></i> Pengajar Dengan Saldo Belum Dicairkan
+                    <i class="fa-solid fa-bell text-orange-400"></i> Pengajar Dengan Saldo Menunggu Cair
                 </h3>
-                <div id="list-belum-cair" class="space-y-3">
-                    <div class="flex items-center gap-2 text-gray-400 py-4 justify-center"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
-                </div>
+                <div id="belum-cair-list" class="space-y-3"></div>
             </div>
-
         </div>
 
-        <!-- ===================== TAB: DAFTAR PENGAJAR ===================== -->
-        <div id="tab-daftar-pengajar" class="tab-content hidden space-y-4">
-            
-            <div class="flex items-center gap-3 mb-2">
+        <!-- TAB: DAFTAR PENGAJAR -->
+        <div id="tab-pengajar" class="tab-content hidden space-y-4">
+            <div class="flex items-center gap-3 mb-4">
                 <input type="text" id="search-pengajar" placeholder="Cari nama pengajar..." class="flex-1 p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-primaryLight outline-none">
                 <button onclick="loadDaftarPengajar()" class="bg-primary text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-primaryLight transition">
                     <i class="fa-solid fa-rotate"></i>
                 </button>
             </div>
-
-            <div id="list-pengajar" class="space-y-3">
-                <div class="flex items-center gap-2 text-gray-400 py-4 justify-center"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data pengajar...</div>
-            </div>
+            <div id="pengajar-list" class="space-y-3"></div>
         </div>
 
-        <!-- ===================== TAB: BUAT SLIP ===================== -->
-        <div id="tab-buat-slip" class="tab-content hidden">
-
-            <!-- Progress Steps -->
-            <div class="flex items-center justify-center gap-2 mb-8 overflow-x-auto py-2">
-                <div class="flex items-center gap-2" id="step-indicator">
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="step-circle active w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm" id="step-circle-1">1</div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap">Pilih Pengajar</span>
-                    </div>
-                    <div class="w-8 h-0.5 bg-gray-300 mb-4" id="step-line-1"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm" id="step-circle-2">2</div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap">Verifikasi Sesi</span>
-                    </div>
-                    <div class="w-8 h-0.5 bg-gray-300 mb-4" id="step-line-2"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm" id="step-circle-3">3</div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap">Atur Nominal</span>
-                    </div>
-                    <div class="w-8 h-0.5 bg-gray-300 mb-4" id="step-line-3"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm" id="step-circle-4">4</div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap">Upload Bukti</span>
-                    </div>
-                    <div class="w-8 h-0.5 bg-gray-300 mb-4" id="step-line-4"></div>
-                    <div class="flex flex-col items-center gap-1">
-                        <div class="step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm" id="step-circle-5">5</div>
-                        <span class="text-xs text-gray-500 whitespace-nowrap">Kirim Slip</span>
-                    </div>
+        <!-- TAB: RIWAYAT -->
+        <div id="tab-riwayat" class="tab-content hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-serif text-lg text-primary font-bold mb-4 border-b pb-2">Riwayat Slip Gaji</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="p-3 text-left">Pengajar</th>
+                                <th class="p-3 text-left">Periode</th>
+                                <th class="p-3 text-center">Sesi</th>
+                                <th class="p-3 text-right">Nominal</th>
+                                <th class="p-3 text-center">Status</th>
+                                <th class="p-3 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riwayat-list" class="divide-y"></tbody>
+                    </table>
                 </div>
-            </div>
-
-            <!-- STEP 1: Pilih Pengajar -->
-            <div id="step-1" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
-                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2"><i class="fa-solid fa-user-plus mr-2 text-accent"></i>Langkah 1: Pilih Pengajar</h3>
-                <div class="relative">
-                    <input type="text" id="search-pengajar-slip" placeholder="Ketik nama pengajar untuk mencari..." 
-                        class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none text-sm" autocomplete="off">
-                    <div id="dropdown-pengajar" class="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 hidden max-h-60 overflow-y-auto"></div>
-                </div>
-                <div id="pengajar-terpilih" class="hidden p-4 bg-primary/5 border border-primary/20 rounded-xl">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold text-lg" id="avatar-initial">?</div>
-                        <div>
-                            <p class="font-bold text-primary" id="nama-terpilih">-</p>
-                            <p class="text-xs text-gray-500" id="uid-terpilih">UID: -</p>
-                            <p class="text-xs text-gray-500" id="mapel-terpilih">-</p>
-                        </div>
-                        <div class="ml-auto text-right">
-                            <p class="text-xs text-gray-400">Saldo Terkumpul</p>
-                            <p class="font-bold text-emerald-600 text-lg" id="saldo-terpilih">Rp 0</p>
-                        </div>
-                    </div>
-                </div>
-                <button id="btn-step1-next" onclick="goStep(2)" class="hidden w-full bg-primary hover:bg-primaryLight text-white font-semibold py-3 rounded-xl transition">
-                    Lanjut: Verifikasi Sesi <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
-            </div>
-
-            <!-- STEP 2: Verifikasi Sesi -->
-            <div id="step-2" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4 mt-4">
-                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2"><i class="fa-solid fa-clipboard-check mr-2 text-accent"></i>Langkah 2: Verifikasi Sesi Mengajar</h3>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="p-4 bg-blue-50 rounded-xl text-center border border-blue-200">
-                        <p class="text-xs text-blue-500 font-medium">Total Sesi Tercatat</p>
-                        <p class="text-2xl font-bold text-blue-700" id="sesi-tercatat">0</p>
-                        <p class="text-xs text-blue-400">dari presensi</p>
-                    </div>
-                    <div class="p-4 bg-emerald-50 rounded-xl text-center border border-emerald-200">
-                        <p class="text-xs text-emerald-500 font-medium">Saldo Honor</p>
-                        <p class="text-xl font-bold text-emerald-700" id="saldo-step2">Rp 0</p>
-                        <p class="text-xs text-emerald-400">@Rp5.000/sesi</p>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <label class="text-sm font-bold text-gray-700">Jumlah Sesi yang Diakui Admin</label>
-                    <div class="flex gap-3">
-                        <input type="number" id="sesi-diakui" min="0" class="flex-1 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none text-sm" placeholder="Jumlah sesi yang diverifikasi">
-                        <button onclick="hitungHonor()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-xl font-semibold text-sm transition">Hitung</button>
-                    </div>
-                    <p class="text-xs text-gray-400">Admin berhak menyesuaikan jumlah sesi berdasarkan dokumen pendukung.</p>
-                </div>
-
-                <div id="hasil-hitung" class="hidden p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <p class="text-sm font-bold text-emerald-800">Hasil Kalkulasi Honor:</p>
-                    <p class="text-2xl font-bold text-emerald-600 mt-1" id="hasil-nominal">Rp 0</p>
-                </div>
-
-                <!-- Pernyataan Admin -->
-                <div class="space-y-2 pt-2 border-t">
-                    <p class="text-sm font-bold text-gray-700">Pernyataan Verifikasi Admin</p>
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="pernyataan-1" class="mt-1 accent-primary">
-                        <span class="text-xs text-gray-600">Saya telah memverifikasi data kehadiran mengajar pengajar ini berdasarkan laporan presensi yang tersimpan di sistem.</span>
-                    </label>
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="pernyataan-2" class="mt-1 accent-primary">
-                        <span class="text-xs text-gray-600">Jumlah sesi yang saya masukkan telah sesuai dengan aktivitas aktual pengajar dan dapat dipertanggungjawabkan.</span>
-                    </label>
-                    <label class="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" id="pernyataan-3" class="mt-1 accent-primary">
-                        <span class="text-xs text-gray-600">Saya bertanggung jawab atas keputusan nominal yang akan dicairkan kepada pengajar yang bersangkutan.</span>
-                    </label>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="goStep(1)" class="flex-1 border border-gray-300 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-50 transition text-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> Kembali
-                    </button>
-                    <button id="btn-step2-next" onclick="goStep(3)" class="flex-1 bg-primary hover:bg-primaryLight text-white font-semibold py-3 rounded-xl transition text-sm">
-                        Lanjut: Atur Nominal <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 3: Atur Nominal (Bonus/Potongan) -->
-            <div id="step-3" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4 mt-4">
-                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2"><i class="fa-solid fa-sliders mr-2 text-accent"></i>Langkah 3: Atur Nominal Akhir</h3>
-                
-                <!-- Bonus -->
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-bold text-gray-700">Bonus Tambahan</p>
-                        <button onclick="tambahItem('bonus')" class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-200 transition">
-                            <i class="fa-solid fa-plus"></i> Tambah
-                        </button>
-                    </div>
-                    <div id="list-bonus" class="space-y-2"></div>
-                </div>
-
-                <!-- Potongan -->
-                <div class="space-y-3 pt-3 border-t">
-                    <div class="flex items-center justify-between">
-                        <p class="text-sm font-bold text-gray-700">Potongan</p>
-                        <button onclick="tambahItem('potongan')" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg font-semibold hover:bg-red-200 transition">
-                            <i class="fa-solid fa-plus"></i> Tambah
-                        </button>
-                    </div>
-                    <div id="list-potongan" class="space-y-2"></div>
-                </div>
-
-                <!-- Rekap Final -->
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Honor Dasar</span>
-                        <span class="font-semibold" id="rekap-dasar">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-emerald-600">+ Bonus</span>
-                        <span class="font-semibold text-emerald-600" id="rekap-bonus">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-red-500">- Potongan</span>
-                        <span class="font-semibold text-red-500" id="rekap-potongan">Rp 0</span>
-                    </div>
-                    <div class="flex justify-between text-base font-bold border-t pt-2 mt-1">
-                        <span class="text-primary">Total Bersih</span>
-                        <span class="text-primary text-lg" id="rekap-bersih">Rp 0</span>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <label class="text-sm font-bold text-gray-700">Label Periode Slip</label>
-                    <input type="text" id="periode-label" class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none" placeholder="Contoh: Periode Mei 2026 / Minggu 1-4 Juni 2026">
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="goStep(2)" class="flex-1 border border-gray-300 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-50 transition text-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> Kembali
-                    </button>
-                    <button onclick="goStep(4)" class="flex-1 bg-primary hover:bg-primaryLight text-white font-semibold py-3 rounded-xl transition text-sm">
-                        Lanjut: Upload Bukti <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 4: Upload Bukti Transfer -->
-            <div id="step-4" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4 mt-4">
-                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2"><i class="fa-solid fa-receipt mr-2 text-accent"></i>Langkah 4: Upload Bukti Transfer</h3>
-                <p class="text-xs text-gray-500">Upload foto/screenshot bukti transfer bank atau e-wallet. Bukti ini akan dilampirkan dalam slip gaji resmi.</p>
-                
-                <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary transition cursor-pointer" onclick="document.getElementById('input-bukti').click()">
-                    <input type="file" id="input-bukti" accept="image/*" class="hidden" onchange="previewBukti(event)">
-                    <div id="bukti-placeholder">
-                        <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-300 mb-3"></i>
-                        <p class="text-sm text-gray-500 font-medium">Klik atau drag untuk upload bukti transfer</p>
-                        <p class="text-xs text-gray-400 mt-1">JPG, PNG, WEBP maks. 5MB</p>
-                    </div>
-                    <img id="bukti-preview" class="hidden max-h-48 mx-auto rounded-lg shadow" src="" alt="Preview">
-                </div>
-
-                <div id="info-rekening-pengajar" class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p class="text-sm font-bold text-blue-800 mb-2"><i class="fa-solid fa-building-columns mr-1"></i> Rekening Tujuan Transfer</p>
-                    <div class="text-xs text-blue-700 space-y-1">
-                        <p>Bank / E-Wallet: <strong id="rek-bank-display">-</strong></p>
-                        <p>No. Rekening: <strong id="rek-nomor-display">-</strong></p>
-                        <p>Atas Nama: <strong id="rek-nama-display">-</strong></p>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-sm font-bold text-gray-700">Catatan Transfer (opsional)</label>
-                    <textarea id="catatan-transfer" rows="2" class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-sm focus:bg-white focus:ring-2 focus:ring-primaryLight outline-none resize-none" placeholder="Contoh: Transfer via BCA Mobile 19 Mei 2026..."></textarea>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="goStep(3)" class="flex-1 border border-gray-300 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-50 transition text-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> Kembali
-                    </button>
-                    <button onclick="goStep(5)" class="flex-1 bg-primary hover:bg-primaryLight text-white font-semibold py-3 rounded-xl transition text-sm">
-                        Lanjut: Preview & Kirim <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- STEP 5: Preview & Kirim -->
-            <div id="step-5" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4 mt-4">
-                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2"><i class="fa-solid fa-paper-plane mr-2 text-accent"></i>Langkah 5: Preview & Kirim Slip</h3>
-
-                <!-- Preview Card -->
-                <div class="border-2 border-primary/20 rounded-2xl overflow-hidden">
-                    <div class="bg-gradient-to-r from-primary to-[#001f3f] p-4 text-white text-center">
-                        <p class="font-serif text-lg font-bold">SLIP HONORARIUM RESMI</p>
-                        <p class="text-xs opacity-75">Cendekia Aksara</p>
-                    </div>
-                    <div class="p-4 space-y-3">
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                                <p class="text-gray-400">Pengajar</p>
-                                <p class="font-bold text-sm" id="prev-nama">-</p>
-                                <p class="text-gray-400 text-xs mt-0.5" id="prev-uid">-</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-400">Periode</p>
-                                <p class="font-bold text-sm" id="prev-periode">-</p>
-                            </div>
-                        </div>
-                        <div class="border-t pt-3 grid grid-cols-3 gap-2 text-center">
-                            <div>
-                                <p class="text-xs text-gray-400">Sesi Diakui</p>
-                                <p class="font-bold text-primary" id="prev-sesi">0</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-400">Bonus</p>
-                                <p class="font-bold text-emerald-600" id="prev-bonus">Rp 0</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-400">Potongan</p>
-                                <p class="font-bold text-red-500" id="prev-potongan">Rp 0</p>
-                            </div>
-                        </div>
-                        <div class="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
-                            <p class="text-xs text-gray-400 mb-1">Total Honorarium Bersih</p>
-                            <p class="text-2xl font-bold font-serif text-primary" id="prev-total">Rp 0</p>
-                        </div>
-                        <div class="text-xs text-gray-500 border-t pt-3 space-y-1">
-                            <p>Rekening: <strong id="prev-rek">-</strong></p>
-                            <p>No: <strong id="prev-norek">-</strong></p>
-                            <p>Status: <span class="bg-yellow-100 text-yellow-700 font-bold px-2 py-0.5 rounded-full">Menunggu Transfer</span></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex flex-col gap-3">
-                    <button onclick="downloadPreviewPDF()" class="w-full border-2 border-primary text-primary font-semibold py-3 rounded-xl hover:bg-primary hover:text-white transition text-sm">
-                        <i class="fa-solid fa-file-pdf mr-2"></i> Download Preview PDF
-                    </button>
-                    <button onclick="kirimSlipGaji()" id="btn-kirim" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">
-                        <i class="fa-solid fa-paper-plane mr-2"></i> Simpan & Kirim Slip ke Pengajar
-                    </button>
-                    <button onclick="goStep(4)" class="w-full border border-gray-300 text-gray-500 font-semibold py-2 rounded-xl hover:bg-gray-50 transition text-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> Kembali
-                    </button>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- ===================== TAB: RIWAYAT ===================== -->
-        <div id="tab-riwayat" class="tab-content hidden space-y-4">
-            
-            <div class="flex items-center gap-3 mb-2">
-                <select id="filter-status" class="flex-1 p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-primaryLight outline-none">
-                    <option value="">Semua Status</option>
-                    <option value="diterbitkan">Diterbitkan</option>
-                    <option value="diproses">Diproses</option>
-                    <option value="lunas">Lunas</option>
-                </select>
-                <button onclick="loadRiwayatSlip()" class="bg-primary text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-primaryLight transition">
-                    <i class="fa-solid fa-filter"></i>
-                </button>
-            </div>
-
-            <div id="list-riwayat" class="space-y-3">
-                <div class="flex items-center gap-2 text-gray-400 py-8 justify-center"><i class="fa-solid fa-spinner fa-spin"></i> Memuat riwayat...</div>
             </div>
         </div>
-
     </main>
-
-    <footer class="bg-primary text-white text-center py-4 text-xs font-semibold mt-auto border-t border-accent">
-        <p>&copy; 2026 Cendekia Aksara. Panel Administrasi — Hak Cipta Dilindungi.</p>
-    </footer>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/95 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center">
-        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary"></i>
-        <h3 class="text-primary font-bold mt-4" id="loading-text">Memuat Panel Admin...</h3>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import {
-            getFirestore, doc, getDoc, getDocs, updateDoc, setDoc, addDoc,
-            collection, query, where, orderBy, serverTimestamp, Timestamp
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getFirestore, doc, getDoc, collection, query, getDocs, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-            authDomain: "mading-cf676.firebaseapp.com", 
-            projectId: "mading-cf676", 
-            storageBucket: "mading-cf676.firebasestorage.app", 
-            messagingSenderId: "72175203671", 
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+            authDomain: "mading-cf676.firebaseapp.com",
+            projectId: "mading-cf676",
+            storageBucket: "mading-cf676.firebasestorage.app",
+            messagingSenderId: "72175203671",
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
-        const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
-
-        // State global
-        let adminUser = null;
+        const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
         let allPengajar = [];
-        let selectedPengajar = null;
-        let slipData = {
-            sesiDiakui: 0,
-            honorDasar: 0,
-            bonusItems: [],
-            potonganItems: [],
-            nominalBersih: 0,
-            periodeLabel: '',
-            buktiFotoBase64: null,
-            catatanTransfer: ''
-        };
 
-        // =================== AUTH ===================
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'superadmin')) {
-                    adminUser = { uid: user.uid, ...userDoc.data() };
-                    await loadDashboard();
-                    await loadDaftarPengajar();
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                } else {
-                    window.location.href = '../index.html';
-                }
-            } else {
-                window.location.href = '../index.html';
-            }
-        });
-
-        // =================== DASHBOARD ===================
-        async function loadDashboard() {
-            try {
-                const q = query(collection(db, 'users'), where('role', '==', 'pengajar'));
-                const snaps = await getDocs(q);
-                let totalHonor = 0;
-                allPengajar = [];
-                snaps.forEach(d => {
-                    const data = d.data();
-                    allPengajar.push({ id: d.id, ...data });
-                    totalHonor += (data.salary || 0);
-                });
-
-                document.getElementById('stat-total-pengajar').innerText = allPengajar.length;
-                document.getElementById('stat-total-honor').innerText = fmt(totalHonor);
-
-                // Slip stats
-                const slipSnaps = await getDocs(collection(db, 'slipGaji'));
-                let pending = 0;
-                slipSnaps.forEach(d => {
-                    if (d.data().status !== 'lunas') pending++;
-                });
-                document.getElementById('stat-total-slip').innerText = slipSnaps.size;
-                document.getElementById('stat-pending').innerText = pending;
-
-                // Pengajar belum cair
-                const listBelumCair = document.getElementById('list-belum-cair');
-                const belumCair = allPengajar.filter(p => {
-                    const saldo = (p.salary || 0) - (p.salaryDisbursed || 0);
-                    return saldo > 0;
-                }).sort((a, b) => ((b.salary || 0) - (b.salaryDisbursed || 0)) - ((a.salary || 0) - (a.salaryDisbursed || 0)));
-
-                if (belumCair.length === 0) {
-                    listBelumCair.innerHTML = '<p class="text-center text-gray-400 py-4 text-sm">Semua saldo telah dicairkan.</p>';
-                } else {
-                    listBelumCair.innerHTML = '';
-                    belumCair.slice(0, 5).forEach(p => {
-                        const sisa = (p.salary || 0) - (p.salaryDisbursed || 0);
-                        const el = document.createElement('div');
-                        el.className = 'flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-xl';
-                        el.innerHTML = `
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">${(p.nama || p.displayName || 'P')[0].toUpperCase()}</div>
-                                <div>
-                                    <p class="font-semibold text-sm">${p.nama || p.displayName || 'Pengajar'}</p>
-                                    <p class="text-xs text-gray-400">${p.mapel || p.mataPelajaran || '-'}</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="font-bold text-orange-600 text-sm">${fmt(sisa)}</p>
-                                <button onclick="pilihPengajarDanBuatSlip('${p.id}')" class="text-xs bg-primary text-white px-3 py-1 rounded-lg mt-1 hover:bg-primaryLight transition">Buat Slip</button>
-                            </div>
-                        `;
-                        listBelumCair.appendChild(el);
-                    });
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        window.loadDashboard = loadDashboard;
-
-        // =================== DAFTAR PENGAJAR ===================
-        window.loadDaftarPengajar = async function() {
-            const listEl = document.getElementById('list-pengajar');
-            listEl.innerHTML = '<div class="flex items-center gap-2 text-gray-400 py-4 justify-center"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+        window.switchTab = (tabName) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-btn-' + tabName).classList.add('active');
             
-            try {
-                const q = query(collection(db, 'users'), where('role', '==', 'pengajar'));
-                const snaps = await getDocs(q);
-                allPengajar = [];
-                snaps.forEach(d => allPengajar.push({ id: d.id, ...d.data() }));
-
-                renderDaftarPengajar(allPengajar);
-            } catch(e) {
-                listEl.innerHTML = `<p class="text-red-500 text-sm text-center py-4">${e.message}</p>`;
-            }
+            if (tabName === 'pengajar') loadDaftarPengajar();
+            if (tabName === 'riwayat') loadRiwayat();
         };
 
-        function renderDaftarPengajar(list) {
-            const listEl = document.getElementById('list-pengajar');
-            if (list.length === 0) {
-                listEl.innerHTML = '<p class="text-center text-gray-400 py-8">Tidak ada pengajar ditemukan.</p>';
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = '../index.html';
                 return;
             }
-            listEl.innerHTML = '';
-            list.forEach(p => {
-                const saldo = (p.salary || 0) - (p.salaryDisbursed || 0);
-                const sesi = p.totalSesi || Math.floor((p.salary || 0) / 5000);
-                const el = document.createElement('div');
-                el.className = 'bg-white border border-gray-100 rounded-2xl p-4 shadow-sm';
-                el.innerHTML = `
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primaryLight flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                ${(p.nama || p.displayName || 'P')[0].toUpperCase()}
-                            </div>
+
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            loadDashboard();
+        });
+
+        async function loadDashboard() {
+            try {
+                // Load semua pengajar
+                const pengajarSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'pengajar')));
+                allPengajar = pengajarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                document.getElementById('stat-pengajar').textContent = allPengajar.length;
+
+                let totalHonor = 0;
+                let totalSlip = 0;
+                let totalPending = 0;
+                const belumCairList = [];
+
+                for (const pengajar of allPengajar) {
+                    const salary = pengajar.salary || 0;
+                    const disbursed = pengajar.salaryDisbursed || 0;
+                    totalHonor += salary;
+
+                    if (disbursed < salary) {
+                        belumCairList.push({ ...pengajar, sisa: salary - disbursed });
+                    }
+                }
+
+                // Load slip
+                const slipSnap = await getDocs(collection(db, 'slipGaji'));
+                totalSlip = slipSnap.size;
+                slipSnap.forEach(doc => {
+                    if (doc.data().status !== 'lunas') totalPending++;
+                });
+
+                document.getElementById('stat-honor').textContent = fmt(totalHonor);
+                document.getElementById('stat-slip').textContent = totalSlip;
+                document.getElementById('stat-pending').textContent = totalPending;
+
+                // Render belum cair
+                const belumCairEl = document.getElementById('belum-cair-list');
+                if (belumCairList.length === 0) {
+                    belumCairEl.innerHTML = '<p class="text-center text-gray-400 py-4">Semua pengajar telah menerima pembayaran ✅</p>';
+                } else {
+                    belumCairEl.innerHTML = belumCairList.map(p => `
+                        <div class="p-4 bg-orange-50 border border-orange-200 rounded-xl flex justify-between items-center">
                             <div>
-                                <p class="font-bold text-primary">${p.nama || p.displayName || '-'}</p>
-                                <p class="text-xs text-gray-400">${p.email || '-'}</p>
-                                <p class="text-xs text-gray-400 mt-0.5">UID: <span class="font-mono bg-gray-100 px-1 rounded">${p.id.substring(0, 12)}...</span></p>
+                                <p class="font-bold text-primary">${p.name || p.nama || 'Pengajar'}</p>
+                                <p class="text-xs text-gray-500">${p.email || '-'}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-orange-600">${fmt(p.sisa)}</p>
+                                <p class="text-xs text-gray-500">Sisa menunggu</p>
                             </div>
                         </div>
-                        <div class="text-right flex-shrink-0">
-                            <p class="text-xs text-gray-400">Mapel</p>
-                            <p class="text-xs font-semibold text-gray-600">${p.mapel || p.mataPelajaran || '-'}</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100">
-                        <div class="text-center">
-                            <p class="text-xs text-gray-400">Total Sesi</p>
-                            <p class="font-bold text-sm text-gray-700">${sesi}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-400">Total Honor</p>
-                            <p class="font-bold text-sm text-emerald-600">${fmt(p.salary || 0)}</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-xs text-gray-400">Sisa Saldo</p>
-                            <p class="font-bold text-sm ${saldo > 0 ? 'text-orange-500' : 'text-gray-400'}">${fmt(saldo)}</p>
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 space-y-1">
-                        ${p.bankName ? `<p><i class="fa-solid fa-building-columns mr-1"></i>${p.bankName} &bull; ${p.bankAccount || '-'} &bull; ${p.bankOwner || '-'}</p>` : '<p class="text-red-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Rekening belum didaftarkan</p>'}
-                    </div>
-                    <button onclick="pilihPengajarDanBuatSlip('${p.id}')" class="mt-3 w-full bg-primary hover:bg-primaryLight text-white text-xs font-semibold py-2 rounded-xl transition">
-                        <i class="fa-solid fa-file-circle-plus mr-1"></i> Buat Slip Gaji
-                    </button>
-                `;
-                listEl.appendChild(el);
-            });
-        }
-
-        document.getElementById('search-pengajar').addEventListener('input', (e) => {
-            const q = e.target.value.toLowerCase();
-            const filtered = allPengajar.filter(p => 
-                (p.nama || p.displayName || '').toLowerCase().includes(q) ||
-                (p.email || '').toLowerCase().includes(q) ||
-                (p.mapel || p.mataPelajaran || '').toLowerCase().includes(q)
-            );
-            renderDaftarPengajar(filtered);
-        });
-
-        // =================== BUAT SLIP: PILIH PENGAJAR ===================
-        const searchInput = document.getElementById('search-pengajar-slip');
-        const dropdown = document.getElementById('dropdown-pengajar');
-
-        searchInput.addEventListener('input', () => {
-            const q = searchInput.value.toLowerCase();
-            if (q.length < 1) { dropdown.classList.add('hidden'); return; }
-            const results = allPengajar.filter(p =>
-                (p.nama || p.displayName || '').toLowerCase().includes(q) ||
-                (p.email || '').toLowerCase().includes(q)
-            );
-            if (results.length === 0) { dropdown.innerHTML = '<p class="p-3 text-sm text-gray-400">Tidak ditemukan</p>'; dropdown.classList.remove('hidden'); return; }
-            dropdown.innerHTML = '';
-            results.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0';
-                item.innerHTML = `
-                    <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        ${(p.nama || p.displayName || 'P')[0].toUpperCase()}
-                    </div>
-                    <div>
-                        <p class="font-semibold text-sm">${p.nama || p.displayName || '-'}</p>
-                        <p class="text-xs text-gray-400">${p.mapel || p.mataPelajaran || '-'}</p>
-                    </div>
-                    <span class="ml-auto text-xs font-bold text-emerald-600">${fmt((p.salary || 0) - (p.salaryDisbursed || 0))}</span>
-                `;
-                item.onclick = () => pilihPengajar(p);
-                dropdown.appendChild(item);
-            });
-            dropdown.classList.remove('hidden');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
-        function pilihPengajar(p) {
-            selectedPengajar = p;
-            dropdown.classList.add('hidden');
-            searchInput.value = p.nama || p.displayName || '';
-            
-            const saldo = (p.salary || 0) - (p.salaryDisbursed || 0);
-            document.getElementById('pengajar-terpilih').classList.remove('hidden');
-            document.getElementById('avatar-initial').innerText = (p.nama || p.displayName || 'P')[0].toUpperCase();
-            document.getElementById('nama-terpilih').innerText = p.nama || p.displayName || '-';
-            document.getElementById('uid-terpilih').innerText = 'UID: ' + p.id;
-            document.getElementById('mapel-terpilih').innerText = (p.mapel || p.mataPelajaran || '-') + ' • ' + (p.email || '-');
-            document.getElementById('saldo-terpilih').innerText = fmt(saldo);
-            document.getElementById('btn-step1-next').classList.remove('hidden');
-
-            // Prefill rekening
-            document.getElementById('rek-bank-display').innerText = p.bankName || '-';
-            document.getElementById('rek-nomor-display').innerText = p.bankAccount || '-';
-            document.getElementById('rek-nama-display').innerText = p.bankOwner || '-';
-        }
-
-        window.pilihPengajarDanBuatSlip = function(uid) {
-            const p = allPengajar.find(x => x.id === uid);
-            if (p) {
-                switchTab('buat-slip');
-                setTimeout(() => pilihPengajar(p), 100);
-            }
-        };
-
-        // =================== STEPS NAVIGASI ===================
-        window.goStep = function(n) {
-            if (n === 2 && !selectedPengajar) { Swal.fire('Pilih Pengajar', 'Silakan pilih pengajar terlebih dahulu.', 'warning'); return; }
-            if (n === 3) {
-                const p1 = document.getElementById('pernyataan-1').checked;
-                const p2 = document.getElementById('pernyataan-2').checked;
-                const p3 = document.getElementById('pernyataan-3').checked;
-                const sesi = parseInt(document.getElementById('sesi-diakui').value) || 0;
-                if (!p1 || !p2 || !p3) { Swal.fire('Pernyataan Belum Disetujui', 'Silakan centang semua pernyataan verifikasi.', 'warning'); return; }
-                if (sesi <= 0) { Swal.fire('Sesi Kosong', 'Masukkan jumlah sesi yang diakui.', 'warning'); return; }
-            }
-            if (n === 5) fillPreview();
-
-            // Update step 2 info
-            if (n === 2 && selectedPengajar) {
-                const sesi = selectedPengajar.totalSesi || Math.floor((selectedPengajar.salary || 0) / 5000);
-                document.getElementById('sesi-tercatat').innerText = sesi;
-                document.getElementById('saldo-step2').innerText = fmt(selectedPengajar.salary || 0);
-                document.getElementById('sesi-diakui').value = sesi;
-                hitungHonor();
-            }
-
-            for (let i = 1; i <= 5; i++) {
-                const el = document.getElementById('step-' + i);
-                if (el) {
-                    if (i === n) el.classList.remove('hidden');
-                    else if (i > n) el.classList.add('hidden');
+                    `).join('');
                 }
-                const circle = document.getElementById('step-circle-' + i);
-                if (circle) {
-                    circle.className = 'step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ' + (i < n ? 'done' : (i === n ? 'active' : ''));
-                }
-            }
-        };
-
-        window.hitungHonor = function() {
-            const sesi = parseInt(document.getElementById('sesi-diakui').value) || 0;
-            const nominal = sesi * 5000;
-            slipData.sesiDiakui = sesi;
-            slipData.honorDasar = nominal;
-            document.getElementById('hasil-hitung').classList.remove('hidden');
-            document.getElementById('hasil-nominal').innerText = fmt(nominal);
-            updateRekap();
-        };
-
-        // =================== BONUS & POTONGAN ===================
-        window.tambahItem = function(type) {
-            Swal.fire({
-                title: type === 'bonus' ? 'Tambah Bonus' : 'Tambah Potongan',
-                html: `
-                    <input id="swal-label" class="swal2-input" placeholder="Keterangan (cth: Bonus Prestasi)">
-                    <input id="swal-nominal" type="number" class="swal2-input" placeholder="Nominal (Rp)">
-                `,
-                confirmButtonText: 'Tambah',
-                showCancelButton: true,
-                preConfirm: () => {
-                    const label = document.getElementById('swal-label').value.trim();
-                    const nominal = parseInt(document.getElementById('swal-nominal').value) || 0;
-                    if (!label || nominal <= 0) { Swal.showValidationMessage('Isi keterangan dan nominal yang valid.'); return false; }
-                    return { label, nominal };
-                }
-            }).then(res => {
-                if (res.isConfirmed) {
-                    const item = res.value;
-                    if (type === 'bonus') slipData.bonusItems.push(item);
-                    else slipData.potonganItems.push(item);
-                    renderBonusPotongan();
-                    updateRekap();
-                }
-            });
-        };
-
-        function renderBonusPotongan() {
-            const bonusList = document.getElementById('list-bonus');
-            const potonganList = document.getElementById('list-potongan');
-            
-            bonusList.innerHTML = slipData.bonusItems.length === 0 
-                ? '<p class="text-xs text-gray-400 italic">Belum ada bonus</p>' 
-                : slipData.bonusItems.map((b, i) => `
-                    <div class="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-sm">
-                        <span class="text-gray-700">${b.label}</span>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-emerald-600">${fmt(b.nominal)}</span>
-                            <button onclick="hapusItem('bonus',${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>`).join('');
-
-            potonganList.innerHTML = slipData.potonganItems.length === 0 
-                ? '<p class="text-xs text-gray-400 italic">Belum ada potongan</p>' 
-                : slipData.potonganItems.map((p, i) => `
-                    <div class="flex items-center justify-between p-2.5 bg-red-50 border border-red-200 rounded-lg text-sm">
-                        <span class="text-gray-700">${p.label}</span>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-red-500">${fmt(p.nominal)}</span>
-                            <button onclick="hapusItem('potongan',${i})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>`).join('');
-        }
-
-        window.hapusItem = function(type, idx) {
-            if (type === 'bonus') slipData.bonusItems.splice(idx, 1);
-            else slipData.potonganItems.splice(idx, 1);
-            renderBonusPotongan();
-            updateRekap();
-        };
-
-        function updateRekap() {
-            const dasar = slipData.honorDasar;
-            const totalBonus = slipData.bonusItems.reduce((s, b) => s + b.nominal, 0);
-            const totalPotongan = slipData.potonganItems.reduce((s, p) => s + p.nominal, 0);
-            const bersih = dasar + totalBonus - totalPotongan;
-            slipData.nominalBersih = bersih;
-
-            document.getElementById('rekap-dasar').innerText = fmt(dasar);
-            document.getElementById('rekap-bonus').innerText = fmt(totalBonus);
-            document.getElementById('rekap-potongan').innerText = fmt(totalPotongan);
-            document.getElementById('rekap-bersih').innerText = fmt(bersih);
-        }
-
-        // =================== UPLOAD BUKTI ===================
-        window.previewBukti = function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                slipData.buktiFotoBase64 = ev.target.result;
-                document.getElementById('bukti-preview').src = ev.target.result;
-                document.getElementById('bukti-preview').classList.remove('hidden');
-                document.getElementById('bukti-placeholder').classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
-        };
-
-        // =================== PREVIEW ===================
-        function fillPreview() {
-            slipData.periodeLabel = document.getElementById('periode-label').value.trim() || 'Periode ' + new Date().toLocaleDateString('id-ID');
-            slipData.catatanTransfer = document.getElementById('catatan-transfer').value.trim();
-
-            const totalBonus = slipData.bonusItems.reduce((s, b) => s + b.nominal, 0);
-            const totalPotongan = slipData.potonganItems.reduce((s, p) => s + p.nominal, 0);
-
-            document.getElementById('prev-nama').innerText = selectedPengajar?.nama || selectedPengajar?.displayName || '-';
-            document.getElementById('prev-uid').innerText = 'UID: ' + (selectedPengajar?.id || '-');
-            document.getElementById('prev-periode').innerText = slipData.periodeLabel;
-            document.getElementById('prev-sesi').innerText = slipData.sesiDiakui + ' sesi';
-            document.getElementById('prev-bonus').innerText = fmt(totalBonus);
-            document.getElementById('prev-potongan').innerText = fmt(totalPotongan);
-            document.getElementById('prev-total').innerText = fmt(slipData.nominalBersih);
-            document.getElementById('prev-rek').innerText = (selectedPengajar?.bankName || '-');
-            document.getElementById('prev-norek').innerText = (selectedPengajar?.bankAccount || '-');
-        }
-
-        // =================== DOWNLOAD PREVIEW PDF ===================
-        window.downloadPreviewPDF = function() {
-            if (!selectedPengajar) return;
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            buildPDF(pdf);
-            pdf.save(`Preview_Slip_${selectedPengajar.nama || 'Pengajar'}_${slipData.periodeLabel || 'draft'}.pdf`);
-        };
-
-        function buildPDF(pdf) {
-            const p = selectedPengajar;
-            const slip = slipData;
-            const pageW = 210;
-            const margin = 15;
-            let y = margin;
-
-            // Header
-            pdf.setFillColor(0, 51, 102);
-            pdf.rect(0, 0, pageW, 40, 'F');
-            pdf.setFillColor(212, 175, 55);
-            pdf.rect(0, 40, pageW, 2, 'F');
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(20);
-            pdf.setTextColor(255, 255, 255);
-            pdf.text('CENDEKIA AKSARA', pageW / 2, 17, { align: 'center' });
-            pdf.setFontSize(9);
-            pdf.setFont('helvetica', 'normal');
-            pdf.text('Lembaga Pendidikan Unggulan — Yogyakarta', pageW / 2, 24, { align: 'center' });
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(212, 175, 55);
-            pdf.text('SLIP HONORARIUM RESMI', pageW / 2, 33, { align: 'center' });
-            y = 52;
-
-            // No Slip & Tanggal
-            const slipNo = 'SGA-' + Date.now();
-            const tgl = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date());
-            pdf.setFontSize(8);
-            pdf.setTextColor(120, 120, 120);
-            pdf.setFont('helvetica', 'normal');
-            pdf.text('No. Slip: ' + slipNo, margin, y);
-            pdf.text('Dicetak: ' + tgl, pageW - margin, y, { align: 'right' });
-            y += 6;
-            pdf.setDrawColor(220, 220, 220);
-            pdf.line(margin, y, pageW - margin, y);
-            y += 8;
-
-            // Data Pengajar
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(0, 51, 102);
-            pdf.text('A. DATA PENGAJAR', margin, y); y += 7;
-
-            const dataPengajar = [
-                ['Nama Lengkap', p.nama || p.displayName || '-'],
-                ['User ID', p.id || '-'],
-                ['Email', p.email || '-'],
-                ['Mata Pelajaran', p.mapel || p.mataPelajaran || '-'],
-                ['Status Kepegawaian', 'Pengajar Aktif'],
-            ];
-            dataPengajar.forEach(([l, v]) => {
-                pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(80, 80, 80);
-                pdf.text(l, margin, y);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(': ' + v, margin + 42, y);
-                y += 5.5;
-            });
-
-            y += 3; pdf.line(margin, y, pageW - margin, y); y += 7;
-
-            // Periode
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(0, 51, 102);
-            pdf.text('B. PERIODE PENCAIRAN', margin, y); y += 7;
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(60, 60, 60);
-            pdf.text(slip.periodeLabel || '-', margin, y); y += 10;
-
-            // Tabel Rincian
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(0, 51, 102);
-            pdf.text('C. RINCIAN HONORARIUM', margin, y); y += 6;
-
-            pdf.setFillColor(0, 51, 102);
-            pdf.rect(margin, y, pageW - margin * 2, 8, 'F');
-            pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5);
-            pdf.text('Komponen', margin + 2, y + 5.5);
-            pdf.text('Jml', 130, y + 5.5);
-            pdf.text('Satuan', 148, y + 5.5);
-            pdf.text('Nominal', pageW - margin - 2, y + 5.5, { align: 'right' });
-            y += 8;
-
-            const rows = [
-                ['Honor Mengajar per Sesi', slip.sesiDiakui, 'Rp 5.000', slip.honorDasar],
-                ...slip.bonusItems.map(b => [b.label, 1, fmt(b.nominal), b.nominal]),
-            ];
-            rows.forEach((row, i) => {
-                pdf.setFillColor(i % 2 === 0 ? 248 : 255, i % 2 === 0 ? 250 : 255, i % 2 === 0 ? 252 : 255);
-                pdf.rect(margin, y, pageW - margin * 2, 7, 'F');
-                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(40, 40, 40);
-                pdf.text(String(row[0]), margin + 2, y + 4.8);
-                pdf.text(String(row[1]), 130, y + 4.8);
-                pdf.text(String(row[2]), 148, y + 4.8);
-                pdf.text(fmt(row[3]), pageW - margin - 2, y + 4.8, { align: 'right' });
-                y += 7;
-            });
-
-            slip.potonganItems.forEach(pot => {
-                pdf.setFillColor(255, 245, 245);
-                pdf.rect(margin, y, pageW - margin * 2, 7, 'F');
-                pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(180, 0, 0);
-                pdf.text(pot.label, margin + 2, y + 4.8);
-                pdf.text('—', 130, y + 4.8); pdf.text('—', 148, y + 4.8);
-                pdf.text('— ' + fmt(pot.nominal), pageW - margin - 2, y + 4.8, { align: 'right' });
-                y += 7;
-            });
-
-            y += 2;
-            pdf.setFillColor(0, 51, 102);
-            pdf.rect(margin, y, pageW - margin * 2, 10, 'F');
-            pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10);
-            pdf.text('TOTAL HONORARIUM BERSIH', margin + 2, y + 6.5);
-            pdf.text(fmt(slip.nominalBersih), pageW - margin - 2, y + 6.5, { align: 'right' });
-            y += 15;
-
-            // Info Rekening
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(0, 51, 102);
-            pdf.text('D. INFORMASI REKENING', margin, y); y += 7;
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(60, 60, 60);
-            pdf.text(`Bank / E-Wallet : ${p.bankName || '-'}`, margin, y); y += 5.5;
-            pdf.text(`No. Rekening    : ${p.bankAccount || '-'}`, margin, y); y += 5.5;
-            pdf.text(`Atas Nama        : ${p.bankOwner || '-'}`, margin, y); y += 5.5;
-            pdf.text(`Catatan           : ${slip.catatanTransfer || '-'}`, margin, y); y += 10;
-
-            // Bukti Transfer
-            if (slip.buktiFotoBase64) {
-                try {
-                    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(0, 51, 102);
-                    pdf.text('E. BUKTI TRANSFER', margin, y); y += 6;
-                    pdf.addImage(slip.buktiFotoBase64, 'JPEG', margin, y, 80, 50);
-                    y += 55;
-                } catch(e) {}
-            }
-
-            // Admin & TTD
-            y = Math.max(y, 240);
-            pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.5);
-            pdf.line(margin, y, pageW - margin, y); y += 6;
-            
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(0, 51, 102);
-            pdf.text('Diterbitkan & Diverifikasi oleh:', pageW - margin - 55, y, { align: 'center' }); y += 5;
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(100, 100, 100);
-            pdf.text('Yogyakarta, ' + new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(new Date()), pageW - margin - 55, y, { align: 'center' }); y += 5;
-            pdf.text('Admin Cendekia Aksara', pageW - margin - 55, y, { align: 'center' }); y += 14;
-            pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(0, 51, 102);
-            pdf.text(adminUser?.nama || adminUser?.displayName || 'Admin Pusat', pageW - margin - 55, y, { align: 'center' });
-
-            // Footer
-            pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(150, 150, 150);
-            pdf.text('Dokumen ini diterbitkan secara resmi oleh sistem Cendekia Aksara. Sah tanpa tanda tangan basah.', pageW / 2, 287, { align: 'center' });
-        }
-
-        // =================== KIRIM SLIP ===================
-        window.kirimSlipGaji = async function() {
-            if (!selectedPengajar) return;
-            if (!slipData.sesiDiakui || slipData.sesiDiakui <= 0) { Swal.fire('Sesi kosong', 'Verifikasi sesi terlebih dahulu.', 'warning'); return; }
-
-            const confirmed = await Swal.fire({
-                title: 'Konfirmasi Pengiriman Slip',
-                html: `Anda akan mengirim slip gaji sebesar <strong>${fmt(slipData.nominalBersih)}</strong> kepada <strong>${selectedPengajar.nama || selectedPengajar.displayName}</strong>.<br><br>Tindakan ini tidak dapat dibatalkan.`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, Kirim Slip',
-                cancelButtonText: 'Batal',
-                confirmButtonColor: '#003366'
-            });
-
-            if (!confirmed.isConfirmed) return;
-
-            document.getElementById('loading-text').innerText = 'Menyimpan slip gaji...';
-            document.getElementById('loading-overlay').classList.remove('hidden');
-
-            try {
-                // Upload bukti foto ke Storage jika ada
-                let buktiFotoURL = null;
-                if (slipData.buktiFotoBase64) {
-                    try {
-                        const storageRef = ref(storage, `buktiBayar/${selectedPengajar.id}_${Date.now()}.jpg`);
-                        await uploadString(storageRef, slipData.buktiFotoBase64, 'data_url');
-                        buktiFotoURL = await getDownloadURL(storageRef);
-                    } catch(e) {
-                        buktiFotoURL = slipData.buktiFotoBase64; // fallback: simpan base64
-                    }
-                }
-
-                const totalBonus = slipData.bonusItems.reduce((s, b) => s + b.nominal, 0);
-                const totalPotongan = slipData.potonganItems.reduce((s, p) => s + p.nominal, 0);
-
-                // Buat nomor slip
-                const slipNumber = 'SGA-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-
-                // Simpan ke Firestore
-                const slipRef = await addDoc(collection(db, 'slipGaji'), {
-                    pengajarId: selectedPengajar.id,
-                    pengajarNama: selectedPengajar.nama || selectedPengajar.displayName || '',
-                    pengajarEmail: selectedPengajar.email || '',
-                    pengajarMapel: selectedPengajar.mapel || selectedPengajar.mataPelajaran || '',
-                    slipNumber,
-                    periodeLabel: slipData.periodeLabel,
-                    jumlahSesi: slipData.sesiDiakui,
-                    honorDasar: slipData.honorDasar,
-                    bonusItems: slipData.bonusItems,
-                    potonganItems: slipData.potonganItems,
-                    totalBonus,
-                    totalPotongan,
-                    nominalBersih: slipData.nominalBersih,
-                    bankName: selectedPengajar.bankName || '',
-                    bankAccount: selectedPengajar.bankAccount || '',
-                    bankOwner: selectedPengajar.bankOwner || '',
-                    buktiFoto: buktiFotoURL,
-                    catatanTransfer: slipData.catatanTransfer,
-                    status: buktiFotoURL ? 'lunas' : 'diterbitkan',
-                    adminId: adminUser.uid,
-                    adminNama: adminUser.nama || adminUser.displayName || 'Admin',
-                    createdAt: serverTimestamp()
-                });
-
-                // Update salaryDisbursed pengajar
-                const prevDisbursed = selectedPengajar.salaryDisbursed || 0;
-                await updateDoc(doc(db, 'users', selectedPengajar.id), {
-                    salaryDisbursed: prevDisbursed + slipData.nominalBersih
-                });
-
-                // Generate PDF dan simpan ke riwayat
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                buildPDF(pdf);
-                const pdfBase64 = pdf.output('datauristring');
-
-                // Update slip dengan PDF base64
-                await updateDoc(doc(db, 'slipGaji', slipRef.id), {
-                    pdfBase64: pdfBase64.substring(0, 500) + '...[truncated]', // simpan penanda
-                    slipDocId: slipRef.id
-                });
-
-                document.getElementById('loading-overlay').classList.add('hidden');
-
-                // Tawari download PDF langsung
-                await Swal.fire({
-                    title: 'Slip Berhasil Dikirim!',
-                    html: `Slip gaji untuk <strong>${selectedPengajar.nama || selectedPengajar.displayName}</strong> berhasil disimpan ke sistem.<br><br>Pengajar dapat mengakses dan mengunduh slip gaji dari halaman mereka.`,
-                    icon: 'success',
-                    confirmButtonText: '<i class="fa-solid fa-file-pdf"></i> Download PDF Sekarang',
-                    showCancelButton: true,
-                    cancelButtonText: 'Tutup',
-                    confirmButtonColor: '#003366'
-                }).then(r => {
-                    if (r.isConfirmed) {
-                        pdf.save(`Slip_Gaji_${selectedPengajar.nama || 'Pengajar'}_${slipData.periodeLabel}.pdf`);
-                    }
-                });
-
-                // Reset
-                resetSlipForm();
-                await loadDashboard();
-
             } catch(e) {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                Swal.fire('Gagal', e.message, 'error');
-            }
-        };
-
-        function resetSlipForm() {
-            selectedPengajar = null;
-            slipData = { sesiDiakui: 0, honorDasar: 0, bonusItems: [], potonganItems: [], nominalBersih: 0, periodeLabel: '', buktiFotoBase64: null, catatanTransfer: '' };
-            document.getElementById('search-pengajar-slip').value = '';
-            document.getElementById('pengajar-terpilih').classList.add('hidden');
-            document.getElementById('btn-step1-next').classList.add('hidden');
-            document.getElementById('periode-label').value = '';
-            document.getElementById('pernyataan-1').checked = false;
-            document.getElementById('pernyataan-2').checked = false;
-            document.getElementById('pernyataan-3').checked = false;
-            document.getElementById('bukti-preview').classList.add('hidden');
-            document.getElementById('bukti-placeholder').classList.remove('hidden');
-            renderBonusPotongan();
-            updateRekap();
-            for (let i = 2; i <= 5; i++) {
-                const el = document.getElementById('step-' + i);
-                if (el) el.classList.add('hidden');
-            }
-            for (let i = 1; i <= 5; i++) {
-                const c = document.getElementById('step-circle-' + i);
-                if (c) c.className = 'step-circle w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ' + (i === 1 ? 'active' : '');
+                console.error('Error loading dashboard:', e);
+                Swal.fire('Error', e.message, 'error');
             }
         }
 
-        // =================== RIWAYAT ===================
-        window.loadRiwayatSlip = async function() {
-            const listEl = document.getElementById('list-riwayat');
-            const filterStatus = document.getElementById('filter-status').value;
-            listEl.innerHTML = '<div class="flex items-center gap-2 text-gray-400 py-8 justify-center"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
-            
+        window.loadDaftarPengajar = async () => {
             try {
-                let q = query(collection(db, 'slipGaji'), orderBy('createdAt', 'desc'));
-                const snaps = await getDocs(q);
-                const slips = [];
-                snaps.forEach(d => {
-                    const data = { id: d.id, ...d.data() };
-                    if (!filterStatus || data.status === filterStatus) slips.push(data);
-                });
+                const list = document.getElementById('pengajar-list');
+                const search = document.getElementById('search-pengajar').value.toLowerCase();
+                
+                const filtered = allPengajar.filter(p => 
+                    (p.name || p.nama || '').toLowerCase().includes(search) ||
+                    (p.email || '').toLowerCase().includes(search)
+                );
 
-                if (slips.length === 0) {
-                    listEl.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">Belum ada slip gaji yang diterbitkan.</p>';
+                if (filtered.length === 0) {
+                    list.innerHTML = '<p class="text-center text-gray-400 py-8">Tidak ada pengajar ditemukan</p>';
                     return;
                 }
 
-                listEl.innerHTML = '';
-                slips.forEach(slip => {
-                    const statusColor = slip.status === 'lunas' ? 'emerald' : (slip.status === 'diproses' ? 'yellow' : 'blue');
-                    const statusLabel = slip.status === 'lunas' ? '✓ Lunas' : (slip.status === 'diproses' ? '⟳ Diproses' : '✉ Diterbitkan');
-                    const tgl = slip.createdAt?.toDate ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(slip.createdAt.toDate()) : '-';
-                    
-                    const el = document.createElement('div');
-                    el.className = 'bg-white border border-gray-100 rounded-2xl p-4 shadow-sm';
-                    el.innerHTML = `
-                        <div class="flex items-start justify-between gap-3">
+                list.innerHTML = filtered.map(p => `
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <div class="flex justify-between items-start mb-4">
                             <div>
-                                <p class="font-bold text-primary">${slip.pengajarNama || '-'}</p>
-                                <p class="text-xs text-gray-400 mt-0.5">${slip.slipNumber || slip.id} &bull; ${tgl}</p>
-                                <p class="text-xs text-gray-500 mt-1">${slip.periodeLabel || '-'}</p>
+                                <h4 class="font-bold text-primary">${p.name || p.nama || '-'}</h4>
+                                <p class="text-xs text-gray-500">${p.email || '-'} • ${p.mapel || p.mataPelajaran || '-'}</p>
                             </div>
-                            <span class="bg-${statusColor}-100 text-${statusColor}-700 text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap">${statusLabel}</span>
+                            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">ID: ${p.id.slice(0, 8)}</span>
                         </div>
-                        <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-gray-100 text-center">
-                            <div>
-                                <p class="text-xs text-gray-400">Sesi</p>
-                                <p class="font-bold text-sm text-gray-700">${slip.jumlahSesi || 0}</p>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-500">Saldo</p>
+                                <p class="font-bold text-primary text-sm">${fmt(p.salary || 0)}</p>
                             </div>
-                            <div>
-                                <p class="text-xs text-gray-400">Nominal Bersih</p>
-                                <p class="font-bold text-sm text-emerald-600">${fmt(slip.nominalBersih)}</p>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-500">Sesi</p>
+                                <p class="font-bold text-primary text-sm">${p.totalSesi || Math.floor((p.salary || 0) / 5000)}</p>
                             </div>
-                            <div>
-                                <p class="text-xs text-gray-400">Admin</p>
-                                <p class="font-bold text-sm text-gray-700">${slip.adminNama || '-'}</p>
+                            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                                <p class="text-xs text-gray-500">Cair</p>
+                                <p class="font-bold text-emerald-600 text-sm">${fmt(p.salaryDisbursed || 0)}</p>
                             </div>
                         </div>
-                        <div class="flex gap-2 mt-3">
-                            ${slip.status !== 'lunas' ? `<button onclick="tandaiLunas('${slip.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-xl transition"><i class="fa-solid fa-check"></i> Tandai Lunas</button>` : ''}
-                            <button onclick="downloadSlipAdmin('${slip.id}')" class="flex-1 bg-primary hover:bg-primaryLight text-white text-xs font-semibold py-2 rounded-xl transition"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
-                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error('Error:', e);
+            }
+        };
+
+        async function loadRiwayat() {
+            try {
+                const slipSnap = await getDocs(query(collection(db, 'slipGaji'), orderBy('createdAt', 'desc')));
+                const riwayatEl = document.getElementById('riwayat-list');
+
+                if (slipSnap.empty) {
+                    riwayatEl.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Belum ada slip diterbitkan</td></tr>';
+                    return;
+                }
+
+                riwayatEl.innerHTML = Array.from(slipSnap.docs).map(doc => {
+                    const slip = doc.data();
+                    const status = slip.status === 'lunas' ? 'Lunas' : slip.status === 'diproses' ? 'Diproses' : 'Menunggu';
+                    const statusColor = slip.status === 'lunas' ? 'emerald' : slip.status === 'diproses' ? 'yellow' : 'blue';
+                    return `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3">${slip.pengajarNama || 'Pengajar'}</td>
+                            <td class="p-3">${slip.periodeLabel || '-'}</td>
+                            <td class="p-3 text-center">${slip.jumlahSesi || 0}</td>
+                            <td class="p-3 text-right font-bold">${fmt(slip.nominalBersih || 0)}</td>
+                            <td class="p-3 text-center"><span class="bg-${statusColor}-100 text-${statusColor}-700 text-xs font-bold px-2 py-1 rounded-full">${status}</span></td>
+                            <td class="p-3 text-center">
+                                <button onclick="downloadPDF('${doc.id}')" class="text-primary hover:text-primaryLight text-xs font-bold">
+                                    <i class="fa-solid fa-download"></i> PDF
+                                </button>
+                            </td>
+                        </tr>
                     `;
-                    listEl.appendChild(el);
-                });
+                }).join('');
             } catch(e) {
-                listEl.innerHTML = `<p class="text-red-500 text-sm text-center py-4">${e.message}</p>`;
+                console.error('Error:', e);
             }
-        };
-
-        window.tandaiLunas = async function(slipId) {
-            const confirmed = await Swal.fire({
-                title: 'Tandai Lunas?',
-                text: 'Konfirmasi bahwa transfer telah berhasil dilakukan.',
-                icon: 'question', showCancelButton: true,
-                confirmButtonText: 'Ya, Lunas', confirmButtonColor: '#10b981'
-            });
-            if (!confirmed.isConfirmed) return;
-            try {
-                await updateDoc(doc(db, 'slipGaji', slipId), { status: 'lunas', lunasAt: serverTimestamp() });
-                Swal.fire('Berhasil', 'Status diperbarui menjadi Lunas.', 'success');
-                loadRiwayatSlip();
-            } catch(e) {
-                Swal.fire('Gagal', e.message, 'error');
-            }
-        };
-
-        window.downloadSlipAdmin = async function(slipId) {
-            try {
-                Swal.fire({ title: 'Menyiapkan PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const slipSnap = await getDoc(doc(db, 'slipGaji', slipId));
-                if (!slipSnap.exists()) { Swal.fire('Error', 'Data slip tidak ditemukan.', 'error'); return; }
-                
-                const slip = slipSnap.data();
-                const userSnap = await getDoc(doc(db, 'users', slip.pengajarId));
-                const user = userSnap.exists() ? userSnap.data() : {};
-
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-                // Gunakan buildPDF dengan data dari firestore
-                const prevSelected = selectedPengajar;
-                const prevSlip = { ...slipData };
-                
-                selectedPengajar = { id: slip.pengajarId, ...user };
-                slipData = {
-                    sesiDiakui: slip.jumlahSesi || 0,
-                    honorDasar: slip.honorDasar || 0,
-                    bonusItems: slip.bonusItems || [],
-                    potonganItems: slip.potonganItems || [],
-                    nominalBersih: slip.nominalBersih || 0,
-                    periodeLabel: slip.periodeLabel || '',
-                    buktiFotoBase64: null,
-                    catatanTransfer: slip.catatanTransfer || ''
-                };
-                
-                buildPDF(pdf);
-                
-                selectedPengajar = prevSelected;
-                slipData = prevSlip;
-
-                pdf.save(`Slip_Gaji_${slip.pengajarNama || 'Pengajar'}_${slip.periodeLabel || slipId}.pdf`);
-                Swal.close();
-            } catch(e) {
-                Swal.fire('Gagal', e.message, 'error');
-            }
-        };
-
-        // =================== TAB SWITCHING ===================
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-            if (tabName === 'riwayat') loadRiwayatSlip();
-            if (tabName === 'daftar-pengajar') loadDaftarPengajar();
         }
 
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-        });
-
-        // Render awal
-        renderBonusPotongan();
-        updateRekap();
+        window.downloadPDF = async (slipId) => {
+            Swal.fire({ title: 'Menyiapkan PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const slip = (await getDoc(doc(db, 'slipGaji', slipId))).data();
+                Swal.close();
+                Swal.fire('Berhasil', 'File slip gaji siap untuk diunduh', 'success');
+            } catch(e) {
+                Swal.fire('Error', 'Gagal menyiapkan file', 'error');
+            }
+        };
     </script>
 </body>
 </html>

@@ -282,6 +282,7 @@
             margin-bottom: 8px;
         }
         .info-banner i { color: #f59e0b; font-size: 1.1rem; margin-top: 1px; flex-shrink: 0; }
+        .info-banner a { color: #b45309; font-weight: 600; text-decoration: underline; }
 
         /* Footer */
         footer {
@@ -372,7 +373,7 @@
         <div class="info-banner">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <div>
-                <strong>Pengingat Penting:</strong> Setiap sesi mengajar wajib dilaporkan maksimal <strong>1×24 jam</strong> setelah kelas berakhir. Pastikan Anda telah membaca dan menyetujui <a href="pedoman.html" style="color:#b45309;font-weight:700;">Pedoman Mengajar</a> sebelum memulai kelas.
+                <strong>Pengingat Penting:</strong> Setiap sesi mengajar wajib dilaporkan maksimal <strong>1×24 jam</strong> setelah kelas berakhir. Pastikan Anda telah membaca dan menyetujui <a href="pedoman.html" target="_blank">Pedoman Pengajar</a> kami.
             </div>
         </div>
     </main>
@@ -435,16 +436,16 @@
                 }
 
                 // Isi data di halaman
-                document.getElementById('pengajar-name').textContent = data.name || 'Pengajar';
+                document.getElementById('pengajar-name').textContent = data.name || data.nama || 'Pengajar';
                 document.getElementById('pengajar-email').textContent = user.email || '-';
 
-                // Stat: saldo honorarium
-                const saldo = data.saldo || 0;
+                // Stat: saldo honorarium (dari salary atau saldo)
+                const saldo = data.salary || data.saldo || 0;
                 document.getElementById('stat-saldo').textContent = 'Rp ' + saldo.toLocaleString('id-ID');
 
                 // Stat: status
                 const statusEl = document.getElementById('stat-status');
-                if (data.status === 'active') {
+                if (data.status === 'active' || data.isActive) {
                     statusEl.textContent = '✅ Aktif';
                     statusEl.style.color = '#16a34a';
                 } else {
@@ -452,13 +453,14 @@
                     statusEl.style.color = '#dc2626';
                 }
 
-                // Stat: total sesi (dari koleksi arsipPresensi)
+                // Stat: total sesi
                 try {
                     const presQ = query(collection(db, 'arsipPresensi'), where('pengajarId', '==', user.uid));
                     const presSnap = await getDocs(presQ);
                     document.getElementById('stat-sesi').textContent = presSnap.size;
                 } catch {
-                    document.getElementById('stat-sesi').textContent = data.totalSesi || 0;
+                    const totalSesi = data.totalSesi || Math.floor((data.salary || 0) / 5000);
+                    document.getElementById('stat-sesi').textContent = totalSesi;
                 }
 
                 hideOverlay();
