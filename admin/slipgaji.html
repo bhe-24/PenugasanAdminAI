@@ -11,7 +11,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -25,17 +25,17 @@
     <style>
         .tab-btn.active { background: #003366; color: white; }
         .tab-btn { transition: all 0.2s; cursor: pointer; }
-        #preview-slip { display: none; }
-        #preview-slip.show { display: block; }
-        .step-circle.done { background: #10b981; color: white; }
-        .step-circle.active { background: #003366; color: white; }
-        .step-circle { background: #e5e7eb; color: #6b7280; }
         .hidden { display: none !important; }
+        .status-badge { display: inline-block; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: bold; }
+        .status-menunggu { background: #fef3c7; color: #92400e; }
+        .status-lunas { background: #dcfce7; color: #166534; }
+        .upload-zone { border: 2px dashed #cbd5e1; padding: 24px; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-zone.drag { border-color: #003366; background: #f1f5f9; }
+        .preview-img { max-width: 300px; max-height: 300px; border-radius: 8px; margin-top: 12px; }
     </style>
 </head>
 <body class="bg-bgLight text-textDark min-h-screen flex flex-col overflow-x-hidden">
 
-    <!-- Header -->
     <header class="w-full bg-gradient-to-r from-primary to-[#001f3f] px-4 md:px-8 py-4 shadow-lg border-b-4 border-accent flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" class="h-10 w-10 rounded-full bg-white p-0.5 border-2 border-accent">
@@ -47,17 +47,19 @@
         <a href="index.html" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-xs font-semibold transition"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
     </header>
 
-    <!-- Tab Navigasi -->
     <div class="w-full max-w-6xl mx-auto px-4 pt-6">
         <div class="flex gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-gray-100 overflow-x-auto">
-            <button class="tab-btn active flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('dashboard')" id="tab-btn-dashboard">
-                <i class="fa-solid fa-chart-pie mr-1"></i> Ringkasan
+            <button class="tab-btn active flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('dashboard')">
+                <i class="fa-solid fa-chart-pie mr-1"></i> Dashboard
             </button>
-            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('pengajar')" id="tab-btn-pengajar">
-                <i class="fa-solid fa-users mr-1"></i> Daftar Pengajar
+            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('buat-slip')">
+                <i class="fa-solid fa-file-circle-plus mr-1"></i> Buat Slip
             </button>
-            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('riwayat')" id="tab-btn-riwayat">
-                <i class="fa-solid fa-clock-rotate-left mr-1"></i> Riwayat Slip
+            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('transfer')">
+                <i class="fa-solid fa-money-bill-transfer mr-1"></i> Transfer
+            </button>
+            <button class="tab-btn flex-1 min-w-max text-xs md:text-sm font-semibold py-2 px-4 rounded-lg" onclick="switchTab('arsip')">
+                <i class="fa-solid fa-folder-open mr-1"></i> Arsip
             </button>
         </div>
     </div>
@@ -80,51 +82,182 @@
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-file-invoice-dollar text-2xl text-accent mb-2"></i>
                     <p class="text-2xl font-bold font-serif text-yellow-600" id="stat-slip">0</p>
-                    <p class="text-xs text-gray-500 font-medium mt-1">Slip Diterbitkan</p>
+                    <p class="text-xs text-gray-500 font-medium mt-1">Slip Dibuat</p>
                 </div>
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
                     <i class="fa-solid fa-hourglass-half text-2xl text-orange-400 mb-2"></i>
                     <p class="text-2xl font-bold font-serif text-orange-500" id="stat-pending">0</p>
-                    <p class="text-xs text-gray-500 font-medium mt-1">Pending Transfer</p>
+                    <p class="text-xs text-gray-500 font-medium mt-1">Menunggu Transfer</p>
                 </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h3 class="font-serif text-lg text-primary font-bold mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-bell text-orange-400"></i> Pengajar Dengan Saldo Menunggu Cair
+                <h3 class="font-serif text-lg text-primary font-bold mb-4 border-b pb-2">
+                    <i class="fa-solid fa-bell text-orange-400 mr-2"></i>Pengajar Dengan Saldo Belum Dicairkan
                 </h3>
                 <div id="belum-cair-list" class="space-y-3"></div>
             </div>
         </div>
 
-        <!-- TAB: DAFTAR PENGAJAR -->
-        <div id="tab-pengajar" class="tab-content hidden space-y-4">
-            <div class="flex items-center gap-3 mb-4">
-                <input type="text" id="search-pengajar" placeholder="Cari nama pengajar..." class="flex-1 p-3 border border-gray-200 rounded-xl bg-white text-sm focus:ring-2 focus:ring-primaryLight outline-none">
-                <button onclick="loadDaftarPengajar()" class="bg-primary text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-primaryLight transition">
-                    <i class="fa-solid fa-rotate"></i>
-                </button>
+        <!-- TAB: BUAT SLIP -->
+        <div id="tab-buat-slip" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2 mb-4">
+                    <i class="fa-solid fa-file-circle-plus text-accent mr-2"></i>Buat Slip Gaji
+                </h3>
+                
+                <form id="form-buat-slip" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Pengajar</label>
+                            <select id="slip-pengajar" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none">
+                                <option value="">-- Pilih Pengajar --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Periode Transfer</label>
+                            <input type="month" id="slip-periode" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Jumlah Sesi</label>
+                            <input type="number" id="slip-sesi" min="1" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Nominal Sesi (Rp)</label>
+                            <input type="number" id="slip-nominal-sesi" value="5000" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Diskon/Potongan (Rp)</label>
+                            <input type="number" id="slip-diskon" value="0" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none">
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <p class="text-xs text-blue-600 font-medium mb-2">Estimasi Perhitungan:</p>
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div>
+                                <p class="text-xs text-blue-500">Subtotal</p>
+                                <p class="font-bold text-primary" id="calc-subtotal">Rp 0</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-blue-500">Diskon</p>
+                                <p class="font-bold text-red-600" id="calc-diskon">Rp 0</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-blue-500">Total Bersih</p>
+                                <p class="font-bold text-emerald-600 text-lg" id="calc-bersih">Rp 0</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Catatan</label>
+                        <textarea id="slip-catatan" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none" rows="3" placeholder="Catatan khusus..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-primary hover:bg-primaryLight text-white font-semibold py-3 rounded-xl transition">
+                        <i class="fa-solid fa-save mr-2"></i>Buat & Simpan Slip
+                    </button>
+                </form>
             </div>
-            <div id="pengajar-list" class="space-y-3"></div>
         </div>
 
-        <!-- TAB: RIWAYAT -->
-        <div id="tab-riwayat" class="tab-content hidden">
+        <!-- TAB: TRANSFER -->
+        <div id="tab-transfer" class="tab-content hidden space-y-6">
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h3 class="font-serif text-lg text-primary font-bold mb-4 border-b pb-2">Riwayat Slip Gaji</h3>
+                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2 mb-4">
+                    <i class="fa-solid fa-money-bill-transfer text-accent mr-2"></i>Transfer Slip Gaji
+                </h3>
+
+                <form id="form-transfer" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Pilih Slip Gaji (Status: Menunggu)</label>
+                        <select id="transfer-slip" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none">
+                            <option value="">-- Pilih Slip --</option>
+                        </select>
+                        <div id="slip-detail" class="mt-4 p-4 bg-gray-50 rounded-xl hidden">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                                <div>
+                                    <p class="text-xs text-gray-500">Pengajar</p>
+                                    <p class="font-bold text-primary" id="detail-pengajar">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Nominal</p>
+                                    <p class="font-bold text-emerald-600" id="detail-nominal">Rp 0</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Sesi</p>
+                                    <p class="font-bold text-primary" id="detail-sesi">0</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Periode</p>
+                                    <p class="font-bold text-primary" id="detail-periode">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-6">
+                        <h4 class="font-bold text-primary mb-4">Data Penerima</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Nama Bank / E-Wallet</label>
+                                <input type="text" id="transfer-bank" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none" placeholder="BCA, DANA, OVO, dll">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Nomor Rekening / No. HP</label>
+                                <input type="text" id="transfer-norek" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none" placeholder="Contoh: 1234567890">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Atas Nama</label>
+                                <input type="text" id="transfer-atas-nama" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primaryLight outline-none" placeholder="Nama pemilik rekening">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-6">
+                        <h4 class="font-bold text-primary mb-4">Upload Bukti Transfer</h4>
+                        <div class="upload-zone" id="upload-bukti" onclick="document.getElementById('file-bukti').click()">
+                            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2"></i>
+                            <p class="text-sm text-gray-600 font-medium">Klik atau drag foto/screenshot bukti transfer</p>
+                            <p class="text-xs text-gray-400 mt-1">Format: JPG, PNG (Max 5MB)</p>
+                        </div>
+                        <input type="file" id="file-bukti" accept="image/*" class="hidden">
+                        <img id="preview-bukti" class="preview-img hidden" alt="Preview">
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition">
+                        <i class="fa-solid fa-paper-plane mr-2"></i>Konfirmasi Transfer
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB: ARSIP -->
+        <div id="tab-arsip" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-serif text-lg text-primary font-bold border-b pb-2 mb-4">
+                    <i class="fa-solid fa-folder-open text-accent mr-2"></i>Arsip Transfer Slip Gaji
+                </h3>
+                
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="p-3 text-left">Pengajar</th>
-                                <th class="p-3 text-left">Periode</th>
-                                <th class="p-3 text-center">Sesi</th>
-                                <th class="p-3 text-right">Nominal</th>
-                                <th class="p-3 text-center">Status</th>
-                                <th class="p-3 text-center">Aksi</th>
+                                <th class="p-3 text-left font-bold text-gray-700">Pengajar</th>
+                                <th class="p-3 text-left font-bold text-gray-700">Periode</th>
+                                <th class="p-3 text-center font-bold text-gray-700">Nominal</th>
+                                <th class="p-3 text-left font-bold text-gray-700">Rekening</th>
+                                <th class="p-3 text-center font-bold text-gray-700">Status</th>
+                                <th class="p-3 text-center font-bold text-gray-700">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody id="riwayat-list" class="divide-y"></tbody>
+                        <tbody id="arsip-list" class="divide-y">
+                            <tr><td colspan="6" class="p-4 text-center text-gray-400">Memuat arsip...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -135,7 +268,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, query, getDocs, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, getDocs, orderBy, where, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
@@ -152,15 +285,18 @@
 
         const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
         let allPengajar = [];
+        let allSlip = [];
+        let buktiBase64 = null;
+        let selectedSlipId = null;
 
         window.switchTab = (tabName) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tabName).classList.remove('hidden');
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-btn-' + tabName).classList.add('active');
+            event.target.classList.add('active');
             
-            if (tabName === 'pengajar') loadDaftarPengajar();
-            if (tabName === 'riwayat') loadRiwayat();
+            if (tabName === 'transfer') loadSlipMenunggu();
+            if (tabName === 'arsip') loadArsip();
         };
 
         onAuthStateChanged(auth, async (user) => {
@@ -168,161 +304,296 @@
                 window.location.href = '../index.html';
                 return;
             }
-
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (!userDoc.exists() || userDoc.data().role !== 'admin') {
                 window.location.href = '../index.html';
                 return;
             }
-
-            loadDashboard();
+            loadData();
         });
 
-        async function loadDashboard() {
+        async function loadData() {
             try {
-                // Load semua pengajar
                 const pengajarSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'pengajar')));
                 allPengajar = pengajarSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                document.getElementById('stat-pengajar').textContent = allPengajar.length;
 
-                let totalHonor = 0;
-                let totalSlip = 0;
-                let totalPending = 0;
-                const belumCairList = [];
-
-                for (const pengajar of allPengajar) {
-                    const salary = pengajar.salary || 0;
-                    const disbursed = pengajar.salaryDisbursed || 0;
-                    totalHonor += salary;
-
-                    if (disbursed < salary) {
-                        belumCairList.push({ ...pengajar, sisa: salary - disbursed });
-                    }
-                }
-
-                // Load slip
                 const slipSnap = await getDocs(collection(db, 'slipGaji'));
-                totalSlip = slipSnap.size;
-                slipSnap.forEach(doc => {
-                    if (doc.data().status !== 'lunas') totalPending++;
-                });
+                allSlip = slipSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                document.getElementById('stat-honor').textContent = fmt(totalHonor);
-                document.getElementById('stat-slip').textContent = totalSlip;
-                document.getElementById('stat-pending').textContent = totalPending;
+                const pengajarSelect = document.getElementById('slip-pengajar');
+                pengajarSelect.innerHTML = '<option value="">-- Pilih Pengajar --</option>' + 
+                    allPengajar.map(p => `<option value="${p.id}">${p.name || p.nama}</option>`).join('');
 
-                // Render belum cair
-                const belumCairEl = document.getElementById('belum-cair-list');
-                if (belumCairList.length === 0) {
-                    belumCairEl.innerHTML = '<p class="text-center text-gray-400 py-4">Semua pengajar telah menerima pembayaran ✅</p>';
-                } else {
-                    belumCairEl.innerHTML = belumCairList.map(p => `
-                        <div class="p-4 bg-orange-50 border border-orange-200 rounded-xl flex justify-between items-center">
-                            <div>
-                                <p class="font-bold text-primary">${p.name || p.nama || 'Pengajar'}</p>
-                                <p class="text-xs text-gray-500">${p.email || '-'}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="font-bold text-orange-600">${fmt(p.sisa)}</p>
-                                <p class="text-xs text-gray-500">Sisa menunggu</p>
-                            </div>
-                        </div>
-                    `).join('');
-                }
+                loadDashboard();
             } catch(e) {
-                console.error('Error loading dashboard:', e);
-                Swal.fire('Error', e.message, 'error');
+                console.error('Error:', e);
             }
         }
 
-        window.loadDaftarPengajar = async () => {
-            try {
-                const list = document.getElementById('pengajar-list');
-                const search = document.getElementById('search-pengajar').value.toLowerCase();
-                
-                const filtered = allPengajar.filter(p => 
-                    (p.name || p.nama || '').toLowerCase().includes(search) ||
-                    (p.email || '').toLowerCase().includes(search)
-                );
+        async function loadDashboard() {
+            let totalHonor = 0;
+            let totalSlip = allSlip.length;
+            let totalPending = 0;
+            const belumCairList = [];
 
-                if (filtered.length === 0) {
-                    list.innerHTML = '<p class="text-center text-gray-400 py-8">Tidak ada pengajar ditemukan</p>';
-                    return;
+            allPengajar.forEach(p => {
+                const salary = p.salary || 0;
+                const disbursed = p.salaryDisbursed || 0;
+                totalHonor += salary;
+                if (disbursed < salary) {
+                    belumCairList.push({ ...p, sisa: salary - disbursed });
                 }
+            });
 
-                list.innerHTML = filtered.map(p => `
-                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h4 class="font-bold text-primary">${p.name || p.nama || '-'}</h4>
-                                <p class="text-xs text-gray-500">${p.email || '-'} • ${p.mapel || p.mataPelajaran || '-'}</p>
-                            </div>
-                            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">ID: ${p.id.slice(0, 8)}</span>
+            allSlip.forEach(s => {
+                if (s.status !== 'lunas') totalPending++;
+            });
+
+            document.getElementById('stat-pengajar').textContent = allPengajar.length;
+            document.getElementById('stat-honor').textContent = fmt(totalHonor);
+            document.getElementById('stat-slip').textContent = totalSlip;
+            document.getElementById('stat-pending').textContent = totalPending;
+
+            const belumCairEl = document.getElementById('belum-cair-list');
+            belumCairEl.innerHTML = belumCairList.length === 0 ?
+                '<p class="text-center text-gray-400 py-4">Semua pengajar telah menerima pembayaran ✅</p>' :
+                belumCairList.map(p => `
+                    <div class="p-4 bg-orange-50 border border-orange-200 rounded-xl flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-primary">${p.name || p.nama}</p>
+                            <p class="text-xs text-gray-500">${p.email || '-'}</p>
                         </div>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div class="text-center p-3 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-500">Saldo</p>
-                                <p class="font-bold text-primary text-sm">${fmt(p.salary || 0)}</p>
-                            </div>
-                            <div class="text-center p-3 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-500">Sesi</p>
-                                <p class="font-bold text-primary text-sm">${p.totalSesi || Math.floor((p.salary || 0) / 5000)}</p>
-                            </div>
-                            <div class="text-center p-3 bg-gray-50 rounded-lg">
-                                <p class="text-xs text-gray-500">Cair</p>
-                                <p class="font-bold text-emerald-600 text-sm">${fmt(p.salaryDisbursed || 0)}</p>
-                            </div>
+                        <div class="text-right">
+                            <p class="font-bold text-orange-600">${fmt(p.sisa)}</p>
+                            <p class="text-xs text-gray-500">Sisa menunggu</p>
                         </div>
                     </div>
                 `).join('');
-            } catch(e) {
-                console.error('Error:', e);
-            }
-        };
-
-        async function loadRiwayat() {
-            try {
-                const slipSnap = await getDocs(query(collection(db, 'slipGaji'), orderBy('createdAt', 'desc')));
-                const riwayatEl = document.getElementById('riwayat-list');
-
-                if (slipSnap.empty) {
-                    riwayatEl.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Belum ada slip diterbitkan</td></tr>';
-                    return;
-                }
-
-                riwayatEl.innerHTML = Array.from(slipSnap.docs).map(doc => {
-                    const slip = doc.data();
-                    const status = slip.status === 'lunas' ? 'Lunas' : slip.status === 'diproses' ? 'Diproses' : 'Menunggu';
-                    const statusColor = slip.status === 'lunas' ? 'emerald' : slip.status === 'diproses' ? 'yellow' : 'blue';
-                    return `
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-3">${slip.pengajarNama || 'Pengajar'}</td>
-                            <td class="p-3">${slip.periodeLabel || '-'}</td>
-                            <td class="p-3 text-center">${slip.jumlahSesi || 0}</td>
-                            <td class="p-3 text-right font-bold">${fmt(slip.nominalBersih || 0)}</td>
-                            <td class="p-3 text-center"><span class="bg-${statusColor}-100 text-${statusColor}-700 text-xs font-bold px-2 py-1 rounded-full">${status}</span></td>
-                            <td class="p-3 text-center">
-                                <button onclick="downloadPDF('${doc.id}')" class="text-primary hover:text-primaryLight text-xs font-bold">
-                                    <i class="fa-solid fa-download"></i> PDF
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch(e) {
-                console.error('Error:', e);
-            }
         }
 
-        window.downloadPDF = async (slipId) => {
-            Swal.fire({ title: 'Menyiapkan PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        document.getElementById('form-buat-slip').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sesi = parseInt(document.getElementById('slip-sesi').value);
+            const nominalSesi = parseInt(document.getElementById('slip-nominal-sesi').value);
+            const diskon = parseInt(document.getElementById('slip-diskon').value) || 0;
+            const subtotal = sesi * nominalSesi;
+            const bersih = subtotal - diskon;
+
             try {
-                const slip = (await getDoc(doc(db, 'slipGaji', slipId))).data();
-                Swal.close();
-                Swal.fire('Berhasil', 'File slip gaji siap untuk diunduh', 'success');
+                const slipId = 'slip_' + Date.now();
+                const pengajarId = document.getElementById('slip-pengajar').value;
+                const pengajar = allPengajar.find(p => p.id === pengajarId);
+
+                await setDoc(doc(db, 'slipGaji', slipId), {
+                    pengajarId,
+                    pengajarNama: pengajar.name || pengajar.nama,
+                    pengajarEmail: pengajar.email,
+                    periode: document.getElementById('slip-periode').value,
+                    jumlahSesi: sesi,
+                    nominalSesi,
+                    subtotal,
+                    diskon,
+                    nominalBersih: bersih,
+                    catatan: document.getElementById('slip-catatan').value,
+                    status: 'menunggu',
+                    createdAt: Timestamp.now(),
+                    buktiBukuTransfer: null,
+                    transferBankName: null,
+                    transferNorek: null,
+                    transferAtasNama: null
+                });
+
+                Swal.fire('Berhasil', 'Slip gaji berhasil dibuat', 'success');
+                document.getElementById('form-buat-slip').reset();
+                loadData();
             } catch(e) {
-                Swal.fire('Error', 'Gagal menyiapkan file', 'error');
+                Swal.fire('Error', e.message, 'error');
             }
+        });
+
+        ['slip-sesi', 'slip-nominal-sesi', 'slip-diskon'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                const sesi = parseInt(document.getElementById('slip-sesi').value) || 0;
+                const nominalSesi = parseInt(document.getElementById('slip-nominal-sesi').value) || 0;
+                const diskon = parseInt(document.getElementById('slip-diskon').value) || 0;
+                const subtotal = sesi * nominalSesi;
+                const bersih = subtotal - diskon;
+
+                document.getElementById('calc-subtotal').textContent = fmt(subtotal);
+                document.getElementById('calc-diskon').textContent = fmt(diskon);
+                document.getElementById('calc-bersih').textContent = fmt(bersih);
+            });
+        });
+
+        document.getElementById('upload-bukti').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            document.getElementById('upload-bukti').classList.add('drag');
+        });
+        document.getElementById('upload-bukti').addEventListener('dragleave', () => {
+            document.getElementById('upload-bukti').classList.remove('drag');
+        });
+        document.getElementById('upload-bukti').addEventListener('drop', (e) => {
+            e.preventDefault();
+            document.getElementById('upload-bukti').classList.remove('drag');
+            const files = e.dataTransfer.files;
+            if (files.length) handleFileSelect({ target: { files } });
+        });
+
+        document.getElementById('file-bukti').addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('Error', 'Ukuran file maksimal 5MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                buktiBase64 = event.target.result;
+                document.getElementById('preview-bukti').src = buktiBase64;
+                document.getElementById('preview-bukti').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function loadSlipMenunggu() {
+            const select = document.getElementById('transfer-slip');
+            const menunggu = allSlip.filter(s => s.status === 'menunggu');
+            select.innerHTML = '<option value="">-- Pilih Slip --</option>' +
+                menunggu.map(s => `<option value="${s.id}">${s.pengajarNama} (${s.periode}) - ${fmt(s.nominalBersih)}</option>`).join('');
+        }
+
+        document.getElementById('transfer-slip').addEventListener('change', (e) => {
+            selectedSlipId = e.target.value;
+            if (!selectedSlipId) {
+                document.getElementById('slip-detail').classList.add('hidden');
+                return;
+            }
+
+            const slip = allSlip.find(s => s.id === selectedSlipId);
+            const pengajar = allPengajar.find(p => p.id === slip.pengajarId);
+
+            document.getElementById('detail-pengajar').textContent = slip.pengajarNama;
+            document.getElementById('detail-nominal').textContent = fmt(slip.nominalBersih);
+            document.getElementById('detail-sesi').textContent = slip.jumlahSesi;
+            document.getElementById('detail-periode').textContent = slip.periode;
+            document.getElementById('slip-detail').classList.remove('hidden');
+
+            if (pengajar?.bankName) document.getElementById('transfer-bank').value = pengajar.bankName;
+            if (pengajar?.bankAccount) document.getElementById('transfer-norek').value = pengajar.bankAccount;
+            if (pengajar?.bankOwner) document.getElementById('transfer-atas-nama').value = pengajar.bankOwner;
+        });
+
+        document.getElementById('form-transfer').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedSlipId || !buktiBase64) {
+                Swal.fire('Error', 'Pilih slip dan upload bukti transfer', 'error');
+                return;
+            }
+
+            try {
+                Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                const slip = allSlip.find(s => s.id === selectedSlipId);
+                const batch = writeBatch(db);
+
+                batch.update(doc(db, 'slipGaji', selectedSlipId), {
+                    status: 'lunas',
+                    transferBankName: document.getElementById('transfer-bank').value,
+                    transferNorek: document.getElementById('transfer-norek').value,
+                    transferAtasNama: document.getElementById('transfer-atas-nama').value,
+                    buktiBukuTransfer: buktiBase64,
+                    transferDate: Timestamp.now()
+                });
+
+                const pengajar = allPengajar.find(p => p.id === slip.pengajarId);
+                const currentDisbursed = pengajar.salaryDisbursed || 0;
+                batch.update(doc(db, 'users', slip.pengajarId), {
+                    salaryDisbursed: currentDisbursed + slip.nominalBersih
+                });
+
+                await batch.commit();
+
+                Swal.fire('Berhasil', 'Transfer berhasil dikonfirmasi', 'success');
+                document.getElementById('form-transfer').reset();
+                buktiBase64 = null;
+                document.getElementById('preview-bukti').classList.add('hidden');
+                document.getElementById('slip-detail').classList.add('hidden');
+                loadData();
+                loadSlipMenunggu();
+                loadArsip();
+            } catch(e) {
+                Swal.fire('Error', e.message, 'error');
+            }
+        });
+
+        async function loadArsip() {
+            const arsipList = document.getElementById('arsip-list');
+            const lunas = allSlip.filter(s => s.status === 'lunas').sort((a, b) => (b.transferDate || 0) - (a.transferDate || 0));
+
+            if (lunas.length === 0) {
+                arsipList.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400">Belum ada transfer terselesaikan</td></tr>';
+                return;
+            }
+
+            arsipList.innerHTML = lunas.map(slip => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-3">${slip.pengajarNama}</td>
+                    <td class="p-3">${slip.periode}</td>
+                    <td class="p-3 text-center font-bold">${fmt(slip.nominalBersih)}</td>
+                    <td class="p-3 text-sm">${slip.transferBankName} - ${slip.transferNorek}</td>
+                    <td class="p-3 text-center"><span class="status-badge status-lunas">Lunas</span></td>
+                    <td class="p-3 text-center">
+                        <button onclick="downloadKuitansi('${slip.id}')" class="text-primary hover:text-primaryLight text-xs font-bold">
+                            <i class="fa-solid fa-download mr-1"></i>Kuitansi
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.downloadKuitansi = async (slipId) => {
+            const slip = allSlip.find(s => s.id === slipId);
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('P', 'mm', 'A4');
+
+            pdf.setFontSize(14);
+            pdf.text('KUITANSI TRANSFER HONORARIUM', 105, 15, { align: 'center' });
+            pdf.setFontSize(10);
+            pdf.text(`Nomor: ${slipId}`, 15, 25);
+            pdf.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 15, 32);
+
+            pdf.setFontSize(11);
+            pdf.text('Penerima:', 15, 42);
+            pdf.setFontSize(10);
+            pdf.text(`Nama: ${slip.transferAtasNama}`, 15, 50);
+            pdf.text(`Bank: ${slip.transferBankName}`, 15, 57);
+            pdf.text(`Rekening: ${slip.transferNorek}`, 15, 64);
+
+            pdf.setFontSize(11);
+            pdf.text('Detail Transfer:', 15, 75);
+            pdf.setFontSize(10);
+            pdf.text(`Pengajar: ${slip.pengajarNama}`, 15, 82);
+            pdf.text(`Periode: ${slip.periode}`, 15, 89);
+            pdf.text(`Jumlah Sesi: ${slip.jumlahSesi}`, 15, 96);
+            pdf.text(`Nominal per Sesi: ${fmt(slip.nominalSesi)}`, 15, 103);
+            pdf.text(`Diskon: ${fmt(slip.diskon)}`, 15, 110);
+
+            pdf.setFontSize(12);
+            pdf.text(`TOTAL TRANSFER: ${fmt(slip.nominalBersih)}`, 15, 125);
+
+            pdf.text('Tanda Tangan Penerima:', 15, 180);
+            pdf.text('(_____________________)', 15, 200);
+
+            if (slip.buktiBukuTransfer) {
+                pdf.addImage(slip.buktiBukuTransfer, 'JPEG', 120, 145, 70, 50);
+            }
+
+            pdf.save(`Kuitansi_${slip.pengajarNama}_${slip.periode}.pdf`);
         };
     </script>
 </body>
