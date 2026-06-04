@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Surat - Admin Panel</title>
+    <link rel="stylesheet" href="styles-generator.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="nav-header">
+                <h2>Generator Surat</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#daftar-surat" class="nav-link active" data-section="daftar">📋 Daftar Surat</a></li>
+                <li><a href="#buat-surat" class="nav-link" data-section="buat">✍️ Buat Surat Baru</a></li>
+                <li><a href="#arsip" class="nav-link" data-section="arsip">📁 Arsip Surat</a></li>
+                <li><a href="#template-kop" class="nav-link" data-section="template">🎨 Template Kop Surat</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Daftar Surat Section -->
+            <section id="daftar-surat" class="section active">
+                <header class="section-header">
+                    <h1>Daftar Surat</h1>
+                    <button class="btn btn-primary" onclick="switchSection('buat')">+ Buat Surat Baru</button>
+                </header>
+                <div class="table-wrapper">
+                    <table class="table-surat" id="tabelDaftarSurat">
+                        <thead>
+                            <tr>
+                                <th>No. Surat</th>
+                                <th>Tanggal</th>
+                                <th>Perihal</th>
+                                <th>Template Kop</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-daftar">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Belum ada surat. Buat surat baru untuk memulai.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Buat Surat Section -->
+            <section id="buat-surat" class="section">
+                <header class="section-header">
+                    <h1>Buat Surat Baru</h1>
+                </header>
+                
+                <div class="surat-builder">
+                    <!-- Form Panel -->
+                    <div class="form-panel">
+                        <div class="form-group">
+                            <label for="select-template">Pilih Template Kop Surat</label>
+                            <select id="select-template" class="form-control" onchange="handleTemplateChange()">
+                                <option value="">-- Pilih Template --</option>
+                                <option value="ujian-cendekia">Ujian Cendekia Aksara</option>
+                                <option value="pengumuman-cendekia">Pengumuman Cendekia Aksara</option>
+                                <option value="resmi">Surat Resmi</option>
+                                <option value="custom">Custom Template</option>
+                            </select>
+                        </div>
+
+                        <!-- Pratinjau Kop Surat -->
+                        <div class="template-preview" id="preview-kop">
+                            <p class="text-muted text-center">Pilih template untuk melihat pratinjau</p>
+                        </div>
+
+                        <!-- Nomor Surat -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nomor-surat">Nomor Surat</label>
+                                <input type="text" id="nomor-surat" class="form-control" placeholder="001/XYZ/2024" readonly>
+                                <small>Format: NNN/KODE/TAHUN</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="tanggal-surat">Tanggal Surat</label>
+                                <input type="date" id="tanggal-surat" class="form-control" onchange="generateNomorSurat()">
+                            </div>
+                        </div>
+
+                        <!-- Perihal -->
+                        <div class="form-group">
+                            <label for="perihal-surat">Perihal Surat</label>
+                            <input type="text" id="perihal-surat" class="form-control" placeholder="Masukkan perihal surat">
+                        </div>
+
+                        <!-- Isi Surat -->
+                        <div class="form-group">
+                            <label for="isi-surat">Isi Surat</label>
+                            <textarea id="isi-surat" class="form-control" rows="8" placeholder="Ketikkan isi surat di sini..."></textarea>
+                            <small>AI akan membantu mengembangkan dan memperbaiki konten</small>
+                        </div>
+
+                        <!-- AI Enhancement Button -->
+                        <div class="form-group">
+                            <button class="btn btn-secondary" onclick="openAIEnhancer()">✨ Perbaiki dengan AI</button>
+                        </div>
+
+                        <!-- Lampiran -->
+                        <div class="form-group">
+                            <label>Lampiran</label>
+                            <div class="lampiran-container" id="lampiran-container">
+                                <button class="btn btn-outline" onclick="addLampiran()">+ Tambah Lampiran</button>
+                            </div>
+                            <div id="lampiran-list" class="lampiran-list"></div>
+                        </div>
+
+                        <!-- Tanda Tangan -->
+                        <div class="form-group">
+                            <label>Tanda Tangan & Pengesah</label>
+                            <div class="signature-controls">
+                                <input type="number" id="signature-columns" class="form-control" min="1" max="5" value="1" placeholder="Jumlah kolom">
+                                <button class="btn btn-outline" onclick="updateSignatureColumns()">Update</button>
+                            </div>
+                            <div id="signature-container" class="signature-container"></div>
+                            <button class="btn btn-outline" onclick="addSignature()">+ Tambah Tanda Tangan</button>
+                        </div>
+
+                        <!-- Catatan -->
+                        <div class="form-group">
+                            <label for="catatan">Catatan Intern</label>
+                            <textarea id="catatan" class="form-control" rows="3" placeholder="Catatan pribadi (tidak akan ditampilkan di surat)"></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="saveSurat()">💾 Simpan Surat</button>
+                            <button class="btn btn-success" onclick="generatePDF()">📄 Download PDF</button>
+                            <button class="btn btn-outline" onclick="resetForm()">🔄 Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- Preview Panel -->
+                    <div class="preview-panel">
+                        <div class="preview-header">
+                            <h3>Pratinjau Surat</h3>
+                            <button class="btn-refresh" onclick="refreshPreview()">🔄</button>
+                        </div>
+                        <div class="preview-content" id="preview-surat">
+                            <p class="text-muted text-center">Isi form untuk melihat pratinjau</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Arsip Surat Section -->
+            <section id="arsip" class="section">
+                <header class="section-header">
+                    <h1>Arsip Surat</h1>
+                </header>
+                <div class="arsip-controls">
+                    <input type="text" id="search-arsip" class="form-control" placeholder="Cari surat...">
+                    <select id="filter-tahun" class="form-control" onchange="filterArsip()">
+                        <option value="">Semua Tahun</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+                <div class="table-wrapper">
+                    <table class="table-surat" id="tabelArsip">
+                        <thead>
+                            <tr>
+                                <th>No. Surat</th>
+                                <th>Tanggal</th>
+                                <th>Perihal</th>
+                                <th>Template</th>
+                                <th>Dibuat</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-arsip">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Arsip kosong</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Template Kop Section -->
+            <section id="template-kop" class="section">
+                <header class="section-header">
+                    <h1>Template Kop Surat</h1>
+                    <button class="btn btn-primary" onclick="openTemplateEditor()">+ Buat Template Baru</button>
+                </header>
+                <div class="templates-grid" id="templates-grid">
+                    <!-- Templates akan dimuat di sini -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: AI Enhancer -->
+    <div id="modal-ai" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Perbaiki dengan AI</h2>
+                <button class="modal-close" onclick="closeModal('modal-ai')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Instruksi untuk AI</label>
+                    <textarea id="ai-instruction" class="form-control" rows="4" placeholder="Contoh: Perbaiki tata bahasa, sesuaikan dengan format surat resmi, tambahkan poin-poin yang lebih jelas..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="ai-expand"> Kembangkan konten (tambah detail relevan)
+                    </label>
+                    <label>
+                        <input type="checkbox" id="ai-formal"> Gunakan bahasa resmi yang lebih formal
+                    </label>
+                </div>
+                <div id="ai-loading" class="hidden">
+                    <p class="text-center">⏳ AI sedang memproses...</p>
+                </div>
+                <div id="ai-result" class="hidden">
+                    <label>Hasil Perbaikan:</label>
+                    <textarea id="ai-result-text" class="form-control" rows="6" readonly></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="processWithAI()">Proses dengan AI</button>
+                <button class="btn btn-outline" onclick="acceptAIResult()">Terima Hasil</button>
+                <button class="btn btn-outline" onclick="closeModal('modal-ai')">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: File Upload -->
+    <div id="modal-upload" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload File</h2>
+                <button class="modal-close" onclick="closeModal('modal-upload')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="file-input">Pilih File</label>
+                    <input type="file" id="file-input" class="form-control" accept="image/*,.pdf,.doc,.docx">
+                    <small>Format didukung: Gambar (JPG, PNG), PDF, DOC, DOCX</small>
+                </div>
+                <div id="file-preview" class="file-preview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="confirmFileUpload()">Upload</button>
+                <button class="btn btn-outline" onclick="closeModal('modal-upload')">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Signature Editor -->
+    <div id="modal-signature" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Tanda Tangan</h2>
+                <button class="modal-close" onclick="closeModal('modal-signature')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="sig-name">Nama Penandatangan</label>
+                    <input type="text" id="sig-name" class="form-control" placeholder="Nama lengkap">
+                </div>
+                <div class="form-group">
+                    <label for="sig-title">Jabatan/Posisi</label>
+                    <input type="text" id="sig-title" class="form-control" placeholder="Jabatan">
+                </div>
+                <div class="form-group">
+                    <label for="sig-file">Upload Tanda Tangan (Gambar)</label>
+                    <input type="file" id="sig-file" class="form-control" accept="image/*">
+                    <small>Format: JPG, PNG (transparent background recommended)</small>
+                </div>
+                <div id="sig-preview" class="file-preview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="confirmSignature()">Simpan Tanda Tangan</button>
+                <button class="btn btn-outline" onclick="closeModal('modal-signature')">Batal</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="generator-surat.js"></script>
+</body>
+</html>
