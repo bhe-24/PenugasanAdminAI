@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kelola Cuti & Akun - Admin Cendekia</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         :root { --primary: #003366; --accent: #d4af37; --bg: #f4f6f9; }
@@ -53,7 +56,7 @@
         .reason-box { background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 0.9rem; margin-bottom: 25px; border: 1px solid #e2e8f0; flex-grow: 1; line-height: 1.5; color: #475569;}
 
         .btn-group { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; display: inline-flex; justify-content: center; align-items: center; font-size: 0.9rem; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: white; transition: 0.2s; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-size: 0.9rem; }
         .btn-approve { background: #166534; box-shadow: 0 4px 10px rgba(22, 101, 52, 0.2);} .btn-approve:hover { background: #14532d; }
         .btn-reject { background: #dc3545; box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);} .btn-reject:hover { background: #b02a37; }
         .btn-payment { background: #0ea5e9; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.2);} .btn-payment:hover { background: #0284c7; }
@@ -73,18 +76,19 @@
         .akun-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; color: #0f172a; }
         .akun-info p { margin: 0; font-size: 0.85rem; color: #64748b; }
         .status-label { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: bold; margin-top: 8px; display: inline-block;}
-        .lbl-aktif { background: #dcfce7; color: #166534; }
-        .lbl-cuti { background: #fef3c7; color: #b45309; }
-        .lbl-nonaktif { background: #fee2e2; color: #b91c1c; }
-        .lbl-mundur { background: #fce7f3; color: #be185d; }
-        .lbl-dropout { background: #fee2e2; color: #7f1d1d; }
+        .lbl-aktif { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .lbl-cuti { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .lbl-nonaktif { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+        .lbl-mundur { background: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; }
+        .lbl-dropout { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
 
         /* Action Dropdown untuk Status */
         .action-dropdown { position: relative; display: inline-block; }
-        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 200px; box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2); padding: 12px 16px; z-index: 1; border-radius: 8px; }
-        .dropdown-content button { display: block; width: 100%; text-align: left; padding: 10px 0; border: none; background: none; cursor: pointer; color: #334155; font-family: 'Poppins'; font-size: 0.9rem; }
-        .dropdown-content button:hover { color: var(--primary); font-weight: 600; }
-        .dropdown-toggle { padding: 8px 12px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: #334155; }
+        .dropdown-content { display: none; position: absolute; right: 0; background-color: white; min-width: 220px; box-shadow: 0 8px 25px rgba(0,0,0,0.15); padding: 12px 16px; z-index: 10; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .dropdown-content button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 12px 10px; border: none; background: none; cursor: pointer; color: #334155; font-family: 'Poppins'; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; transition: 0.2s;}
+        .dropdown-content button:last-child { border-bottom: none; }
+        .dropdown-content button:hover { color: var(--primary); background: #f8fafc; font-weight: 600; border-radius: 6px;}
+        .dropdown-toggle { padding: 12px 15px; background: #e2e8f0; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; color: #334155; transition: 0.2s;}
         .dropdown-toggle:hover { background: #cbd5e1; }
 
         @media (max-width: 600px) {
@@ -135,20 +139,54 @@
         <div id="tab-akun" class="tab-content">
             <div class="kontrol-panel">
                 <div class="search-box">
-                    <input type="text" id="search-student" placeholder="Cari nama atau UID siswa...">
+                    <input type="text" id="search-student" placeholder="Ketik nama atau UID siswa..." onkeypress="if(event.key === 'Enter') cariSiswa()">
                     <button onclick="cariSiswa()"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
                 </div>
                 
                 <div id="akun-list" class="akun-list">
-                    <div style="text-align:center; padding:30px; color:#94a3b8;"><i class="fa-solid fa-magnifying-glass fa-2x"></i><br><br>Silakan cari nama siswa untuk mengontrol akunnya.</div>
+                    <div style="text-align:center; padding:30px; color:#94a3b8;"><i class="fa-solid fa-magnifying-glass fa-2x mb-3"></i><br>Silakan cari nama siswa untuk mengontrol akunnya.</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, where, getDocs, doc, updateDoc, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Inisialisasi Firebase secara Mandiri (Menghindari error import modul eksternal)
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Pengecekan Akses Admin
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
+                        loadRequests();
+                    } else {
+                        Swal.fire('Akses Ditolak', 'Anda tidak memiliki otorisasi Admin.', 'error')
+                        .then(() => window.location.href = '../index.html');
+                    }
+                } catch(e) {
+                    console.error("Auth check failed:", e);
+                }
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
 
         // TAB SWITCHER
         window.switchTab = (tabId, btn) => {
@@ -157,10 +195,8 @@
             document.getElementById(tabId).classList.add('active');
             btn.classList.add('active');
             
-            // Load withdrawal data when tab is switched
-            if (tabId === 'tab-withdrawal') {
-                loadWithdrawalRequests();
-            }
+            if (tabId === 'tab-withdrawal') loadWithdrawalRequests();
+            if (tabId === 'tab-cuti') loadRequests();
         };
 
         // Format Tanggal Indo
@@ -171,7 +207,7 @@
             return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
         };
 
-        // HELPER LOGO BASE64 (DIBUAT LEBIH AMAN)
+        // HELPER LOGO BASE64
         async function getBase64Logo() {
             try {
                 const controller = new AbortController();
@@ -197,13 +233,9 @@
         // ==========================================
         // FITUR 1: KELOLA PERMOHONAN CUTI/IZIN
         // ==========================================
-        (async () => {
-            const admin = await checkAuth('admin'); 
-            if(admin) loadRequests();
-        })();
-
         async function loadRequests() {
             const container = document.getElementById('request-list');
+            container.innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; padding:50px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>Memeriksa Kotak Masuk...</div>';
             try {
                 const q = query(collection(db, 'leave_requests'), orderBy('timestamp', 'desc'));
                 const snap = await getDocs(q);
@@ -266,26 +298,36 @@
         }
 
         window.processIzin = async (docId, newStatus, studentId, btnElement) => {
-            if(!confirm(newStatus === 'approved' ? 'Setujui izin ini? Akun siswa akan otomatis dikunci mode Cuti.' : 'Tolak permohonan izin ini?')) return;
+            const pesan = newStatus === 'approved' 
+                ? 'Setujui izin ini? Akun siswa akan otomatis dikunci dalam mode Cuti.' 
+                : 'Tolak permohonan izin ini?';
+
+            const result = await Swal.fire({
+                title: 'Konfirmasi', text: pesan, icon: 'question',
+                showCancelButton: true, confirmButtonColor: '#003366', cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan'
+            });
+
+            if (!result.isConfirmed) return;
 
             const originalBtn = btnElement.innerHTML;
-            btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
             btnElement.disabled = true;
 
             try {
                 await updateDoc(doc(db, 'leave_requests', docId), { status: newStatus });
                 
                 if (newStatus === 'approved') {
-                    await updateDoc(doc(db, 'users', studentId), { status: 'cuti' });
+                    await updateDoc(doc(db, 'users', studentId), { 
+                        status: 'cuti',
+                        statusUpdatedAt: new Date().toISOString()
+                    });
                 }
 
-                const card = document.getElementById(`card-${docId}`);
-                card.classList.add('processed');
-                
+                Swal.fire('Berhasil', 'Permohonan telah diproses.', 'success');
                 loadRequests(); 
-
             } catch(e) {
-                alert("Gagal memproses: " + e.message);
+                Swal.fire('Error', "Gagal memproses: " + e.message, 'error');
                 btnElement.innerHTML = originalBtn;
                 btnElement.disabled = false;
             }
@@ -296,6 +338,7 @@
         // ==========================================
         async function loadWithdrawalRequests() {
             const container = document.getElementById('withdrawal-list');
+            container.innerHTML = '<div style="text-align:center; width:100%; grid-column:1/-1; padding:50px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>Memuat Permohonan Withdrawal...</div>';
             try {
                 const q = query(collection(db, 'withdrawal_requests'), orderBy('timestamp', 'desc'));
                 const snap = await getDocs(q);
@@ -321,7 +364,7 @@
                     } else if (data.status === 'approved') {
                         cardClass += " processed";
                         let paymentStatus = data.paymentStatus || 'pending';
-                        let paymentBadge = paymentStatus === 'completed' ? 'Pembayaran Selesai' : 'Menunggu Pembayaran';
+                        let paymentBadge = paymentStatus === 'completed' ? 'Pembayaran Selesai' : 'Menunggu Pembayaran Denda';
                         let paymentColor = paymentStatus === 'completed' ? '#dcfce7' : '#fef3c7';
                         let paymentTextColor = paymentStatus === 'completed' ? '#166534' : '#b45309';
                         
@@ -340,10 +383,10 @@
 
                     container.innerHTML += `
                         <div class="${cardClass}" id="card-${d.id}">
-                            <div class="req-badge">WITHDRAWAL</div>
+                            <div class="req-badge" style="background:#fce7f3; color:#be185d;">WITHDRAWAL</div>
                             <div class="student-name">${data.studentName}</div>
                             <div class="dates">
-                                <i class="fa-regular fa-calendar"></i> ${formatTgl(d.createTime?.toDate?.() || new Date())}
+                                <i class="fa-regular fa-calendar"></i> Pengajuan: ${formatTgl(d.createTime?.toDate?.() || new Date())}
                             </div>
                             <div class="reason-box">"${data.reason || 'Pengajuan Mengundurkan Diri'}"</div>
                             <div id="action-${d.id}">
@@ -358,7 +401,17 @@
         }
 
         window.processWithdrawal = async (docId, newStatus, studentId, btnElement) => {
-            if(!confirm(newStatus === 'approved' ? 'Setujui withdrawal ini? Siswa akan dialihkan ke halaman pembayaran denda.' : 'Tolak permohonan withdrawal ini?')) return;
+            const pesan = newStatus === 'approved' 
+                ? 'Setujui withdrawal ini? Siswa akan otomatis ditandai "Mengundurkan Diri" dan ditagih denda.' 
+                : 'Tolak permohonan withdrawal ini?';
+
+            const result = await Swal.fire({
+                title: 'Konfirmasi', text: pesan, icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#003366', cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan'
+            });
+
+            if (!result.isConfirmed) return;
 
             const originalBtn = btnElement.innerHTML;
             btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -368,14 +421,18 @@
                 await updateDoc(doc(db, 'withdrawal_requests', docId), { status: newStatus });
                 
                 if (newStatus === 'approved') {
-                    // Don't lock the account yet, wait for payment
-                    // Status will be updated when payment is completed
+                    // Update user status
+                    await updateDoc(doc(db, 'users', studentId), { 
+                        status: 'mengundurkan_diri',
+                        statusUpdatedAt: new Date().toISOString()
+                    });
                 }
 
+                Swal.fire('Berhasil', 'Permohonan pengunduran diri telah diproses.', 'success');
                 loadWithdrawalRequests(); 
 
             } catch(e) {
-                alert("Gagal memproses: " + e.message);
+                Swal.fire('Error', "Gagal memproses: " + e.message, 'error');
                 btnElement.innerHTML = originalBtn;
                 btnElement.disabled = false;
             }
@@ -385,11 +442,11 @@
         // FITUR 2: CARI & KONTROL AKUN (BLOKIR/BUKA)
         // ==========================================
         window.cariSiswa = async () => {
-            const keyword = document.getElementById('search-student').value.toLowerCase();
+            const keyword = document.getElementById('search-student').value.toLowerCase().trim();
             const container = document.getElementById('akun-list');
             if(!keyword) return;
 
-            container.innerHTML = '<div style="text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Mencari...</div>';
+            container.innerHTML = '<div style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i><br><br>Mencari Siswa...</div>';
 
             try {
                 const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
@@ -406,18 +463,19 @@
                         
                         if(data.status === 'nonaktif') {
                             stLabel = `<span class="status-label lbl-nonaktif">Nonaktif (Dibekukan)</span>`;
-                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Aktifkan Kembali</button>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'active', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Aktifkan Kembali</button>`;
                         } else if (data.status === 'cuti') {
                             stLabel = `<span class="status-label lbl-cuti">Sedang Cuti / Izin</span>`;
-                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Cabut Status Cuti (Aktifkan)</button>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'active', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-lock-open"></i> Cabut Status Cuti (Aktifkan)</button>`;
                         } else if (data.status === 'mengundurkan_diri') {
                             stLabel = `<span class="status-label lbl-mundur">Mengundurkan Diri</span>`;
-                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-rotate-left"></i> Kembalikan ke Aktif</button>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'active', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-rotate-left"></i> Kembalikan ke Aktif</button>`;
                         } else if (data.status === 'dropout') {
                             stLabel = `<span class="status-label lbl-dropout">Dropout</span>`;
-                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'aktif', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-rotate-left"></i> Kembalikan ke Aktif</button>`;
+                            aksiBtn = `<button onclick="ubahStatusAkun('${d.id}', 'active', '${data.name}')" class="btn btn-approve"><i class="fa-solid fa-rotate-left"></i> Kembalikan ke Aktif</button>`;
                         }
 
+                        // Stringify untuk lempar ke fungsi cetak
                         const dataSurat = encodeURIComponent(JSON.stringify({ id: d.id, name: data.name, status: data.status }));
 
                         foundHTML += `
@@ -427,8 +485,8 @@
                                     <p>UID: ${d.id}</p>
                                     ${stLabel}
                                 </div>
-                                <div style="display:flex; flex-direction:column; gap:8px; width:280px;">
-                                    <div style="display:flex; gap:8px;">
+                                <div style="display:flex; flex-direction:column; gap:8px; width:100%; max-width: 320px;">
+                                    <div style="display:flex; gap:8px; width: 100%;">
                                         ${aksiBtn}
                                         <div class="action-dropdown" style="flex: 0;">
                                             <button class="dropdown-toggle" onclick="toggleDropdown(this)"><i class="fa-solid fa-chevron-down"></i></button>
@@ -439,18 +497,18 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <button onclick="cetakSuratAkun('${dataSurat}', this)" class="btn btn-pdf" style="margin:0; padding:8px; font-size:0.85rem; background: #d4af37; color: #003366;"><i class="fa-solid fa-file-pdf"></i> Cetak SK</button>
+                                    <button onclick="cetakSuratAkun('${dataSurat}', this)" class="btn btn-pdf" style="margin:0; padding:10px; font-size:0.85rem; background: #003366; color: white;"><i class="fa-solid fa-file-pdf"></i> Cetak SK Administrasi</button>
                                 </div>
                             </div>
                         `;
                     }
                 });
 
-                if(foundHTML === '') container.innerHTML = '<div style="text-align:center; color:#999;">Siswa tidak ditemukan.</div>';
+                if(foundHTML === '') container.innerHTML = '<div style="text-align:center; padding:30px; color:#999;">Data siswa tidak ditemukan. Periksa kembali ejaan nama.</div>';
                 else container.innerHTML = foundHTML;
 
             } catch (e) {
-                container.innerHTML = `<div style="text-align:center; color:red;">Error: ${e.message}</div>`;
+                container.innerHTML = `<div style="text-align:center; color:red; padding:30px;">Error: ${e.message}</div>`;
             }
         };
 
@@ -470,12 +528,12 @@
             let jenisStatus = '';
 
             switch(newStatus) {
-                case 'aktif':
-                    pesan = `Aktifkan kembali akun ${name}?`;
+                case 'active':
+                    pesan = `Aktifkan kembali akun ${name}? Akun akan direfresh untuk mencegah Auto-Suspend.`;
                     jenisStatus = 'AKTIF';
                     break;
                 case 'nonaktif':
-                    pesan = `Bekukan dan kunci akun ${name}?`;
+                    pesan = `Bekukan dan kunci akun ${name} secara paksa?`;
                     jenisStatus = 'NONAKTIF (SUSPEND)';
                     break;
                 case 'mengundurkan_diri':
@@ -483,12 +541,22 @@
                     jenisStatus = 'MENGUNDURKAN DIRI';
                     break;
                 case 'dropout':
-                    pesan = `Tandai ${name} sebagai DROPOUT? Akun akan dikunci dan surat resmi akan diterbitkan.`;
+                    pesan = `Tandai ${name} sebagai DROPOUT? Akun akan dikunci permanen.`;
                     jenisStatus = 'DROPOUT';
                     break;
             }
 
-            if(!confirm(pesan)) return;
+            const result = await Swal.fire({
+                title: 'Konfirmasi Aksi',
+                text: pesan,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#003366',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Ya, Lanjutkan'
+            });
+
+            if (!result.isConfirmed) return;
 
             try {
                 const userData = await getDoc(doc(db, 'users', uid));
@@ -496,37 +564,45 @@
                     id: uid,
                     name: name,
                     status: newStatus,
-                    previousStatus: userData.data()?.status || 'aktif',
+                    previousStatus: userData.data()?.status || 'active',
                     tanggalUpdate: new Date().toISOString()
                 };
 
-                await updateDoc(doc(db, 'users', uid), { 
+                let updatePayload = { 
                     status: newStatus,
                     statusUpdatedAt: new Date().toISOString()
-                });
+                };
 
-                alert(`Akun ${name} berhasil diperbarui menjadi ${jenisStatus}`);
+                // PENTING: Reset timer auto-suspend agar akun tidak langsung dikunci ulang oleh Dasbor Siswa
+                if (newStatus === 'active') {
+                    updatePayload.lastLogin = new Date().toISOString();
+                    updatePayload.lastActive = new Date().toISOString();
+                }
 
-                // Auto-cetak surat jika status berubah ke withdrawal atau dropout
-                if (newStatus === 'mengundurkan_diri' || newStatus === 'dropout') {
+                await updateDoc(doc(db, 'users', uid), updatePayload);
+
+                Swal.fire('Berhasil', `Akun ${name} berhasil diperbarui menjadi status: ${jenisStatus}`, 'success');
+
+                // Auto-cetak surat jika status berubah ke penangguhan
+                if (newStatus === 'mengundurkan_diri' || newStatus === 'dropout' || newStatus === 'nonaktif' || newStatus === 'active') {
                     const dataSurat = encodeURIComponent(JSON.stringify(dataLengkap));
                     setTimeout(() => {
-                        const btn = document.createElement('button');
-                        cetakSuratAkun(dataSurat, btn);
-                    }, 500);
+                        const fakeBtn = document.createElement('button');
+                        cetakSuratAkun(dataSurat, fakeBtn);
+                    }, 800);
                 }
 
                 cariSiswa(); 
             } catch (e) {
-                alert("Gagal mengubah status: " + e.message);
+                Swal.fire('Gagal', "Gagal mengubah status: " + e.message, 'error');
             }
         };
 
         // ==========================================
-        // FITUR 3: MESIN CETAK SURAT PDF (HANYA UNTUK SK AKUN INTERNAL)
+        // FITUR 3: MESIN CETAK SURAT PDF (SK AKUN INTERNAL)
         // ==========================================
         window.cetakSuratAkun = async (encodedData, btnElement) => {
-            const originalBtn = btnElement.innerHTML || '<i class="fa-solid fa-file-pdf"></i> Cetak Surat SK Akun';
+            const originalBtn = btnElement.innerHTML || '<i class="fa-solid fa-file-pdf"></i> Cetak SK Administrasi';
             if(btnElement.innerHTML) {
                 btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun PDF...';
                 btnElement.disabled = true;
@@ -542,23 +618,23 @@
                 if (data.status === 'nonaktif') {
                     judulSurat = 'SURAT PEMBERITAHUAN PENONAKTIFAN AKUN (SUSPEND)';
                     nomorSK = `SK-SUSPEND-${data.id.substring(0,4).toUpperCase()}-${new Date().getFullYear()}`;
-                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah DINONAKTIFKAN/DISUSPEND secara sementara sejak tanggal ${tglCetak} berdasarkan keputusan administrasi.\n\nSelama masa penonaktifan, siswa tidak dapat mengakses platform pembelajaran dan semua fitur sistem akan terbatas. Siswa dapat mengajukan permohonan aktivasi kembali setelah kondisi prasyarat terpenuhi.`;
-                    keteranganPenting = 'Siswa wajib mengajukan banding secara langsung kepada Administrator untuk dapat membuka kembali akses sistem.';
+                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah DINONAKTIFKAN/DISUSPEND secara paksa/sementara sejak tanggal ${tglCetak} berdasarkan kebijakan rasional administrasi.\n\nSelama masa penonaktifan, siswa tidak dapat mengakses platform pembelajaran dan semua fitur sistem dibekukan. Siswa dapat mengajukan permohonan aktivasi kembali setelah kondisi prasyarat mediasi terpenuhi.`;
+                    keteranganPenting = 'Siswa wajib mengajukan banding atau klarifikasi secara langsung kepada Administrator untuk dapat membuka kembali akses sistem.';
                 } else if (data.status === 'mengundurkan_diri') {
                     judulSurat = 'SURAT KETERANGAN PENGUNDURAN DIRI';
                     nomorSK = `SK-MUNDUR-${data.id.substring(0,4).toUpperCase()}-${new Date().getFullYear()}`;
-                    isiSurat = `Melalui dokumen resmi ini, Komunitas Literasi Cendekia Aksara membuktikan bahwa siswa atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah mengajukan dan mendapat persetujuan untuk MENGUNDURKAN DIRI dari program pembelajaran secara resmi sejak tanggal ${tglCetak}.\n\nPengunduran diri ini diterima dan dicatat dalam sistem administrasi pusat dengan semua konsekuensi akademik dan finansial yang telah disepakati.`;
-                    keteranganPenting = 'Dokumen ini merupakan bukti resmi pengunduran diri dan dapat digunakan untuk keperluan administrasi akademik. Siswa dapat mengajukan permohonan reaktivasi akun setelah 6 bulan sejak tanggal pengunduran diri dengan membayar biaya registrasi ulang.';
+                    isiSurat = `Melalui dokumen resmi ini, Komunitas Literasi Cendekia Aksara membuktikan bahwa siswa atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah mengajukan dan mendapat persetujuan untuk MENGUNDURKAN DIRI dari program pembelajaran secara resmi sejak tanggal ${tglCetak}.\n\nPengunduran diri ini diterima dan dicatat dalam sistem administrasi pusat dengan semua konsekuensi akademik dan finansial (termasuk denda administrasi) yang telah disepakati pada Pakta Integritas awal.`;
+                    keteranganPenting = 'Dokumen ini merupakan bukti legal pengunduran diri. Siswa dilarang menggunakan atribut Cendekia Aksara lagi, dan dapat memohon reaktivasi akun setelah 6 bulan sejak tanggal ini dengan melunasi biaya denda & registrasi ulang.';
                 } else if (data.status === 'dropout') {
-                    judulSurat = 'SURAT KETERANGAN DROPOUT';
+                    judulSurat = 'SURAT KETETAPAN DROPOUT (PEMBERHENTIAN)';
                     nomorSK = `SK-DROPOUT-${data.id.substring(0,4).toUpperCase()}-${new Date().getFullYear()}`;
-                    isiSurat = `Melalui dokumen resmi ini, Komunitas Literasi Cendekia Aksara membuktikan bahwa siswa atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah ditetapkan status DROPOUT secara permanen sejak tanggal ${tglCetak} berdasarkan evaluasi administrasi akademik yang berlaku.\n\nPenetapan status ini disebabkan oleh ketidakaktifan berkelanjutan atau pelanggaran peraturan akademik. Siswa tidak dapat lagi mengakses platform pembelajaran.`;
-                    keteranganPenting = 'Penetapan status dropout dilakukan berdasarkan ketentuan akademik yang berlaku di Cendekia Aksara. Siswa dapat mengajukan banding atau permohonan ulang melalui proses administrasi formal dalam waktu 30 hari sejak penetapan ini.';
+                    isiSurat = `Melalui dokumen resmi ini, Komunitas Literasi Cendekia Aksara memutuskan bahwa siswa atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah ditetapkan berstatus DROPOUT secara permanen sejak tanggal ${tglCetak} berdasarkan hasil evaluasi administrasi akademik dan/atau komite kedisiplinan.\n\nPenetapan status ini disebabkan oleh ketidakaktifan masif, penolakan pemenuhan tugas (indisipliner), atau pelanggaran peraturan kode etik akademik. Siswa kehilangan seluruh hak ases dan fasilitas pembelajaran secara absolut.`;
+                    keteranganPenting = 'Keputusan penetapan status dropout bersifat mengikat. Segala hak royalti maupun sertifikat dicabut sepenuhnya terhitung sejak dokumen ini diterbitkan.';
                 } else {
                     judulSurat = 'SURAT KETETAPAN PENGAKTIFAN AKUN';
                     nomorSK = `SK-AKTIF-${data.id.substring(0,4).toUpperCase()}-${new Date().getFullYear()}`;
-                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah sepenuhnya AKTIF dan dapat mengakses semua fitur platform pembelajaran sejak tanggal ${tglCetak}.\n\nSiswa berhak mengikuti semua kegiatan pembelajaran, kuis, ujian, dan penugasan yang tersedia dalam program.`;
-                    keteranganPenting = 'Siswa diharap menjaga rutinitas kehadiran agar akun tidak kembali terkunci otomatis oleh sistem (Auto-Suspend 75 Hari).';
+                    isiSurat = `Melalui dokumen resmi ini, Administrator Cendekia Aksara memberitahukan bahwa akun atas nama:\n\nNama Siswa: ${data.name}\nUser ID: ${data.id}\n\nTelah sepenuhnya DIBUKA (AKTIF) dan dipulihkan untuk dapat mengakses seluruh fitur platform pembelajaran sejak tanggal ${tglCetak}.\n\nSiswa berhak kembali mengikuti semua kegiatan pembelajaran, diskusi sastra, ujian, dan rutinitas penugasan harian yang dijadwalkan dalam silabus program tanpa adanya pembatasan blokir sistem.`;
+                    keteranganPenting = 'Siswa diharap menjaga komitmen rutinitas kehadiran (login rutin) agar akun tidak kembali terkunci otomatis oleh keamanan mesin penjaga sistem (Auto-Suspend 75 Hari Inaktivitas).';
                 }
 
                 const docDefinition = {
@@ -585,18 +661,18 @@
                         { text: isiSurat, alignment: 'justify', margin: [0, 0, 0, 20], lineHeight: 1.5 },
                         
                         { text: 'Catatan Penting:', bold: true, margin: [0, 0, 0, 5] },
-                        { text: keteranganPenting, alignment: 'justify', margin: [0, 0, 0, 30], color: '#dc3545', italics: true },
+                        { text: keteranganPenting, alignment: 'justify', margin: [0, 0, 0, 40], color: '#dc3545', italics: true },
 
                         {
                             columns: [
                                 { text: '', width: '*' }, 
                                 {
                                     stack: [
-                                        { text: `Magelang, ${tglCetak}`, alignment: 'center', margin: [0, 0, 0, 40] },
+                                        { text: `Temanggung, ${tglCetak}`, alignment: 'center', margin: [0, 0, 0, 50] },
                                         { text: 'Administrator Pusat', alignment: 'center', bold: true, decoration: 'underline' },
-                                        { text: 'Dokumen Sah Secara Elektronik', alignment: 'center', fontSize: 9, color: '#999' }
+                                        { text: 'Dokumen Sah Secara Elektronik', alignment: 'center', fontSize: 9, color: '#999', margin: [0, 5, 0, 0] }
                                     ],
-                                    width: 200
+                                    width: 220
                                 }
                             ]
                         }
@@ -604,13 +680,13 @@
                     defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#222' }
                 };
 
-                const statusName = data.status === 'mengundurkan_diri' ? 'MUNDUR' : data.status === 'dropout' ? 'DROPOUT' : data.status;
+                const statusName = data.status === 'mengundurkan_diri' ? 'MUNDUR' : data.status === 'dropout' ? 'DROPOUT' : data.status === 'nonaktif' ? 'SUSPEND' : 'AKTIF';
                 const fileName = `SK_Admin_${data.name.replace(/\s+/g, '_')}_${statusName}_${tglCetak.replace(/\s+/g, '')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName);
                 
             } catch(e) {
                 console.error(e);
-                alert("Gagal mencetak dokumen. Pastikan koneksi stabil.");
+                Swal.fire("Gagal Cetak", "Gagal mencetak dokumen. Pastikan koneksi internet Anda stabil.", "error");
             } finally {
                 if(btnElement.innerHTML) {
                     btnElement.innerHTML = originalBtn;
