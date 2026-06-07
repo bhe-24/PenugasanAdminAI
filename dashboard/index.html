@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="google-site-verification" content="nfOmTXjQ7bxFhT0wJGNrC6WuzTSbjRCrfWY-UdGS0HU" />
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard - Cendekia Aksara</title>
     
     <link rel="stylesheet" href="/css/style.css">
@@ -345,21 +346,35 @@
                     activeBadges.push({ class: 'badge-osis', html: '<i class="fa-solid fa-shield-halved"></i> Pengurus OSIS' });
                 }
 
-                let currentStatus = userData.status || 'aktif';
+                let currentStatus = userData.status || 'active'; // Gunakan standarisasi kata kunci 'active'
 
-                // Cek inaktivitas (Auto Nonaktif jika > 75 hari tidak login)
-                if (currentStatus !== 'nonaktif') {
+                // ==========================================
+                // PERBAIKAN KRUSIAL: CEK INAKTIVITAS (AUTO-SUSPEND)
+                // ==========================================
+                if (currentStatus === 'active' || currentStatus === 'aktif') {
                     let lastActiveDate = new Date(); 
-                    if (userData.last_active && userData.last_active.toDate) {
+                    
+                    // Baca semua probabilitas lokasi format tanggal dari database
+                    if (userData.lastActive) {
+                        lastActiveDate = new Date(userData.lastActive);
+                    } else if (userData.lastLogin) {
+                        lastActiveDate = new Date(userData.lastLogin);
+                    } else if (userData.last_active && userData.last_active.toDate) {
                         lastActiveDate = userData.last_active.toDate();
                     } else if (userData.createdAt) {
                         lastActiveDate = new Date(userData.createdAt);
                     }
 
-                    const diffTime = Math.abs(new Date() - lastActiveDate);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    // Pencegahan gagal parsing tanggal
+                    if (isNaN(lastActiveDate.getTime())) {
+                        lastActiveDate = new Date();
+                    }
 
-                    if (diffDays > 75) {
+                    const diffTime = Math.abs(new Date() - lastActiveDate);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                    // Eksekusi Pemblokiran Otomatis Jika Melewati 75 Hari
+                    if (diffDays >= 75) {
                         currentStatus = 'nonaktif';
                         updateDoc(doc(db, 'users', userData.uid), { status: 'nonaktif' });
                     }
@@ -367,9 +382,15 @@
 
                 const allCards = document.querySelectorAll('.dashboard-card');
 
-                if (currentStatus === 'aktif') {
+                // Terapkan Logika Tampilan Dasbor Berdasarkan Status
+                if (currentStatus === 'active' || currentStatus === 'aktif') {
                     activeBadges.push({ class: 'badge-aktif', html: '<i class="fa-solid fa-user-check"></i> Status: Aktif' });
-                    updateDoc(doc(db, 'users', userData.uid), { last_active: serverTimestamp() });
+                    
+                    // PENTING: Update waktu login/aktivitas saat ini agar tidak terkena auto-suspend keesokan harinya
+                    updateDoc(doc(db, 'users', userData.uid), { 
+                        lastActive: new Date().toISOString(),
+                        lastLogin: new Date().toISOString()
+                    });
 
                 } else if (currentStatus === 'cuti') {
                     activeBadges.push({ class: 'badge-cuti', html: '<i class="fa-solid fa-bed"></i> Status: Cuti / Izin' });
@@ -384,21 +405,21 @@
                         }
                     });
 
-                } else if (currentStatus === 'nonaktif') {
+                } else if (currentStatus === 'nonaktif' || currentStatus === 'suspended') {
                     activeBadges.push({ class: 'badge-nonaktif', html: '<i class="fa-solid fa-user-lock"></i> Status: Dinonaktifkan' });
                     
                     allCards.forEach(card => {
                         card.classList.add('disabled-card');
                         card.onclick = (e) => {
                             e.preventDefault();
-                            window.showModal('Akun Dibekukan', 'Akun Anda dinonaktifkan karena tidak ada aktivitas lebih dari 2 Bulan 15 Hari. Silakan ajukan banding ke Admin.', false, 'danger');
+                            window.showModal('Akun Dibekukan', 'Akun Anda dinonaktifkan karena tidak ada aktivitas lebih dari 2 Bulan 15 Hari, atau karena keputusan panitia. Silakan ajukan banding ke Admin.', false, 'danger');
                         };
                     });
 
                     setTimeout(() => {
                         window.showModal(
                             'Akun Dinonaktifkan ⚠️', 
-                            'Sistem mendeteksi tidak ada aktivitas pembelajaran selama lebih dari 75 hari. Seluruh akses fitur telah dikunci. Silakan hubungi Admin untuk mengajukan pengaktifan kembali.', 
+                            'Sistem mendeteksi bahwa akun ini dibekukan secara administratif. Seluruh akses fitur telah dikunci. Silakan hubungi Admin untuk mengajukan pengaktifan kembali.', 
                             false, 
                             'danger'
                         );
