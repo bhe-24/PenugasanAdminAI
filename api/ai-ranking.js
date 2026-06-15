@@ -1,23 +1,29 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Inisialisasi API Key dari environment variables Vercel
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export default async function handler(req, res) {
-    // 1. ATUR CORS
+    // 1. ATUR CORS (Mengizinkan website Anda mengakses API ini)
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
+    // Tangani preflight request dari browser
     if (req.method === 'OPTIONS') return res.status(200).end();
+    
+    // Tolak jika bukan metode POST
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
+        // PENTING: Inisialisasi diletakkan DI DALAM handler agar tidak menyebabkan error "Build Failed" di Vercel
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("Kunci API Gemini belum dipasang di pengaturan Environment Variables Vercel.");
+        }
+        
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const data = req.body;
 
         if (!data.karya || data.total === 0) {
-            return res.status(400).json({ error: 'Data karya tidak valid.' });
+            return res.status(400).json({ error: 'Data karya tidak valid atau kosong.' });
         }
 
         // --- SUSUN PROMPT UTAMA JURI SASTRA ---
@@ -37,14 +43,14 @@ ${data.karya}
 Ketentuan Output (SANGAT KETAT HARUS DIIKUTI):
 1. JANGAN ADA BASA-BASI PEMBUKA ATAU PENUTUP SEPERTI "Halo", "Baik, saya akan analisis", atau "Semoga bermanfaat". Langsung berikan hasil.
 2. Paragraf Pertama: Berikan ulasan singkat secara general mengenai kualitas rata-rata dari seluruh karya yang masuk pada event ini.
-3. Buat peringkat Juara 1, Juara 2, dan Juara 3 (jika jumlah karya kurang dari 3, sesuaikan saja).
+3. Buat peringkat Juara 1, Juara 2, dan Juara 3 (jika jumlah karya kurang dari 3, sesuaikan saja jumlahnya).
 4. Format Peringkat: Sebutkan dengan jelas "JUARA [X]: [Judul Karya] oleh [Nama Peserta]".
 5. Analisis Pemenang: Di bawah setiap juara, berikan satu paragraf analisis kritis mengapa karya tersebut layak menang (bedah plot, emosi, atau diksinya secara spesifik).
 6. Paragraf Terakhir: Berikan apresiasi dan masukan umum (saran perbaikan) untuk peserta lain yang belum berhasil masuk peringkat.
 7. FORMAT TEKS: Tuliskan jawaban dalam format teks biasa (plain text). DILARANG KERAS menggunakan format Markdown seperti bintang ganda (**teks**) atau bintang tunggal (*teks*) untuk tebal/miring, karena hasil ini akan langsung dicetak ke dalam dokumen PDF. Cukup gunakan baris baru (ENTER) untuk memisahkan setiap poin dan paragraf agar rapi.
 `;
 
-        // Menggunakan model standar Gemini Flash 1.5 untuk kecepatan dan akurasi logika
+        // Menggunakan model standar Gemini Flash 1.5
         const model = genAI.getGenerativeModel({ 
             model: "gemini-2.5-flash",
             generationConfig: { 
@@ -60,6 +66,7 @@ Ketentuan Output (SANGAT KETAT HARUS DIIKUTI):
         // Menghapus karakter asterik (*) jika AI masih bandel menggunakan markdown
         let cleanFeedback = textResponse.replace(/\*/g, "").trim();
 
+        // Kirim hasil kembali ke website Admin
         res.status(200).json({
             analisis_teks: cleanFeedback
         });
@@ -67,7 +74,7 @@ Ketentuan Output (SANGAT KETAT HARUS DIIKUTI):
     } catch (error) {
         console.error("AI Error (Ranking Karya):", error);
         res.status(500).json({ 
-            error: "AksaBot sedang mengalami kendala server. Silakan coba klik analisis sekali lagi ya!" 
+            error: error.message || "AksaBot sedang mengalami kendala server. Silakan coba klik analisis sekali lagi!" 
         });
     }
 }
