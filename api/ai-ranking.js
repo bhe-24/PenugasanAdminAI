@@ -1,13 +1,13 @@
-import { 
+const { 
     GoogleGenerativeAI, 
     HarmCategory, 
     HarmBlockThreshold 
-} from '@google/generative-ai';
+} = require('@google/generative-ai');
 
 // Inisialisasi API Key persis seperti di grade2.js
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     // 1. ATUR CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
@@ -42,6 +42,7 @@ ${karya}
 Tolong berikan output HANYA dalam format JSON ARRAY murni yang valid. Struktur JSON-nya harus persis seperti ini untuk SETIAP peserta (Urutkan dari karya yang paling terbaik / Juara 1 di atas hingga yang terbawah):
 [
   {
+    "peringkat": "(Contoh: Juara 1 / Juara 2 / Juara 3 / Peserta)",
     "nama_penulis": "(Nama Peserta)",
     "judul_karya": "(Judul Karya)",
     "analisis": "(Analisis tajam dan objektif sekitar 2-3 kalimat padat mengenai kelebihan dan kekurangan karya tersebut)"
@@ -49,28 +50,17 @@ Tolong berikan output HANYA dalam format JSON ARRAY murni yang valid. Struktur J
 ]
 
 Ketentuan Output (SANGAT KETAT):
-1. JANGAN ADA BASA-BASI. Langsung berikan format JSON Array.
+1. JANGAN ADA BASA-BASI. Langsung berikan format JSON Array dimulai dari tanda [.
 2. Analisis HARUS mencakup SEMUA (${total}) peserta yang ada di Data Karya. Jangan ada yang terlewat.
+3. Wajib berikan predikat Juara 1, Juara 2, dan Juara 3 untuk 3 karya teratas. Sisanya berikan predikat "Peserta".
 `;
 
         // Konfigurasi Filter Keamanan untuk melonggarkan pengecekan AI
         const safetySettings = [
-            {
-                category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-                threshold: HarmBlockThreshold.BLOCK_NONE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                threshold: HarmBlockThreshold.BLOCK_NONE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                threshold: HarmBlockThreshold.BLOCK_NONE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold: HarmBlockThreshold.BLOCK_NONE,
-            },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         ];
 
         // Menggunakan model Gemini Flash 1.5
@@ -86,9 +76,10 @@ Ketentuan Output (SANGAT KETAT):
             safetySettings: safetySettings
         });
         
-        const textResponse = result.response.text();
+        let textResponse = result.response.text();
         
-        // Parsing JSON langsung (karena output dijamin JSON Array murni dari config di atas)
+        // Parsing JSON (Pembersihan jika AI membandel memberi backtick)
+        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
         const finalResult = JSON.parse(textResponse);
 
         // Mengembalikan data JSON ke frontend admin
