@@ -12,6 +12,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <style>
         :root { --primary: #002244; --accent: #d4af37; --bg: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
@@ -73,6 +76,12 @@
         .filter-area { display: flex; gap: 15px; margin-bottom: 25px; align-items: center; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
         .btn-word { background: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; transition: 0.3s; }
         .btn-word:hover { background: #1d4ed8; }
+        .btn-word:disabled { background: #94a3b8; cursor: not-allowed; }
+        
+        /* TOMBOL AI */
+        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .btn-ai:hover { background: linear-gradient(135deg, #7c3aed, #4f46e5); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
+        .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
 
         .karya-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .karya-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; transition: 0.3s;}
@@ -184,6 +193,7 @@
             .form-grid { grid-template-columns: 1fr; gap: 15px; }
             .filter-area { flex-direction: column; align-items: stretch; gap: 10px;}
             .btn-word { width: 100%; justify-content: center; }
+            .btn-ai { width: 100%; justify-content: center; }
             .event-grid { grid-template-columns: 1fr; }
             .karya-grid { grid-template-columns: 1fr; }
         }
@@ -191,16 +201,14 @@
 </head>
 <body>
 
-    <!-- LOADING OVERLAY -->
     <div id="loading-screen">
-        <i class="fa-solid fa-camera-rotate fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;"></i>
-        <h2 style="font-family:'Aleo', serif; margin:0;">Memproses Gambar...</h2>
-        <p style="color:#64748b;" id="loading-msg">Mohon tunggu, sedang merender poster.</p>
+        <i class="fa-solid fa-robot fa-bounce" style="font-size: 4rem; color: #6366f1; margin-bottom: 20px;" id="loading-icon"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0; color: #003366;" id="loading-title">Memproses...</h2>
+        <p style="color:#64748b; text-align: center; max-width: 400px; margin-top: 10px;" id="loading-msg">Mohon tunggu sebentar.</p>
     </div>
 
     <div class="container">
 
-        <!-- HEADER -->
         <header class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
@@ -220,7 +228,6 @@
             <button class="tab-btn" onclick="switchTab('karya')"><i class="fa-solid fa-book-open"></i> Semua Hasil Karya</button>
         </div>
 
-        <!-- TAB 1: BUAT EVENT -->
         <div id="tab-buat" class="admin-card">
             <h2 class="section-title"><i class="fa-solid fa-pen-nib"></i> Konfigurasi Event Mingguan (Admin)</h2>
             <form id="event-form">
@@ -255,7 +262,6 @@
             </form>
         </div>
 
-        <!-- TAB 2: DAFTAR EVENT -->
         <div id="tab-daftar" class="admin-card" style="display: none;">
             <h2 class="section-title"><i class="fa-solid fa-calendar-days"></i> Daftar Event Aktif & Riwayat</h2>
             <div id="event-list" class="event-grid">
@@ -263,7 +269,6 @@
             </div>
         </div>
 
-        <!-- TAB 3: HASIL KARYA SEMUA -->
         <div id="tab-karya" class="admin-card" style="display: none;">
             <h2 class="section-title"><i class="fa-solid fa-box-open"></i> Gudang Karya Semua Siswa</h2>
             
@@ -274,9 +279,14 @@
                         <option value="">Pilih Event...</option>
                     </select>
                 </div>
-                <button class="btn-word" onclick="exportToWord()" id="btn-export-word" disabled>
-                    <i class="fa-solid fa-file-word"></i> Ekspor Semua (.doc)
-                </button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-word" onclick="exportToWord()" id="btn-export-word" disabled>
+                        <i class="fa-solid fa-file-word"></i> Ekspor MS.Word
+                    </button>
+                    <button class="btn-ai" onclick="analyzeAITopKarya()" id="btn-ai-rank" disabled>
+                        <i class="fa-solid fa-robot"></i> Karya Terbaik (AI)
+                    </button>
+                </div>
             </div>
 
             <div id="karya-list" class="karya-grid">
@@ -286,7 +296,6 @@
 
     </div>
 
-    <!-- MODAL SHARE QR (PROMO EVENT) -->
     <div class="modal-overlay" id="share-modal">
         <div class="modal-box">
             <button onclick="closeModal('share-modal')" style="position:absolute; right:15px; top:15px; background:none; border:none; font-size:1.5rem; color:#94a3b8; cursor:pointer;">&times;</button>
@@ -304,7 +313,6 @@
         </div>
     </div>
 
-    <!-- POSTER TEMPLATES (HIDDEN) -->
     <div id="poster-promo" class="poster-wrapper theme-navy">
         <div class="pp-header">
             <div style="flex:1;">
@@ -350,7 +358,6 @@
         </div>
     </div>
 
-    <!-- LOGIKA JAVASCRIPT -->
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, updateDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -521,7 +528,9 @@
         window.downloadPromoPoster = async (themeType) => {
             if(!currentEventPromo) return;
             
-            document.getElementById('loading-msg').innerText = "Menyiapkan Poster Promosi...";
+            document.getElementById('loading-title').innerText = "Menyiapkan Gambar...";
+            document.getElementById('loading-msg').innerText = "Merender Poster Promo Resolusi Tinggi.";
+            document.getElementById('loading-icon').className = "fa-solid fa-camera-rotate fa-spin";
             document.getElementById('loading-screen').classList.add('active');
 
             try {
@@ -579,10 +588,12 @@
             const eventId = document.getElementById('filter-event').value;
             const container = document.getElementById('karya-list');
             const btnWord = document.getElementById('btn-export-word');
+            const btnAi = document.getElementById('btn-ai-rank');
             
             if(!eventId) {
                 container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8; border:2px dashed #e2e8f0; border-radius:12px;">Pilih event di atas untuk melihat karya yang terkumpul.</div>';
                 btnWord.disabled = true;
+                btnAi.disabled = true;
                 return;
             }
 
@@ -598,6 +609,7 @@
                 if(snap.empty) {
                     container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8; background:white; border-radius:12px; border:1px solid #e2e8f0;">Belum ada siswa yang mengumpulkan karya untuk event ini.</div>';
                     btnWord.disabled = true;
+                    btnAi.disabled = true;
                     return;
                 }
 
@@ -611,6 +623,7 @@
 
                 container.innerHTML = '';
                 btnWord.disabled = false;
+                btnAi.disabled = false;
 
                 const evType = allEvents.find(e => e.id === eventId)?.tipe || 'Karya';
 
@@ -692,7 +705,78 @@
             URL.revokeObjectURL(url);
         }
 
-        // --- SMART PAGINATION UNTUK POSTER ---
+        // --- 6. ANALISIS AI TERBAIK ---
+        window.analyzeAITopKarya = async () => {
+            if(allSubmissions.length === 0) return Swal.fire('Kosong', 'Tidak ada karya untuk dianalisis oleh AI.', 'info');
+            
+            // Siapkan UI Loading
+            document.getElementById('loading-title').innerText = "AI Sedang Membaca...";
+            document.getElementById('loading-msg').innerText = "Harap tunggu, AksaBot sedang menganalisis gaya penulisan, ide cerita, dan memberikan peringkat untuk karya yang masuk.";
+            document.getElementById('loading-icon').className = "fa-solid fa-robot fa-bounce";
+            document.getElementById('loading-screen').classList.add('active');
+
+            const eventName = allEvents.find(e => e.id === document.getElementById('filter-event').value)?.judul || "Event Mingguan";
+            
+            // Format Payload Karya
+            const payloadData = allSubmissions.map((s, i) => {
+                return `PESERTA ${i+1}:\nNama: ${s.studentName || 'Anonim'}\nJudul: ${s.title || '-'}\nIsi Karya:\n${s.content}\n---`;
+            }).join('\n\n');
+
+            try {
+                // Fetch ke Endpoint Vercel API
+                const response = await fetch('/api/ai-ranking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        eventName: eventName, 
+                        karya: payloadData, 
+                        total: allSubmissions.length 
+                    })
+                });
+
+                const resData = await response.json();
+                
+                if(!response.ok) throw new Error(resData.error || 'AksaBot gagal memberikan analisis.');
+
+                // Panggil fungsi pembuat PDF
+                generateAIPdf(eventName, resData.analisis_teks);
+
+                Swal.fire('Selesai!', 'Analisis berhasil. PDF Peringkat Karya sedang diunduh.', 'success');
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error AksaBot', e.message, 'error');
+            } finally {
+                document.getElementById('loading-screen').classList.remove('active');
+            }
+        };
+
+        // --- PEMBUAT PDF MAKE UNTUK AI ---
+        function generateAIPdf(eventName, aiText) {
+            // Pisahkan teks AI jadi paragraf untuk dirender pdfMake
+            const contentArr = aiText.split('\n\n').filter(p => p.trim() !== '').map(p => {
+                return { text: p, margin: [0, 0, 0, 12], alignment: 'justify' };
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [50, 60, 50, 60],
+                content: [
+                    { text: 'HASIL ANALISIS & PERINGKAT KARYA (AKSABOT AI)', style: 'header' },
+                    { text: `Event: ${eventName}`, style: 'subheader' },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2, lineColor: '#003366' }], margin: [0, 10, 0, 20] },
+                    ...contentArr
+                ],
+                styles: {
+                    header: { fontSize: 16, bold: true, alignment: 'center', color: '#003366' },
+                    subheader: { fontSize: 12, alignment: 'center', color: '#d4af37', margin: [0, 5, 0, 0] }
+                },
+                defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#333' }
+            };
+
+            pdfMake.createPdf(docDefinition).download(`Peringkat_Top_Karya_${eventName.replace(/\s/g,'_')}.pdf`);
+        }
+
+        // --- SMART PAGINATION UNTUK POSTER IG ---
         function chunkText(text, firstMax, restMax) {
             const paragraphs = text.split('\n').filter(p => p.trim() !== '');
             const chunks = [];
@@ -701,24 +785,15 @@
 
             for (const p of paragraphs) {
                 let maxL = isFirstChunk ? firstMax : restMax;
-                
                 if (p.length > maxL) {
-                    if (currentChunk) { 
-                        chunks.push(currentChunk.trim()); 
-                        currentChunk = ''; 
-                        isFirstChunk = false; 
-                        maxL = restMax; 
-                    }
-                    
+                    if (currentChunk) { chunks.push(currentChunk.trim()); currentChunk = ''; isFirstChunk = false; maxL = restMax; }
                     let tempP = p;
                     while (tempP.length > maxL) {
                         let cutIndex = tempP.lastIndexOf(' ', maxL);
                         if (cutIndex === -1) cutIndex = maxL; 
-                        
                         chunks.push(tempP.substring(0, cutIndex).trim());
                         tempP = tempP.substring(cutIndex).trim();
-                        isFirstChunk = false; 
-                        maxL = restMax;
+                        isFirstChunk = false; maxL = restMax;
                     }
                     if (tempP) currentChunk = tempP + '\n\n';
                 } else {
@@ -734,100 +809,6 @@
             if (currentChunk) chunks.push(currentChunk.trim());
             return chunks.length > 0 ? chunks : [text];
         }
-
-        window.promptPosterTheme = (author, title, contentRaw, eventType) => {
-            Swal.fire({
-                title: 'Pilih Tema Poster',
-                html: '<div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">' +
-                      '<button id="btn-theme-navy" style="background:#003366; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">Tema Navy</button>' +
-                      '<button id="btn-theme-mustard" style="background:#facc15; color:#003366; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">Tema Mustard</button>' +
-                      '</div>',
-                showConfirmButton: false,
-                showCloseButton: true,
-                didOpen: () => {
-                    document.getElementById('btn-theme-navy').onclick = () => { Swal.close(); generatePosterKarya(author, title, contentRaw, eventType, 'navy'); };
-                    document.getElementById('btn-theme-mustard').onclick = () => { Swal.close(); generatePosterKarya(author, title, contentRaw, eventType, 'mustard'); };
-                }
-            });
-        }
-
-        window.generatePosterKarya = async (author, title, contentRaw, eventType, themeType) => {
-            const loadingScreen = document.getElementById('loading-screen');
-            const msgEl = document.getElementById('loading-msg');
-            loadingScreen.classList.add('active');
-
-            try {
-                await document.fonts.ready;
-
-                const template = document.getElementById('poster-karya');
-                template.className = 'poster-wrapper'; 
-                template.classList.add(`theme-${themeType}`);
-
-                const textNormal = contentRaw.replace(/\\n/g, '\n');
-                const slides = chunkText(textNormal, 260, 650);
-                const totalPages = slides.length;
-
-                document.getElementById('pk-author').innerText = author;
-                document.getElementById('pk-event').innerText = eventType;
-
-                for (let i = 0; i < totalPages; i++) {
-                    msgEl.innerText = `Merender Slide ${i + 1} dari ${totalPages}...`;
-                    
-                    if (i === 0 && title && title !== '-') {
-                        document.getElementById('pk-title-area').style.display = 'block';
-                        const pkTitle = document.getElementById('pk-title');
-                        pkTitle.innerText = title;
-                        
-                        const tLen = title.length;
-                        if (tLen <= 25) {
-                            pkTitle.style.fontSize = '80px';
-                        } else if (tLen <= 50) {
-                            pkTitle.style.fontSize = '65px';
-                        } else if (tLen <= 80) {
-                            pkTitle.style.fontSize = '50px';
-                        } else {
-                            pkTitle.style.fontSize = '40px';
-                        }
-                    } else {
-                        document.getElementById('pk-title-area').style.display = 'none';
-                    }
-
-                    document.getElementById('pk-content').innerText = slides[i];
-
-                    if (totalPages === 1) {
-                        document.getElementById('pk-page').innerText = "Cendekia Aksara";
-                    } else if (i === totalPages - 1) {
-                        document.getElementById('pk-page').innerText = "Tamat.";
-                    } else {
-                        document.getElementById('pk-page').innerText = `Slide ${i + 1}/${totalPages} 👉`;
-                    }
-
-                    await new Promise(r => setTimeout(r, 200));
-
-                    const canvas = await html2canvas(template, { 
-                        scale: 2, 
-                        useCORS: true, 
-                        backgroundColor: null 
-                    });
-
-                    const a = document.createElement("a");
-                    a.download = `${author.replace(/\s/g,'_')}_Slide_${i + 1}.png`;
-                    a.href = canvas.toDataURL("image/png");
-                    a.click();
-                    
-                    await new Promise(r => setTimeout(r, 600));
-                }
-
-                Swal.fire('Berhasil!', `Total ${totalPages} gambar (slide) telah diunduh berurutan.`, 'success');
-
-            } catch (err) {
-                console.error(err);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat memproses gambar.', 'error');
-            } finally {
-                loadingScreen.classList.remove('active');
-            }
-        };
-
     </script>
 </body>
 </html>
