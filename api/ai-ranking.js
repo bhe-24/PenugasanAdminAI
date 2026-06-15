@@ -110,7 +110,7 @@ Ketentuan Isi "analisis_teks" (SANGAT KETAT HARUS DIIKUTI):
     } catch (error) {
         console.error("AI Error (Ranking Karya):", error);
         res.status(500).json({ 
-            error: error.message || "AksaBot sedang mengalami kendala server. Silakan coba klik analisis sekali lagi!" 
+            error: error.message || "AksaBot sedang mengalami kendala server. Silakan coba klik analisis sekali lagi dan tunggu!" 
         });
     }
 }
