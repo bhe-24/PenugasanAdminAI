@@ -73,7 +73,7 @@ Ketentuan Isi "analisis_teks" (SANGAT KETAT HARUS DIIKUTI):
         ];
 
         // Gunakan model Flash terbaru
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
