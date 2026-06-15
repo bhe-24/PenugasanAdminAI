@@ -10,6 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
+    <!-- Pustaka PDFMake untuk Unduh Rekap Bulanan -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
     <style>
         :root {
             --primary: #003366; 
@@ -52,19 +56,21 @@
         .page-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary); margin-bottom: 5px; }
         .page-subtitle { color: var(--text-gray); margin-bottom: 20px; font-size: 0.95rem; }
 
-        /* --- FILTER DATE --- */
+        /* --- FILTER DATE & MONTH --- */
         .filter-container {
             background: white; padding: 15px 20px; border-radius: 12px; border: 1px solid #e2e8f0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02); display: flex; align-items: center; gap: 15px;
-            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02); display: flex; align-items: center; justify-content: space-between; gap: 15px;
+            margin-bottom: 25px; flex-wrap: wrap;
         }
+        .filter-group { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .filter-group.border-left { border-left: 2px solid #e2e8f0; padding-left: 15px; }
         .filter-container label { font-weight: 600; color: var(--primary); font-size: 0.95rem; display: flex; align-items: center; gap: 8px;}
-        .filter-container input[type="date"] {
+        .filter-container input[type="date"], .filter-container input[type="month"] {
             padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px;
             font-family: 'Poppins', sans-serif; font-size: 0.95rem; color: var(--text-dark);
             outline: none; transition: 0.3s;
         }
-        .filter-container input[type="date"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        .filter-container input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
 
         /* --- STATS CARDS --- */
         .stats-grid {
@@ -116,12 +122,17 @@
             cursor: pointer; transition: 0.3s; border: none; display: inline-flex; align-items: center; gap: 6px;
             text-decoration: none;
         }
-        .btn-view { background: #f1f5f9; color: var(--primary); border: 1px solid #cbd5e1; }
-        .btn-view:hover { background: #e2e8f0; }
+        .btn-view { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+        .btn-view:hover { background: #bae6fd; color: #0369a1; }
+        .btn-berkas { background: #f1f5f9; color: var(--primary); border: 1px solid #cbd5e1; }
+        .btn-berkas:hover { background: #e2e8f0; }
         .btn-accept { background: var(--success); color: white; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
         .btn-accept:hover { background: #059669; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3); }
         .btn-reject { background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
         .btn-reject:hover { background: #fecaca; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2); }
+
+        .btn-pdf { background: var(--primary); color: white; padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .btn-pdf:hover { background: #001f3f; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
 
         .empty-state { text-align: center; padding: 60px 20px; color: var(--text-gray); }
         .empty-state i { font-size: 4rem; color: #cbd5e1; margin-bottom: 15px; }
@@ -139,6 +150,12 @@
         .spinner { width: 50px; height: 50px; border: 5px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* RESPONSIVE FILTER */
+        @media (max-width: 768px) {
+            .filter-container { flex-direction: column; align-items: stretch; }
+            .filter-group.border-left { border-left: none; padding-left: 0; border-top: 2px solid #e2e8f0; padding-top: 15px; }
+        }
+
     </style>
 </head>
 <body>
@@ -148,24 +165,32 @@
             <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia">
             <h1>Cendekia <span>Admin</span></h1>
         </a>
-        <a href="setting-beranda.html" class="btn-back"><i class="fa-solid fa-gear"></i> Pengaturan Beranda</a>
+        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali ke Dasbor</a>
     </header>
 
     <div class="container">
         <h2 class="page-title">Pusat Penerimaan Siswa</h2>
-        <p class="page-subtitle">Tinjau dokumen pendaftaran siswa, verifikasi integritas, dan setujui untuk memberikan akses penuh.</p>
+        <p class="page-subtitle">Tinjau dokumen pendaftaran siswa, formulir, verifikasi integritas, dan kelola laporan pendaftar.</p>
 
-        <!-- FILTER TANGGAL -->
+        <!-- FILTER TANGGAL & BULAN -->
         <div class="filter-container">
-            <label for="filter-date"><i class="fa-solid fa-calendar-day"></i> Tampilkan Pendaftar Tanggal:</label>
-            <input type="date" id="filter-date">
+            <div class="filter-group">
+                <label for="filter-date"><i class="fa-solid fa-calendar-day"></i> Pendaftar Harian:</label>
+                <input type="date" id="filter-date">
+            </div>
+            
+            <div class="filter-group border-left">
+                <label for="filter-month"><i class="fa-solid fa-calendar-days"></i> Rekap Bulanan:</label>
+                <input type="month" id="filter-month">
+                <button onclick="downloadRekapBulanan()" class="btn-pdf"><i class="fa-solid fa-file-pdf"></i> Unduh Rekap PDF</button>
+            </div>
         </div>
 
         <!-- STATISTIK (Disesuaikan dengan Tanggal Filter) -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-info">
-                    <h3>Pendaftar (Hari Ini)</h3>
+                    <h3>Pendaftar Harian</h3>
                     <p id="stat-total">0</p>
                 </div>
                 <div class="stat-icon icon-blue"><i class="fa-solid fa-users"></i></div>
@@ -222,7 +247,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // IMPORT deleteDoc DI SINI
         import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase
@@ -247,9 +271,14 @@
 
         // Setup Filter Tanggal Default ke Hari Ini
         const filterDateInput = document.getElementById('filter-date');
+        const filterMonthInput = document.getElementById('filter-month');
         const today = new Date();
+        
         const localDateString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        const localMonthString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        
         filterDateInput.value = localDateString;
+        filterMonthInput.value = localMonthString;
 
         // Formatter Tanggal/Waktu Tabel
         const formatTanggal = (isoString) => {
@@ -266,7 +295,6 @@
                 try {
                     const userDoc = await getDoc(doc(db, 'users', user.uid));
                     if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
-                        // Admin terverifikasi, muat data dari database
                         fetchApplicantData();
                     } else {
                         Swal.fire('Akses Ditolak', 'Anda tidak memiliki izin mengakses halaman ini.', 'error')
@@ -291,13 +319,12 @@
                         allApplicants.push({ id: docSnap.id, ...data });
                     }
                 });
-                // Render tabel setiap ada perubahan data
                 renderTable();
                 hideLoading();
             });
         }
 
-        // Listener jika Admin Mengubah Tanggal Filter
+        // Listener jika Admin Mengubah Tanggal Filter Harian
         filterDateInput.addEventListener('change', renderTable);
 
         // 3. Render Tabel Berdasarkan Filter Tanggal
@@ -340,34 +367,41 @@
                     let badgeHtml = '';
                     let actionHtml = '';
 
-                    // Tombol Lihat Berkas
+                    // Tombol Lihat Detail Formulir
+                    const btnDetail = `<button class="btn-action btn-view" onclick="viewFormulir('${data.id}')" title="Lihat Formulir Lengkap"><i class="fa-solid fa-eye"></i> Detail</button>`;
+
+                    // Tombol Lihat Berkas Pakta
                     const pdfLink = data.pdfUrl ? data.pdfUrl : '#';
                     const btnBerkas = data.pdfUrl 
-                        ? `<a href="${pdfLink}" target="_blank" class="btn-action btn-view" title="Buka Pakta Integritas"><i class="fa-solid fa-file-pdf"></i> Lihat Berkas</a>` 
-                        : `<span style="font-size:0.8rem; color:var(--text-gray);"><i class="fa-solid fa-spinner fa-spin"></i> Proses PDF...</span>`;
+                        ? `<a href="${pdfLink}" target="_blank" class="btn-action btn-berkas" title="Buka Pakta Integritas"><i class="fa-solid fa-file-pdf"></i> Berkas</a>` 
+                        : `<span style="font-size:0.8rem; color:var(--text-gray);"><i class="fa-solid fa-spinner fa-spin"></i> Memproses PDF...</span>`;
 
                     if (data.status === 'pending_review' || data.status === 'pending_upload') {
                         badgeHtml = `<span class="badge badge-warning"><i class="fa-solid fa-clock"></i> Menunggu</span>`;
                         actionHtml = `
+                            ${btnDetail}
                             ${btnBerkas}
                             <button class="btn-action btn-accept" onclick="terimaSiswa('${data.id}', '${data.name}')" title="Terima Siswa">
                                 <i class="fa-solid fa-check"></i>
                             </button>
-                            <button class="btn-action btn-reject" onclick="tolakSiswa('${data.id}', '${data.name}')" title="Tolak & Hapus Siswa">
-                                <i class="fa-solid fa-xmark"></i>
+                            <button class="btn-action btn-reject" onclick="tolakSiswa('${data.id}', '${data.name}')" title="Tolak & Hapus Data">
+                                <i class="fa-solid fa-trash-can"></i>
                             </button>
                         `;
                     } else if (data.status === 'active' || data.status === 'diterima') {
                         badgeHtml = `<span class="badge badge-success"><i class="fa-solid fa-check-double"></i> Diterima</span>`;
                         actionHtml = `
+                            ${btnDetail}
                             ${btnBerkas}
                             <span style="display:inline-block; margin-left:5px; font-size:0.8rem; color:var(--success); font-weight:600;">Siswa Aktif</span>
                         `;
-                    } else if (data.status === 'ditolak') {
-                        badgeHtml = `<span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Ditolak</span>`;
+                    } else {
+                        badgeHtml = `<span class="badge badge-danger"><i class="fa-solid fa-ban"></i> Ditolak/Dibekukan</span>`;
                         actionHtml = `
-                            ${btnBerkas}
-                            <span style="display:inline-block; margin-left:5px; font-size:0.8rem; color:var(--danger); font-weight:600;">Akses Ditutup</span>
+                            ${btnDetail}
+                            <button class="btn-action btn-reject" onclick="tolakSiswa('${data.id}', '${data.name}')" title="Hapus Permanen">
+                                <i class="fa-solid fa-trash-can"></i> Hapus Permanen
+                            </button>
                         `;
                     }
 
@@ -414,7 +448,109 @@
             }
         }
 
-        // 4. Aksi Terima Siswa
+        // 4. View Formulir Lengkap
+        window.viewFormulir = (uid) => {
+            const data = allApplicants.find(a => a.id === uid);
+            if(!data) return;
+            
+            Swal.fire({
+                title: 'Formulir Pendaftaran Siswa',
+                html: `
+                    <div style="text-align: left; font-size: 0.9rem; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <p><strong>Nama Lengkap:</strong> ${data.name}</p>
+                        <p><strong>Email Login:</strong> ${data.email}</p>
+                        <p><strong>WhatsApp:</strong> ${data.whatsapp || '-'}</p>
+                        <p><strong>Asal Sekolah/Instansi:</strong> ${data.instansi || '-'}</p>
+                        <p><strong>Waktu Mendaftar:</strong> ${formatTanggal(data.createdAt)}</p>
+                        <hr style="margin: 15px 0; border-color: #cbd5e1;">
+                        <p><strong>Alasan / Motivasi Bergabung:</strong><br>${data.alasan || '-'}</p>
+                    </div>
+                `,
+                confirmButtonColor: '#003366',
+                confirmButtonText: 'Tutup Detail'
+            });
+        };
+
+        // 5. Unduh Rekap Bulanan PDF
+        window.downloadRekapBulanan = () => {
+            const monthVal = document.getElementById('filter-month').value; // Format: YYYY-MM
+            if(!monthVal) return Swal.fire('Pilih Bulan', 'Silakan pilih bulan pada kolom filter untuk direkap.', 'warning');
+
+            const filtered = allApplicants.filter(a => {
+                if(!a.createdAt) return false;
+                const d = new Date(a.createdAt);
+                const m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                return m === monthVal;
+            });
+
+            if(filtered.length === 0) return Swal.fire('Data Kosong', 'Tidak ada data pendaftar pada bulan yang dipilih.', 'info');
+
+            // Urutkan berdasarkan waktu daftar (terlama ke terbaru)
+            filtered.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+            const tableBody = [
+                [
+                    {text:'No', style:'th'}, 
+                    {text:'Tanggal & Jam Daftar', style:'th'}, 
+                    {text:'Nama Lengkap Siswa', style:'th'}, 
+                    {text:'No. WhatsApp', style:'th'}, 
+                    {text:'Instansi / Sekolah', style:'th'}, 
+                    {text:'Alasan Bergabung', style:'th'}, 
+                    {text:'Status', style:'th'}
+                ]
+            ];
+
+            filtered.forEach((item, idx) => {
+                const statusName = (item.status === 'active' || item.status === 'diterima') ? 'Diterima' : (item.status === 'ditolak' ? 'Ditolak' : 'Menunggu');
+                
+                tableBody.push([
+                    {text: (idx + 1).toString(), alignment: 'center'},
+                    {text: formatTanggal(item.createdAt)},
+                    {text: item.name, bold: true, color: '#003366'},
+                    {text: item.whatsapp || '-'},
+                    {text: item.instansi || '-'},
+                    {text: item.alasan || '-', alignment: 'justify'},
+                    {text: statusName, bold: true, alignment: 'center'}
+                ]);
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageOrientation: 'landscape',
+                pageMargins: [30, 40, 30, 40],
+                content: [
+                    { text: 'REKAPITULASI PENDAFTARAN SISWA BARU', style: 'header' },
+                    { text: 'Periode Bulan: ' + monthVal, style: 'subheader' },
+                    {
+                        table: {
+                            headerRows: 1,
+                            widths: ['auto', 'auto', '15%', '12%', '15%', '*', 'auto'],
+                            body: tableBody
+                        },
+                        layout: {
+                            hLineWidth: function () { return 0.5; },
+                            vLineWidth: function () { return 0.5; },
+                            hLineColor: function () { return '#94a3b8'; },
+                            vLineColor: function () { return '#94a3b8'; },
+                            paddingTop: function() { return 5; },
+                            paddingBottom: function() { return 5; },
+                            paddingLeft: function() { return 5; },
+                            paddingRight: function() { return 5; }
+                        }
+                    }
+                ],
+                styles: {
+                    header: { fontSize: 16, bold: true, alignment: 'center', color: '#003366', margin: [0,0,0,5] },
+                    subheader: { fontSize: 12, alignment: 'center', color: '#d4af37', margin: [0,0,0,20] },
+                    th: { bold: true, fillColor: '#e2e8f0', alignment: 'center', margin: [0, 5, 0, 5], color: '#003366' }
+                },
+                defaultStyle: { font: 'Roboto', fontSize: 9, color: '#333' }
+            };
+
+            pdfMake.createPdf(docDefinition).download(`Rekap_Pendaftar_Cendekia_${monthVal}.pdf`);
+        };
+
+        // 6. Aksi Terima Siswa
         window.terimaSiswa = (uid, nama) => {
             Swal.fire({
                 title: 'Terima Siswa?',
@@ -438,16 +574,16 @@
             });
         };
 
-        // 5. Aksi Tolak Siswa (Menghapus Dokumen Secara Permanen)
+        // 7. Aksi Tolak Siswa (Menghapus Dokumen Secara Permanen)
         window.tolakSiswa = (uid, nama) => {
             Swal.fire({
-                title: 'Tolak & Hapus Data?',
-                text: `Anda akan menolak pendaftaran ${nama}. Seluruh data pendaftar ini akan dihapus secara permanen dari pangkalan data sistem.`,
+                title: 'Hapus Data Permanen?',
+                html: `Anda akan menolak pendaftaran dan menghapus data <b>${nama}</b> secara permanen dari pangkalan data sistem Firestore.<br><br><span style="color:#ef4444; font-size:0.85rem;"><b>Catatan Penting:</b> Sisa kredensial otentikasi login email (UID) hanya dapat dibersihkan sepenuhnya melalui menu <i>Authentication</i> di Firebase Console Anda.</span>`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Tolak & Hapus',
+                confirmButtonText: 'Ya, Hapus Data',
                 cancelButtonText: 'Batal'
             }).then(async (result) => {
                 if (result.isConfirmed) {
@@ -455,7 +591,7 @@
                         Swal.showLoading();
                         // Hapus dokumen user dari Firestore
                         await deleteDoc(doc(db, 'users', uid));
-                        Swal.fire('Dihapus', `Pendaftaran ${nama} telah ditolak dan datanya dihapus dari sistem.`, 'success');
+                        Swal.fire('Dihapus', `Data pendaftaran ${nama} telah dibersihkan dari sistem Firestore.`, 'success');
                     } catch (error) {
                         Swal.fire('Gagal!', error.message, 'error');
                     }
