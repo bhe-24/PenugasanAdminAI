@@ -1,20 +1,17 @@
-const { 
+import { 
     GoogleGenerativeAI, 
     HarmCategory, 
     HarmBlockThreshold 
-} = require('@google/generative-ai');
+} from '@google/generative-ai';
 
-// Inisialisasi API Key persis seperti di grade2.js
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-module.exports = async function handler(req, res) {
-    // 1. ATUR CORS
+export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-    // Tangani preflight request dari browser
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -57,10 +54,22 @@ Ketentuan Output (SANGAT KETAT):
 
         // Konfigurasi Filter Keamanan untuk melonggarkan pengecekan AI
         const safetySettings = [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            {
+                category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
+            {
+                category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold: HarmBlockThreshold.BLOCK_NONE,
+            },
         ];
 
         // Menggunakan model Gemini Flash 1.5
@@ -78,8 +87,7 @@ Ketentuan Output (SANGAT KETAT):
         
         let textResponse = result.response.text();
         
-        // Parsing JSON (Pembersihan jika AI membandel memberi backtick)
-        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        // Parsing JSON langsung
         const finalResult = JSON.parse(textResponse);
 
         // Mengembalikan data JSON ke frontend admin
@@ -90,7 +98,7 @@ Ketentuan Output (SANGAT KETAT):
     } catch (error) {
         console.error("AI Error (Ranking Karya):", error);
         res.status(500).json({ 
-            error: error.message || "AksaBot sedang mengalami kendala server. Silakan coba lagi!" 
+            error: "AksaBot sedang mengalami kendala server. Silakan coba lagi!" 
         });
     }
 }
