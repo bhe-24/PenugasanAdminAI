@@ -204,9 +204,9 @@
 
     <!-- LOADING OVERLAY -->
     <div id="loading-screen">
-        <i class="fa-solid fa-camera-rotate fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;" id="loading-icon"></i>
-        <h2 style="font-family:'Aleo', serif; margin:0;" id="loading-title">Memproses Gambar...</h2>
-        <p style="color:#64748b;" id="loading-msg">Mohon tunggu, sedang merender poster.</p>
+        <i class="fa-solid fa-robot fa-bounce" style="font-size: 4rem; color: #6366f1; margin-bottom: 20px;" id="loading-icon"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0; color: #003366;" id="loading-title">Memproses...</h2>
+        <p style="color:#64748b; text-align: center; max-width: 400px; margin-top: 10px;" id="loading-msg">Mohon tunggu sebentar.</p>
     </div>
 
     <div class="container">
@@ -287,9 +287,9 @@
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn-word" onclick="exportToWord()" id="btn-export-word" disabled>
-                        <i class="fa-solid fa-file-word"></i> Ekspor Semua (.doc)
+                        <i class="fa-solid fa-file-word"></i> Ekspor MS.Word
                     </button>
-                    <!-- TOMBOL AI DITAMBAHKAN DI SINI -->
+                    <!-- TOMBOL AI -->
                     <button class="btn-ai" onclick="analyzeAITopKarya()" id="btn-ai-rank" disabled>
                         <i class="fa-solid fa-robot"></i> Karya Terbaik (AI)
                     </button>
@@ -538,9 +538,9 @@
         window.downloadPromoPoster = async (themeType) => {
             if(!currentEventPromo) return;
             
+            document.getElementById('loading-icon').className = "fa-solid fa-camera-rotate fa-spin";
             document.getElementById('loading-title').innerText = "Menyiapkan Gambar...";
             document.getElementById('loading-msg').innerText = "Merender Poster Promo Resolusi Tinggi.";
-            document.getElementById('loading-icon').className = "fa-solid fa-camera-rotate fa-spin";
             document.getElementById('loading-screen').classList.add('active');
 
             try {
@@ -658,7 +658,7 @@
             }
         }
 
-        // --- HANDLERS ---
+        // --- HANDLERS POSTER IG & COPY ---
         window.handleCopyKarya = (id) => {
             const sub = window.submissionsMap[id];
             if(!sub) return;
@@ -720,9 +720,9 @@
             if(allSubmissions.length === 0) return Swal.fire('Kosong', 'Tidak ada karya untuk dianalisis oleh AI.', 'info');
             
             // Siapkan UI Loading
+            document.getElementById('loading-icon').className = "fa-solid fa-robot fa-bounce";
             document.getElementById('loading-title').innerText = "AI Sedang Membaca...";
             document.getElementById('loading-msg').innerText = "Harap tunggu, sistem sedang menganalisis seluruh karya peserta secara mendalam.";
-            document.getElementById('loading-icon').className = "fa-solid fa-robot fa-bounce";
             document.getElementById('loading-screen').classList.add('active');
 
             const eventName = allEvents.find(e => e.id === document.getElementById('filter-event').value)?.judul || "Event Mingguan";
@@ -738,6 +738,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
+                        action: 'ranking',
                         eventName: eventName, 
                         karya: payloadData, 
                         total: allSubmissions.length 
@@ -822,7 +823,7 @@
             pdfMake.createPdf(docDefinition).download(`Pembahasan_Karya_${eventName.replace(/\s/g,'_')}.pdf`);
         }
 
-        // --- SMART PAGINATION UNTUK POSTER IG ---
+        // --- SMART PAGINATION UNTUK POSTER IG (DARI KODE ASLI) ---
         function chunkText(text, firstMax, restMax) {
             const paragraphs = text.split('\n').filter(p => p.trim() !== '');
             const chunks = [];
@@ -855,6 +856,104 @@
             if (currentChunk) chunks.push(currentChunk.trim());
             return chunks.length > 0 ? chunks : [text];
         }
+
+        window.promptPosterTheme = (author, title, contentRaw, eventType) => {
+            Swal.fire({
+                title: 'Pilih Tema Poster',
+                html: '<div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">' +
+                      '<button id="btn-theme-navy" style="background:#003366; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">Tema Navy</button>' +
+                      '<button id="btn-theme-mustard" style="background:#facc15; color:#003366; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">Tema Mustard</button>' +
+                      '</div>',
+                showConfirmButton: false,
+                showCloseButton: true,
+                didOpen: () => {
+                    document.getElementById('btn-theme-navy').onclick = () => { Swal.close(); generatePosterKarya(author, title, contentRaw, eventType, 'navy'); };
+                    document.getElementById('btn-theme-mustard').onclick = () => { Swal.close(); generatePosterKarya(author, title, contentRaw, eventType, 'mustard'); };
+                }
+            });
+        }
+
+        window.generatePosterKarya = async (author, title, contentRaw, eventType, themeType) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const msgEl = document.getElementById('loading-msg');
+            const iconEl = document.getElementById('loading-icon');
+            const titleEl = document.getElementById('loading-title');
+            
+            iconEl.className = "fa-solid fa-camera-rotate fa-spin";
+            titleEl.innerText = "Memproses Gambar...";
+            loadingScreen.classList.add('active');
+
+            try {
+                await document.fonts.ready;
+
+                const template = document.getElementById('poster-karya');
+                template.className = 'poster-wrapper'; 
+                template.classList.add(`theme-${themeType}`);
+
+                const textNormal = contentRaw.replace(/\\n/g, '\n');
+                const slides = chunkText(textNormal, 260, 650);
+                const totalPages = slides.length;
+
+                document.getElementById('pk-author').innerText = author;
+                document.getElementById('pk-event').innerText = eventType;
+
+                for (let i = 0; i < totalPages; i++) {
+                    msgEl.innerText = `Merender Slide ${i + 1} dari ${totalPages}...`;
+                    
+                    if (i === 0 && title && title !== '-') {
+                        document.getElementById('pk-title-area').style.display = 'block';
+                        const pkTitle = document.getElementById('pk-title');
+                        pkTitle.innerText = title;
+                        
+                        const tLen = title.length;
+                        if (tLen <= 25) {
+                            pkTitle.style.fontSize = '80px';
+                        } else if (tLen <= 50) {
+                            pkTitle.style.fontSize = '65px';
+                        } else if (tLen <= 80) {
+                            pkTitle.style.fontSize = '50px';
+                        } else {
+                            pkTitle.style.fontSize = '40px';
+                        }
+                    } else {
+                        document.getElementById('pk-title-area').style.display = 'none';
+                    }
+
+                    document.getElementById('pk-content').innerText = slides[i];
+
+                    if (totalPages === 1) {
+                        document.getElementById('pk-page').innerText = "Cendekia Aksara";
+                    } else if (i === totalPages - 1) {
+                        document.getElementById('pk-page').innerText = "Tamat.";
+                    } else {
+                        document.getElementById('pk-page').innerText = `Slide ${i + 1}/${totalPages} 👉`;
+                    }
+
+                    await new Promise(r => setTimeout(r, 200));
+
+                    const canvas = await html2canvas(template, { 
+                        scale: 2, 
+                        useCORS: true, 
+                        backgroundColor: null 
+                    });
+
+                    const a = document.createElement("a");
+                    a.download = `${author.replace(/\s/g,'_')}_Slide_${i + 1}.png`;
+                    a.href = canvas.toDataURL("image/png");
+                    a.click();
+                    
+                    await new Promise(r => setTimeout(r, 600));
+                }
+
+                Swal.fire('Berhasil!', `Total ${totalPages} gambar (slide) telah diunduh berurutan.`, 'success');
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Gagal', 'Terjadi kesalahan saat memproses gambar.', 'error');
+            } finally {
+                loadingScreen.classList.remove('active');
+            }
+        };
     </script>
 </body>
 </html>
