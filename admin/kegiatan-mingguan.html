@@ -13,7 +13,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- Pustaka PDFMake -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
@@ -202,16 +201,14 @@
 </head>
 <body>
 
-    <!-- LOADING OVERLAY -->
     <div id="loading-screen">
-        <i class="fa-solid fa-robot fa-bounce" style="font-size: 4rem; color: #6366f1; margin-bottom: 20px;" id="loading-icon"></i>
-        <h2 style="font-family:'Aleo', serif; margin:0; color: #003366;" id="loading-title">Memproses...</h2>
-        <p style="color:#64748b; text-align: center; max-width: 400px; margin-top: 10px;" id="loading-msg">Mohon tunggu sebentar.</p>
+        <i class="fa-solid fa-camera-rotate fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;" id="loading-icon"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0;" id="loading-title">Memproses Gambar...</h2>
+        <p style="color:#64748b;" id="loading-msg">Mohon tunggu, sedang merender poster.</p>
     </div>
 
     <div class="container">
 
-        <!-- HEADER -->
         <header class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
@@ -231,7 +228,6 @@
             <button class="tab-btn" onclick="switchTab('karya')"><i class="fa-solid fa-book-open"></i> Semua Hasil Karya</button>
         </div>
 
-        <!-- TAB 1: BUAT EVENT -->
         <div id="tab-buat" class="admin-card">
             <h2 class="section-title"><i class="fa-solid fa-pen-nib"></i> Konfigurasi Event Mingguan (Admin)</h2>
             <form id="event-form">
@@ -266,7 +262,6 @@
             </form>
         </div>
 
-        <!-- TAB 2: DAFTAR EVENT -->
         <div id="tab-daftar" class="admin-card" style="display: none;">
             <h2 class="section-title"><i class="fa-solid fa-calendar-days"></i> Daftar Event Aktif & Riwayat</h2>
             <div id="event-list" class="event-grid">
@@ -274,7 +269,6 @@
             </div>
         </div>
 
-        <!-- TAB 3: HASIL KARYA SEMUA -->
         <div id="tab-karya" class="admin-card" style="display: none;">
             <h2 class="section-title"><i class="fa-solid fa-box-open"></i> Gudang Karya Semua Siswa</h2>
             
@@ -289,7 +283,6 @@
                     <button class="btn-word" onclick="exportToWord()" id="btn-export-word" disabled>
                         <i class="fa-solid fa-file-word"></i> Ekspor MS.Word
                     </button>
-                    <!-- TOMBOL AI -->
                     <button class="btn-ai" onclick="analyzeAITopKarya()" id="btn-ai-rank" disabled>
                         <i class="fa-solid fa-robot"></i> Karya Terbaik (AI)
                     </button>
@@ -303,7 +296,6 @@
 
     </div>
 
-    <!-- MODAL SHARE QR (PROMO EVENT) -->
     <div class="modal-overlay" id="share-modal">
         <div class="modal-box">
             <button onclick="closeModal('share-modal')" style="position:absolute; right:15px; top:15px; background:none; border:none; font-size:1.5rem; color:#94a3b8; cursor:pointer;">&times;</button>
@@ -321,7 +313,6 @@
         </div>
     </div>
 
-    <!-- POSTER TEMPLATES (HIDDEN) -->
     <div id="poster-promo" class="poster-wrapper theme-navy">
         <div class="pp-header">
             <div style="flex:1;">
@@ -367,7 +358,6 @@
         </div>
     </div>
 
-    <!-- LOGIKA JAVASCRIPT -->
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, updateDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -575,7 +565,33 @@
                 a.href = canvas.toDataURL("image/png");
                 a.click();
 
-                Swal.fire('Berhasil!', 'Poster promo berhasil diunduh.', 'success');
+                // Munculkan Caption Promo Setelah Unduh
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: 'Poster promo berhasil diunduh.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    const captionPromo = `Halo Sobat Aksara! ✨\n\nAda tantangan baru nih buat kalian di Event ${currentEventPromo.tipe} dengan tema "${currentEventPromo.judul}".\n\nYuk, tuangkan ide kreatifmu! Tenggat waktu pengumpulan: ${currentEventPromo.deadline}.\n\nJangan sampai kelewatan! Segera kumpulkan karyamu melalui link berikut:\n🔗 https://cendekia-aksara.vercel.app/pengumpulan-karya.html?id=${currentEventPromo.id}\n\n#CendekiaAksara #EventMenulis #SastraIndonesia #KaryaRemaja`;
+                    
+                    Swal.fire({
+                        title: 'Caption IG Otomatis',
+                        html: `<textarea id="captionPromo" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${captionPromo}</textarea>`,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin Caption',
+                        cancelButtonText: 'Tutup',
+                        confirmButtonColor: '#003366',
+                        preConfirm: () => {
+                            const copyText = document.getElementById("captionPromo").value;
+                            navigator.clipboard.writeText(copyText);
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
+                        }
+                    });
+                });
 
             } catch (e) {
                 console.error(e);
@@ -719,7 +735,6 @@
         window.analyzeAITopKarya = async () => {
             if(allSubmissions.length === 0) return Swal.fire('Kosong', 'Tidak ada karya untuk dianalisis oleh AI.', 'info');
             
-            // Siapkan UI Loading
             document.getElementById('loading-icon').className = "fa-solid fa-robot fa-bounce";
             document.getElementById('loading-title').innerText = "AI Sedang Membaca...";
             document.getElementById('loading-msg').innerText = "Harap tunggu, sistem sedang menganalisis seluruh karya peserta secara mendalam.";
@@ -727,13 +742,11 @@
 
             const eventName = allEvents.find(e => e.id === document.getElementById('filter-event').value)?.judul || "Event Mingguan";
             
-            // Format Payload Karya
             const payloadData = allSubmissions.map((s, i) => {
                 return `PESERTA ${i+1}:\nNama: ${s.studentName || 'Anonim'}\nJudul: ${s.title || '-'}\nIsi Karya:\n${s.content}\n---`;
             }).join('\n\n');
 
             try {
-                // Fetch ke Endpoint Vercel API
                 const response = await fetch('/api/ai-ranking', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -749,7 +762,6 @@
                 
                 if(!response.ok) throw new Error(resData.error || 'Sistem gagal memberikan analisis.');
 
-                // Panggil fungsi pembuat PDF dengan output tabel
                 generateAIPdf(eventName, resData.analisis_data);
 
                 Swal.fire('Selesai!', 'Analisis berhasil. PDF Pembahasan Karya sedang diunduh.', 'success');
@@ -767,7 +779,6 @@
                 return Swal.fire('Error', 'Format data dari AI tidak sesuai, gagal membuat tabel PDF.', 'error');
             }
 
-            // Menyusun isi tabel (Header)
             const tableBody = [
                 [
                     {text: 'Peringkat', style: 'th'}, 
@@ -777,7 +788,6 @@
                 ]
             ];
 
-            // Looping data JSON Array dari backend
             analisisData.forEach((item) => {
                 tableBody.push([
                     {text: item.peringkat || '-', alignment: 'center', bold: true},
@@ -945,7 +955,34 @@
                     await new Promise(r => setTimeout(r, 600));
                 }
 
-                Swal.fire('Berhasil!', `Total ${totalPages} gambar (slide) telah diunduh berurutan.`, 'success');
+                // Munculkan Caption Karya Setelah Unduh
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: `Total ${totalPages} gambar (slide) telah diunduh berurutan.`,
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    const judulFix = (title && title !== '-') ? title : 'Karya Tanpa Judul';
+                    const captionKarya = `Karya Hebat dari Sobat Aksara! 🌟\n\nJudul: "${judulFix}"\nOleh: ${author}\nEvent: ${eventType}\n\nKarya yang sangat menginspirasi! Jangan lupa berikan dukungan kalian untuk ${author} di kolom komentar ya! Teruslah berkarya dan menyalakan lentera literasi. ✍️✨\n\n#CendekiaAksara #KaryaSiswa #SastraIndonesia #PenulisMuda`;
+                    
+                    Swal.fire({
+                        title: 'Caption IG Otomatis',
+                        html: `<textarea id="captionKarya" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${captionKarya}</textarea>`,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin Caption',
+                        cancelButtonText: 'Tutup',
+                        confirmButtonColor: '#003366',
+                        preConfirm: () => {
+                            const copyText = document.getElementById("captionKarya").value;
+                            navigator.clipboard.writeText(copyText);
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
+                        }
+                    });
+                });
 
             } catch (err) {
                 console.error(err);
