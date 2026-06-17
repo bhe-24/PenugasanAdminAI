@@ -3,292 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generator Surat - Admin Panel</title>
-    <link rel="stylesheet" href="styles-generator.css">
+    <title>Generator Surat AI - Cendekia Aksara</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
+        .admin-header { width: 100%; background: white; padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #003366; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 10px; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { height: 40px; width: 40px; border-radius: 50%; border: 2px solid #d4af37; padding: 2px; }
+        .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #003366; font-weight: 700; margin: 0;}
+        .btn-back { background: #e2e8f0; color: #475569; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-back:hover { background: #cbd5e1; color: #003366; }
+
+        /* Loader */
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #e2e8f0; border-top-color: #003366; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar">
-            <div class="nav-header">
-                <h2>Generator Surat</h2>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="#daftar-surat" class="nav-link active" data-section="daftar">📋 Daftar Surat</a></li>
-                <li><a href="#buat-surat" class="nav-link" data-section="buat">✍️ Buat Surat Baru</a></li>
-                <li><a href="#arsip" class="nav-link" data-section="arsip">📁 Arsip Surat</a></li>
-                <li><a href="#template-kop" class="nav-link" data-section="template">🎨 Template Kop Surat</a></li>
-            </ul>
-        </nav>
+<body class="flex flex-col min-h-screen">
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Daftar Surat Section -->
-            <section id="daftar-surat" class="section active">
-                <header class="section-header">
-                    <h1>Daftar Surat</h1>
-                    <button class="btn btn-primary" onclick="switchSection('buat')">+ Buat Surat Baru</button>
-                </header>
-                <div class="table-wrapper">
-                    <table class="table-surat" id="tabelDaftarSurat">
-                        <thead>
-                            <tr>
-                                <th>No. Surat</th>
-                                <th>Tanggal</th>
-                                <th>Perihal</th>
-                                <th>Template Kop</th>
-                                <th>Status</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-daftar">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">Belum ada surat. Buat surat baru untuk memulai.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+    <header class="admin-header">
+        <a href="#" class="header-brand">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+            <h1>Cendekia <span>Sekretariat</span></h1>
+        </a>
+        <div class="flex gap-2">
+            <a href="generator-surat/arsip.html" class="btn-back bg-blue-100 text-blue-800 border border-blue-200 hover:bg-blue-200"><i class="fa-solid fa-folder-open"></i> Arsip Surat</a>
+            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+        </div>
+    </header>
 
-            <!-- Buat Surat Section -->
-            <section id="buat-surat" class="section">
-                <header class="section-header">
-                    <h1>Buat Surat Baru</h1>
-                </header>
+    <main class="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
+        
+        <div class="mb-6">
+            <h2 class="text-2xl font-serif font-bold text-[#003366]">Generator Surat AI</h2>
+            <p class="text-sm text-gray-500">Susun draf surat resmi secara otomatis, render ke PDF berkop, dan simpan di Google Drive.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- PANEL KIRI: INPUT DATA -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <h3 class="font-semibold text-[#003366] mb-4 border-b pb-2"><i class="fa-solid fa-pen-nib text-[#d4af37] mr-2"></i>Instruksi Pembuatan Surat</h3>
                 
-                <div class="surat-builder">
-                    <!-- Form Panel -->
-                    <div class="form-panel">
-                        <div class="form-group">
-                            <label for="select-template">Pilih Template Kop Surat</label>
-                            <select id="select-template" class="form-control" onchange="handleTemplateChange()">
-                                <option value="">-- Pilih Template --</option>
-                                <option value="ujian-cendekia">Ujian Cendekia Aksara</option>
-                                <option value="pengumuman-cendekia">Pengumuman Cendekia Aksara</option>
-                                <option value="resmi">Surat Resmi</option>
-                                <option value="custom">Custom Template</option>
-                            </select>
-                        </div>
-
-                        <!-- Pratinjau Kop Surat -->
-                        <div class="template-preview" id="preview-kop">
-                            <p class="text-muted text-center">Pilih template untuk melihat pratinjau</p>
-                        </div>
-
-                        <!-- Nomor Surat -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="nomor-surat">Nomor Surat</label>
-                                <input type="text" id="nomor-surat" class="form-control" placeholder="001/XYZ/2024" readonly>
-                                <small>Format: NNN/KODE/TAHUN</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="tanggal-surat">Tanggal Surat</label>
-                                <input type="date" id="tanggal-surat" class="form-control" onchange="generateNomorSurat()">
-                            </div>
-                        </div>
-
-                        <!-- Perihal -->
-                        <div class="form-group">
-                            <label for="perihal-surat">Perihal Surat</label>
-                            <input type="text" id="perihal-surat" class="form-control" placeholder="Masukkan perihal surat">
-                        </div>
-
-                        <!-- Isi Surat -->
-                        <div class="form-group">
-                            <label for="isi-surat">Isi Surat</label>
-                            <textarea id="isi-surat" class="form-control" rows="8" placeholder="Ketikkan isi surat di sini..."></textarea>
-                            <small>AI akan membantu mengembangkan dan memperbaiki konten</small>
-                        </div>
-
-                        <!-- AI Enhancement Button -->
-                        <div class="form-group">
-                            <button class="btn btn-secondary" onclick="openAIEnhancer()">✨ Perbaiki dengan AI</button>
-                        </div>
-
-                        <!-- Lampiran -->
-                        <div class="form-group">
-                            <label>Lampiran</label>
-                            <div class="lampiran-container" id="lampiran-container">
-                                <button class="btn btn-outline" onclick="addLampiran()">+ Tambah Lampiran</button>
-                            </div>
-                            <div id="lampiran-list" class="lampiran-list"></div>
-                        </div>
-
-                        <!-- Tanda Tangan -->
-                        <div class="form-group">
-                            <label>Tanda Tangan & Pengesah</label>
-                            <div class="signature-controls">
-                                <input type="number" id="signature-columns" class="form-control" min="1" max="5" value="1" placeholder="Jumlah kolom">
-                                <button class="btn btn-outline" onclick="updateSignatureColumns()">Update</button>
-                            </div>
-                            <div id="signature-container" class="signature-container"></div>
-                            <button class="btn btn-outline" onclick="addSignature()">+ Tambah Tanda Tangan</button>
-                        </div>
-
-                        <!-- Catatan -->
-                        <div class="form-group">
-                            <label for="catatan">Catatan Intern</label>
-                            <textarea id="catatan" class="form-control" rows="3" placeholder="Catatan pribadi (tidak akan ditampilkan di surat)"></textarea>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="form-actions">
-                            <button class="btn btn-primary" onclick="saveSurat()">💾 Simpan Surat</button>
-                            <button class="btn btn-success" onclick="generatePDF()">📄 Download PDF</button>
-                            <button class="btn btn-outline" onclick="resetForm()">🔄 Reset</button>
-                        </div>
+                <form id="form-instruksi" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Kategori Surat (Sistem Penomoran)</label>
+                        <select id="inp-kategori" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003366] outline-none text-sm bg-gray-50">
+                            <option value="MEDPART">Media Partner (MEDPART)</option>
+                            <option value="UND">Undangan (UND)</option>
+                            <option value="SK">Surat Keputusan (SK)</option>
+                            <option value="PERMOHONAN">Permohonan (PERMOHONAN)</option>
+                            <option value="UMUM">Umum (UMUM)</option>
+                        </select>
                     </div>
 
-                    <!-- Preview Panel -->
-                    <div class="preview-panel">
-                        <div class="preview-header">
-                            <h3>Pratinjau Surat</h3>
-                            <button class="btn-refresh" onclick="refreshPreview()">🔄</button>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Informasi Pokok & Konteks Surat</label>
+                        <textarea id="inp-konteks" required rows="4" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003366] outline-none text-sm bg-gray-50" placeholder="Contoh: Kami ingin mengajukan permohonan kerjasama Media Partner kepada penerbit Mizan untuk event Festival Menulis Bulan Juni. Benefit yang ditawarkan berupa logo di poster dan postingan IG..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Instruksi Khusus Format/Lampiran (Opsional)</label>
+                        <textarea id="inp-khusus" rows="2" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003366] outline-none text-sm bg-gray-50" placeholder="Contoh: Tolong buatkan daftar nama perwakilan: 1. Budi (Ketua), 2. Siti (Humas)..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-[#003366] hover:bg-[#002244] text-white font-medium py-3 rounded-xl transition shadow-md text-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Buat Draf Surat dengan AI
+                    </button>
+                </form>
+            </div>
+
+            <!-- PANEL KANAN: PREVIEW DRAFT & EKSEKUSI -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                <h3 class="font-semibold text-[#003366] mb-4 border-b pb-2 flex justify-between items-center">
+                    <span><i class="fa-solid fa-file-lines text-[#d4af37] mr-2"></i>Pratinjau & Sunting Draf</span>
+                    <span id="status-badge" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold">Menunggu Instruksi</span>
+                </h3>
+                
+                <div class="flex-1 flex flex-col space-y-3 opacity-50 pointer-events-none transition duration-300" id="draft-area">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Nomor Surat (Auto-AI)</label>
+                            <input type="text" id="draft-no" class="w-full p-2 border-b border-gray-300 text-sm font-semibold outline-none bg-transparent">
                         </div>
-                        <div class="preview-content" id="preview-surat">
-                            <p class="text-muted text-center">Isi form untuk melihat pratinjau</p>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Perihal</label>
+                            <input type="text" id="draft-perihal" class="w-full p-2 border-b border-gray-300 text-sm font-semibold outline-none bg-transparent">
                         </div>
                     </div>
-                </div>
-            </section>
+                    
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase">Tujuan / Kepada Yth.</label>
+                        <input type="text" id="draft-tujuan" class="w-full p-2 border-b border-gray-300 text-sm font-semibold outline-none bg-transparent">
+                    </div>
 
-            <!-- Arsip Surat Section -->
-            <section id="arsip" class="section">
-                <header class="section-header">
-                    <h1>Arsip Surat</h1>
-                </header>
-                <div class="arsip-controls">
-                    <input type="text" id="search-arsip" class="form-control" placeholder="Cari surat...">
-                    <select id="filter-tahun" class="form-control" onchange="filterArsip()">
-                        <option value="">Semua Tahun</option>
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                        <option value="2026">2026</option>
-                    </select>
-                </div>
-                <div class="table-wrapper">
-                    <table class="table-surat" id="tabelArsip">
-                        <thead>
-                            <tr>
-                                <th>No. Surat</th>
-                                <th>Tanggal</th>
-                                <th>Perihal</th>
-                                <th>Template</th>
-                                <th>Dibuat</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-arsip">
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">Arsip kosong</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <div class="flex-1 flex flex-col">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Isi Surat (Bisa Diedit Manual)</label>
+                        <textarea id="draft-isi" class="w-full flex-1 p-3 border border-gray-300 rounded-lg text-sm outline-none bg-gray-50 resize-none min-h-[200px]" style="line-height: 1.6;"></textarea>
+                    </div>
 
-            <!-- Template Kop Section -->
-            <section id="template-kop" class="section">
-                <header class="section-header">
-                    <h1>Template Kop Surat</h1>
-                    <button class="btn btn-primary" onclick="openTemplateEditor()">+ Buat Template Baru</button>
-                </header>
-                <div class="templates-grid" id="templates-grid">
-                    <!-- Templates akan dimuat di sini -->
+                    <button id="btn-cetak" onclick="cetakKeDrive()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 rounded-xl transition shadow-md text-sm mt-4">
+                        <i class="fa-brands fa-google-drive mr-2"></i> Render PDF & Simpan ke Drive
+                    </button>
                 </div>
-            </section>
-        </main>
-    </div>
 
-    <!-- Modal: AI Enhancer -->
-    <div id="modal-ai" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Perbaiki dengan AI</h2>
-                <button class="modal-close" onclick="closeModal('modal-ai')">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Instruksi untuk AI</label>
-                    <textarea id="ai-instruction" class="form-control" rows="4" placeholder="Contoh: Perbaiki tata bahasa, sesuaikan dengan format surat resmi, tambahkan poin-poin yang lebih jelas..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="ai-expand"> Kembangkan konten (tambah detail relevan)
-                    </label>
-                    <label>
-                        <input type="checkbox" id="ai-formal"> Gunakan bahasa resmi yang lebih formal
-                    </label>
-                </div>
-                <div id="ai-loading" class="hidden">
-                    <p class="text-center">⏳ AI sedang memproses...</p>
-                </div>
-                <div id="ai-result" class="hidden">
-                    <label>Hasil Perbaikan:</label>
-                    <textarea id="ai-result-text" class="form-control" rows="6" readonly></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="processWithAI()">Proses dengan AI</button>
-                <button class="btn btn-outline" onclick="acceptAIResult()">Terima Hasil</button>
-                <button class="btn btn-outline" onclick="closeModal('modal-ai')">Tutup</button>
-            </div>
+
         </div>
+    </main>
+
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner"></div>
+        <p id="loading-text" class="mt-4 font-semibold text-[#003366]">Memproses...</p>
     </div>
 
-    <!-- Modal: File Upload -->
-    <div id="modal-upload" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Upload File</h2>
-                <button class="modal-close" onclick="closeModal('modal-upload')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="file-input">Pilih File</label>
-                    <input type="file" id="file-input" class="form-control" accept="image/*,.pdf,.doc,.docx">
-                    <small>Format didukung: Gambar (JPG, PNG), PDF, DOC, DOCX</small>
-                </div>
-                <div id="file-preview" class="file-preview"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="confirmFileUpload()">Upload</button>
-                <button class="btn btn-outline" onclick="closeModal('modal-upload')">Batal</button>
-            </div>
-        </div>
-    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <!-- Modal: Signature Editor -->
-    <div id="modal-signature" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Upload Tanda Tangan</h2>
-                <button class="modal-close" onclick="closeModal('modal-signature')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="sig-name">Nama Penandatangan</label>
-                    <input type="text" id="sig-name" class="form-control" placeholder="Nama lengkap">
-                </div>
-                <div class="form-group">
-                    <label for="sig-title">Jabatan/Posisi</label>
-                    <input type="text" id="sig-title" class="form-control" placeholder="Jabatan">
-                </div>
-                <div class="form-group">
-                    <label for="sig-file">Upload Tanda Tangan (Gambar)</label>
-                    <input type="file" id="sig-file" class="form-control" accept="image/*">
-                    <small>Format: JPG, PNG (transparent background recommended)</small>
-                </div>
-                <div id="sig-preview" class="file-preview"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" onclick="confirmSignature()">Simpan Tanda Tangan</button>
-                <button class="btn btn-outline" onclick="closeModal('modal-signature')">Batal</button>
-            </div>
-        </div>
-    </div>
+        // Konfigurasi Firebase Anda
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
 
-    <script src="generator-surat.js"></script>
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // MASUKKAN URL WEB APP SCRIPT ANDA DI SINI
+        const APPS_SCRIPT_URL = "URL_GOOGLE_APPS_SCRIPT_ANDA_DISINI"; 
+
+        const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
+        const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
+
+        // 1. GENERATE DRAF DENGAN AI
+        document.getElementById('form-instruksi').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const kategori = document.getElementById('inp-kategori').value;
+            const konteks = document.getElementById('inp-konteks').value;
+            const instruksi_khusus = document.getElementById('inp-khusus').value;
+
+            showLoading("Memeriksa Arsip & Memikirkan Kata-kata...");
+
+            try {
+                // Cari nomor surat terakhir di kategori ini dari Firestore
+                let nomorTerakhir = null;
+                const q = query(collection(db, "surat_keluar"), where("kategori", "==", kategori), orderBy("createdAt", "desc"), limit(1));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    nomorTerakhir = snap.docs[0].data().no_surat;
+                }
+
+                // Kirim ke Vercel AI
+                const response = await fetch('/api/surat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kategori, nomor_terakhir: nomorTerakhir, konteks, instruksi_khusus })
+                });
+
+                const dataAI = await response.json();
+                if(dataAI.error) throw new Error(dataAI.error);
+
+                // Tampilkan di UI
+                document.getElementById('draft-no').value = dataAI.no_surat;
+                document.getElementById('draft-perihal').value = dataAI.perihal;
+                document.getElementById('draft-tujuan').value = dataAI.tujuan;
+                document.getElementById('draft-isi').value = dataAI.isi_surat;
+
+                // Buka Kunci Area Draft
+                const draftArea = document.getElementById('draft-area');
+                draftArea.classList.remove('opacity-50', 'pointer-events-none');
+                
+                const badge = document.getElementById('status-badge');
+                badge.innerText = "Draf Siap Diperiksa";
+                badge.className = "text-[10px] bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold";
+
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                Swal.fire('Gagal Membuat Draf', error.message, 'error');
+            }
+        });
+
+        // 2. RENDER KE PDF DRIVE & SIMPAN ARSIP FIRESTORE
+        window.cetakKeDrive = async () => {
+            if(APPS_SCRIPT_URL === "URL_GOOGLE_APPS_SCRIPT_ANDA_DISINI") {
+                return Swal.fire('Setup Belum Selesai', 'Admin belum memasukkan URL Google Apps Script pada kode HTML ini.', 'warning');
+            }
+
+            const no_surat = document.getElementById('draft-no').value;
+            const perihal = document.getElementById('draft-perihal').value;
+            const tujuan = document.getElementById('draft-tujuan').value;
+            const isi_surat = document.getElementById('draft-isi').value;
+            const kategori = document.getElementById('inp-kategori').value;
+
+            // Tanggal dinamis Format Indonesia
+            const tglString = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            const lokasiTanggal = `Jakarta, ${tglString}`;
+
+            showLoading("Merender ke PDF dan Mengunggah ke Google Drive...");
+
+            try {
+                // 1. Eksekusi Google Apps Script
+                const resApps = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'generate',
+                        kategori, no_surat, perihal, tujuan, isi_surat, tanggal: lokasiTanggal
+                    })
+                });
+                
+                const driveData = await resApps.json();
+                if(driveData.status === 'error') throw new Error(driveData.message);
+
+                // 2. Simpan Rekam Jejak ke Firestore Firebase
+                await addDoc(collection(db, "surat_keluar"), {
+                    kategori,
+                    no_surat,
+                    perihal,
+                    tujuan,
+                    isi_surat,
+                    tanggal: tglString,
+                    drive_url: driveData.pdfUrl,
+                    drive_file_id: driveData.fileId,
+                    createdAt: new Date().toISOString()
+                });
+
+                hideLoading();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Surat Terbit!',
+                    text: 'Surat berhasil dicetak dengan Kop Surat Resmi dan diamankan di Google Drive.',
+                    confirmButtonText: 'Buka File PDF',
+                    showCancelButton: true,
+                    cancelButtonText: 'Tutup'
+                }).then((res) => {
+                    if(res.isConfirmed) {
+                        window.open(driveData.pdfUrl, '_blank');
+                    }
+                    // Reset Form
+                    document.getElementById('form-instruksi').reset();
+                    document.getElementById('draft-area').classList.add('opacity-50', 'pointer-events-none');
+                    document.getElementById('status-badge').innerText = "Menunggu Instruksi";
+                    document.getElementById('status-badge').className = "text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold";
+                });
+
+            } catch (error) {
+                hideLoading();
+                Swal.fire('Gagal Mencetak', error.message, 'error');
+            }
+        };
+    </script>
 </body>
 </html>
