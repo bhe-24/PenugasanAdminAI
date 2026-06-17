@@ -45,7 +45,7 @@ ATURAN PENULISAN:
 1. Hitung Nomor Surat Selanjutnya. Jika nomor terakhir adalah 002/MEDPART/X/2026, maka surat ini adalah 003/${kategori}/${bulanRomawi}/${tahun}. Jika belum ada, mulai dari 001.
 2. Gaya Bahasa: Sopan, kontekstual, luwes, meyakinkan, namun tetap menjaga tata krama formal (tidak kaku seperti robot). Gunakan kata ganti "Kami" untuk pengirim.
 3. Struktur: Buka dengan salam hormat, isi maksud dan tujuan secara jelas (masukkan informasi dari admin), dan tutup dengan harapan serta salam.
-4. JANGAN menggunakan tag HTML <table>. Jika admin meminta tabel (misal daftar delegasi), gunakan format Bullet Points (-) atau penomoran (1. 2. 3.) yang rapi karena ini akan dicetak ke dalam file teks (Google Docs).
+4. FORMAT DAFTAR/TABEL: Jika instruksi admin meminta bentuk "tabel" (seperti daftar nama peserta, susunan acara, dsb), susunlah data tersebut menjadi Daftar Terstruktur yang rapi (misal: menggunakan indentasi, format "1. Waktu | Kegiatan | PIC", atau poin-poin yang terorganisir). JANGAN menggunakan tag HTML <table> karena Google Docs merender teks biasa. Buat serapi mungkin secara visual.
 
 Tolong berikan output HANYA dalam format JSON valid berikut:
 {
