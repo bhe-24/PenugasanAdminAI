@@ -24,17 +24,33 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Data tidak lengkap. Kategori dan konteks wajib diisi.' });
         }
 
-        const d = new Date();
+        // --- SISTEM PENOMORAN MUTLAK (DIKERJAKAN OLEH SERVER, BUKAN AI) ---
+        // Memastikan waktu di-set ke Zona Waktu Indonesia (WIB)
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
         const bulanRomawi = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][d.getMonth()];
-        const tahun = d.getFullYear();
+        const tahun = d.getFullYear(); // Akan selalu mengambil tahun berjalan secara nyata (Misal: 2026)
+
+        // Menghitung nomor urut selanjutnya
+        let urutanSelanjutnya = 1;
+        if (nomor_terakhir && typeof nomor_terakhir === 'string') {
+            const parts = nomor_terakhir.split('/');
+            if (parts.length > 0) {
+                const angkaTerakhir = parseInt(parts[0], 10);
+                if (!isNaN(angkaTerakhir)) {
+                    urutanSelanjutnya = angkaTerakhir + 1;
+                }
+            }
+        }
+        
+        // Memformat jadi 3 digit (Contoh: 001, 002, 015)
+        const nomorFormat = String(urutanSelanjutnya).padStart(3, '0');
+        const autoNoSurat = `${nomorFormat}/${kategori}/${bulanRomawi}/${tahun}`;
 
         // Prompt Super untuk Sekretaris AI
         const promptText = `
 Peran: Anda adalah Sekretaris Jenderal "Cendekia Aksara" (Komunitas Literasi Edukatif).
 Tugas: Menyusun Draf Surat Resmi berdasarkan instruksi admin.
 
-KODE KATEGORI SURAT: ${kategori}
-NOMOR SURAT TERAKHIR KATEGORI INI: ${nomor_terakhir || 'Belum ada surat'}
 KONTEKS & INFORMASI SURAT: 
 ${konteks}
 
@@ -42,14 +58,12 @@ INSTRUKSI KHUSUS DARI ADMIN:
 ${instruksi_khusus || 'Tidak ada instruksi khusus. Buat senatural mungkin.'}
 
 ATURAN PENULISAN:
-1. Hitung Nomor Surat Selanjutnya. Jika nomor terakhir adalah 002/MEDPART/X/2026, maka surat ini adalah 003/${kategori}/${bulanRomawi}/${tahun}. Jika belum ada, mulai dari 001.
-2. Gaya Bahasa: Sopan, kontekstual, luwes, meyakinkan, namun tetap menjaga tata krama formal (tidak kaku seperti robot). Gunakan kata ganti "Kami" untuk pengirim.
-3. Struktur: Buka dengan salam hormat, isi maksud dan tujuan secara jelas (masukkan informasi dari admin), dan tutup dengan harapan serta salam.
-4. FORMAT DAFTAR/TABEL: Jika instruksi admin meminta bentuk "tabel" (seperti daftar nama peserta, susunan acara, dsb), susunlah data tersebut menjadi Daftar Terstruktur yang rapi (misal: menggunakan indentasi, format "1. Waktu | Kegiatan | PIC", atau poin-poin yang terorganisir). JANGAN menggunakan tag HTML <table> karena Google Docs merender teks biasa. Buat serapi mungkin secara visual.
+1. Gaya Bahasa: Sopan, kontekstual, luwes, meyakinkan, namun tetap menjaga tata krama formal (tidak kaku seperti robot). Gunakan kata ganti "Kami" untuk pengirim.
+2. Struktur: Buka dengan salam hormat, isi maksud dan tujuan secara jelas (masukkan informasi dari admin), dan tutup dengan harapan serta salam.
+3. FORMAT DAFTAR/TABEL: Jika instruksi admin meminta bentuk "tabel" (seperti daftar nama peserta, susunan acara, dsb), susunlah data tersebut menjadi Daftar Terstruktur yang rapi (misal: menggunakan indentasi, format "1. Waktu | Kegiatan | PIC", atau poin-poin yang terorganisir). JANGAN menggunakan tag HTML <table> karena Google Docs merender teks biasa. Buat serapi mungkin secara visual.
 
 Tolong berikan output HANYA dalam format JSON valid berikut:
 {
-  "no_surat": "(Nomor surat hasil perhitungan)",
   "perihal": "(Perihal/Hal surat, singkat & jelas)",
   "tujuan": "(Nama instansi/orang yang dituju)",
   "isi_surat": "(Seluruh paragraf isi surat. Gunakan \\n\\n untuk paragraf baru. JANGAN cantumkan tempat/tanggal di atas, dan JANGAN cantumkan tanda tangan di bawah, cukup isi intinya saja karena kop & TTD sudah ada di template kertas)."
@@ -78,8 +92,11 @@ Tolong berikan output HANYA dalam format JSON valid berikut:
         
         const textResponse = result.response.text();
         
-        // Parsing JSON langsung (dijamin aman karena responseMimeType JSON)
+        // Parsing JSON langsung
         const finalResult = JSON.parse(textResponse);
+
+        // KUNCI UTAMA: Memaksa "no_surat" dari hasil perhitungan murni JavaScript agar 100% akurat
+        finalResult.no_surat = autoNoSurat;
 
         res.status(200).json(finalResult);
 
