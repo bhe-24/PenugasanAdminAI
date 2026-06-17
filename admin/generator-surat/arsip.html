@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsip Surat - Cendekia Aksara</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .admin-header { width: 100%; background: white; padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #003366; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 10px; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { height: 40px; width: 40px; border-radius: 50%; border: 2px solid #d4af37; padding: 2px; }
+        .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #003366; font-weight: 700; margin: 0;}
+        .btn-back { background: #e2e8f0; color: #475569; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-back:hover { background: #cbd5e1; color: #003366; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="admin-header">
+        <a href="#" class="header-brand">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+            <h1>Cendekia <span>Sekretariat</span></h1>
+        </a>
+        <a href="../generator-surat.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali ke Generator</a>
+    </header>
+
+    <main class="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
+        
+        <div class="mb-6 flex justify-between items-end">
+            <div>
+                <h2 class="text-2xl font-serif font-bold text-[#003366]">Arsip Surat Keluar</h2>
+                <p class="text-sm text-gray-500">Log historis seluruh dokumen resmi yang di-generate AI dan tersimpan di Google Drive.</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="bg-gray-50 text-gray-600 font-semibold border-b-2 border-gray-200">
+                    <tr>
+                        <th class="p-4 rounded-tl-lg">Nomor Surat</th>
+                        <th class="p-4">Hal / Kepada</th>
+                        <th class="p-4">Tanggal Rilis</th>
+                        <th class="p-4 text-center rounded-tr-lg">Aksi Berkas</th>
+                    </tr>
+                </thead>
+                <tbody id="table-arsip" class="divide-y divide-gray-100">
+                    <tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Mengambil data arsip...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Konfigurasi Firebase Anda
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // MASUKKAN URL WEB APP SCRIPT ANDA DI SINI
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBQSzyne0QrMjKuhpuU0KjqQkm1ZK6fCdosEdX0q8uHCGWmTQwlSvBjc1a-X0xKIh4/exec"; 
+
+        const tbody = document.getElementById('table-arsip');
+        let arsipList = [];
+
+        // Realtime Listener Data
+        const q = query(collection(db, "surat_keluar"), orderBy("createdAt", "desc"));
+        onSnapshot(q, (snap) => {
+            arsipList = [];
+            tbody.innerHTML = '';
+            
+            if(snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fa-solid fa-folder-open text-3xl mb-2 block"></i> Belum ada arsip surat.</td></tr>';
+                return;
+            }
+
+            snap.forEach(d => {
+                const data = { id: d.id, ...d.data() };
+                arsipList.push(data);
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-4 font-bold text-[#003366]">${data.no_surat}</td>
+                        <td class="p-4">
+                            <div class="font-semibold text-gray-800">${data.perihal}</div>
+                            <div class="text-xs text-gray-500">Yth. ${data.tujuan}</div>
+                        </td>
+                        <td class="p-4 text-gray-600">${data.tanggal}</td>
+                        <td class="p-4 text-center">
+                            <a href="${data.drive_url}" target="_blank" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition mr-1" title="Buka PDF">
+                                <i class="fa-solid fa-folder-open"></i>
+                            </a>
+                            <button onclick="cabutSurat('${data.id}', '${data.drive_file_id}', '${data.no_surat}')" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-lg transition" title="Cabut & Hapus Surat">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        // Hapus Surat dari Firebase & Google Drive
+        window.cabutSurat = (docId, fileId, noSurat) => {
+            Swal.fire({
+                title: 'Cabut Surat Terbit?',
+                text: `Anda akan menghapus arsip surat nomor ${noSurat}. Surat juga akan dipindahkan ke folder Trash di Google Drive.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Cabut Dokumen'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Sedang Mencabut...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    
+                    try {
+                        // 1. Eksekusi Penghapusan di Google Drive via Apps Script
+                        if (APPS_SCRIPT_URL !== "URL_GOOGLE_APPS_SCRIPT_ANDA_DISINI" && fileId) {
+                            await fetch(APPS_SCRIPT_URL, {
+                                method: 'POST',
+                                body: JSON.stringify({ action: 'delete', fileId: fileId })
+                            });
+                        }
+
+                        // 2. Eksekusi Penghapusan Database Firebase
+                        await deleteDoc(doc(db, "surat_keluar", docId));
+                        
+                        Swal.fire('Tercabut', 'Surat berhasil dicabut dari sistem dan drive.', 'success');
+                    } catch (error) {
+                        Swal.fire('Error', error.message, 'error');
+                    }
+                }
+            });
+        };
+    </script>
+</body>
+</html>
