@@ -1,6 +1,13 @@
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
+import { 
+    GoogleGenerativeAI, 
+    HarmCategory, 
+    HarmBlockThreshold 
+} from '@google/generative-ai';
 
-module.exports = async function handler(req, res) {
+// Inisialisasi diletakkan di luar fungsi utama persis seperti grade2.js
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+export default async function handler(req, res) {
     // Pengaturan CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
@@ -11,12 +18,11 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        if (!process.env.GEMINI_API_KEY) throw new Error("API Key Gemini tidak ditemukan.");
-        
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const { kategori, nomor_terakhir, konteks, instruksi_khusus } = req.body;
 
-        if (!kategori || !konteks) return res.status(400).json({ error: 'Data tidak lengkap.' });
+        if (!kategori || !konteks) {
+            return res.status(400).json({ error: 'Data tidak lengkap. Kategori dan konteks wajib diisi.' });
+        }
 
         const d = new Date();
         const bulanRomawi = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][d.getMonth()];
@@ -50,27 +56,35 @@ Tolong berikan output HANYA dalam format JSON valid berikut:
 }
 `;
 
+        // Filter keamanan dilonggarkan agar AI tidak tiba-tiba mogok kerja
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
         ];
 
+        // Menggunakan model standar Gemini Flash
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
-            generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
+            generationConfig: { 
+                temperature: 0.7, 
+                responseMimeType: "application/json" // Memaksa format JSON absolut
+            },
             safetySettings: safetySettings
         });
         
-        let textResponse = result.response.text();
-        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const textResponse = result.response.text();
+        
+        // Parsing JSON langsung (dijamin aman karena responseMimeType JSON)
         const finalResult = JSON.parse(textResponse);
 
         res.status(200).json(finalResult);
 
     } catch (error) {
         console.error("API Surat Error:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message || "AksaBot sedang sibuk, silakan coba lagi." });
     }
 }
