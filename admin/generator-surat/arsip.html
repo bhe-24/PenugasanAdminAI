@@ -59,7 +59,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // TAMBAHAN: Modul Auth untuk mendeteksi login admin
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = { 
@@ -72,6 +74,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app); // Inisialisasi Auth
         const db = getFirestore(app);
 
         // MASUKKAN URL WEB APP SCRIPT ANDA DI SINI
@@ -80,41 +83,70 @@
         const tbody = document.getElementById('table-arsip');
         let arsipList = [];
 
-        // Realtime Listener Data
-        const q = query(collection(db, "surat_keluar"), orderBy("createdAt", "desc"));
-        onSnapshot(q, (snap) => {
-            arsipList = [];
-            tbody.innerHTML = '';
-            
-            if(snap.empty) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fa-solid fa-folder-open text-3xl mb-2 block"></i> Belum ada arsip surat.</td></tr>';
-                return;
+        // 1. Cek Autentikasi (Agar Firestore mengizinkan pengambilan data)
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
+                        // Jika Admin valid, baru muat data arsip
+                        loadArsipData();
+                    } else {
+                        Swal.fire('Akses Ditolak', 'Anda tidak memiliki izin mengakses halaman ini.', 'error')
+                        .then(() => window.location.href = '../index.html');
+                    }
+                } catch(e) { 
+                    console.error("Error", e); 
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-red-500">Terjadi kesalahan pada koneksi sistem.</td></tr>`;
+                }
+            } else {
+                // Jika belum login, tendang ke luar
+                window.location.href = '../../index.html';
             }
-
-            snap.forEach(d => {
-                const data = { id: d.id, ...d.data() };
-                arsipList.push(data);
-                
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 font-bold text-[#003366]">${data.no_surat}</td>
-                        <td class="p-4">
-                            <div class="font-semibold text-gray-800">${data.perihal}</div>
-                            <div class="text-xs text-gray-500">Yth. ${data.tujuan}</div>
-                        </td>
-                        <td class="p-4 text-gray-600">${data.tanggal}</td>
-                        <td class="p-4 text-center">
-                            <a href="${data.drive_url}" target="_blank" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition mr-1" title="Buka PDF">
-                                <i class="fa-solid fa-folder-open"></i>
-                            </a>
-                            <button onclick="cabutSurat('${data.id}', '${data.drive_file_id}', '${data.no_surat}')" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-lg transition" title="Cabut & Hapus Surat">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
         });
+
+        // 2. Fungsi Utama Pemanggil Arsip
+        function loadArsipData() {
+            const q = query(collection(db, "surat_keluar"), orderBy("createdAt", "desc"));
+            
+            // Tambahan error handling pada onSnapshot jika gagal (terblokir)
+            onSnapshot(q, (snap) => {
+                arsipList = [];
+                tbody.innerHTML = '';
+                
+                if(snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fa-solid fa-folder-open text-3xl mb-2 block"></i> Belum ada arsip surat.</td></tr>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = { id: d.id, ...d.data() };
+                    arsipList.push(data);
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 font-bold text-[#003366]">${data.no_surat}</td>
+                            <td class="p-4">
+                                <div class="font-semibold text-gray-800">${data.perihal}</div>
+                                <div class="text-xs text-gray-500">Yth. ${data.tujuan}</div>
+                            </td>
+                            <td class="p-4 text-gray-600">${data.tanggal}</td>
+                            <td class="p-4 text-center">
+                                <a href="${data.drive_url}" target="_blank" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition mr-1" title="Buka PDF">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </a>
+                                <button onclick="cabutSurat('${data.id}', '${data.drive_file_id}', '${data.no_surat}')" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-lg transition" title="Cabut & Hapus Surat">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }, (error) => {
+                console.error("Gagal mengambil arsip:", error);
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-red-500">Gagal mengambil data dari server. Pastikan aturan Firebase mengizinkan Admin.</td></tr>`;
+            });
+        }
 
         // Hapus Surat dari Firebase & Google Drive
         window.cabutSurat = (docId, fileId, noSurat) => {
