@@ -118,15 +118,18 @@
         </div>
     </main>
 
+    <!-- Start hidden -->
     <div id="loading-overlay" class="hidden">
         <div class="spinner"></div>
-        <p id="loading-text" class="mt-4 font-semibold text-[#003366]">Memproses...</p>
+        <p id="loading-text" class="mt-4 font-semibold text-[#003366]">Memverifikasi Akses Admin...</p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // TAMBAHAN: Import modul auth untuk deteksi login
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, limit, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Konfigurasi Firebase Anda
         const firebaseConfig = { 
@@ -139,13 +142,37 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app); // Inisialisasi auth
         const db = getFirestore(app);
 
-        // MASUKKAN URL WEB APP SCRIPT ANDA DI SINI
+        // URL Google Apps Script yang sudah Anda set up
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBQSzyne0QrMjKuhpuU0KjqQkm1ZK6fCdosEdX0q8uHCGWmTQwlSvBjc1a-X0xKIh4/exec"; 
 
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
+
+        // AWAL: Verifikasi apakah yang mengakses adalah Admin
+        showLoading("Memverifikasi Akses Administrator...");
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
+                        // Admin valid, sembunyikan loading
+                        hideLoading();
+                    } else {
+                        Swal.fire('Akses Ditolak', 'Anda tidak memiliki izin mengakses halaman ini.', 'error')
+                        .then(() => window.location.href = 'index.html');
+                    }
+                } catch(e) { 
+                    console.error("Error", e); 
+                    Swal.fire('Error', 'Gagal memverifikasi identitas. Periksa koneksi internet.', 'error');
+                }
+            } else {
+                // Jika belum login, tendang ke luar
+                window.location.href = '../index.html';
+            }
+        });
 
         // 1. GENERATE DRAF DENGAN AI
         document.getElementById('form-instruksi').addEventListener('submit', async (e) => {
@@ -165,7 +192,7 @@
                     nomorTerakhir = snap.docs[0].data().no_surat;
                 }
 
-                // Kirim ke Vercel AI
+                // Kirim ke Vercel AI (Ganti fetch ke backend Node.js / Vercel API Anda)
                 const response = await fetch('/api/surat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
