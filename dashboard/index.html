@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta name="google-site-verification" content="nfOmTXjQ7bxFhT0wJGNrC6WuzTSbjRCrfWY-UdGS0HU" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard - Cendekia Aksara</title>
@@ -17,7 +16,6 @@
             background-color: #f4f6f9; 
             margin: 0; 
             padding-bottom: 50px; 
-            /* Memberikan ruang di atas agar konten tidak tertutup oleh header yang fixed */
             padding-top: 110px; 
             overflow-x: hidden;
         }
@@ -26,21 +24,20 @@
 
         /* --- HEADER BRANDED NAVY (FULL WIDTH & FIXED) --- */
         .brand-header {
-            position: fixed; /* Mengunci posisi di layar */
+            position: fixed;
             top: 0; 
             left: 0; 
-            width: 100%; /* Membentang penuh dari ujung ke ujung */
-            z-index: 1000; /* Memastikan header selalu di atas kartu saat di-scroll */
+            width: 100%;
+            z-index: 1000;
             background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white; 
-            padding: 15px 5%; /* Padding proporsional */
+            padding: 15px 5%;
             box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
             display: flex; justify-content: space-between; align-items: center; gap: 15px;
             box-sizing: border-box;
             overflow: hidden;
         }
         
-        /* Ornamen Cahaya */
         .brand-header::after {
             content: ''; position: absolute; top: -50%; right: 0;
             width: 250px; height: 250px; background: rgba(255, 255, 255, 0.05);
@@ -82,7 +79,7 @@
 
         /* --- LENCANA STATUS DINAMIS --- */
         .status-ticker-wrapper {
-            display: flex; justify-content: flex-start; /* Diposisikan di kiri */
+            display: flex; justify-content: flex-start;
             margin-bottom: 25px;
         }
         .dynamic-badge {
@@ -164,7 +161,7 @@
 
         /* --- RESPONSIVE MOBILE FIX --- */
         @media (max-width: 600px) {
-            body { padding-top: 85px; } /* Jarak header mobile yang lebih pendek */
+            body { padding-top: 85px; }
             .container { padding: 15px; }
             .brand-header {
                 padding: 12px 20px; gap: 10px;
@@ -175,7 +172,6 @@
             .header-brand-name { font-size: 1.3rem; }
             .header-greeting { font-size: 0.8rem; margin-top: 0; }
             
-            /* Tombol keluar mengecil jadi ikon di ujung kanan */
             .btn-logout-header {
                 width: 40px; height: 40px; padding: 0;
                 justify-content: center; margin: 0; margin-left: auto;
@@ -276,6 +272,7 @@
         import { db, auth, checkAuth } from "/js/firebase-config.js";
         import { signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import ActivityLogger from "/js/activity-logger.js";
 
         // --- FUNGSI CUSTOM MODAL ---
         window.showModal = (title, message, isConfirm = false, type = 'normal') => {
@@ -346,7 +343,7 @@
                     activeBadges.push({ class: 'badge-osis', html: '<i class="fa-solid fa-shield-halved"></i> Pengurus OSIS' });
                 }
 
-                let currentStatus = userData.status || 'active'; // Gunakan standarisasi kata kunci 'active'
+                let currentStatus = userData.status || 'active';
 
                 // ==========================================
                 // PERBAIKAN KRUSIAL: CEK INAKTIVITAS (AUTO-SUSPEND)
@@ -354,7 +351,6 @@
                 if (currentStatus === 'active' || currentStatus === 'aktif') {
                     let lastActiveDate = new Date(); 
                     
-                    // Baca semua probabilitas lokasi format tanggal dari database
                     if (userData.lastActive) {
                         lastActiveDate = new Date(userData.lastActive);
                     } else if (userData.lastLogin) {
@@ -365,7 +361,6 @@
                         lastActiveDate = new Date(userData.createdAt);
                     }
 
-                    // Pencegahan gagal parsing tanggal
                     if (isNaN(lastActiveDate.getTime())) {
                         lastActiveDate = new Date();
                     }
@@ -373,7 +368,6 @@
                     const diffTime = Math.abs(new Date() - lastActiveDate);
                     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-                    // Eksekusi Pemblokiran Otomatis Jika Melewati 75 Hari
                     if (diffDays >= 75) {
                         currentStatus = 'nonaktif';
                         updateDoc(doc(db, 'users', userData.uid), { status: 'nonaktif' });
@@ -386,7 +380,6 @@
                 if (currentStatus === 'active' || currentStatus === 'aktif') {
                     activeBadges.push({ class: 'badge-aktif', html: '<i class="fa-solid fa-user-check"></i> Status: Aktif' });
                     
-                    // PENTING: Update waktu login/aktivitas saat ini agar tidak terkena auto-suspend keesokan harinya
                     updateDoc(doc(db, 'users', userData.uid), { 
                         lastActive: new Date().toISOString(),
                         lastLogin: new Date().toISOString()
@@ -412,7 +405,7 @@
                         card.classList.add('disabled-card');
                         card.onclick = (e) => {
                             e.preventDefault();
-                            window.showModal('Akun Dibekukan', 'Akun Anda dinonaktifkan karena tidak ada aktivitas lebih dari 2 Bulan 15 Hari, atau karena keputusan panitia. Silakan ajukan banding ke Admin.', false, 'danger');
+                            window.showModal('Akun Dibekukan', 'Akun Anda dinonaktifkan karena tidak ada aktivitas lebih dari 2 Bulan 15 Hari, atau karena keputusan panitia. Silakan ajukan banding atau hubungi admin.', false, 'danger');
                         };
                     });
 
@@ -442,7 +435,7 @@
                                 badgeEl.innerHTML = activeBadges[badgeIdx].html;
                                 badgeEl.style.opacity = '1';
                             }, 300);
-                        }, 4000); // Ganti tiap 4 detik
+                        }, 4000);
                     }
                 } else {
                     badgeEl.style.display = 'none';
@@ -460,6 +453,22 @@
             );
 
             if (yakin) {
+                // Ambil data user sebelum logout
+                const userAuth = auth.currentUser;
+                if (userAuth) {
+                    // Coba ambil data user dari Firestore
+                    try {
+                        const userSnap = await getDoc(doc(db, 'users', userAuth.uid));
+                        if (userSnap.exists()) {
+                            const userData = userSnap.data();
+                            // Log logout activity
+                            await ActivityLogger.logLogout(userAuth.uid, userData.name || 'User');
+                        }
+                    } catch (e) {
+                        console.warn('Could not log logout:', e);
+                    }
+                }
+
                 await signOut(auth);
                 window.location.href = '/';
             }
