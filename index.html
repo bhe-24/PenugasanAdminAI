@@ -283,6 +283,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import ActivityLogger from "./js/activity-logger.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
@@ -298,10 +299,9 @@
         const db = getFirestore(app);
 
         // ─── KONSTANTA ADMIN ───────────────────────────────────────────────────
-        // Hanya email ini yang diarahkan ke halaman admin
         const ADMIN_EMAIL = 'admin@ac.id';
 
-        // ─── UTILS ────────────────────────────────────────────────────────────
+        // ─── UTILS ──────────────────────────────────────────────────────────────
         const showLoading = (msg) => {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.remove('hidden');
@@ -319,46 +319,29 @@
 
         /**
          * ─── FUNGSI ROUTING UTAMA ──────────────────────────────────────────────
-         *
-         * Urutan prioritas pengecekan:
-         *  1. Role 'admin' di DB  → admin/index.html
-         *  2. Email persis admin@ac.id → admin/index.html
-         *  3. Role 'pengajar' di DB → pengajar/index.html
-         *  4. Email berakhiran @ac.id (bukan admin) → pengajar/index.html
-         *  5. Siswa semester >= 3 → dashboard/inkubasi.html
-         *  6. Siswa semester < 3  → dashboard/index.html
          */
         function routeUser(data, email) {
             const role = data.role || 'siswa';
             const semester = parseInt(data.semester) || 1;
 
-            // 1 & 2 — Admin
             if (role === 'admin' || email === ADMIN_EMAIL) {
                 return 'admin/index.html';
             }
 
-            // 3 & 4 — Pengajar
             if (role === 'pengajar' || email.endsWith('@ac.id')) {
                 return 'pengajar/index.html';
             }
 
-            // 5 & 6 — Siswa
             return semester >= 3 ? 'dashboard/inkubasi.html' : 'dashboard/index.html';
         }
 
-        /**
-         * Tentukan role awal saat pendaftaran berdasarkan email:
-         *  - admin@ac.id      → 'admin'
-         *  - *@ac.id lainnya  → 'pengajar'
-         *  - email lain       → 'siswa'
-         */
         function resolveInitialRole(email) {
             if (email === ADMIN_EMAIL) return 'admin';
             if (email.endsWith('@ac.id')) return 'pengajar';
             return 'siswa';
         }
 
-        // ─── AUTH LISTENER (ROUTING SISTEM) ───────────────────────────────────
+        // ─── AUTH LISTENER (ROUTING SISTEM) ─────────────────────────────────────
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 if (!localStorage.getItem('justRegistered')) {
@@ -370,24 +353,22 @@
                     if (snap.exists()) {
                         const data = snap.data();
 
-                        // Sinkronisasi role jika email adalah admin@ac.id
-                        // tapi role di DB belum 'admin'
                         if (user.email === ADMIN_EMAIL && data.role !== 'admin') {
                             await setDoc(doc(db, 'users', user.uid), { role: 'admin' }, { merge: true });
                             data.role = 'admin';
                         }
 
-                        // Sinkronisasi role jika email @ac.id (bukan admin)
-                        // tapi role di DB belum 'pengajar'
                         if (user.email !== ADMIN_EMAIL && user.email.endsWith('@ac.id') && data.role !== 'pengajar' && data.role !== 'admin') {
                             await setDoc(doc(db, 'users', user.uid), { role: 'pengajar' }, { merge: true });
                             data.role = 'pengajar';
                         }
 
+                        // ─── LOG AKTIVITAS LOGIN ───────────────────────────────────────────────
+                        await ActivityLogger.logLogin(user.uid, data.name || 'User', user.email);
+
                         window.location.href = routeUser(data, user.email);
 
                     } else {
-                        // Profil belum ada — buat baru dengan role otomatis
                         const role = resolveInitialRole(user.email);
                         const newData = {
                             name: user.displayName || 'Pengguna Baru',
@@ -399,6 +380,10 @@
                             createdAt: new Date().toISOString()
                         };
                         await setDoc(doc(db, 'users', user.uid), newData);
+                        
+                        // ─── LOG AKTIVITAS LOGIN UNTUK PENGGUNA BARU ───────────────────────────
+                        await ActivityLogger.logLogin(user.uid, newData.name, user.email);
+                        
                         window.location.href = routeUser(newData, user.email);
                     }
                 } catch (e) {
@@ -410,7 +395,7 @@
             }
         });
 
-        // ─── NAVIGASI ANTAR FORM ───────────────────────────────────────────────
+        // ─── NAVIGASI ANTAR FORM ──────────────────────────────────────────────────
         const loginForm   = document.getElementById('login-form-container');
         const regForm     = document.getElementById('register-form-container');
         const forgotForm  = document.getElementById('forgot-form-container');
@@ -420,7 +405,7 @@
         document.getElementById('to-forgot').onclick             = () => { loginForm.classList.add('hidden');  forgotForm.classList.remove('hidden'); };
         document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
 
-        // ─── 1. LOGIN ──────────────────────────────────────────────────────────
+        // ─── 1. LOGIN ───────────────────────────────────────────────────────────
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Membuka Portal...');
@@ -441,7 +426,7 @@
             }
         };
 
-        // ─── 2. REGISTER ──────────────────────────────────────────────────────
+        // ─── 2. REGISTER ───────────────────────────────────────────────────────
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             showLoading('Mendaftarkan Identitas...');
