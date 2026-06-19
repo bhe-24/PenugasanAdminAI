@@ -7,8 +7,13 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@300;400;500;600;700&family=Aleo:wght@700&display=swap" rel="stylesheet">
     
+    <!-- Pustaka Tambahan untuk Poster -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
         .admin-header { width: 100%; background: linear-gradient(135deg, #001f3f 0%, #003366 100%); padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #d4af37; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 10px; }
@@ -17,9 +22,75 @@
         .header-brand h1 { font-family: 'Aleo', serif; font-size: 1.4rem; color: white; font-weight: 700; margin: 0;}
         .btn-back { background: rgba(255,255,255,0.15); color: white; padding: 8px 15px; border-radius: 50px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; border:1px solid rgba(255,255,255,0.3);}
         .btn-back:hover { background: white; color: #003366; }
+
+        /* TABS */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;}
+        .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 12px 25px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins', sans-serif; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: #003366; color: white; border-color: #003366; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+
+        /* LOADING */
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #loading-screen.active { display: flex; }
+
+        /* =========================================================
+           STORY POSTER TEMPLATE (9:16 RATIO = 1080 x 1920)
+           ========================================================= */
+        .story-wrapper {
+            position: fixed; left: -9999px; top: 0;
+            width: 1080px; height: 1920px;
+            background: linear-gradient(135deg, #00122e 0%, #003366 100%);
+            color: white; display: flex; flex-direction: column; align-items: center;
+            padding: 120px 80px; box-sizing: border-box; font-family: 'Poppins', sans-serif;
+        }
+        
+        /* Tekstur Background */
+        .story-bg-texture {
+            position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 20px);
+        }
+
+        .st-content { position: relative; z-index: 2; display: flex; flex-direction: column; width: 100%; height: 100%; }
+        
+        .st-header { text-align: center; margin-bottom: 60px; }
+        .st-header h1 { font-family: 'Aleo', serif; font-size: 80px; color: #facc15; margin: 0; text-transform: uppercase; letter-spacing: 6px; }
+        .st-header h2 { font-size: 32px; font-weight: 300; margin: 10px 0 0 0; letter-spacing: 3px; color: #bae6fd; }
+        
+        .st-event-title { 
+            font-family: 'Playfair Display', serif; font-size: 75px; font-weight: 900; 
+            text-align: center; line-height: 1.2; margin-bottom: 80px; 
+            background: rgba(255,255,255,0.1); padding: 50px 40px; 
+            border-radius: 40px; border: 4px solid #facc15; width: 100%; 
+            word-wrap: break-word; color: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .st-qr-container { display: flex; flex-direction: column; gap: 40px; width: 100%; flex: 1; }
+        
+        .st-qr-box { 
+            background: white; color: #001f3f; border-radius: 35px; padding: 35px; 
+            display: flex; align-items: center; gap: 40px; width: 100%; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
+        }
+        
+        .st-qr-code { width: 250px; height: 250px; flex-shrink: 0; background: white; border: 4px solid #e2e8f0; border-radius: 20px; padding: 15px; display: flex; justify-content: center; align-items: center;}
+        
+        .st-qr-info { display: flex; flex-direction: column; justify-content: center; }
+        .st-qr-info h3 { font-size: 40px; font-weight: 800; line-height: 1.2; margin: 0 0 10px 0; color: #003366;}
+        .st-qr-info p { font-size: 24px; font-weight: 500; color: #64748b; margin: 0; line-height: 1.4;}
+        
+        .st-footer { display: flex; flex-direction: column; align-items: center; gap: 30px; margin-top: auto; text-align: center;}
+        .st-logo { width: 160px; height: 160px; background: white; border-radius: 50%; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
+        .st-footer p { font-size: 28px; font-weight: 500; opacity: 0.9; margin:0;}
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-camera-rotate fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0; color: #003366;">Memproses Gambar...</h2>
+        <p style="color:#64748b;">Merender Story 9:16 beresolusi tinggi.</p>
+    </div>
 
     <header class="admin-header">
         <a href="#" class="header-brand">
@@ -30,19 +101,80 @@
     </header>
 
     <main class="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
-        <div class="mb-6">
-            <h2 class="text-2xl font-serif font-bold text-[#003366]">Riwayat Cetak Promosi</h2>
-            <p class="text-sm text-gray-500">Histori teks caption dan informasi event yang pernah dipublikasikan.</p>
+        
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('riwayat')"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Arsip Promo</button>
+            <button class="tab-btn" onclick="switchTab('pengumuman')"><i class="fa-brands fa-instagram"></i> Buat Story Pengumuman Hasil</button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="arsip-grid">
-            <div class="col-span-full text-center py-10 text-gray-400">
-                <i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br>Memuat arsip...
+        <!-- TAB 1: RIWAYAT ARSIP -->
+        <div id="tab-riwayat">
+            <div class="mb-6">
+                <h2 class="text-2xl font-serif font-bold text-[#003366]">Riwayat Cetak Promosi</h2>
+                <p class="text-sm text-gray-500">Histori teks caption dan informasi event yang pernah dipublikasikan ke Media Sosial.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="arsip-grid">
+                <div class="col-span-full text-center py-10 text-gray-400">
+                    <i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br>Memuat arsip...
+                </div>
             </div>
         </div>
+
+        <!-- TAB 2: BUAT STORY PENGUMUMAN (BARU) -->
+        <div id="tab-pengumuman" style="display: none;">
+            <div class="mb-6">
+                <h2 class="text-2xl font-serif font-bold text-[#003366]">Generator Story Hasil Event (9:16)</h2>
+                <p class="text-sm text-gray-500">Cetak poster Story Instagram yang memuat 2 QR Code sekaligus (PDF Buku & PDF Analisis AI) untuk dibagikan ke siswa.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="event-selesai-grid">
+                <div class="col-span-full text-center py-10 text-gray-400">
+                    <i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br>Memuat daftar event...
+                </div>
+            </div>
+        </div>
+
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- POSTER STORY TEMPLATE (HIDDEN 1080x1920) -->
+    <div id="poster-story" class="story-wrapper">
+        <div class="story-bg-texture"></div>
+        <div class="st-content">
+            <div class="st-header">
+                <h1>PENGUMUMAN</h1>
+                <h2>HASIL KARYA & ANALISIS JURI AI</h2>
+            </div>
+            
+            <div class="st-event-title" id="st-title">Judul Event Disini</div>
+            
+            <div class="st-qr-container">
+                <!-- Box QR 1: Buku -->
+                <div class="st-qr-box">
+                    <div class="st-qr-code" id="st-qr-buku"></div>
+                    <div class="st-qr-info">
+                        <h3>Kompilasi Karya</h3>
+                        <p>Scan untuk membaca & unduh format Buku PDF (A5).</p>
+                    </div>
+                </div>
+                
+                <!-- Box QR 2: AI -->
+                <div class="st-qr-box">
+                    <div class="st-qr-code" id="st-qr-ai"></div>
+                    <div class="st-qr-info">
+                        <h3>Analisis Juri AI</h3>
+                        <p>Scan untuk melihat tabel peringkat & ulasan AI.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="st-footer">
+                <p>Arahkan kamera HP Anda ke QR Code di atas.</p>
+                <img src="https://i.imgur.com/5Srjyo4.png" class="st-logo" crossorigin="anonymous">
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -61,11 +193,26 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        let allEvents = [];
+
         onAuthStateChanged(auth, user => {
-            if(user) loadArsip();
-            else window.location.href = '../index.html';
+            if(user) {
+                loadArsip();
+                loadDaftarEvent();
+            } else {
+                window.location.href = '../index.html';
+            }
         });
 
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('tab-riwayat').style.display = tab === 'riwayat' ? 'block' : 'none';
+            document.getElementById('tab-pengumuman').style.display = tab === 'pengumuman' ? 'block' : 'none';
+        }
+
+        // --- LOAD ARSIP PROMO (LAMA) ---
         async function loadArsip() {
             const container = document.getElementById('arsip-grid');
             try {
@@ -89,7 +236,7 @@
                                 <span class="text-[10px] text-gray-400"><i class="fa-regular fa-clock"></i> ${date}</span>
                             </div>
                             <h3 class="font-bold text-gray-800 text-sm mb-1">${data.judul}</h3>
-                            <p class="text-xs text-gray-500 mb-3">Tema Poster: <span class="capitalize font-semibold">${data.tema}</span></p>
+                            <p class="text-xs text-gray-500 mb-3">Tema Poster: <span class="capitalize font-semibold">${data.tema || 'Story'}</span></p>
                             <div class="bg-gray-50 p-3 rounded-lg flex-1 border border-gray-100 overflow-y-auto max-h-[120px] text-xs text-gray-600 whitespace-pre-wrap font-sans">${data.caption}</div>
                             
                             <button onclick="navigator.clipboard.writeText(\`${data.caption.replace(/`/g, '')}\`); Swal.fire({toast:true, position:'top-end', icon:'success', title:'Teks Disalin', showConfirmButton:false, timer:1500})" class="mt-4 w-full bg-[#003366] hover:bg-[#002244] text-white py-2 rounded-lg text-xs font-bold transition">
@@ -102,6 +249,118 @@
                 container.innerHTML = `<div class="col-span-full text-center text-red-500">Error: ${e.message}</div>`;
             }
         }
+
+        // --- LOAD EVENT UNTUK POSTER STORY ---
+        async function loadDaftarEvent() {
+            const container = document.getElementById('event-selesai-grid');
+            try {
+                const q = query(collection(db, 'weekly_events'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                container.innerHTML = '';
+                
+                if(snap.empty) {
+                    container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">Belum ada event terdaftar.</div>';
+                    return;
+                }
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    allEvents.push({ id: d.id, ...data });
+
+                    // Kita tampilkan semua event, tidak peduli statusnya apa, agar admin bebas cetak hasil kapanpun
+                    container.innerHTML += `
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                            <div>
+                                <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-1 rounded uppercase mb-2 inline-block">${data.tipe}</span>
+                                <h3 class="font-serif font-bold text-[#003366] text-lg mb-1">${data.judul}</h3>
+                                <p class="text-xs text-gray-500 mb-4 line-clamp-2">${data.deskripsi}</p>
+                            </div>
+                            <button onclick="generateStoryPoster('${d.id}')" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                                <i class="fa-brands fa-instagram"></i> Cetak Story (9:16)
+                            </button>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                container.innerHTML = `<div class="col-span-full text-center text-red-500">Error: ${e.message}</div>`;
+            }
+        }
+
+        // --- RENDER POSTER STORY 9:16 ---
+        window.generateStoryPoster = async (eventId) => {
+            const eventData = allEvents.find(e => e.id === eventId);
+            if(!eventData) return;
+
+            document.getElementById('loading-screen').classList.add('active');
+
+            try {
+                const template = document.getElementById('poster-story');
+                document.getElementById('st-title').innerText = eventData.judul;
+
+                // URL Public untuk Auto-Render PDF di sisi klien (Serverless!)
+                // NOTE: Anda harus memastikan halaman ini dibuat nantinya, atau gunakan ini sebagai referensi
+                const linkBuku = `https://cendekia-aksara.vercel.app/publikasi-buku.html?id=${eventId}`;
+                const linkAI = `https://cendekia-aksara.vercel.app/publikasi-ai.html?id=${eventId}`;
+
+                // Generate QR 1 (Buku)
+                document.getElementById('st-qr-buku').innerHTML = '';
+                new QRCode(document.getElementById('st-qr-buku'), { 
+                    text: linkBuku, width: 220, height: 220, colorDark: "#001f3f", colorLight: "#ffffff" 
+                });
+
+                // Generate QR 2 (AI)
+                document.getElementById('st-qr-ai').innerHTML = '';
+                new QRCode(document.getElementById('st-qr-ai'), { 
+                    text: linkAI, width: 220, height: 220, colorDark: "#001f3f", colorLight: "#ffffff" 
+                });
+
+                await document.fonts.ready;
+                await new Promise(r => setTimeout(r, 600)); // Beri waktu QR Code dirender
+
+                // Render Canvas (Scale 1.5 cukup tajam untuk HP, 1080 * 1.5 = 1620px)
+                const canvas = await html2canvas(template, { 
+                    scale: 1.5, 
+                    useCORS: true, 
+                    backgroundColor: null 
+                });
+
+                // Unduh Gambar
+                const imageURI = canvas.toDataURL("image/png");
+                const a = document.createElement("a");
+                a.download = `Story_Hasil_${eventData.judul.replace(/\s/g,'_')}.png`;
+                a.href = imageURI;
+                a.click();
+
+                // Tampilkan Modal Caption
+                Swal.fire({
+                    title: 'Poster Story Diunduh!',
+                    text: 'Poster dengan 2 QR Code telah berhasil dibuat.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    const caption = `PENGUMUMAN HASIL KARYA 📢\n\nTerima kasih kepada seluruh Cendekia Muda yang telah berpartisipasi dalam event "${eventData.judul}".\n\nKalian bisa membaca kompilasi seluruh karya yang masuk dan melihat hasil penilaian objektif dari Juri AI Cendekia Aksara melalui Link di bio kami atau langsung scan QR Code pada Story ini!\n\nTeruslah berkarya! ✨\n\n#CendekiaAksara #HasilKarya #SastraIndonesia`;
+                    
+                    Swal.fire({
+                        title: 'Saran Caption',
+                        html: `<textarea id="captionStory" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${caption}</textarea>`,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin',
+                        cancelButtonText: 'Tutup',
+                        confirmButtonColor: '#003366',
+                        preConfirm: () => navigator.clipboard.writeText(document.getElementById("captionStory").value)
+                    }).then((result) => {
+                        if (result.isConfirmed) Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
+                    });
+                });
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'Gagal memproses poster story.', 'error');
+            } finally {
+                document.getElementById('loading-screen').classList.remove('active');
+            }
+        };
     </script>
 </body>
 </html>
