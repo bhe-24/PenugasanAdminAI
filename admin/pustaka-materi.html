@@ -334,7 +334,8 @@
                 
                 <div class="pp-right">
                     <div class="pp-cover-wrapper">
-                        <img id="pp-cover" src="" alt="Cover Buku" crossorigin="anonymous">
+                        <!-- Crossorigin otomatis disesuaikan di Javascript agar Base64 tak error -->
+                        <img id="pp-cover" src="" alt="Cover Buku">
                     </div>
                     <div class="pp-download-btn">
                         <i class="fa-solid fa-download"></i> UNDUH
@@ -354,9 +355,9 @@
 
     <!-- SCRIPT LOGIC -->
     <script type="module">
-        import { checkAuth } from "../js/firebase-config.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // === KONFIGURASI DATABASE PUSTAKA (Publik / Beda DB) ===
         const firebaseConfigPustaka = {
@@ -367,25 +368,44 @@
             messagingSenderId: "962437652324",
             appId: "1:962437652324:web:4426a5efcabf72caebe471"
         };
-
         const appPustaka = initializeApp(firebaseConfigPustaka, "PustakaApp");
         const dbPustaka = getFirestore(appPustaka);
         const COLLECTION_NAME = 'pustaka_materi';
 
-        // URL GOOGLE APPS SCRIPT ANDA (Wajib Diisi oleh Admin!)
+        // Konfigurasi Database Utama untuk Autentikasi
+        const mainFirebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+        const appMain = initializeApp(mainFirebaseConfig);
+        const authMain = getAuth(appMain);
+        const dbMain = getFirestore(appMain);
+
+        // URL GOOGLE APPS SCRIPT ANDA
         const APPS_SCRIPT_DRIVE_URL = 'https://script.google.com/macros/s/AKfycbwUw-SqcT8WvzvJgxtjxAzup2weTtC4FM-1LvQyVXb02DV5uqJB_HEmAmKnNdksqxAalQ/exec'; 
         
         let materialsData = [];
         let currentPosterItem = null;
 
-        (async () => {
-            const currentAdmin = await checkAuth('pengajar');
-            if(!currentAdmin) {
-                window.location.href = '/admin/index.html';
-                return;
+        // Cek Login Admin
+        onAuthStateChanged(authMain, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(dbMain, 'users', user.uid));
+                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
+                        startDatabaseListener();
+                    } else {
+                        window.location.href = '../index.html';
+                    }
+                } catch(e) { window.location.href = '../index.html'; }
+            } else {
+                window.location.href = '../index.html';
             }
-            startDatabaseListener();
-        })();
+        });
 
         // --- UI TOGGLES ---
         window.toggleCoverInput = () => {
@@ -409,7 +429,7 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 400; // Kompresi lebar maksimal agar ringan di Firestore
+                        const MAX_WIDTH = 400; // Kompresi lebar maksimal agar ringan
                         let width = img.width;
                         let height = img.height;
                         
@@ -449,11 +469,8 @@
                             })
                         });
                         const result = await response.json();
-                        if(result.status === 'success') {
-                            resolve(result.url);
-                        } else {
-                            reject(new Error(result.message));
-                        }
+                        if(result.status === 'success') resolve(result.url);
+                        else reject(new Error(result.message));
                     } catch(e) {
                         reject(new Error("Gagal menghubungi server Drive. Pastikan URL Apps Script benar."));
                     }
@@ -505,9 +522,9 @@
                             </span>
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
-                            <button onclick="startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Materi"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster"><i class="fa-brands fa-instagram"></i></button>
-                            <button onclick="deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
+                            <button onclick="window.startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Materi"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="window.openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster"><i class="fa-brands fa-instagram"></i></button>
+                            <button onclick="window.deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -534,7 +551,7 @@
                 const judul = document.getElementById('judul').value;
                 const kategori = document.getElementById('kategori').value;
                 
-                // 1. PROSES GAMBAR COVER (Base64 vs URL)
+                // 1. PROSES GAMBAR COVER
                 let finalCover = document.getElementById('existingCoverBase64').value;
                 const coverType = document.querySelector('input[name="coverType"]:checked').value;
                 
@@ -547,7 +564,7 @@
                     throw new Error('Anda wajib menyertakan cover (File / URL)!');
                 }
 
-                // 2. PROSES DOKUMEN DRIVE (Auto-Upload vs Manual URL)
+                // 2. PROSES DOKUMEN DRIVE
                 let finalLink = document.getElementById('existingDocLink').value;
                 const docType = document.querySelector('input[name="docType"]:checked').value;
 
@@ -569,13 +586,7 @@
                     if (match && match[1]) finalLink = `https://drive.google.com/uc?export=download&id=${match[1]}`;
                 }
 
-                const dataToSave = {
-                    judul: judul,
-                    kategori: kategori,
-                    cover: finalCover,
-                    link: finalLink,
-                    tanggal: new Date().toISOString()
-                };
+                const dataToSave = { judul, kategori, cover: finalCover, link: finalLink, tanggal: new Date().toISOString() };
 
                 btnText.innerText = "Menyimpan ke Database...";
 
@@ -619,14 +630,13 @@
             document.getElementById('judul').value = item.judul;
             document.getElementById('kategori').value = item.kategori;
 
-            // Set radio ke URL agar tidak menimpa file
             document.querySelector('input[name="coverType"][value="url"]').checked = true;
             document.getElementById('urlCover').value = item.cover;
-            toggleCoverInput();
+            window.toggleCoverInput();
 
             document.querySelector('input[name="docType"][value="link"]').checked = true;
             document.getElementById('linkDrive').value = item.link;
-            toggleDocInput();
+            window.toggleDocInput();
 
             document.getElementById('formTitle').innerHTML = '<span style="color:#f59e0b;"><i class="fa-solid fa-pen-to-square"></i> Edit Materi</span>';
             document.getElementById('btnText').innerText = "Update Data";
@@ -647,9 +657,9 @@
             document.getElementById('existingDocLink').value = "";
             
             document.querySelector('input[name="coverType"][value="file"]').checked = true;
-            toggleCoverInput();
+            window.toggleCoverInput();
             document.querySelector('input[name="docType"][value="upload"]').checked = true;
-            toggleDocInput();
+            window.toggleDocInput();
             
             document.getElementById('formTitle').innerHTML = '<span><i class="fa-solid fa-plus-circle"></i> Tambah Materi Baru</span>';
             document.getElementById('btnText').innerText = "Simpan Data";
@@ -658,7 +668,7 @@
             document.getElementById('coverPreview').classList.remove('active');
         }
 
-        // --- SISTEM POSTER INSTAGRAM ---
+        // --- SISTEM POSTER INSTAGRAM & CAPTION OTOMATIS ---
         window.openThemeModal = (id) => {
             currentPosterItem = materialsData.find(x => x.id === id);
             if(currentPosterItem) document.getElementById('theme-modal').classList.add('active');
@@ -681,7 +691,16 @@
                 posterDiv.classList.add(themeType === 'navy' ? 'theme-navy' : 'theme-mustard');
 
                 document.getElementById('pp-title').innerText = currentPosterItem.judul;
-                document.getElementById('pp-cover').src = currentPosterItem.cover;
+                
+                const imgCover = document.getElementById('pp-cover');
+                imgCover.src = currentPosterItem.cover;
+                
+                // Mencegah ERROR CORS saat rendering canvas
+                if (currentPosterItem.cover.startsWith('data:image')) {
+                    imgCover.removeAttribute('crossorigin');
+                } else {
+                    imgCover.setAttribute('crossorigin', 'anonymous');
+                }
 
                 const qrBox = document.getElementById('pp-qr');
                 qrBox.innerHTML = '';
@@ -692,7 +711,7 @@
                 });
 
                 await document.fonts.ready;
-                await new Promise(r => setTimeout(r, 500)); 
+                await new Promise(r => setTimeout(r, 600)); 
 
                 const canvas = await html2canvas(posterDiv, { scale: 2, useCORS: true, backgroundColor: null });
                 
@@ -702,10 +721,43 @@
                 link.href = imageURI;
                 link.click();
 
-                Swal.fire("Berhasil", "Poster berhasil diunduh!", "success");
+                // Generate Caption Teks Berdasarkan Kategori
+                let captionText = "";
+                if (currentPosterItem.kategori === 'karya') {
+                    captionText = `Karya Baru Telah Rilis! 🌟\n\nJudul: "${currentPosterItem.judul}"\n\nMari apresiasi karya luar biasa ini! Baca selengkapnya secara gratis di portal resmi Cendekia Aksara.\n\n🔗 Link Akses:\n${currentPosterItem.link}\nAtau scan QR Code pada gambar di atas!\n\n#CendekiaAksara #KaryaSiswa #LiterasiDigital`;
+                } else {
+                    captionText = `Materi Baru Tersedia! 📚\n\nJudul: "${currentPosterItem.judul}"\n\nTingkatkan wawasan dan pengetahuanmu dengan materi terbaru yang kini dapat diakses secara gratis di portal pustaka Cendekia Aksara.\n\n🔗 Link Unduh:\n${currentPosterItem.link}\nAtau scan QR Code pada gambar di atas!\n\n#CendekiaAksara #MateriBelajar #Pendidikan #Literasi`;
+                }
+
+                // Tampilkan Pop-up Caption setelah Download
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: 'Poster promosi berhasil diunduh.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    Swal.fire({
+                        title: 'Caption IG Otomatis',
+                        html: `<textarea id="captionPustaka" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${captionText}</textarea>`,
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin Caption',
+                        cancelButtonText: 'Tutup',
+                        confirmButtonColor: '#003366',
+                        preConfirm: () => {
+                            const copyText = document.getElementById("captionPustaka").value;
+                            navigator.clipboard.writeText(copyText);
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
+                        }
+                    });
+                });
+
             } catch (error) {
                 console.error(error);
-                Swal.fire("Gagal", "Gagal merender poster.", "error");
+                Swal.fire("Gagal", "Gagal merender poster. Pastikan koneksi stabil dan gambar tidak terblokir CORS.", "error");
             } finally {
                 currentPosterItem = null;
             }
