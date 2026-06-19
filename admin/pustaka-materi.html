@@ -169,7 +169,7 @@
         .pp-qr-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 220px; height: 220px; display: flex; justify-content: center; align-items: center; }
         .pp-right { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 25px; }
         .pp-cover-wrapper { width: 100%; display: flex; justify-content: center; }
-        .pp-cover-wrapper img { width: 380px; height: 530px; object-fit: cover; border-radius: 16px; border: 12px solid; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .pp-cover-wrapper img { width: 380px; height: 530px; object-fit: cover; border-radius: 16px; border: 12px solid; box-shadow: 0 20px 40px rgba(0,0,0,0.4); background: rgba(0,0,0,0.05); }
         .pp-download-btn { width: 380px; padding: 20px; border-radius: 50px; font-size: 32px; font-weight: 800; text-align: center; text-transform: uppercase; box-shadow: 0 10px 20px rgba(0,0,0,0.3); display: flex; justify-content: center; align-items: center; gap: 15px; }
         .pp-urgency { color: #dc2626; font-size: 20px; font-weight: 700; text-align: center; background: white; padding: 15px 20px; border-radius: 12px; border: 3px dashed #ef4444; width: 380px; line-height: 1.4; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .pp-footer { text-align: center; border-top: 4px solid; padding-top: 30px; width: 100%; margin-top: 20px; }
@@ -331,7 +331,7 @@
             <div class="pp-header">
                 <h1>PUSTAKA MATERI</h1>
                 <div class="pp-logo-container">
-                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
+                    <img id="pp-logo" src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
                 </div>
             </div>
             
@@ -693,6 +693,74 @@
             currentPosterItem = null;
         };
 
+        // Helper: muat satu gambar ke elemen <img> dan SELALU resolve
+        // (baik berhasil, gagal, sudah ter-cache, ataupun timeout).
+        // Ini memperbaiki bug utama: proses macet selamanya di "Merender Poster..."
+        // karena event 'onload' tidak terpasang dengan aman / gambar sudah cache.
+        function loadImageSafely(imgEl, src, useCrossOrigin, fallbackSrc, timeoutMs = 8000) {
+            return new Promise((resolve) => {
+                let settled = false;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    imgEl.onload = null;
+                    imgEl.onerror = null;
+                    resolve();
+                };
+
+                // Jaring pengaman: apapun yang terjadi, jangan gantung lebih dari timeoutMs
+                const safetyTimer = setTimeout(() => {
+                    console.warn('Timeout memuat gambar, lanjut dengan fallback/apa adanya:', src);
+                    if (!imgEl.complete || imgEl.naturalWidth === 0) {
+                        imgEl.src = fallbackSrc;
+                    }
+                    finish();
+                }, timeoutMs);
+
+                imgEl.onload = () => { clearTimeout(safetyTimer); finish(); };
+                imgEl.onerror = () => {
+                    clearTimeout(safetyTimer);
+                    console.warn('Gambar gagal dimuat, pakai fallback:', src);
+                    if (imgEl.src !== fallbackSrc) {
+                        // Pasang ulang handler khusus untuk fallback, lalu set src fallback
+                        imgEl.onload = () => { finish(); };
+                        imgEl.onerror = () => { finish(); };
+                        imgEl.src = fallbackSrc;
+                    } else {
+                        finish();
+                    }
+                };
+
+                if (useCrossOrigin) {
+                    imgEl.setAttribute('crossorigin', 'anonymous');
+                } else {
+                    imgEl.removeAttribute('crossorigin');
+                }
+
+                // Set src SETELAH handler terpasang.
+                imgEl.src = src;
+
+                // Jika gambar kebetulan sudah selesai/dicache oleh browser SEBELUM
+                // baris ini (race condition asli penyebab macet), 'onload' tidak akan
+                // pernah terpicu — maka kita deteksi manual lewat 'complete'.
+                if (imgEl.complete) {
+                    clearTimeout(safetyTimer);
+                    if (imgEl.naturalWidth === 0) {
+                        // selesai tapi gagal (misal CORS/404) -> coba fallback
+                        if (imgEl.src !== fallbackSrc) {
+                            imgEl.onload = () => { finish(); };
+                            imgEl.onerror = () => { finish(); };
+                            imgEl.src = fallbackSrc;
+                        } else {
+                            finish();
+                        }
+                    } else {
+                        finish();
+                    }
+                }
+            });
+        }
+
         window.generatePustakaPoster = async (themeType) => {
             if(!currentPosterItem) return;
             document.getElementById('theme-modal').classList.remove('active');
@@ -705,29 +773,31 @@
                 posterDiv.classList.add(themeType === 'navy' ? 'theme-navy' : 'theme-mustard');
 
                 document.getElementById('pp-title').innerText = currentPosterItem.judul;
-                
-                const imgCover = document.getElementById('pp-cover');
-                imgCover.src = ""; // Reset src
-                
-                // Menangani gambar dengan robust agar html2canvas tidak stuck
-                await new Promise((resolve, reject) => {
-                    imgCover.onload = resolve;
-                    imgCover.onerror = () => {
-                        console.warn("Cover gagal dimuat secara eksternal, fallback digunakan.");
-                        imgCover.src = 'https://via.placeholder.com/380x530?text=Cover+Buku';
-                        resolve();
-                    };
-                    
-                    if (currentPosterItem.cover.startsWith('data:image')) {
-                        imgCover.removeAttribute('crossorigin');
-                        imgCover.src = currentPosterItem.cover;
-                    } else {
-                        imgCover.setAttribute('crossorigin', 'anonymous');
-                        // Tambahkan cache-buster agar tidak dicegat cache CORS dari browser
-                        imgCover.src = currentPosterItem.cover + '?cb=' + new Date().getTime();
-                    }
-                });
 
+                // --- MUAT COVER BUKU (dengan jaring pengaman, tidak akan macet) ---
+                const imgCover = document.getElementById('pp-cover');
+                const coverIsBase64 = currentPosterItem.cover.startsWith('data:image');
+                const coverSrc = coverIsBase64
+                    ? currentPosterItem.cover
+                    : currentPosterItem.cover + (currentPosterItem.cover.includes('?') ? '&' : '?') + 'cb=' + new Date().getTime();
+
+                await loadImageSafely(
+                    imgCover,
+                    coverSrc,
+                    !coverIsBase64,
+                    'https://via.placeholder.com/380x530?text=Cover+Buku'
+                );
+
+                // --- MUAT ULANG LOGO (jaga-jaga jika logo juga gagal/lambat) ---
+                const imgLogo = document.getElementById('pp-logo');
+                await loadImageSafely(
+                    imgLogo,
+                    'https://i.imgur.com/5Srjyo4.png?cb=' + new Date().getTime(),
+                    true,
+                    'https://via.placeholder.com/120x120?text=Logo'
+                );
+
+                // --- GENERATE QR CODE ---
                 const qrBox = document.getElementById('pp-qr');
                 qrBox.innerHTML = '';
                 new QRCode(qrBox, {
@@ -736,13 +806,14 @@
                     colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
                 });
 
-                // Tunggu sedikit untuk memastikan Canvas QR terbentuk
-                await new Promise(r => setTimeout(r, 800));
+                // Beri waktu sedikit agar canvas QR sempat ter-render ke DOM
+                await new Promise(r => setTimeout(r, 500));
 
+                // --- RENDER KE CANVAS ---
                 const canvas = await html2canvas(posterDiv, { 
                     scale: 2, 
                     useCORS: true,
-                    allowTaint: true, // Diperbolehkan menembus batas tainted canvas untuk gambar eksternal yang keras kepala
+                    allowTaint: true,
                     backgroundColor: null,
                     logging: false
                 });
@@ -753,7 +824,7 @@
                 link.href = imageURI;
                 link.click();
 
-                // Generate Caption Teks Berdasarkan Kategori
+                // --- GENERATE CAPTION OTOMATIS BERDASARKAN KATEGORI ---
                 let captionText = "";
                 if (currentPosterItem.kategori === 'karya') {
                     captionText = `Karya Baru Telah Rilis! 🌟\n\nJudul: "${currentPosterItem.judul}"\n\nMari apresiasi karya luar biasa ini! Baca selengkapnya secara gratis di portal resmi Cendekia Aksara.\n\n🔗 Link Akses:\n${currentPosterItem.link}\nAtau scan QR Code pada gambar di atas!\n\n#CendekiaAksara #KaryaSiswa #LiterasiDigital`;
@@ -761,35 +832,35 @@
                     captionText = `Materi Baru Tersedia! 📚\n\nJudul: "${currentPosterItem.judul}"\n\nTingkatkan wawasan dan pengetahuanmu dengan materi terbaru yang kini dapat diakses secara gratis di portal pustaka Cendekia Aksara.\n\n🔗 Link Unduh:\n${currentPosterItem.link}\nAtau scan QR Code pada gambar di atas!\n\n#CendekiaAksara #MateriBelajar #Pendidikan #Literasi`;
                 }
 
-                // Tampilkan Pop-up Caption setelah Download
-                Swal.fire({
+                // --- TAMPILKAN POP-UP CAPTION SETELAH DOWNLOAD SUKSES ---
+                await Swal.fire({
                     title: 'Berhasil!',
                     text: 'Poster promosi berhasil diunduh.',
                     icon: 'success',
                     timer: 1500,
                     showConfirmButton: false
-                }).then(() => {
-                    Swal.fire({
-                        title: 'Caption IG Otomatis',
-                        html: `<textarea id="captionPustaka" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${captionText}</textarea>`,
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin Caption',
-                        cancelButtonText: 'Tutup',
-                        confirmButtonColor: '#003366',
-                        preConfirm: () => {
-                            const copyText = document.getElementById("captionPustaka").value;
-                            navigator.clipboard.writeText(copyText);
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
-                        }
-                    });
                 });
+
+                const captionResult = await Swal.fire({
+                    title: 'Caption IG Otomatis',
+                    html: `<textarea id="captionPustaka" style="width:100%; height:150px; padding:10px; border-radius:8px; border:1px solid #ccc; font-family:'Poppins',sans-serif; resize:none;">${captionText}</textarea>`,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa-regular fa-copy"></i> Salin Caption',
+                    cancelButtonText: 'Tutup',
+                    confirmButtonColor: '#003366',
+                    preConfirm: () => {
+                        const copyText = document.getElementById("captionPustaka").value;
+                        navigator.clipboard.writeText(copyText);
+                    }
+                });
+
+                if (captionResult.isConfirmed) {
+                    Swal.fire({icon: 'success', title: 'Tersalin!', timer: 1500, showConfirmButton: false});
+                }
 
             } catch (error) {
                 console.error(error);
-                Swal.fire("Gagal", "Gagal merender poster. Pastikan koneksi stabil.", "error");
+                Swal.fire("Gagal", "Gagal merender poster. Pastikan koneksi stabil. Detail: " + (error && error.message ? error.message : 'Tidak diketahui'), "error");
             } finally {
                 currentPosterItem = null;
             }
