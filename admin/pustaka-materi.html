@@ -176,20 +176,69 @@
         .pp-footer p { font-size: 26px; margin: 0 0 5px 0; opacity: 0.9; font-weight: 500; }
         .pp-footer h3 { font-size: 26px; margin: 0; font-weight: 800; }
 
-        /* --- MEDIA QUERIES UNTUK MOBILE (PERBAIKAN SCROLL/KLIK) --- */
+        /* --- MEDIA QUERIES UNTUK MOBILE & TABLET (PERBAIKAN SCROLL/KLIK) --- */
+
+        /* Tablet / layar sedang: 2 kolom jadi sempit, tapi masih cukup -> mulai diciutkan duluan dari 900px */
+        @media (max-width: 1024px) {
+            .container { padding: 16px; }
+            .dashboard-grid { gap: 18px; }
+        }
+
         @media (max-width: 900px) { 
             .dashboard-grid { grid-template-columns: 1fr; } 
             .sticky-card { position: relative; top: 0; } /* Matikan sticky form di HP agar tidak melayang menutupi tabel */
+            .card { padding: 20px; }
         }
+
         @media (max-width: 600px) { 
-            .brand-header { flex-direction: column; align-items: flex-start; padding: 20px; } 
-            .header-content-wrapper { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .container { padding: 12px; }
+            .brand-header { flex-direction: column; align-items: flex-start; padding: 18px; border-radius: 14px; } 
+            .header-content-wrapper { flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
             .btn-back { width: 100%; justify-content: center; margin-top: 10px; } 
             .header-logo-circle { width: 50px; height: 50px; }
-            .header-brand-name { font-size: 1.3rem; }
+            .header-brand-name { font-size: 1.25rem; word-break: break-word; }
+            .header-greeting { font-size: 0.8rem; }
+
+            .card { padding: 16px; border-radius: 12px; }
+            .card-header { font-size: 1rem; flex-wrap: wrap; gap: 8px; }
+
+            .form-input, .form-select { padding: 11px 12px; font-size: 0.95rem; }
+            .radio-group { flex-wrap: wrap; gap: 10px; }
+
+            /* Tabel: biarkan bisa di-scroll horizontal dengan jelas, dan kecilkan sedikit
+               agar makin sedikit perlu di-scroll di layar kecil */
+            table { min-width: 480px; font-size: 0.82rem; }
+            th, td { padding: 10px 8px; }
+            .btn-icon { font-size: 1rem; padding: 6px; }
+
+            .badge { font-size: 0.68rem; padding: 3px 9px; }
+            .badge-count { font-size: 0.75rem; padding: 3px 10px; }
+
+            .modal-box { padding: 22px; width: 92%; }
+            .theme-buttons { flex-direction: column; }
+            .btn-theme { min-width: 0; width: 100%; }
         }
+
+        /* HP sangat kecil (layar lipat, model lama, dsb) */
+        @media (max-width: 380px) {
+            .header-brand-name { font-size: 1.1rem; }
+            .btn-back { font-size: 0.8rem; padding: 9px 14px; }
+            table { min-width: 420px; font-size: 0.78rem; }
+            .form-label { font-size: 0.8rem; }
+        }
+
+        /* Layar lebar (desktop besar): beri sedikit lebih banyak ruang kolom form */
+        @media (min-width: 1300px) {
+            .dashboard-grid { grid-template-columns: 380px 1fr; }
+        }
+
+        /* Pastikan gambar dan konten tidak pernah memaksa overflow horizontal pada body */
+        img { max-width: 100%; }
+        html, body { overflow-x: hidden; }
+        .table-wrapper { -ms-overflow-style: -ms-autohiding-scrollbar; }
     </style>
 </head>
+
 <body>
 
     <div class="container">
@@ -405,6 +454,52 @@
         let materialsData = [];
         let currentPosterItem = null;
 
+        // --- GENERATOR PLACEHOLDER LOKAL (TANPA INTERNET) ---
+        // Dulu kode ini bergantung pada via.placeholder.com, yang sering down /
+        // diblokir (ERR_CONNECTION_CLOSED). Sekarang placeholder digambar sendiri
+        // di <canvas> lalu diubah ke data URI, jadi tidak pernah gagal terhubung.
+        function makePlaceholderDataURI(width, height, label, bg = '#e2e8f0', fg = '#64748b') {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, width, height);
+            ctx.strokeStyle = fg;
+            ctx.lineWidth = Math.max(1, Math.round(width * 0.02));
+            ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, width - ctx.lineWidth, height - ctx.lineWidth);
+            ctx.fillStyle = fg;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const fontSize = Math.max(10, Math.round(width * 0.12));
+            ctx.font = `600 ${fontSize}px Poppins, sans-serif`;
+            // Pecah label jadi beberapa baris kalau perlu agar tidak tumpah
+            const words = label.split(' ');
+            const lines = [];
+            let current = '';
+            words.forEach(w => {
+                const test = (current ? current + ' ' : '') + w;
+                if (ctx.measureText(test).width > width * 0.85 && current) {
+                    lines.push(current);
+                    current = w;
+                } else {
+                    current = test;
+                }
+            });
+            if (current) lines.push(current);
+            const lineHeight = fontSize * 1.3;
+            const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
+            lines.forEach((line, i) => ctx.fillText(line, width / 2, startY + i * lineHeight));
+            return canvas.toDataURL('image/png');
+        }
+
+        const PLACEHOLDER_THUMB = makePlaceholderDataURI(50, 70, 'No Img');
+        const PLACEHOLDER_COVER = makePlaceholderDataURI(380, 530, 'Cover Buku');
+        const PLACEHOLDER_LOGO = makePlaceholderDataURI(120, 120, 'Logo');
+        // Diekspos ke window karena dipakai dari atribut onerror inline di HTML
+        // (kode di dalam <script type="module"> punya scope sendiri, tidak global).
+        window.PLACEHOLDER_THUMB = PLACEHOLDER_THUMB;
+
         // Cek Login Admin
         onAuthStateChanged(authMain, async (user) => {
             if (user) {
@@ -523,7 +618,7 @@
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>
-                            <img src="${item.cover}" alt="cover" style="width: 50px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" onerror="this.src='https://via.placeholder.com/50?text=No+Img'">
+                            <img src="${item.cover}" alt="cover" style="width: 50px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" onerror="this.onerror=null;this.src=window.PLACEHOLDER_THUMB;">
                             ${isBase64 ? '<div style="font-size:8px; color:green; text-align:center; margin-top:2px;">(Base64)</div>' : ''}
                         </td>
                         <td>
@@ -693,42 +788,38 @@
             currentPosterItem = null;
         };
 
-        // Helper: muat satu gambar ke elemen <img> dan SELALU resolve
-        // (baik berhasil, gagal, sudah ter-cache, ataupun timeout).
-        // Ini memperbaiki bug utama: proses macet selamanya di "Merender Poster..."
-        // karena event 'onload' tidak terpasang dengan aman / gambar sudah cache.
-        function loadImageSafely(imgEl, src, useCrossOrigin, fallbackSrc, timeoutMs = 8000) {
+        // Helper: muat satu gambar ke elemen <img> dan SELALU resolve — tidak peduli
+        // berhasil, gagal, sudah ter-cache browser, atau lewat batas waktu.
+        // Versi ini sengaja dibuat sesederhana mungkin (satu jalur logika saja)
+        // supaya tidak ada race condition tersembunyi seperti versi sebelumnya.
+        function loadImageSafely(imgEl, src, useCrossOrigin, fallbackDataURI, timeoutMs = 8000) {
             return new Promise((resolve) => {
-                let settled = false;
+                let done = false;
                 const finish = () => {
-                    if (settled) return;
-                    settled = true;
+                    if (done) return;
+                    done = true;
                     imgEl.onload = null;
                     imgEl.onerror = null;
                     resolve();
                 };
 
-                // Jaring pengaman: apapun yang terjadi, jangan gantung lebih dari timeoutMs
-                const safetyTimer = setTimeout(() => {
-                    console.warn('Timeout memuat gambar, lanjut dengan fallback/apa adanya:', src);
-                    if (!imgEl.complete || imgEl.naturalWidth === 0) {
-                        imgEl.src = fallbackSrc;
-                    }
-                    finish();
+                const useFallback = () => {
+                    imgEl.removeAttribute('crossorigin'); // data URI tidak butuh CORS
+                    imgEl.onload = finish;
+                    imgEl.onerror = finish; // walau fallback pun gagal, tetap lanjut, jangan macet
+                    imgEl.src = fallbackDataURI;
+                };
+
+                const timer = setTimeout(() => {
+                    console.warn('Timeout memuat gambar, pakai placeholder lokal:', src);
+                    useFallback();
                 }, timeoutMs);
 
-                imgEl.onload = () => { clearTimeout(safetyTimer); finish(); };
+                imgEl.onload = () => { clearTimeout(timer); finish(); };
                 imgEl.onerror = () => {
-                    clearTimeout(safetyTimer);
-                    console.warn('Gambar gagal dimuat, pakai fallback:', src);
-                    if (imgEl.src !== fallbackSrc) {
-                        // Pasang ulang handler khusus untuk fallback, lalu set src fallback
-                        imgEl.onload = () => { finish(); };
-                        imgEl.onerror = () => { finish(); };
-                        imgEl.src = fallbackSrc;
-                    } else {
-                        finish();
-                    }
+                    clearTimeout(timer);
+                    console.warn('Gambar gagal dimuat (mungkin CORS/404/jaringan), pakai placeholder lokal:', src);
+                    useFallback();
                 };
 
                 if (useCrossOrigin) {
@@ -736,28 +827,7 @@
                 } else {
                     imgEl.removeAttribute('crossorigin');
                 }
-
-                // Set src SETELAH handler terpasang.
                 imgEl.src = src;
-
-                // Jika gambar kebetulan sudah selesai/dicache oleh browser SEBELUM
-                // baris ini (race condition asli penyebab macet), 'onload' tidak akan
-                // pernah terpicu — maka kita deteksi manual lewat 'complete'.
-                if (imgEl.complete) {
-                    clearTimeout(safetyTimer);
-                    if (imgEl.naturalWidth === 0) {
-                        // selesai tapi gagal (misal CORS/404) -> coba fallback
-                        if (imgEl.src !== fallbackSrc) {
-                            imgEl.onload = () => { finish(); };
-                            imgEl.onerror = () => { finish(); };
-                            imgEl.src = fallbackSrc;
-                        } else {
-                            finish();
-                        }
-                    } else {
-                        finish();
-                    }
-                }
             });
         }
 
@@ -785,7 +855,8 @@
                     imgCover,
                     coverSrc,
                     !coverIsBase64,
-                    'https://via.placeholder.com/380x530?text=Cover+Buku'
+                    PLACEHOLDER_COVER,
+                    8000
                 );
 
                 // --- MUAT ULANG LOGO (jaga-jaga jika logo juga gagal/lambat) ---
@@ -794,7 +865,8 @@
                     imgLogo,
                     'https://i.imgur.com/5Srjyo4.png?cb=' + new Date().getTime(),
                     true,
-                    'https://via.placeholder.com/120x120?text=Logo'
+                    PLACEHOLDER_LOGO,
+                    8000
                 );
 
                 // --- GENERATE QR CODE ---
