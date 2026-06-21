@@ -153,7 +153,7 @@
         .pp-tag { font-family: 'Aleo', serif; font-size: 32px; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 10px;}
         .pp-title { font-family: 'Playfair Display', serif; font-size: 70px; font-weight: 900; line-height: 1.2; margin: 0; max-width: 680px; word-wrap: break-word;}
         .pp-line { width: 140px; height: 8px; margin: 25px 0 0 0; border-radius: 10px; background: currentColor;}
-        .pp-logo { width: 140px; height: 140px; background: white; border-radius: 50%; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);}
+        .pp-logo { width: 140px; height: 140px; background: white; border-radius: 50%; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); object-fit: contain; display: block;}
         .pp-center { display: flex; justify-content: center; align-items: center; flex: 1; margin: 40px 0;}
         .pp-qr-box { background: white; padding: 25px; border-radius: 30px; width: 450px; height: 450px; display: flex; justify-content: center; align-items: center; box-shadow: 0 15px 40px rgba(0,0,0,0.3);}
         .pp-footer { display: flex; flex-direction: column; align-items: center; gap: 30px; width: 100%;}
@@ -184,7 +184,7 @@
         .pk-author-box { display: flex; flex-direction: column; }
         .pk-author { font-size: 35px; font-weight: 700; margin: 0;}
         .pk-event { font-size: 20px; text-transform: uppercase; letter-spacing: 3px;}
-        .pk-logo { width: 100px; height: 100px; background: white; border-radius: 50%; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); flex-shrink: 0;}
+        .pk-logo { width: 100px; height: 100px; background: white; border-radius: 50%; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); flex-shrink: 0; object-fit: contain; display: block;}
         .pk-title-area { margin-bottom: 40px; display: none; flex-shrink: 0;}
         .pk-title { font-family: 'Playfair Display', serif; font-size: 65px; font-weight: 900; line-height: 1.3;}
         .pk-line { width: 100px; height: 5px; margin-top: 20px;}
@@ -357,7 +357,7 @@
                 <h1 class="pp-title" id="pp-judul">TEMA EVENT DISINI</h1>
                 <div class="pp-line"></div>
             </div>
-            <img src="https://i.imgur.com/5Srjyo4.png" class="pp-logo" crossorigin="anonymous">
+            <img src="https://i.imgur.com/5Srjyo4.png" class="pp-logo" id="pp-logo-img" crossorigin="anonymous">
         </div>
         <div class="pp-center">
             <div class="pp-qr-box" id="pp-qr"></div>
@@ -378,7 +378,7 @@
                 <h2 class="pk-author" id="pk-author">Nama Siswa</h2>
                 <div class="pk-event" id="pk-event">EVENT MINGGUAN</div>
             </div>
-            <img src="https://i.imgur.com/5Srjyo4.png" class="pk-logo" crossorigin="anonymous">
+            <img src="https://i.imgur.com/5Srjyo4.png" class="pk-logo" id="pk-logo-img" crossorigin="anonymous">
         </div>
         
         <div class="pk-title-area" id="pk-title-area">
@@ -407,7 +407,78 @@
         let currentDate = new Date();
         const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
-        document.getElementById('header-logo').src = "https://i.imgur.com/5Srjyo4.png"; 
+        const LOGO_URL = "https://i.imgur.com/5Srjyo4.png";
+        document.getElementById('header-logo').src = LOGO_URL;
+
+        // ====================================================================
+        // FIX UTAMA: PEMUAT GAMBAR YANG BENAR-BENAR DITUNGGU (BUKAN SEKADAR DELAY)
+        // ====================================================================
+        // Masalah sebelumnya: html2canvas kadang merender logo (gambar dari URL
+        // eksternal imgur) SEBELUM gambar itu selesai dimuat oleh browser,
+        // karena kode hanya menunggu waktu tetap (setTimeout 400ms) yang tidak
+        // selalu cukup tergantung kecepatan koneksi. Solusinya: tunggu event
+        // 'load' (atau 'error') dari setiap elemen <img> di dalam wrapper poster
+        // secara eksplisit, dengan cache-busting supaya gambar selalu fresh
+        // dan tidak nyangkut di status "broken" dari percobaan sebelumnya.
+
+        function waitForImage(imgEl, timeoutMs = 8000) {
+            return new Promise((resolve) => {
+                // Jika sudah berhasil dimuat & punya ukuran asli, anggap selesai
+                if (imgEl.complete && imgEl.naturalWidth > 0) {
+                    resolve(true);
+                    return;
+                }
+
+                let settled = false;
+                const cleanup = () => {
+                    imgEl.removeEventListener('load', onLoad);
+                    imgEl.removeEventListener('error', onError);
+                    clearTimeout(timer);
+                };
+                const onLoad = () => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    resolve(true);
+                };
+                const onError = () => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    console.warn('Gagal memuat gambar logo:', imgEl.src);
+                    resolve(false);
+                };
+
+                imgEl.addEventListener('load', onLoad);
+                imgEl.addEventListener('error', onError);
+
+                // Timeout pengaman: jangan sampai proses macet selamanya
+                // kalau koneksi sangat lambat/gambar tidak pernah merespons.
+                const timer = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    console.warn('Timeout memuat gambar logo:', imgEl.src);
+                    resolve(false);
+                }, timeoutMs);
+            });
+        }
+
+        // Memuat ulang src gambar logo dengan cache-busting agar status
+        // 'complete'/'naturalWidth' selalu terhitung ulang dengan benar,
+        // lalu menunggu sampai benar-benar termuat sebelum lanjut.
+        async function ensureLogoReady(imgEl) {
+            const fresh = LOGO_URL + (LOGO_URL.includes('?') ? '&' : '?') + 'cb=' + Date.now();
+            imgEl.src = fresh;
+            return waitForImage(imgEl);
+        }
+
+        // Menunggu semua <img> di dalam sebuah container (poster) selesai dimuat
+        async function waitForAllImagesIn(containerEl) {
+            const imgs = Array.from(containerEl.querySelectorAll('img'));
+            await Promise.all(imgs.map(img => waitForImage(img)));
+        }
+        // ====================================================================
 
         (async () => {
             const admin = await checkAuth('admin');
@@ -661,9 +732,17 @@
                 new QRCode(document.getElementById('pp-qr'), { text: linkFull, width: 400, height: 400, colorDark: themeType === 'navy' ? "#002244" : "#001f3f", colorLight: "#ffffff" });
 
                 await document.fonts.ready;
-                await new Promise(r => setTimeout(r, 400));
 
-                const canvas = await html2canvas(template, { scale: 2, backgroundColor: null });
+                // FIX: tunggu logo benar-benar selesai dimuat (bukan delay tetap)
+                const logoImg = document.getElementById('pp-logo-img');
+                await ensureLogoReady(logoImg);
+                // Jaga-jaga jika ada <img> lain di dalam template (misal QR berbentuk <img>)
+                await waitForAllImagesIn(template);
+
+                // Sedikit jeda render layout setelah font & gambar siap
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+                const canvas = await html2canvas(template, { scale: 2, backgroundColor: null, useCORS: true });
                 const imageURI = canvas.toDataURL("image/png");
                 
                 const a = document.createElement("a");
@@ -694,6 +773,7 @@
 
             } catch (e) {
                 hideLoading();
+                console.error(e);
                 Swal.fire('Error', 'Gagal merender gambar poster.', 'error');
             }
         }
@@ -835,6 +915,12 @@
                 template.className = 'poster-wrapper'; 
                 template.classList.add(`theme-${themeType}`);
 
+                // FIX: pastikan logo poster karya benar-benar termuat sebelum
+                // proses chunking/render dimulai, supaya slide pertama maupun
+                // slide berikutnya konsisten menampilkan logo.
+                const logoImg = document.getElementById('pk-logo-img');
+                await ensureLogoReady(logoImg);
+
                 const textNormal = contentRaw.replace(/\\n/g, '\n');
                 const slides = chunkText(textNormal, 260, 650);
                 const totalPages = slides.length;
@@ -869,7 +955,12 @@
                         document.getElementById('pk-page').innerText = `Slide ${i + 1}/${totalPages} 👉`;
                     }
 
-                    await new Promise(r => setTimeout(r, 200));
+                    // FIX: cek ulang logo masih termuat (untuk slide ke-2 dst),
+                    // lalu tunggu 2 frame render supaya layout stabil sebelum
+                    // html2canvas memotret elemen — menggantikan delay tetap
+                    // 200ms yang sebelumnya kadang tidak cukup.
+                    await waitForAllImagesIn(template);
+                    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
                     const canvas = await html2canvas(template, { 
                         scale: 2, 
