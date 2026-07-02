@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getFirestore, collection, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc, updateDoc, doc, serverTimestamp, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
@@ -15,7 +15,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Urutan fallback: coba dari atas, kalau error lanjut ke bawah
+// Collections
+const knowledgeCol = collection(db, 'aksabot_knowledge');
+const questionsCol = collection(db, 'aksabot_questions');
+const restrictionsCol = collection(db, 'aksabot_restrictions');
+
+// Urutan fallback model
 const MODEL_CHAIN = [
     "gemini-2.5-flash",
     "gemini-3-flash",
@@ -23,43 +28,37 @@ const MODEL_CHAIN = [
     "gemma-3-12b-it",
 ];
 
-// In-memory knowledge base cache dengan TTL
+// In-memory cache
 let knowledgeCache = {};
+let restrictionsCache = [];
 let lastKnowledgeUpdate = 0;
+let lastRestrictionsUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 menit
 
-// Default restrictions (bisa di-update dari Firestore nanti)
 const DEFAULT_RESTRICTIONS = [
     'puisi', 'tugas', 'homework', 'essay', 'artikel', 'berita',
     'cuaca', 'ramalan', 'prediksi', 'jadwal tv', 'olahraga luar',
     'di luar komunitas'
 ];
 
-let RESTRICTED_KEYWORDS = [...DEFAULT_RESTRICTIONS];
-
 /**
- * Load knowledge base dari Firestore (dengan cache)
+ * Load knowledge base dari Firestore dengan cache
  */
 async function loadKnowledgeBase() {
     const now = Date.now();
-    
-    // Gunakan cache jika masih fresh
     if (Object.keys(knowledgeCache).length > 0 && now - lastKnowledgeUpdate < CACHE_TTL) {
-        console.log('[KB] Using cached knowledge base');
         return Object.values(knowledgeCache).map(kb => kb.content).join('\n\n');
     }
 
     try {
-        console.log('[KB] Fetching fresh knowledge base from Firestore...');
-        const q = query(collection(db, 'aksabot_knowledge'), orderBy('createdAt', 'desc'));
+        const q = query(knowledgeCol, orderBy('createdAt', 'desc'));
         const snap = await getDocs(q);
         
         knowledgeCache = {};
         snap.forEach(doc => {
-            const data = doc.data();
             knowledgeCache[doc.id] = {
-                content: data.content,
-                createdAt: data.createdAt
+                content: doc.data().content,
+                createdAt: doc.data().createdAt
             };
         });
         
@@ -68,45 +67,125 @@ async function loadKnowledgeBase() {
         console.log(`[KB] Loaded ${Object.keys(knowledgeCache).length} documents`);
         return combined;
     } catch (err) {
-        console.error('[KB] Error loading from Firestore:', err.message);
+        console.error('[KB] Error:', err.message);
         return 'Belum ada data spesifik.';
     }
 }
 
 /**
- * Check apakah user input mengandung keyword yang membatasi
+ * Load restrictions dari Firestore
  */
-function isInputRestricted(message) {
-    if (!message) return false;
-    const lowerMsg = message.toLowerCase().trim();
-    return RESTRICTED_KEYWORDS.some(keyword => lowerMsg.includes(keyword));
+async function loadRestrictions() {
+    const now = Date.now();
+    if (restrictionsCache.length > 0 && now - lastRestrictionsUpdate < CACHE_TTL) {
+        return restrictionsCache;
+    }
+
+    try {
+        const snap = await getDocs(restrictionsCol);
+        restrictionsCache = [];
+        snap.forEach(doc => {
+            restrictionsCache.push(doc.data().keyword);
+        });
+        lastRestrictionsUpdate = now;
+        console.log(`[RESTRICT] Loaded ${restrictionsCache.length} restrictions`);
+        return restrictionsCache;
+    } catch (err) {
+        console.error('[RESTRICT] Error:', err.message);
+        return DEFAULT_RESTRICTIONS;
+    }
 }
 
 /**
- * Normalize pertanyaan untuk lookup di cache
+ * Normalize text untuk perbandingan
  */
-function normalizeQuestion(q) {
-    return q
+function normalizeText(text) {
+    return text
         .toLowerCase()
         .trim()
-        .replace(/[?!.,;:]/g, '')
-        .replace(/\s+/g, ' ');
+        .replace(/[?!.,;:\s]+/g, ' ')
+        .trim();
 }
 
 /**
- * Cek apakah pertanyaan sudah pernah dijawab (dari cache)
+ * Cek apakah input mengandung restricted keywords
  */
-function getFromCache(message) {
-    const normalized = normalizeQuestion(message);
+function isInputRestricted(message, restrictions) {
+    const lowerMsg = message.toLowerCase();
+    return restrictions.some(keyword => lowerMsg.includes(keyword.toLowerCase()));
+}
+
+/**
+ * Cek apakah pertanyaan sudah ada di knowledge base
+ */
+function findSimilarInKnowledge(message) {
+    const normalized = normalizeText(message);
+    const msgWords = normalized.split(' ');
     
-    for (const [key, value] of Object.entries(knowledgeCache)) {
-        const cacheKey = normalizeQuestion(value.content.substring(0, 100));
-        if (normalized.includes(cacheKey) || cacheKey.includes(normalized)) {
-            return true; // Pertanyaan related dengan knowledge base
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const [id, kb] of Object.entries(knowledgeCache)) {
+        const kbNormalized = normalizeText(kb.content);
+        const kbWords = kbNormalized.split(' ');
+        
+        // Hitung similarity score
+        let matchCount = 0;
+        for (const word of msgWords) {
+            if (word.length > 2 && kbWords.includes(word)) {
+                matchCount++;
+            }
+        }
+        
+        const score = msgWords.length > 0 ? matchCount / msgWords.length : 0;
+        
+        if (score > bestScore && score > 0.5) {
+            bestScore = score;
+            bestMatch = kb.content;
         }
     }
-    
-    return false;
+
+    return bestMatch;
+}
+
+/**
+ * Save question ke Firestore
+ */
+async function saveQuestion(message, userName, isAnswered = false, answer = null) {
+    try {
+        const docRef = await addDoc(questionsCol, {
+            question: message,
+            userName: userName || 'Anonymous',
+            isAnswered: isAnswered,
+            answer: answer || null,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            source: 'dashboard'
+        });
+        console.log('[SAVE] Question saved:', docRef.id);
+        return docRef.id;
+    } catch (err) {
+        console.error('[SAVE] Error saving question:', err.message);
+        return null;
+    }
+}
+
+/**
+ * Update question answer
+ */
+async function updateQuestionAnswer(questionId, answer) {
+    try {
+        await updateDoc(doc(db, 'aksabot_questions', questionId), {
+            isAnswered: true,
+            answer: answer,
+            updatedAt: serverTimestamp()
+        });
+        console.log('[UPDATE] Question answered:', questionId);
+        return true;
+    } catch (err) {
+        console.error('[UPDATE] Error:', err.message);
+        return false;
+    }
 }
 
 function buildPrompt(userName, knowledgeContext, history, message) {
@@ -114,46 +193,25 @@ function buildPrompt(userName, knowledgeContext, history, message) {
         ? history.map(h => `${h.role === 'user' ? 'User' : 'AksaBot'}: ${h.content}`).join('\n')
         : '';
 
-    return `Kamu adalah AksaBot, asisten virtual Cendekia Aksara. Kamu ramah, singkat, dan to the point.
+    return `Kamu adalah AksaBot, asisten virtual Cendekia Aksara. Kamu ramah, detail, dan helpful.
 
 IDENTITAS PENGGUNA: ${userName || 'Teman'}
 
 ATURAN WAJIB:
-1. Jawab SINGKAT tapi LENGKAP — maksimal 5-7 kalimat untuk semua pertanyaan.
-2. Gunakan data dari [REFERENSI] SEBAIK MUNGKIN. Jika ada data relevan, WAJIB gunakan.
-3. Kalau tidak ada data spesifik, jawab dari pengetahuan umum tapi TETAP relevan dengan Cendekia Aksara.
-4. Gunakan <b>teks</b> untuk menebalkan, <br> untuk enter baru. JANGAN pakai ** atau markdown.
-5. Emoji boleh, tapi jangan lebih dari 2 per pesan.
-6. Ingat konteks percakapan sebelumnya dan jawab sesuai konteks itu.
-7. PENTING: Jangan hanya bilang 'Halo' atau greeting sederhana. Berikan informasi yang useful!
+1. Jawab LENGKAP dengan informasi detail — 5-10 kalimat adalah ideal.
+2. Prioritas TINGGI pada [REFERENSI]. Gunakan sebanyak mungkin jika relevan.
+3. Jika tidak ada referensi spesifik, jawab tetap berkualitas seputar Cendekia Aksara.
+4. Format: Gunakan <b>bold</b>, <br>new line</br>. JANGAN pakai markdown **.
+5. Emoji OK tapi max 2 per pesan.
+6. Ingat konteks percakapan & jawab sesuai.
+7. KUNCI: Jangan singkat-singkat. Berikan nilai penuh untuk user!
 
 [REFERENSI CENDEKIA AKSARA]:
-${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'Belum ada data spesifik dalam basis pengetahuan. Jawab berdasarkan pengetahuan umum seputar Cendekia Aksara.'}
+${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'Database pembelajaran. Jawab berdasarkan pengetahuan umum Cendekia Aksara.'}
 
 ${historyText ? `[RIWAYAT PERCAKAPAN]:\n${historyText}\n` : ''}
 User: ${message}
 AksaBot:`;
-}
-
-/**
- * Middleware: Validasi input user
- */
-function validateInput(message) {
-    if (!message || message.trim().length === 0) {
-        return {
-            allowed: false,
-            errorMessage: 'Pesan kosong'
-        };
-    }
-
-    if (isInputRestricted(message)) {
-        return {
-            allowed: false,
-            errorMessage: 'Maaf, saya hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu termasuk di luar scope saya. 🤖'
-        };
-    }
-
-    return { allowed: true };
 }
 
 function sleep(ms) {
@@ -175,28 +233,44 @@ export default async function handler(req, res) {
     try {
         const { message, userName, history } = req.body;
 
-        // ── STEP 1: Validasi input dengan middleware ──
-        const validation = validateInput(message);
-        if (!validation.allowed) {
+        // Validasi input
+        if (!message || message.trim().length === 0) {
+            return res.status(400).json({ error: true, message: 'Pesan kosong' });
+        }
+
+        // Load restrictions
+        const restrictions = await loadRestrictions();
+
+        // Check restricted keywords
+        if (isInputRestricted(message, restrictions)) {
+            // Save pertanyaan yang di-restrict
+            await saveQuestion(message, userName, true, 'Pertanyaan di luar scope komunitas Cendekia Aksara');
+            
             return res.status(400).json({
                 error: true,
-                message: validation.errorMessage
+                message: 'Maaf, saya hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu termasuk di luar scope saya. 🤖'
             });
         }
 
-        // ── STEP 2: Load Knowledge Base dari Firestore ──
+        // Load knowledge base
         const knowledgeContext = await loadKnowledgeBase();
 
-        // ── STEP 3: Query AI dengan fresh knowledge base ──
+        // Cek apakah sudah ada jawaban di knowledge base
+        const similarAnswer = findSimilarInKnowledge(message);
+        
+        // Build prompt untuk AI
         const prompt = buildPrompt(userName, knowledgeContext, history, message);
         let lastError = null;
+        let finalAnswer = null;
+        let usedModel = null;
 
+        // Try different models
         for (const modelName of MODEL_CHAIN) {
             try {
                 const model = genAI.getGenerativeModel({
                     model: modelName,
                     generationConfig: {
-                        maxOutputTokens: 500,   // Tingkatkan untuk jawaban lebih lengkap
+                        maxOutputTokens: 600,
                         temperature: 0.7,
                         topP: 0.9,
                     }
@@ -205,21 +279,16 @@ export default async function handler(req, res) {
                 const result = await model.generateContent(prompt);
                 let text = result.response.text().trim();
 
-                // Bersihkan sisa markdown
+                // Clean markdown
                 text = text
                     .replace(/```[\w]*\n?/g, '')
                     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                     .replace(/\*(.*?)\*/g, '<i>$1</i>')
                     .trim();
 
-                // ── STEP 4: Simulasi human-like response time ──
-                await sleep(randomDelay(800, 1500));
-
-                return res.status(200).json({
-                    reply: text,
-                    model: modelName,
-                    knowledgeUsed: knowledgeContext.trim().length > 0
-                });
+                finalAnswer = text;
+                usedModel = modelName;
+                break;
 
             } catch (err) {
                 console.warn(`Model ${modelName} gagal:`, err.message);
@@ -227,22 +296,37 @@ export default async function handler(req, res) {
             }
         }
 
-        // Semua model gagal
-        console.error("Semua model gagal:", lastError);
+        if (!finalAnswer) {
+            throw lastError || new Error('Semua model gagal');
+        }
+
+        // ── PENTING: Save pertanyaan dengan jawaban langsung ──
+        const questionId = await saveQuestion(message, userName, true, finalAnswer);
+
+        // Simulate human typing
         await sleep(randomDelay(800, 1500));
-        
-        return res.status(500).json({
-            error: true,
-            reply: "Aduh, semua sistem lagi sibuk nih 💤. Coba lagi sebentar ya!"
+
+        return res.status(200).json({
+            reply: finalAnswer,
+            model: usedModel,
+            questionId: questionId,
+            fromKnowledge: !!similarAnswer,
+            timestamp: new Date().toISOString()
         });
 
     } catch (error) {
-        console.error("AksaBot handler error:", error);
+        console.error("AksaBot error:", error);
+        
+        // Save pertanyaan yang error untuk admin follow-up
+        if (req.body?.message) {
+            await saveQuestion(req.body.message, req.body.userName || 'Anonymous', false, null);
+        }
+
         await sleep(randomDelay(500, 1000));
         
         return res.status(500).json({
             error: true,
-            reply: "Terjadi kesalahan tak terduga. Coba lagi ya! 🙏"
+            reply: "Terjadi kesalahan. Admin sudah diberitahu untuk follow-up. 🙏"
         });
     }
 }
