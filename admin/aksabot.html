@@ -3,807 +3,1018 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pusat Kontrol AksaBot - Admin Dashboard</title>
+    <title>Pusat Pengetahuan AksaBot - Admin</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #1a3a6b;
             --primary-light: #2557a7;
             --accent: #0ea5e9;
             --accent-dark: #0284c7;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
             --bg: #f0f5fb;
             --surface: #ffffff;
             --border: #e1eaf5;
             --text-primary: #1e293b;
             --text-muted: #64748b;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
             --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-            --shadow-lg: 0 10px 28px rgba(0,0,0,0.12);
-            --font: 'Plus Jakarta Sans', sans-serif;
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         html, body {
-            font-family: var(--font);
+            font-family: 'Poppins', sans-serif;
             background: var(--bg);
             color: var(--text-primary);
             line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* LAYOUT */
-        body { padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
 
-        /* HEADER */
+        /* ── HEADER ── */
         .header {
-            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
             color: white;
-            padding: 30px 25px;
-            border-radius: 16px;
-            margin-bottom: 30px;
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--shadow-lg);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .header h1 {
             font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin: 0;
+            gap: 10px;
         }
 
-        .header-info {
+        .header-icon {
+            font-size: 2rem;
+            animation: pulse-icon 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-icon {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .btn-back {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
             display: flex;
-            gap: 30px;
-            font-size: 0.9rem;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
         }
 
-        .info-stat {
+        .btn-back:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: translateY(-2px);
+        }
+
+        /* ── MAIN CONTAINER ── */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* ── LEFT PANEL: KNOWLEDGE BASE & RESTRICTIONS ── */
+        .left-panel {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 20px;
+            overflow-y: auto;
+            min-width: 350px;
         }
 
-        .info-stat .label {
-            opacity: 0.8;
-            font-weight: 600;
-            font-size: 0.85rem;
+        /* ── RIGHT PANEL: QUESTIONS ── */
+        .right-panel {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            min-width: 400px;
         }
 
-        .info-stat .value {
-            font-size: 1.3rem;
-            font-weight: 700;
-        }
-
-        /* GRID LAYOUT */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .grid.full { grid-template-columns: 1fr; }
-        .grid.two { grid-template-columns: repeat(2, 1fr); }
-
-        /* CARD */
+        /* ── CARD STYLES ── */
         .card {
-            background: var(--surface);
+            background: white;
             border-radius: 16px;
-            padding: 25px;
             box-shadow: var(--shadow-md);
+            overflow: hidden;
             border: 1px solid var(--border);
             transition: all 0.3s ease;
         }
 
         .card:hover {
             box-shadow: var(--shadow-lg);
-            border-color: var(--accent);
         }
 
         .card-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 18px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px dashed var(--border);
+            border-bottom: 3px solid var(--accent);
         }
 
-        .card-title {
-            font-size: 1.2rem;
+        .card-header h2 {
+            font-size: 1.3rem;
             font-weight: 700;
-            color: var(--primary);
+            margin: 0;
             display: flex;
             align-items: center;
             gap: 10px;
-            margin: 0;
         }
 
-        .card-subtitle {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 3px;
+        .card-body {
+            padding: 20px;
         }
 
-        /* INFO BOX */
+        /* ── INFO BOX ── */
         .info-box {
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(14, 165, 233, 0.05));
-            border-left: 4px solid var(--accent);
+            background: linear-gradient(135deg, #e0f2fe 0%, #cffafe 100%);
+            color: #0284c7;
             padding: 15px 18px;
             border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            line-height: 1.6;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--accent);
+            border-right: 1px solid var(--accent);
+            line-height: 1.5;
         }
 
-        /* FORM ELEMENTS */
+        /* ── TEXTAREA ── */
         textarea {
             width: 100%;
+            height: 120px;
             padding: 15px;
-            border: 1.5px solid var(--border);
+            border: 2px solid var(--border);
             border-radius: 10px;
-            font-family: var(--font);
             font-size: 0.95rem;
+            font-family: 'Poppins', sans-serif;
             line-height: 1.6;
             resize: vertical;
-            min-height: 120px;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
         }
 
         textarea:focus {
-            outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-family: var(--font);
-            font-size: 0.95rem;
-            transition: all 0.2s ease;
-        }
-
-        input[type="text"]:focus {
+            box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
             outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
 
-        /* BUTTONS */
+        /* ── BUTTONS ── */
         .btn {
-            padding: 12px 20px;
-            background: var(--accent);
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
             color: white;
             border: none;
             border-radius: 10px;
             font-weight: 600;
             cursor: pointer;
             font-size: 0.95rem;
-            font-family: var(--font);
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            width: 100%;
+            justify-content: center;
         }
 
         .btn:hover {
-            background: var(--accent-dark);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+            box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
         }
 
-        .btn:active { transform: scale(0.98); }
-        .btn:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; }
-
-        .btn-secondary { background: #f1f5f9; color: var(--text-primary); }
-        .btn-secondary:hover { background: #e2e8f0; }
-
-        .btn-danger { background: var(--danger); }
-        .btn-danger:hover { background: #dc2626; }
-
-        .btn-small { padding: 8px 12px; font-size: 0.85rem; }
-
-        /* BADGE */
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
+        .btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.6;
         }
 
-        .badge-success { background: rgba(16, 185, 129, 0.2); color: #047857; }
-        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #92400e; }
-        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #991b1b; }
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        }
 
-        /* LIST ITEMS */
-        .list-container {
-            max-height: 450px;
+        .btn-secondary:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        /* ── SCROLL CONTAINER ── */
+        .scroll-container {
+            flex: 1;
             overflow-y: auto;
-            padding-right: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
-        .list-item {
+        /* ── KNOWLEDGE ITEM ── */
+        .knowledge-item {
             background: #f8fafc;
             border: 1px solid var(--border);
             padding: 15px;
             border-radius: 10px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .knowledge-item:hover {
+            background: white;
+            border-color: var(--accent);
+            box-shadow: var(--shadow-md);
+        }
+
+        .knowledge-date {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .knowledge-content {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            line-height: 1.5;
+            word-break: break-word;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* ── QUESTION ITEM ── */
+        .question-item {
+            border-left: 4px solid var(--border);
+            padding: 18px;
+            border-radius: 10px;
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .question-item.answered {
+            border-left-color: var(--success);
+            background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent);
+        }
+
+        .question-item.pending {
+            border-left-color: var(--warning);
+            background: linear-gradient(to right, rgba(245, 158, 11, 0.05), transparent);
+        }
+
+        .question-item:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateX(4px);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
             margin-bottom: 10px;
+        }
+
+        .question-user {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .question-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-answered {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .badge-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .question-text {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            line-height: 1.6;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .question-answer {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background: #eef2f7;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            line-height: 1.5;
+            border-left: 3px solid var(--success);
+        }
+
+        .question-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.2s ease;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
         }
 
-        .list-item:hover {
-            border-color: var(--accent);
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-
-        .list-item-content {
-            flex: 1;
-        }
-
-        .list-item-label {
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 3px;
-        }
-
-        .list-item-meta {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .list-item-actions {
+        .question-actions {
             display: flex;
             gap: 8px;
-            margin-left: 12px;
+            margin-top: 12px;
         }
 
-        .empty-msg {
+        /* ── RESTRICTION INPUT ── */
+        .restriction-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+            outline: none;
+        }
+
+        .restriction-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .restriction-tag {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .restriction-tag button {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+        }
+
+        .restriction-tag button:hover {
+            background: rgba(255,255,255,0.5);
+            transform: scale(1.1);
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
             text-align: center;
             color: var(--text-muted);
             padding: 40px 20px;
             font-style: italic;
         }
 
-        /* RESTRICTION TAGS */
-        .restriction-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(239, 68, 68, 0.1);
-            color: #991b1b;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin: 4px 4px 4px 0;
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
         }
 
-        .restriction-tag .close-btn {
-            cursor: pointer;
-            font-weight: 700;
-            opacity: 0.7;
-            transition: opacity 0.2s;
+        /* ── LOADING ── */
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(14, 165, 233, 0.3);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
-        .restriction-tag .close-btn:hover {
-            opacity: 1;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
-        /* MODAL */
+        /* ── MODAL ── */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(6px);
-            display: none;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
             opacity: 0;
-            transition: opacity 0.2s ease;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
         .modal-overlay.active {
-            display: flex;
             opacity: 1;
+            pointer-events: all;
         }
 
         .modal-box {
             background: white;
-            padding: 30px;
-            border-radius: 16px;
+            padding: 35px 30px;
+            border-radius: 20px;
             width: 90%;
             max-width: 450px;
             text-align: center;
             box-shadow: var(--shadow-lg);
-            transform: scale(0.9);
+            transform: scale(0.9) translateY(20px);
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .modal-overlay.active .modal-box {
-            transform: scale(1);
+            transform: scale(1) translateY(0);
         }
 
         .modal-icon {
-            font-size: 3rem;
+            font-size: 3.5rem;
             margin-bottom: 15px;
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .modal-title {
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 10px;
             color: var(--primary);
+            margin-bottom: 10px;
         }
 
         .modal-text {
+            font-size: 1rem;
             color: var(--text-muted);
-            margin-bottom: 25px;
             line-height: 1.6;
+            margin-bottom: 25px;
         }
 
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .left-panel, .right-panel {
+                min-width: unset;
+                max-height: 50%;
+            }
         }
 
-        /* RESPONSIVE */
         @media (max-width: 768px) {
-            .grid { grid-template-columns: 1fr; }
-            .grid.two { grid-template-columns: 1fr; }
-            .header { flex-direction: column; text-align: center; }
-            .header-info { justify-content: center; }
-        }
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
 
-        /* SCROLLBAR */
-        .list-container::-webkit-scrollbar {
-            width: 6px;
-        }
+            .header h1 {
+                font-size: 1.3rem;
+            }
 
-        .list-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
+            .main-container {
+                padding: 10px;
+                gap: 10px;
+            }
 
-        .list-container::-webkit-scrollbar-thumb {
-            background: rgba(203, 213, 225, 0.6);
-            border-radius: 3px;
-        }
+            .card-header h2 {
+                font-size: 1.1rem;
+            }
 
-        .list-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(203, 213, 225, 0.8);
+            .question-item {
+                padding: 12px;
+            }
         }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <!-- HEADER -->
+    <!-- ── HEADER ── -->
     <div class="header">
-        <div>
-            <h1><i class="fa-solid fa-brain"></i> Pusat Kontrol AksaBot</h1>
-            <p style="margin-top: 8px; opacity: 0.9;">Kelola basis pengetahuan dan batasan chatbot secara terpusat</p>
+        <div class="header-left">
+            <div class="header-icon">🧠</div>
+            <h1>Pusat Pengetahuan AksaBot</h1>
         </div>
-        <div class="header-info">
-            <div class="info-stat">
-                <span class="label">📚 Pengetahuan</span>
-                <span class="value" id="stat-knowledge">-</span>
+        <button class="btn-back" onclick="goBack()">
+            <i class="fas fa-arrow-left"></i> Kembali ke Admin
+        </button>
+    </div>
+
+    <!-- ── MAIN CONTAINER ── -->
+    <div class="main-container">
+        <!-- ── LEFT PANEL: KNOWLEDGE & RESTRICTIONS ── -->
+        <div class="left-panel">
+            <!-- Knowledge Base Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-book"></i> Otak AI (Knowledge Base)</h2>
+                    <i class="loader" id="loading-kb" style="display: none;"></i>
+                </div>
+                <div class="card-body">
+                    <div class="info-box">
+                        📝 Data pembelajaran otomatis dari admin yang sudah disimpan.
+                    </div>
+                    <div class="scroll-container" id="knowledge-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            Belum ada pengetahuan yang disimpan.
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="info-stat">
-                <span class="label">🚫 Batasan</span>
-                <span class="value" id="stat-restrictions">-</span>
+
+            <!-- Restrictions Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-ban"></i> Batasan Keywords</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-box">
+                        🚫 Pertanyaan dengan keyword ini akan ditolak otomatis.
+                    </div>
+                    
+                    <div class="restriction-input-group">
+                        <input 
+                            type="text" 
+                            id="restriction-input" 
+                            placeholder="Tambah keyword batasan..."
+                            onkeypress="handleRestrictionKeypress(event)"
+                        >
+                        <button class="btn btn-secondary btn-small" onclick="addRestriction()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <div class="restriction-list" id="restriction-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RIGHT PANEL: QUESTIONS ── -->
+        <div class="right-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-comments"></i> Pertanyaan & Jawaban</h2>
+                    <i class="loader" id="loading-questions" style="display: none;"></i>
+                </div>
+                <div class="card-body">
+                    <div class="info-box">
+                        ✅ Pertanyaan yang sudah dijawab AI.<br>
+                        ⏳ Menunggu review admin untuk pertanyaan kompleks.
+                    </div>
+                    
+                    <div class="scroll-container" id="questions-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💬</div>
+                            Belum ada pertanyaan dari user.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- MAIN GRID -->
-    <div class="grid two">
-        <!-- LEFT: KNOWLEDGE BASE -->
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title"><i class="fa-solid fa-pen-to-square"></i> Basis Pengetahuan</h2>
-                    <p class="card-subtitle">Kelola informasi "otak" AksaBot</p>
-                </div>
-                <div style="font-size: 2rem;" id="loader-kb" style="display: none;">
-                    <i class="fa-solid fa-spinner fa-spin" style="color: #cbd5e1;"></i>
-                </div>
-            </div>
-
-            <div class="info-box">
-                💡 Tambahkan informasi penting tentang Cendekia Aksara (sejarah, visi-misi, program, dsb). Data ini akan menjadi referensi untuk menjawab pertanyaan user.
-            </div>
-
-            <textarea id="kb-input" placeholder="Ketik informasi tentang Cendekia Aksara..."></textarea>
-
-            <div style="margin-top: 15px;">
-                <button class="btn" onclick="saveKnowledge()">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke Basis
-                </button>
-            </div>
-
-            <hr style="margin: 25px 0; border: 1px dashed var(--border);">
-
-            <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 15px;">
-                <i class="fa-solid fa-box-archive"></i> Arsip Terbaru
-            </h3>
-
-            <div class="list-container" id="knowledge-list">
-                <div class="empty-msg">Belum ada pengetahuan yang disimpan.</div>
-            </div>
-        </div>
-
-        <!-- RIGHT: RESTRICTIONS -->
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <h2 class="card-title"><i class="fa-solid fa-ban"></i> Daftar Batasan</h2>
-                    <p class="card-subtitle">Keyword yang tidak boleh diproses</p>
-                </div>
-            </div>
-
-            <div class="info-box">
-                🛑 Kata-kata dibawah ini akan membuat AksaBot menolak pertanyaan. Admin dapat menambah atau menghapus batasan kapan saja.
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">Tambah Batasan Baru:</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="restriction-input" placeholder="Misal: puisi, tugas, essay..." style="flex: 1;">
-                    <button class="btn" onclick="addRestriction()">
-                        <i class="fa-solid fa-plus"></i> Tambah
-                    </button>
-                </div>
-            </div>
-
-            <hr style="margin: 20px 0; border: 1px dashed var(--border);">
-
-            <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 15px;">
-                <i class="fa-solid fa-list"></i> Daftar Aktif
-            </h3>
-
-            <div id="restrictions-display" style="margin-bottom: 15px;">
-                <!-- Restriction tags will be inserted here -->
-            </div>
-
-            <button class="btn btn-secondary btn-small" onclick="exportRestrictions()">
-                <i class="fa-solid fa-download"></i> Export JSON
+    <!-- ── MODAL ── -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-icon" id="modal-icon">✅</div>
+            <h3 class="modal-title" id="modal-title">Sukses</h3>
+            <p class="modal-text" id="modal-text">Operasi berhasil dilakukan!</p>
+            <button class="btn" onclick="closeModal()" style="width: auto; padding: 10px 30px;">
+                Tutup
             </button>
-            <button class="btn btn-secondary btn-small" onclick="importRestrictions()">
-                <i class="fa-solid fa-upload"></i> Import JSON
-            </button>
-            <button class="btn btn-danger btn-small" onclick="resetRestrictions()">
-                <i class="fa-solid fa-redo"></i> Reset Default
-            </button>
-
-            <input type="file" id="import-file" style="display: none;" accept=".json" onchange="handleImport()">
         </div>
     </div>
 
-    <!-- FULL WIDTH: STATS -->
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title"><i class="fa-solid fa-chart-line"></i> Statistik Sistem</h2>
-        </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            deleteDoc,
+            query, 
+            orderBy, 
+            serverTimestamp,
+            onSnapshot,
+            updateDoc,
+            doc
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        <div class="grid">
-            <div>
-                <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Status Basis Pengetahuan</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);">
-                    <i class="fa-solid fa-circle-check"></i> Aktif
-                </div>
-            </div>
-            <div>
-                <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Status Validasi Input</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--success);">
-                    <i class="fa-solid fa-circle-check"></i> Aktif
-                </div>
-            </div>
-            <div>
-                <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Response Time Simulasi</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent);">
-                    800-1500ms
-                </div>
-            </div>
-            <div>
-                <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;">Cache Memory</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent);">
-                    In-Memory
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+            authDomain: "mading-cf676.firebaseapp.com",
+            projectId: "mading-cf676",
+            storageBucket: "mading-cf676.firebasestorage.app",
+            messagingSenderId: "72175203671",
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
+        };
 
-<!-- MODALS -->
-<div id="modal" class="modal-overlay">
-    <div class="modal-box">
-        <div class="modal-icon" id="modal-icon"><i class="fa-solid fa-circle-check"></i></div>
-        <h3 class="modal-title" id="modal-title">Sukses</h3>
-        <p class="modal-text" id="modal-text">Operasi berhasil dilakukan.</p>
-        <div class="modal-buttons">
-            <button class="btn" onclick="closeModal()">Tutup</button>
-        </div>
-    </div>
-</div>
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const knowledgeCol = collection(db, 'aksabot_knowledge');
+        const questionsCol = collection(db, 'aksabot_questions');
+        const restrictionsCol = collection(db, 'aksabot_restrictions');
 
-    const firebaseConfig = { 
-        apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-        authDomain: "mading-cf676.firebaseapp.com", 
-        projectId: "mading-cf676", 
-        storageBucket: "mading-cf676.firebasestorage.app", 
-        messagingSenderId: "72175203671", 
-        appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
-    };
+        // ── MODAL FUNCTIONS ──
+        window.showModal = (type, title, text) => {
+            const overlay = document.getElementById('custom-modal');
+            const icon = document.getElementById('modal-icon');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-text').innerText = text;
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const knowledgeCol = collection(db, "aksabot_knowledge");
+            if (type === 'error') {
+                icon.innerHTML = '<i class="fas fa-circle-xmark" style="color: #ef4444;"></i>';
+            } else if (type === 'warning') {
+                icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>';
+            } else {
+                icon.innerHTML = '<i class="fas fa-circle-check" style="color: #10b981;"></i>';
+            }
+            overlay.classList.add('active');
+        };
 
-    // DEFAULT RESTRICTIONS
-    const DEFAULT_RESTRICTIONS = [
-        'puisi', 'tugas', 'homework', 'essay', 'artikel', 'berita',
-        'cuaca', 'ramalan', 'prediksi', 'jadwal tv', 'olahraga luar',
-        'di luar komunitas'
-    ];
+        window.closeModal = () => {
+            document.getElementById('custom-modal').classList.remove('active');
+        };
 
-    let restrictions = [...DEFAULT_RESTRICTIONS];
+        // ── LOAD KNOWLEDGE BASE ──
+        async function loadKnowledge() {
+            const loader = document.getElementById('loading-kb');
+            const listContainer = document.getElementById('knowledge-list');
+            loader.style.display = 'inline-block';
 
-    // ══════════════════════════════════════════════════════════════
-    // MODAL FUNCTIONS
-    // ══════════════════════════════════════════════════════════════
-    window.showModal = (type, title, text) => {
-        const modal = document.getElementById('modal');
-        const icon = document.getElementById('modal-icon');
-        document.getElementById('modal-title').innerText = title;
-        document.getElementById('modal-text').innerText = text;
-        
-        if (type === 'error') {
-            icon.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color: #ef4444;"></i>';
-        } else if (type === 'warning') {
-            icon.innerHTML = '<i class="fa-solid fa-exclamation-circle" style="color: #f59e0b;"></i>';
-        } else {
-            icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #10b981;"></i>';
-        }
-        modal.classList.add('active');
-    };
+            try {
+                const q = query(knowledgeCol, orderBy('createdAt', 'desc'));
+                
+                onSnapshot(q, (snap) => {
+                    listContainer.innerHTML = '';
+                    
+                    if (snap.empty) {
+                        listContainer.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📚</div>
+                                Belum ada pengetahuan yang disimpan.
+                            </div>
+                        `;
+                    } else {
+                        snap.forEach(doc => {
+                            const data = doc.data();
+                            const date = data.createdAt 
+                                ? new Date(data.createdAt.toDate()).toLocaleString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                                : 'Tanpa tanggal';
 
-    window.closeModal = () => {
-        document.getElementById('modal').classList.remove('active');
-    };
-
-    // ══════════════════════════════════════════════════════════════
-    // KNOWLEDGE BASE FUNCTIONS
-    // ══════════════════════════════════════════════════════════════
-    window.saveKnowledge = async () => {
-        const btn = event.target;
-        const input = document.getElementById('kb-input');
-        const content = input.value.trim();
-
-        if (!content) {
-            showModal('error', 'Input Kosong', 'Silakan ketikkan informasi terlebih dahulu.');
-            return;
+                            listContainer.innerHTML += `
+                                <div class="knowledge-item">
+                                    <div class="knowledge-date">
+                                        <i class="fas fa-clock"></i> ${date}
+                                    </div>
+                                    <div class="knowledge-content">${data.content}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                    loader.style.display = 'none';
+                });
+            } catch (err) {
+                console.error('[KB] Error:', err);
+                listContainer.innerHTML = `
+                    <div class="empty-state" style="color: #ef4444;">
+                        ❌ Gagal memuat knowledge base
+                    </div>
+                `;
+                loader.style.display = 'none';
+            }
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        // ── LOAD QUESTIONS ──
+        async function loadQuestions() {
+            const loader = document.getElementById('loading-questions');
+            const listContainer = document.getElementById('questions-list');
+            loader.style.display = 'inline-block';
 
-        try {
-            await addDoc(knowledgeCol, {
-                content: content,
-                createdAt: serverTimestamp()
-            });
+            try {
+                const q = query(questionsCol, orderBy('createdAt', 'desc'));
 
-            showModal('success', 'Berhasil!', 'Informasi telah ditambahkan ke basis pengetahuan.');
-            input.value = '';
-            loadKnowledge();
-        } catch (e) {
-            console.error(e);
-            showModal('error', 'Gagal', 'Terjadi kesalahan saat menyimpan data.');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan ke Basis';
+                onSnapshot(q, (snap) => {
+                    listContainer.innerHTML = '';
+
+                    if (snap.empty) {
+                        listContainer.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💬</div>
+                                Belum ada pertanyaan dari user.
+                            </div>
+                        `;
+                    } else {
+                        snap.forEach(docSnap => {
+                            const data = docSnap.data();
+                            const date = data.createdAt
+                                ? new Date(data.createdAt.toDate()).toLocaleString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })
+                                : 'Tanpa tanggal';
+
+                            const status = data.isAnswered ? 'answered' : 'pending';
+                            const badge = data.isAnswered 
+                                ? '<span class="question-badge badge-answered"><i class="fas fa-check"></i> Terjawab</span>'
+                                : '<span class="question-badge badge-pending"><i class="fas fa-hourglass-end"></i> Menunggu</span>';
+
+                            const answerHtml = data.isAnswered && data.answer
+                                ? `<div class="question-answer"><strong>Jawaban:</strong><br>${data.answer}</div>`
+                                : '';
+
+                            listContainer.innerHTML += `
+                                <div class="question-item ${status}">
+                                    <div class="question-header">
+                                        <div class="question-user">
+                                            <i class="fas fa-user-circle"></i> ${data.userName || 'Anonim'}
+                                        </div>
+                                        ${badge}
+                                    </div>
+                                    <div class="question-text">
+                                        <strong>Pertanyaan:</strong><br>${data.question}
+                                    </div>
+                                    ${answerHtml}
+                                    <div class="question-meta">
+                                        <span><i class="fas fa-calendar"></i> ${date}</span>
+                                        ${!data.isAnswered ? `
+                                            <div class="question-actions">
+                                                <button class="btn btn-small btn-success" onclick="respondToQuestion('${docSnap.id}')">
+                                                    <i class="fas fa-edit"></i> Jawab
+                                                </button>
+                                                <button class="btn btn-small btn-danger" onclick="deleteQuestion('${docSnap.id}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    loader.style.display = 'none';
+                });
+            } catch (err) {
+                console.error('[Questions] Error:', err);
+                listContainer.innerHTML = `
+                    <div class="empty-state" style="color: #ef4444;">
+                        ❌ Gagal memuat pertanyaan
+                    </div>
+                `;
+                loader.style.display = 'none';
+            }
         }
-    };
 
-    async function loadKnowledge() {
-        const container = document.getElementById('knowledge-list');
-        const stat = document.getElementById('stat-knowledge');
+        // ── LOAD RESTRICTIONS ──
+        async function loadRestrictions() {
+            const container = document.getElementById('restriction-list');
+            
+            try {
+                const snap = await getDocs(restrictionsCol);
+                container.innerHTML = '';
 
-        try {
-            const q = query(knowledgeCol, orderBy('createdAt', 'desc'));
-            const snap = await getDocs(q);
+                snap.forEach(doc => {
+                    const keyword = doc.data().keyword;
+                    container.innerHTML += `
+                        <div class="restriction-tag">
+                            ${keyword}
+                            <button onclick="deleteRestriction('${doc.id}')" title="Hapus">×</button>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error('[Restrictions] Error:', err);
+            }
+        }
 
-            stat.innerText = snap.size;
-            container.innerHTML = '';
+        // ── ADD RESTRICTION ──
+        window.addRestriction = async () => {
+            const input = document.getElementById('restriction-input');
+            const keyword = input.value.trim();
 
-            if (snap.empty) {
-                container.innerHTML = '<div class="empty-msg">Belum ada pengetahuan disimpan.</div>';
+            if (!keyword) {
+                showModal('warning', 'Input Kosong', 'Silakan masukkan keyword terlebih dahulu.');
                 return;
             }
 
-            snap.forEach((doc, idx) => {
-                const data = doc.data();
-                const date = data.createdAt 
-                    ? new Date(data.createdAt.seconds * 1000).toLocaleString('id-ID', {
-                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })
-                    : 'Baru saja';
-
-                const preview = data.content.substring(0, 80) + (data.content.length > 80 ? '...' : '');
-
-                container.innerHTML += `
-                    <div class="list-item">
-                        <div class="list-item-content">
-                            <div class="list-item-label">#${snap.size - idx} ${preview}</div>
-                            <div class="list-item-meta"><i class="fa-regular fa-clock"></i> ${date}</div>
-                        </div>
-                        <div class="list-item-actions">
-                            <button class="btn btn-small btn-secondary" onclick="copyToClipboard('${data.content.replace(/'/g, "\\'")}')">
-                                <i class="fa-solid fa-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-        } catch (e) {
-            console.error(e);
-            container.innerHTML = '<div class="empty-msg" style="color: #ef4444;">Gagal memuat data.</div>';
-        }
-    }
-
-    window.copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text).then(() => {
-            showModal('success', 'Disalin!', 'Teks telah disalin ke clipboard.');
-        });
-    };
-
-    // ══════════════════════════════════════════════════════════════
-    // RESTRICTIONS FUNCTIONS
-    // ══════════════════════════════════════════════════════════════
-    function renderRestrictions() {
-        const display = document.getElementById('restrictions-display');
-        const stat = document.getElementById('stat-restrictions');
-
-        stat.innerText = restrictions.length;
-
-        if (restrictions.length === 0) {
-            display.innerHTML = '<div class="empty-msg">Tidak ada batasan aktif.</div>';
-            return;
-        }
-
-        display.innerHTML = restrictions.map(word => `
-            <span class="restriction-tag">
-                ${word}
-                <span class="close-btn" onclick="removeRestriction('${word}')">×</span>
-            </span>
-        `).join('');
-
-        saveRestrictionsToStorage();
-    }
-
-    window.addRestriction = () => {
-        const input = document.getElementById('restriction-input');
-        const word = input.value.trim().toLowerCase();
-
-        if (!word) {
-            showModal('error', 'Input Kosong', 'Silakan ketikkan kata yang ingin dibatasi.');
-            return;
-        }
-
-        if (restrictions.includes(word)) {
-            showModal('warning', 'Duplikat', `"${word}" sudah ada dalam daftar batasan.`);
-            return;
-        }
-
-        restrictions.push(word);
-        input.value = '';
-        renderRestrictions();
-        showModal('success', 'Ditambahkan!', `"${word}" telah ditambahkan ke daftar batasan.`);
-    };
-
-    window.removeRestriction = (word) => {
-        restrictions = restrictions.filter(w => w !== word);
-        renderRestrictions();
-        showModal('success', 'Dihapus!', `"${word}" telah dihapus dari daftar batasan.`);
-    };
-
-    window.resetRestrictions = () => {
-        if (!confirm('Apakah Anda yakin ingin mengembalikan ke batasan default?')) return;
-        restrictions = [...DEFAULT_RESTRICTIONS];
-        renderRestrictions();
-        showModal('success', 'Di-reset!', 'Daftar batasan telah dikembalikan ke default.');
-    };
-
-    window.exportRestrictions = () => {
-        const data = {
-            version: '1.0',
-            exportDate: new Date().toISOString(),
-            restrictions: restrictions
-        };
-
-        const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `aksabot-restrictions-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        showModal('success', 'Diekspor!', 'File restrictions.json telah diunduh.');
-    };
-
-    window.importRestrictions = () => {
-        document.getElementById('import-file').click();
-    };
-
-    window.handleImport = () => {
-        const file = document.getElementById('import-file').files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
             try {
-                const data = JSON.parse(e.target.result);
-                if (!Array.isArray(data.restrictions)) throw new Error('Format tidak valid');
-                restrictions = data.restrictions;
-                renderRestrictions();
-                showModal('success', 'Diimpor!', `${restrictions.length} batasan telah diimpor.`);
+                await addDoc(restrictionsCol, {
+                    keyword: keyword,
+                    createdAt: serverTimestamp()
+                });
+                input.value = '';
+                loadRestrictions();
+                showModal('success', 'Sukses', 'Keyword batasan berhasil ditambahkan!');
             } catch (err) {
-                showModal('error', 'Gagal', 'File JSON tidak valid atau rusak.');
-                console.error(err);
+                console.error('[Add Restriction] Error:', err);
+                showModal('error', 'Gagal', 'Terjadi kesalahan saat menambah keyword.');
             }
         };
-        reader.readAsText(file);
-        document.getElementById('import-file').value = '';
-    };
 
-    function saveRestrictionsToStorage() {
-        localStorage.setItem('aksabot_restrictions', JSON.stringify(restrictions));
-    }
+        window.handleRestrictionKeypress = (e) => {
+            if (e.key === 'Enter') {
+                addRestriction();
+            }
+        };
 
-    function loadRestrictionsFromStorage() {
-        const saved = localStorage.getItem('aksabot_restrictions');
-        if (saved) {
+        // ── DELETE RESTRICTION ──
+        window.deleteRestriction = async (docId) => {
+            if (confirm('Hapus keyword ini?')) {
+                try {
+                    await deleteDoc(doc(restrictionsCol, docId));
+                    loadRestrictions();
+                    showModal('success', 'Sukses', 'Keyword berhasil dihapus!');
+                } catch (err) {
+                    console.error('[Delete Restriction] Error:', err);
+                    showModal('error', 'Gagal', 'Terjadi kesalahan saat menghapus keyword.');
+                }
+            }
+        };
+
+        // ── RESPOND TO QUESTION ──
+        window.respondToQuestion = (questionId) => {
+            const answer = prompt('Masukkan jawaban untuk pertanyaan ini:');
+            if (answer && answer.trim()) {
+                updateQuestionAnswer(questionId, answer.trim());
+            }
+        };
+
+        async function updateQuestionAnswer(questionId, answer) {
             try {
-                restrictions = JSON.parse(saved);
-            } catch (e) {
-                restrictions = [...DEFAULT_RESTRICTIONS];
+                await updateDoc(doc(questionsCol, questionId), {
+                    isAnswered: true,
+                    answer: answer,
+                    updatedAt: serverTimestamp()
+                });
+                showModal('success', 'Sukses', 'Jawaban berhasil disimpan!');
+                loadQuestions();
+            } catch (err) {
+                console.error('[Update Answer] Error:', err);
+                showModal('error', 'Gagal', 'Terjadi kesalahan saat menyimpan jawaban.');
             }
         }
-        renderRestrictions();
-    }
 
-    // ══════════════════════════════════════════════════════════════
-    // INIT
-    // ══════════════════════════════════════════════════════════════
-    loadRestrictionsFromStorage();
-    loadKnowledge();
-</script>
+        // ── DELETE QUESTION ──
+        window.deleteQuestion = async (questionId) => {
+            if (confirm('Hapus pertanyaan ini secara permanen?')) {
+                try {
+                    await deleteDoc(doc(questionsCol, questionId));
+                    showModal('success', 'Sukses', 'Pertanyaan berhasil dihapus!');
+                    loadQuestions();
+                } catch (err) {
+                    console.error('[Delete Question] Error:', err);
+                    showModal('error', 'Gagal', 'Terjadi kesalahan saat menghapus pertanyaan.');
+                }
+            }
+        };
 
+        // ── GO BACK ──
+        window.goBack = () => {
+            window.location.href = 'index.html';
+        };
+
+        // ── INIT ──
+        loadKnowledge();
+        loadQuestions();
+        loadRestrictions();
+    </script>
 </body>
 </html>
