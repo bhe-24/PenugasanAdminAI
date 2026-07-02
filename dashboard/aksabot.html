@@ -84,7 +84,6 @@
             box-shadow: 0 4px 16px rgba(26, 58, 107, 0.15);
         }
 
-        /* Subtle grain texture on header */
         .chat-header::after {
             content: '';
             position: absolute; inset: 0;
@@ -150,7 +149,7 @@
             transform: translateX(2px);
         }
 
-        /* ── CHAT BODY - Flex Layout Fix ── */
+        /* ── CHAT BODY ── */
         .chat-body {
             flex: 1;
             overflow-y: auto;
@@ -163,7 +162,6 @@
             scroll-behavior: smooth;
         }
 
-        /* Custom scrollbar */
         .chat-body::-webkit-scrollbar { width: 6px; }
         .chat-body::-webkit-scrollbar-track { background: transparent; }
         .chat-body::-webkit-scrollbar-thumb { 
@@ -174,7 +172,6 @@
             background: rgba(203, 213, 225, 0.8);
         }
 
-        /* ── DATE DIVIDER ── */
         .date-divider {
             display: flex; align-items: center; gap: 10px;
             color: var(--text-muted);
@@ -192,7 +189,6 @@
             to { opacity: 1; }
         }
 
-        /* ── MESSAGES ── */
         .message-group { display: flex; flex-direction: column; gap: 3px; max-width: 78%; }
         .message-group.group-bot { align-self: flex-start; }
         .message-group.group-user { align-self: flex-end; }
@@ -226,9 +222,12 @@
             border: 1px solid rgba(225, 234, 245, 0.8);
         }
 
-        /* First bubble of bot group gets the pointed corner, rest are rounded */
         .message-group.group-bot .bubble:not(:first-child) {
             border-radius: var(--radius-bubble);
+        }
+
+        .bubble-bot.bubble-warning {
+            border-left: 3px solid var(--accent-dark);
         }
 
         .bubble-user {
@@ -242,7 +241,6 @@
             border-radius: var(--radius-bubble);
         }
 
-        /* Timestamp */
         .msg-time {
             font-size: 0.68rem;
             color: var(--text-muted);
@@ -252,7 +250,6 @@
         }
         .message-group.group-user .msg-time { text-align: right; }
 
-        /* ── FAQ CHIPS ── */
         .faq-container {
             display: flex; flex-wrap: wrap; gap: 8px;
             margin: 8px 0;
@@ -288,7 +285,6 @@
             transform: scale(0.96);
         }
 
-        /* ── TYPING INDICATOR with Animation ── */
         .typing-indicator {
             display: none;
             align-self: flex-start;
@@ -329,7 +325,6 @@
             }
         }
 
-        /* ── FOOTER / INPUT with Glassmorphism ── */
         .chat-footer {
             padding: 12px 14px;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
@@ -423,7 +418,6 @@
             opacity: 0.6;
         }
 
-        /* ── MODAL with Glassmorphism ── */
         .modal-overlay {
             position: fixed; inset: 0;
             background: rgba(15, 23, 42, 0.6);
@@ -510,7 +504,6 @@
             color: #475569;
         }
 
-        /* ── RESPONSIVE DESKTOP TWEAKS ── */
         @media (min-width: 768px) {
             .chat-body { padding: 24px 22px 10px; gap: 10px; }
             .message-group { max-width: 72%; }
@@ -574,7 +567,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, getDocs, collection, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -590,10 +583,11 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        // NOTE: Knowledge base TIDAK lagi di-fetch di client. api/aksabot.js
+        // adalah satu-satunya sumber kebenaran untuk knowledge base, supaya
+        // tidak ada dua sumber data yang bisa tidak sinkron.
         const VERCEL_API_URL = "/api/aksabot";
-        let knowledgeBaseText = "";
         let currentUserName = "Siswa";
-        // Conversation memory: keeps last N turns for context
         let conversationHistory = [];
         const MAX_HISTORY_TURNS = 10;
 
@@ -604,13 +598,11 @@
         const typingIndicator = document.getElementById('typing');
         const exitModal = document.getElementById('exit-modal');
 
-        // ── Auto-resize textarea ──
         chatInput.addEventListener('input', () => {
             chatInput.style.height = 'auto';
             chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
         });
 
-        // Send on Enter (Shift+Enter = newline)
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -618,36 +610,29 @@
             }
         });
 
-        // Scroll chat on keyboard open (mobile)
         chatInput.addEventListener('focus', () => {
             setTimeout(() => chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' }), 350);
         });
 
-        // ── Auth + Knowledge Base ──
+        // ── Auth ──
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 await signInAnonymously(auth);
-            } else {
-                const userSnap = await getDoc(doc(db, "users", user.uid));
-                if (userSnap.exists()) currentUserName = userSnap.data().name || "Siswa";
+                return; // onAuthStateChanged akan dipanggil ulang dengan user terisi
             }
 
             try {
-                const q = query(collection(db, "aksabot_knowledge"), orderBy("createdAt", "asc"));
-                const querySnapshot = await getDocs(q);
-                let combined = "";
-                querySnapshot.forEach(d => { combined += d.data().content + "\n\n"; });
-                if (combined.trim()) knowledgeBaseText = combined;
+                const userSnap = await getDoc(doc(db, "users", user.uid));
+                if (userSnap.exists()) currentUserName = userSnap.data().name || "Siswa";
             } catch (e) {
-                console.error("Gagal load knowledge base:", e);
+                console.error("Gagal ambil nama user:", e);
             }
 
             loadChatHistory();
         });
 
-        // ── Helpers ──
         function formatHTML(text) {
-            return text
+            return String(text)
                 .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                 .replace(/\*(.*?)\*/g, '<i>$1</i>')
                 .replace(/\n/g, '<br>');
@@ -667,7 +652,6 @@
             return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
         }
 
-        // Group messages and render with date dividers
         function renderHistory(messages) {
             chatBox.innerHTML = '';
             let lastDate = null;
@@ -684,7 +668,6 @@
                 renderBubble(msg.sender, msg.text, msg.ts, false);
             });
 
-            // Show FAQ chips only on fresh start
             if (!messages.length) renderWelcome();
 
             chatBox.scrollTo({ top: chatBox.scrollHeight });
@@ -706,7 +689,6 @@
 
             chatBox.appendChild(grp);
 
-            // FAQ chips
             const faqContainer = document.createElement('div');
             faqContainer.className = 'faq-container';
             faqContainer.id = 'faq-box';
@@ -725,13 +707,13 @@
             chatBox.appendChild(faqContainer);
         }
 
-        function renderBubble(sender, text, ts, animate = true) {
+        function renderBubble(sender, text, ts, animate = true, isWarning = false) {
             const isBot = sender === 'bot';
             const grp = document.createElement('div');
             grp.className = `message-group ${isBot ? 'group-bot' : 'group-user'}`;
 
             const bubble = document.createElement('div');
-            bubble.className = `bubble ${isBot ? 'bubble-bot' : 'bubble-user'}`;
+            bubble.className = `bubble ${isBot ? 'bubble-bot' : 'bubble-user'}${isWarning ? ' bubble-warning' : ''}`;
             if (!animate) bubble.style.animation = 'none';
             bubble.innerHTML = formatHTML(text);
             grp.appendChild(bubble);
@@ -745,7 +727,6 @@
             chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
         }
 
-        // ── LocalStorage history ──
         function saveHistory(sender, text) {
             let history = JSON.parse(localStorage.getItem('aksabot_history')) || [];
             history.push({ sender, text, ts: Date.now() });
@@ -756,7 +737,6 @@
         function loadChatHistory() {
             const history = JSON.parse(localStorage.getItem('aksabot_history')) || [];
 
-            // Rebuild in-memory conversation context (last N turns)
             conversationHistory = history.slice(-MAX_HISTORY_TURNS * 2).map(m => ({
                 role: m.sender === 'user' ? 'user' : 'assistant',
                 content: m.text
@@ -765,7 +745,6 @@
             renderHistory(history);
         }
 
-        // ── Send message ──
         window.sendFAQ = (question) => {
             chatInput.value = question;
             chatInput.dispatchEvent(new Event('input'));
@@ -777,7 +756,6 @@
             const text = chatInput.value.trim();
             if (!text) return;
 
-            // Hide FAQ
             const faqBox = document.getElementById('faq-box');
             if (faqBox) faqBox.style.display = 'none';
 
@@ -785,7 +763,6 @@
             renderBubble('user', text, now);
             saveHistory('user', text);
 
-            // Add to memory
             conversationHistory.push({ role: 'user', content: text });
             if (conversationHistory.length > MAX_HISTORY_TURNS * 2)
                 conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
@@ -794,7 +771,6 @@
             chatInput.style.height = 'auto';
             btnSend.disabled = true;
 
-            // Show typing
             chatBox.appendChild(typingIndicator);
             typingIndicator.classList.add('visible');
             chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
@@ -805,34 +781,57 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: text,
-                        knowledgeContext: knowledgeBaseText,
                         userName: currentUserName,
-                        history: conversationHistory.slice(0, -1) // exclude last user msg (sent as `message`)
+                        history: conversationHistory.slice(0, -1)
                     })
                 });
 
-                if (!response.ok) throw new Error("API error");
-                const data = await response.json();
+                // Selalu coba baca body JSON-nya, apapun status code-nya, karena
+                // server (api/aksabot.js) selalu mengirim field `reply` yang
+                // relevan — baik untuk jawaban normal, pertanyaan "di luar
+                // scope", maupun pesan error. Ini FIX untuk bug lama yang
+                // membuat semua respons non-200 (termasuk pertanyaan yang
+                // sah tapi kena filter keyword) selalu tampil sebagai
+                // "Koneksi bermasalah" generik.
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    data = null;
+                }
 
                 typingIndicator.classList.remove('visible');
-                renderBubble('bot', data.reply, Date.now());
-                saveHistory('bot', data.reply);
 
-                // Add bot reply to memory
-                conversationHistory.push({ role: 'assistant', content: data.reply });
-                if (conversationHistory.length > MAX_HISTORY_TURNS * 2)
-                    conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
+                if (data && data.reply) {
+                    const isWarning = !!data.restricted || !!data.error;
+                    renderBubble('bot', data.reply, Date.now(), true, isWarning);
+                    saveHistory('bot', data.reply);
 
-            } catch {
+                    if (!data.restricted && !data.error) {
+                        conversationHistory.push({ role: 'assistant', content: data.reply });
+                        if (conversationHistory.length > MAX_HISTORY_TURNS * 2)
+                            conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
+                    }
+                } else {
+                    // Baru di sini benar-benar tidak ada respons yang bisa
+                    // dipahami dari server — ini kondisi koneksi/network asli.
+                    const fallback = 'Koneksi bermasalah. Coba lagi ya! 🔌';
+                    renderBubble('bot', fallback, Date.now(), true, true);
+                    saveHistory('bot', fallback);
+                }
+
+            } catch (networkErr) {
+                console.error('[AksaBot] Network error:', networkErr);
                 typingIndicator.classList.remove('visible');
-                renderBubble('bot', 'Koneksi bermasalah. Coba lagi ya! 🔌', Date.now());
+                const fallback = 'Koneksi bermasalah. Coba lagi ya! 🔌';
+                renderBubble('bot', fallback, Date.now(), true, true);
+                saveHistory('bot', fallback);
             } finally {
                 btnSend.disabled = false;
                 chatInput.focus();
             }
         });
 
-        // ── Modal ──
         document.getElementById('btn-exit').addEventListener('click', () => {
             exitModal.classList.add('active');
             chatInput.blur();
@@ -845,7 +844,6 @@
             window.location.href = 'index.html';
         };
 
-        // Close modal on backdrop click
         exitModal.addEventListener('click', (e) => {
             if (e.target === exitModal) closeModal();
         });
