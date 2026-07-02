@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-import { getFirestore, collection, getDocs, query, orderBy, addDoc, updateDoc, doc, serverTimestamp, where } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc, updateDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
@@ -13,19 +13,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// ── PENTING: pastikan GEMINI_API_KEY ada di Environment Variables Vercel ──
+// Tanpa ini SEMUA model akan gagal dan user akan selalu melihat pesan error.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Collections
 const knowledgeCol = collection(db, 'aksabot_knowledge');
 const questionsCol = collection(db, 'aksabot_questions');
 const restrictionsCol = collection(db, 'aksabot_restrictions');
 
-// Urutan fallback model
+// ── Urutan fallback model: GEMMA DIUTAMAKAN, Gemini hanya cadangan terakhir ──
 const MODEL_CHAIN = [
-    "gemini-2.5-flash",
-    "gemini-3-flash",
     "gemma-3-27b-it",
     "gemma-3-12b-it",
+    "gemma-3-4b-it",
+    "gemini-2.5-flash", // fallback terakhir kalau semua model gemma gagal
 ];
 
 // In-memory cache
@@ -35,9 +39,14 @@ let lastKnowledgeUpdate = 0;
 let lastRestrictionsUpdate = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 menit
 
+// Gunakan FRASA spesifik, bukan kata umum satu-kata, supaya tidak salah
+// menandai pertanyaan wajar sebagai "di luar topik". Kata tunggal seperti
+// "tugas" atau "berita" terlalu sering muncul di kalimat normal.
 const DEFAULT_RESTRICTIONS = [
-    'puisi', 'tugas', 'homework', 'essay', 'artikel', 'berita',
-    'cuaca', 'ramalan', 'prediksi', 'jadwal tv', 'olahraga luar',
+    'buatkan puisi', 'buatkan pantun', 'kerjakan tugas', 'kerjakan pr',
+    'kerjakan homework', 'buatkan essay', 'tulis artikel', 'tuliskan artikel',
+    'berita hari ini', 'berita terbaru', 'ramalan cuaca', 'prediksi cuaca',
+    'jadwal tv', 'jadwal acara tv', 'hasil pertandingan', 'skor pertandingan',
     'di luar komunitas'
 ];
 
@@ -53,15 +62,15 @@ async function loadKnowledgeBase() {
     try {
         const q = query(knowledgeCol, orderBy('createdAt', 'desc'));
         const snap = await getDocs(q);
-        
+
         knowledgeCache = {};
-        snap.forEach(doc => {
-            knowledgeCache[doc.id] = {
-                content: doc.data().content,
-                createdAt: doc.data().createdAt
+        snap.forEach(d => {
+            knowledgeCache[d.id] = {
+                content: d.data().content,
+                createdAt: d.data().createdAt
             };
         });
-        
+
         lastKnowledgeUpdate = now;
         const combined = Object.values(knowledgeCache).map(kb => kb.content).join('\n\n');
         console.log(`[KB] Loaded ${Object.keys(knowledgeCache).length} documents`);
@@ -73,7 +82,7 @@ async function loadKnowledgeBase() {
 }
 
 /**
- * Load restrictions dari Firestore
+ * Load restrictions dari Firestore (fallback ke default jika kosong/gagal)
  */
 async function loadRestrictions() {
     const now = Date.now();
@@ -83,10 +92,11 @@ async function loadRestrictions() {
 
     try {
         const snap = await getDocs(restrictionsCol);
-        restrictionsCache = [];
-        snap.forEach(doc => {
-            restrictionsCache.push(doc.data().keyword);
-        });
+        const fromDb = [];
+        snap.forEach(d => fromDb.push(d.data().keyword));
+
+        // Kalau admin belum pernah menambah restriction sendiri, pakai default.
+        restrictionsCache = fromDb.length > 0 ? fromDb : DEFAULT_RESTRICTIONS;
         lastRestrictionsUpdate = now;
         console.log(`[RESTRICT] Loaded ${restrictionsCache.length} restrictions`);
         return restrictionsCache;
@@ -107,12 +117,29 @@ function normalizeText(text) {
         .trim();
 }
 
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Cek apakah input mengandung restricted keywords
+ * Cek apakah input mengandung restricted keywords.
+ * - Frasa (mengandung spasi) dicocokkan sebagai substring apa adanya.
+ * - Kata tunggal dicocokkan dengan batas kata (\b) supaya "tugas" tidak
+ *   ikut ke-trigger oleh "petugas" / "bertugas", dll.
  */
 function isInputRestricted(message, restrictions) {
     const lowerMsg = message.toLowerCase();
-    return restrictions.some(keyword => lowerMsg.includes(keyword.toLowerCase()));
+    return restrictions.some(rawKeyword => {
+        const keyword = (rawKeyword || '').toLowerCase().trim();
+        if (!keyword) return false;
+
+        if (keyword.includes(' ')) {
+            return lowerMsg.includes(keyword);
+        }
+
+        const regex = new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'i');
+        return regex.test(lowerMsg);
+    });
 }
 
 /**
@@ -121,24 +148,23 @@ function isInputRestricted(message, restrictions) {
 function findSimilarInKnowledge(message) {
     const normalized = normalizeText(message);
     const msgWords = normalized.split(' ');
-    
+
     let bestMatch = null;
     let bestScore = 0;
 
-    for (const [id, kb] of Object.entries(knowledgeCache)) {
+    for (const kb of Object.values(knowledgeCache)) {
         const kbNormalized = normalizeText(kb.content);
         const kbWords = kbNormalized.split(' ');
-        
-        // Hitung similarity score
+
         let matchCount = 0;
         for (const word of msgWords) {
             if (word.length > 2 && kbWords.includes(word)) {
                 matchCount++;
             }
         }
-        
+
         const score = msgWords.length > 0 ? matchCount / msgWords.length : 0;
-        
+
         if (score > bestScore && score > 0.5) {
             bestScore = score;
             bestMatch = kb.content;
@@ -170,24 +196,6 @@ async function saveQuestion(message, userName, isAnswered = false, answer = null
     }
 }
 
-/**
- * Update question answer
- */
-async function updateQuestionAnswer(questionId, answer) {
-    try {
-        await updateDoc(doc(db, 'aksabot_questions', questionId), {
-            isAnswered: true,
-            answer: answer,
-            updatedAt: serverTimestamp()
-        });
-        console.log('[UPDATE] Question answered:', questionId);
-        return true;
-    } catch (err) {
-        console.error('[UPDATE] Error:', err.message);
-        return false;
-    }
-}
-
 function buildPrompt(userName, knowledgeContext, history, message) {
     const historyText = history && history.length
         ? history.map(h => `${h.role === 'user' ? 'User' : 'AksaBot'}: ${h.content}`).join('\n')
@@ -201,10 +209,10 @@ ATURAN WAJIB:
 1. Jawab LENGKAP dengan informasi detail — 5-10 kalimat adalah ideal.
 2. Prioritas TINGGI pada [REFERENSI]. Gunakan sebanyak mungkin jika relevan.
 3. Jika tidak ada referensi spesifik, jawab tetap berkualitas seputar Cendekia Aksara.
-4. Format: Gunakan <b>bold</b>, <br>new line</br>. JANGAN pakai markdown **.
+4. Format: Gunakan <b>bold</b>, gunakan \\n untuk baris baru. JANGAN pakai markdown **.
 5. Emoji OK tapi max 2 per pesan.
-6. Ingat konteks percakapan & jawab sesuai.
-7. KUNCI: Jangan singkat-singkat. Berikan nilai penuh untuk user!
+6. Ingat konteks percakapan & jawab sesuai riwayat di bawah.
+7. KUNCI: Jangan singkat-singkat, apalagi hanya menyapa nama user. Berikan jawaban penuh sesuai pertanyaan!
 
 [REFERENSI CENDEKIA AKSARA]:
 ${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'Database pembelajaran. Jawab berdasarkan pengetahuan umum Cendekia Aksara.'}
@@ -228,14 +236,23 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method !== 'POST') return res.status(405).json({ error: true, reply: 'Method not allowed' });
+
+    // ── Validasi konfigurasi lebih awal, supaya errornya jelas di log
+    // dan tidak muncul sebagai "koneksi bermasalah" yang membingungkan. ──
+    if (!genAI) {
+        console.error('[CONFIG] GEMINI_API_KEY tidak ditemukan di environment variables!');
+        return res.status(500).json({
+            error: true,
+            reply: 'Konfigurasi server belum lengkap (API key belum diset). Admin sudah diberitahu. 🙏'
+        });
+    }
 
     try {
-        const { message, userName, history } = req.body;
+        const { message, userName, history } = req.body || {};
 
-        // Validasi input
         if (!message || message.trim().length === 0) {
-            return res.status(400).json({ error: true, message: 'Pesan kosong' });
+            return res.status(400).json({ error: true, reply: 'Pesan tidak boleh kosong.' });
         }
 
         // Load restrictions
@@ -243,34 +260,34 @@ export default async function handler(req, res) {
 
         // Check restricted keywords
         if (isInputRestricted(message, restrictions)) {
-            // Save pertanyaan yang di-restrict
-            await saveQuestion(message, userName, true, 'Pertanyaan di luar scope komunitas Cendekia Aksara');
-            
-            return res.status(400).json({
-                error: true,
-                message: 'Maaf, saya hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu termasuk di luar scope saya. 🤖'
+            const restrictedReply = 'Maaf, saya hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu termasuk di luar scope saya. 🤖';
+            await saveQuestion(message, userName, true, restrictedReply);
+
+            // Status 200 (bukan error) karena ini alur bisnis normal, bukan
+            // kegagalan sistem — supaya client menampilkan pesan yang tepat,
+            // bukan pesan generik "koneksi bermasalah".
+            return res.status(200).json({
+                restricted: true,
+                reply: restrictedReply,
+                timestamp: new Date().toISOString()
             });
         }
 
-        // Load knowledge base
+        // Load knowledge base (server = satu-satunya sumber kebenaran)
         const knowledgeContext = await loadKnowledgeBase();
-
-        // Cek apakah sudah ada jawaban di knowledge base
         const similarAnswer = findSimilarInKnowledge(message);
-        
-        // Build prompt untuk AI
+
         const prompt = buildPrompt(userName, knowledgeContext, history, message);
         let lastError = null;
         let finalAnswer = null;
         let usedModel = null;
 
-        // Try different models
         for (const modelName of MODEL_CHAIN) {
             try {
                 const model = genAI.getGenerativeModel({
                     model: modelName,
                     generationConfig: {
-                        maxOutputTokens: 600,
+                        maxOutputTokens: 1024,
                         temperature: 0.7,
                         topP: 0.9,
                     }
@@ -279,31 +296,32 @@ export default async function handler(req, res) {
                 const result = await model.generateContent(prompt);
                 let text = result.response.text().trim();
 
-                // Clean markdown
                 text = text
                     .replace(/```[\w]*\n?/g, '')
                     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                     .replace(/\*(.*?)\*/g, '<i>$1</i>')
                     .trim();
 
+                if (!text) {
+                    throw new Error(`Model ${modelName} mengembalikan jawaban kosong`);
+                }
+
                 finalAnswer = text;
                 usedModel = modelName;
                 break;
 
             } catch (err) {
-                console.warn(`Model ${modelName} gagal:`, err.message);
+                console.warn(`[MODEL] ${modelName} gagal:`, err?.message || err, err?.status ? `(status ${err.status})` : '');
                 lastError = err;
             }
         }
 
         if (!finalAnswer) {
-            throw lastError || new Error('Semua model gagal');
+            throw lastError || new Error('Semua model pada MODEL_CHAIN gagal merespons');
         }
 
-        // ── PENTING: Save pertanyaan dengan jawaban langsung ──
         const questionId = await saveQuestion(message, userName, true, finalAnswer);
 
-        // Simulate human typing
         await sleep(randomDelay(800, 1500));
 
         return res.status(200).json({
@@ -315,18 +333,17 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error("AksaBot error:", error);
-        
-        // Save pertanyaan yang error untuk admin follow-up
+        console.error('[AksaBot] Fatal error:', error?.message || error);
+
         if (req.body?.message) {
             await saveQuestion(req.body.message, req.body.userName || 'Anonymous', false, null);
         }
 
         await sleep(randomDelay(500, 1000));
-        
+
         return res.status(500).json({
             error: true,
-            reply: "Terjadi kesalahan. Admin sudah diberitahu untuk follow-up. 🙏"
+            reply: 'Terjadi kesalahan di server. Admin sudah diberitahu untuk follow-up. 🙏'
         });
     }
 }
