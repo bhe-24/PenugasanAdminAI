@@ -10,6 +10,79 @@ const MODEL_CHAIN = [
     "gemma-3-12b-it",   // Gemma 4 12B sebagai safety net terakhir
 ];
 
+// In-memory knowledge base cache (replace with DB query if using persistent storage)
+let knowledgeCache = {};
+
+// Keywords yang membatasi scope chatbot
+const RESTRICTED_KEYWORDS = [
+    'puisi',
+    'tugas',
+    'homework',
+    'essay',
+    'artikel',
+    'berita',
+    'cuaca',
+    'ramalan',
+    'prediksi',
+    'jadwal tv',
+    'olahraga luar',
+    'di luar komunitas'
+];
+
+/**
+ * Check apakah user input mengandung keyword yang membatasi
+ */
+function isInputRestricted(message) {
+    if (!message) return false;
+    const lowerMsg = message.toLowerCase().trim();
+    return RESTRICTED_KEYWORDS.some(keyword => lowerMsg.includes(keyword));
+}
+
+/**
+ * Normalize pertanyaan untuk lookup di knowledge base
+ * Hapus tanda baca, convert ke lowercase, trim whitespace
+ */
+function normalizeQuestion(q) {
+    return q
+        .toLowerCase()
+        .trim()
+        .replace(/[?!.,;:]/g, '')
+        .replace(/\s+/g, ' ');
+}
+
+/**
+ * Cek apakah pertanyaan sudah pernah dijawab (dari in-memory cache)
+ * Dalam production, ganti dengan query ke SQLite atau database
+ */
+function getFromKnowledgeBase(message) {
+    const normalized = normalizeQuestion(message);
+    
+    // Cari matching pertanyaan dengan similarity (simple substring match)
+    for (const [key, value] of Object.entries(knowledgeCache)) {
+        if (key.includes(normalized) || normalized.includes(key)) {
+            return value;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Simpan pertanyaan & jawaban baru ke knowledge base
+ * Dalam production, ganti dengan INSERT ke SQLite atau database
+ */
+function saveToKnowledgeBase(message, reply) {
+    const normalized = normalizeQuestion(message);
+    knowledgeCache[normalized] = {
+        question: message,
+        answer: reply,
+        savedAt: new Date().toISOString(),
+    };
+    
+    console.log(`[KB] Saved: "${message}" => "${reply.substring(0, 50)}..."`);
+    return true;
+}
+
 function buildPrompt(userName, knowledgeContext, history, message) {
     const historyText = history && history.length
         ? history.map(h => `${h.role === 'user' ? 'User' : 'AksaBot'}: ${h.content}`).join('\n')
@@ -35,6 +108,43 @@ User: ${message}
 AksaBot:`;
 }
 
+/**
+ * Middleware: Validasi input user
+ * Return object dengan { allowed: boolean, errorMessage?: string }
+ */
+function validateInput(message) {
+    if (!message || message.trim().length === 0) {
+        return {
+            allowed: false,
+            errorMessage: 'Pesan kosong'
+        };
+    }
+
+    // Check restricted keywords
+    if (isInputRestricted(message)) {
+        return {
+            allowed: false,
+            errorMessage: 'Maaf, saya hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu termasuk di luar scope saya. 🤖'
+        };
+    }
+
+    return { allowed: true };
+}
+
+/**
+ * Sleep function untuk simulasi "human-like" response time
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Generate random delay antara min dan max ms
+ */
+function randomDelay(minMs, maxMs) {
+    return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,10 +155,33 @@ export default async function handler(req, res) {
 
     try {
         const { message, knowledgeContext, userName, history } = req.body;
-        if (!message) return res.status(400).json({ error: 'Pesan kosong' });
 
+        // ── STEP 1: Validasi input dengan middleware ──
+        const validation = validateInput(message);
+        if (!validation.allowed) {
+            return res.status(400).json({
+                error: true,
+                message: validation.errorMessage
+            });
+        }
+
+        // ── STEP 2: Cek Knowledge Base ("Database Otak") ──
+        const cachedReply = getFromKnowledgeBase(message);
+        if (cachedReply) {
+            console.log(`[KB HIT] Returning cached reply for: "${message}"`);
+            
+            // Simulasi human-like response time (500-1200ms untuk cached)
+            await sleep(randomDelay(500, 1200));
+            
+            return res.status(200).json({
+                reply: cachedReply.answer,
+                model: 'knowledge-base-cache',
+                fromCache: true
+            });
+        }
+
+        // ── STEP 3: Query AI jika belum ada di knowledge base ──
         const prompt = buildPrompt(userName, knowledgeContext, history, message);
-
         let lastError = null;
 
         for (const modelName of MODEL_CHAIN) {
@@ -72,7 +205,18 @@ export default async function handler(req, res) {
                     .replace(/\*(.*?)\*/g, '<i>$1</i>')
                     .trim();
 
-                return res.status(200).json({ reply: text, model: modelName });
+                // ── STEP 4: Simpan ke Knowledge Base ("Pembelajaran") ──
+                saveToKnowledgeBase(message, text);
+
+                // ── STEP 5: Simulasi human-like response time (800-1500ms) ──
+                // Biasanya orang perlu waktu untuk mengetik & berpikir
+                await sleep(randomDelay(800, 1500));
+
+                return res.status(200).json({
+                    reply: text,
+                    model: modelName,
+                    fromCache: false
+                });
 
             } catch (err) {
                 console.warn(`Model ${modelName} gagal:`, err.message);
@@ -83,13 +227,22 @@ export default async function handler(req, res) {
 
         // Semua model gagal
         console.error("Semua model gagal:", lastError);
+        
+        // Tetap apply delay meski error
+        await sleep(randomDelay(800, 1500));
+        
         return res.status(500).json({
+            error: true,
             reply: "Aduh, semua sistem lagi sibuk nih 💤. Coba lagi sebentar ya!"
         });
 
     } catch (error) {
         console.error("AksaBot handler error:", error);
+        
+        await sleep(randomDelay(500, 1000));
+        
         return res.status(500).json({
+            error: true,
             reply: "Terjadi kesalahan tak terduga. Coba lagi ya! 🙏"
         });
     }
