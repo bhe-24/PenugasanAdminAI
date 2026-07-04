@@ -597,12 +597,38 @@
             if(btnCloseModal) btnCloseModal.disabled = true; // FIX: cegah modal ditutup selagi proses berjalan
             isSubmitting = true; // FIX
 
+            // FIX: progress indicator hidup (bukan teks statis) supaya kelihatan
+            // jelas sistem masih bekerja, sedang di tahap mana, dan sudah berapa lama.
+            let progressSeconds = 0;
+            const renderProgressHTML = (stageText) => `
+                <div style="text-align:left; font-size:0.95rem;">
+                    <p id="swal-stage-text" style="margin:0 0 10px 0; font-weight:600; color:#003366;">${stageText}</p>
+                    <p style="margin:0; font-size:0.85rem; color:#64748b;">
+                        Berjalan selama: <b id="swal-timer">0</b> detik
+                    </p>
+                </div>
+            `;
+
             Swal.fire({
                 title: 'Mencetak Keputusan...',
-                html: 'Sistem sedang membuat dokumen PDF resmi ke Google Drive dan memperbarui database...',
+                html: renderProgressHTML('Tahap 1/2: Mengirim data ke Google Drive (generate PDF)...'),
                 allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
+
+            const progressTimer = setInterval(() => {
+                progressSeconds++;
+                const timerEl = document.getElementById('swal-timer');
+                if (timerEl) timerEl.innerText = progressSeconds;
+                // Kalau lebih dari 15 detik, kasih tahu ini masih normal (GAS memang lambat)
+                const stageEl = document.getElementById('swal-stage-text');
+                if (stageEl && progressSeconds === 15) {
+                    stageEl.innerHTML += '<br><span style="font-weight:400; color:#d97706;">Google Drive sedang memproses, ini normal untuk naskah panjang. Mohon tunggu...</span>';
+                }
+            }, 1000);
 
             try {
                 let linkPdfAdmin = proposalData.link_pdf_admin || null;
@@ -648,6 +674,15 @@
                         : "Gagal menghubungi Google Drive.";
                 }
 
+                // FIX: update status tahap ke "menyimpan ke database" supaya kelihatan
+                // sudah lewat dari tahap GAS (jadi Anda tahu bagian mana yang sedang berjalan)
+                const stageElAfterGas = document.getElementById('swal-stage-text');
+                if (stageElAfterGas) {
+                    stageElAfterGas.innerHTML = pdfSuccess
+                        ? 'Tahap 2/2: PDF berhasil dibuat. Menyimpan status ke database...'
+                        : 'Tahap 2/2: PDF gagal dibuat, tetap menyimpan status ke database...';
+                }
+
                 // --- LANGKAH 2: SIMPAN KEPUTUSAN KE FIRESTORE ---
                 // FIX: pakai `proposalId` (variabel lokal), bukan `activeProposalId` (global)
                 await setDoc(doc(db, 'pitching_projects', proposalId), {
@@ -657,7 +692,9 @@
                     updatedAt: serverTimestamp()
                 }, { merge: true });
 
-                // --- LANGKAH 3: NOTIFIKASI HASIL ---
+                clearInterval(progressTimer); // FIX: hentikan timer, prosesnya sudah selesai
+
+                // --- LANGKAH 3: NOTIFIKASI HASIL (jelas berhasil / gagal, tidak auto-close) ---
                 if (pdfSuccess) {
                     Swal.fire({
                         icon: 'success',
@@ -670,10 +707,12 @@
                         loadProposals();
                     });
                 } else {
+                    // FIX: kalau PDF gagal, tampilkan pesan errorMessage asli dari GAS supaya
+                    // Anda tahu persis kenapa gagal (bukan cuma "gagal" tanpa detail)
                     Swal.fire({
                         icon: 'warning',
                         title: 'Database Terupdate, Tapi PDF Gagal!',
-                        text: `Status berhasil diubah menjadi ${decisionType.toUpperCase()}, tapi sistem gagal mencetak PDF ke Google Drive. Error: ${errorMessage}`,
+                        html: `Status berhasil diubah menjadi <b>${decisionType.toUpperCase()}</b>, tapi sistem gagal mencetak PDF ke Google Drive.<br><br><b>Detail error:</b><br><code style="word-break:break-all;">${errorMessage || 'Tidak ada pesan error dari server.'}</code>`,
                         confirmButtonColor: '#f59e0b'
                     }).then(() => {
                         isSubmitting = false; // FIX
@@ -683,8 +722,13 @@
                 }
 
             } catch (error) {
+                clearInterval(progressTimer); // FIX
                 console.error("Error Submit Decision:", error);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyimpan keputusan ke Database.', 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    html: `Terjadi kesalahan sistem saat menyimpan keputusan ke Database.<br><br><b>Detail:</b><br><code style="word-break:break-all;">${error.message}</code>`
+                });
                 isSubmitting = false; // FIX
                 if(btnRev) btnRev.disabled = false; 
                 if(btnAcc) btnAcc.disabled = false;
