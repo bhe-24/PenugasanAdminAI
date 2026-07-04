@@ -101,6 +101,7 @@
         .eval-header h2 { margin: 0; font-size: 1.4rem; color: var(--primary); display: flex; align-items: center; gap: 10px; font-family: 'Aleo', serif;}
         .btn-close-modal { background: white; border: 1px solid #cbd5e1; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; color: #64748b; transition: 0.2s; display: flex; align-items: center; gap: 8px; font-family: 'Poppins';}
         .btn-close-modal:hover { background: #fee2e2; color: var(--danger); border-color: #fca5a5;}
+        .btn-close-modal:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .eval-body { display: flex; flex: 1; overflow: hidden; }
         
@@ -218,11 +219,11 @@
 
     </div>
 
-    <!-- WORKSPACE EVALUASI (TIDAK BERUBAH FUNGSI, HANYA DESAIN DIPERHALUS) -->
+    <!-- WORKSPACE EVALUASI -->
     <div class="eval-modal" id="eval-modal">
         <div class="eval-header">
             <h2><i class="fa-solid fa-microscope"></i> Workspace Evaluasi Naskah</h2>
-            <button class="btn-close-modal" onclick="closeEvalModal()"><i class="fa-solid fa-xmark"></i> Tutup Evaluasi</button>
+            <button class="btn-close-modal" id="btn-close-modal" onclick="closeEvalModal()"><i class="fa-solid fa-xmark"></i> Tutup Evaluasi</button>
         </div>
         
         <div class="eval-body">
@@ -296,9 +297,22 @@
         let activeProposalId = null;
         let activeProposalData = null;
         let adminInfo = null;
-        
+        let isSubmitting = false; // FIX: guard supaya tidak submit dobel / modal ditutup di tengah proses
+
         // URL GOOGLE APPS SCRIPT
         const GAS_URL = "https://script.google.com/macros/s/AKfycbwTcKbpNTi6T6WOtbRsvuTg3YOW4ps6KnUHfB-zbIUCB8czGH2fbj0jTqxymBcUYgxUGg/exec";
+
+        // FIX: helper fetch dengan timeout, supaya kalau GAS lambat/hang tidak menggantung selamanya
+        async function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { ...options, signal: controller.signal });
+                return res;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
 
         (async () => {
             adminInfo = await checkAuth('pengajar'); // Menggunakan 'pengajar' sesuai standar admin
@@ -439,6 +453,10 @@
             btnAi.disabled = false;
             btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Naskah dengan AI';
 
+            // FIX: pastikan tombol tutup & guard submit ter-reset tiap kali modal dibuka
+            document.getElementById('btn-close-modal').disabled = false;
+            isSubmitting = false;
+
             if (data.status === 'acc') {
                 btnRev.style.display = 'none';
                 btnAcc.style.display = 'none';
@@ -466,6 +484,15 @@
         };
 
         window.closeEvalModal = () => {
+            // FIX: cegah modal ditutup selagi proses submit (fetch GAS / Firestore) masih berjalan.
+            // Inilah akar penyebab error "Cannot read properties of null (reading 'indexOf')":
+            // sebelumnya menutup modal saat proses submit sedang berjalan akan me-reset
+            // activeProposalId menjadi null, lalu kode yang masih berjalan mencoba
+            // memakainya untuk doc(db, 'pitching_projects', activeProposalId) -> crash.
+            if (isSubmitting) {
+                Swal.fire('Mohon Tunggu', 'Proses penyimpanan sedang berjalan, mohon tunggu sebentar sebelum menutup jendela ini.', 'info');
+                return;
+            }
             document.getElementById('eval-modal').classList.remove('active');
             activeProposalId = null;
             activeProposalData = null;
@@ -537,6 +564,21 @@
 
         // --- 5. SUBMIT KEPUTUSAN & CETAK PDF ---
         window.submitDecision = async (decisionType) => {
+
+            // FIX #1: simpan id & data ke variabel LOKAL di awal fungsi.
+            // Jangan bergantung pada `activeProposalId` / `activeProposalData` (variabel global)
+            // setelah melewati `await`, karena nilainya bisa berubah (jadi null) di tengah proses
+            // -- misalnya kalau modal keburu tertutup. Ini akar penyebab error sebelumnya.
+            const proposalId = activeProposalId;
+            const proposalData = activeProposalData;
+
+            // FIX #2: guard eksplisit -- kalau karena suatu sebab id-nya kosong, hentikan
+            // di sini dengan pesan yang jelas, bukan crash dengan TypeError yang membingungkan.
+            if (!proposalId || !proposalData) {
+                Swal.fire('Gagal', 'Data proposal tidak ditemukan. Silakan tutup jendela ini dan buka kembali evaluasinya.', 'error');
+                return;
+            }
+
             const feedback = document.getElementById('mentor-feedback').value.trim();
             
             if (decisionType === 'revisi' && feedback === '') {
@@ -548,10 +590,13 @@
             const btnRev = document.getElementById('btn-minta-revisi');
             const btnAcc = document.getElementById('btn-acc');
             const btnUnlock = document.getElementById('btn-unlock');
+            const btnCloseModal = document.getElementById('btn-close-modal');
             if(btnRev) btnRev.disabled = true; 
             if(btnAcc) btnAcc.disabled = true;
             if(btnUnlock) btnUnlock.disabled = true;
-            
+            if(btnCloseModal) btnCloseModal.disabled = true; // FIX: cegah modal ditutup selagi proses berjalan
+            isSubmitting = true; // FIX
+
             Swal.fire({
                 title: 'Mencetak Keputusan...',
                 html: 'Sistem sedang membuat dokumen PDF resmi ke Google Drive dan memperbarui database...',
@@ -560,7 +605,7 @@
             });
 
             try {
-                let linkPdfAdmin = activeProposalData.link_pdf_admin || null;
+                let linkPdfAdmin = proposalData.link_pdf_admin || null;
                 let pdfSuccess = false;
                 let errorMessage = "";
 
@@ -568,23 +613,25 @@
                 try {
                     const payloadGAS = {
                         actionType: decisionType === 'acc' ? "acc_admin" : "revisi_admin",
-                        studentName: activeProposalData.studentName,
-                        judul: activeProposalData.judul,
-                        genre: activeProposalData.genre,
-                        target_kata: activeProposalData.target_kata,
-                        logline: activeProposalData.logline,
-                        sinopsis: activeProposalData.sinopsis,
-                        outline: activeProposalData.outline, 
+                        studentName: proposalData.studentName,
+                        judul: proposalData.judul,
+                        genre: proposalData.genre,
+                        target_kata: proposalData.target_kata,
+                        logline: proposalData.logline,
+                        sinopsis: proposalData.sinopsis,
+                        outline: proposalData.outline, 
                         catatan_mentor: feedback,
                         nama_mentor: adminInfo ? adminInfo.name : "Admin Cendekia Aksara" 
                     };
 
-                    const responseGAS = await fetch(GAS_URL, {
+                    // FIX: pakai fetchWithTimeout supaya kalau GAS hang, tidak menggantung selamanya
+                    // dan errornya jelas ("waktu tunggu habis") bukan diam-diam gantung.
+                    const responseGAS = await fetchWithTimeout(GAS_URL, {
                         method: 'POST',
                         body: JSON.stringify(payloadGAS),
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-                    });
-                    
+                    }, 25000);
+
                     const resultGAS = await responseGAS.json();
                     
                     if (resultGAS.status === "success") {
@@ -596,11 +643,14 @@
                     }
                 } catch (gasErr) {
                     console.error("Gagal koneksi ke Apps Script:", gasErr);
-                    errorMessage = "Gagal menghubungi Google Drive.";
+                    errorMessage = gasErr.name === 'AbortError'
+                        ? "Waktu tunggu ke Google Apps Script habis (>25 detik)."
+                        : "Gagal menghubungi Google Drive.";
                 }
 
                 // --- LANGKAH 2: SIMPAN KEPUTUSAN KE FIRESTORE ---
-                await setDoc(doc(db, 'pitching_projects', activeProposalId), {
+                // FIX: pakai `proposalId` (variabel lokal), bukan `activeProposalId` (global)
+                await setDoc(doc(db, 'pitching_projects', proposalId), {
                     status: decisionType,
                     feedback_mentor: feedback,
                     link_pdf_admin: linkPdfAdmin,
@@ -615,6 +665,7 @@
                         text: decisionType === 'acc' ? 'Proposal di-ACC dan Dokumen PDF telah tersimpan di Drive.' : 'Permintaan revisi dan PDF review telah dikirim.',
                         confirmButtonColor: '#003366'
                     }).then(() => {
+                        isSubmitting = false; // FIX
                         closeEvalModal();
                         loadProposals();
                     });
@@ -625,6 +676,7 @@
                         text: `Status berhasil diubah menjadi ${decisionType.toUpperCase()}, tapi sistem gagal mencetak PDF ke Google Drive. Error: ${errorMessage}`,
                         confirmButtonColor: '#f59e0b'
                     }).then(() => {
+                        isSubmitting = false; // FIX
                         closeEvalModal();
                         loadProposals();
                     });
@@ -633,9 +685,11 @@
             } catch (error) {
                 console.error("Error Submit Decision:", error);
                 Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyimpan keputusan ke Database.', 'error');
+                isSubmitting = false; // FIX
                 if(btnRev) btnRev.disabled = false; 
                 if(btnAcc) btnAcc.disabled = false;
                 if(btnUnlock) btnUnlock.disabled = false;
+                if(btnCloseModal) btnCloseModal.disabled = false; // FIX
             }
         };
     </script>
