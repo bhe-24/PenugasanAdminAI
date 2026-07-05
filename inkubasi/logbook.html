@@ -119,6 +119,29 @@
             .chapter-actions { width: 100%; }
             .btn-preview, .btn-hapus { flex: 1; justify-content: center; }
         }
+
+        /* --- TAMBAHAN: CSS FLOATING BUTTON EVALUASI --- */
+        .floating-eval-btn { position: fixed; bottom: 30px; right: 30px; width: 65px; height: 65px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.8rem; cursor: pointer; box-shadow: 0 10px 20px rgba(109, 40, 217, 0.4); z-index: 5000; transition: 0.3s; border: none; }
+        .floating-eval-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 15px 25px rgba(109, 40, 217, 0.5); }
+        .floating-eval-btn .badge-notif { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 0.75rem; font-weight: bold; width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid white; display: none; }
+
+        /* --- TAMBAHAN: CSS MODAL EVALUASI MENTOR --- */
+        .eval-box-mentor { background: white; width: 95%; max-width: 650px; padding: 25px; border-radius: 16px; transform: scale(0.9); transition: 0.3s; box-shadow: 0 25px 50px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto; position: relative;}
+        .modal-overlay.active .eval-box-mentor { transform: scale(1); }
+        .eval-header-title { font-family: 'Playfair Display', serif; color: var(--primary); font-size: 1.5rem; margin: 0 0 15px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; display:flex; align-items:center; gap:8px;}
+        
+        .eval-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin-bottom: 15px; }
+        .eval-section h4 { margin: 0 0 12px 0; color: #0f172a; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;}
+        .eval-section p.catatan { font-size: 0.9rem; line-height: 1.7; color: #334155; white-space: pre-wrap; background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin:0;}
+        .eval-meta { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: 500;}
+        
+        .score-grid-readonly { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 15px; }
+        .score-item-readonly { background: white; border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; text-align: center; }
+        .score-item-readonly span { display: block; font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; }
+        .score-item-readonly strong { font-size: 1.2rem; color: #6d28d9; }
+        
+        .btn-close-eval { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.2s;}
+        .btn-close-eval:hover { background: #e2e8f0; color: #0f172a; }
     </style>
 </head>
 <body>
@@ -128,6 +151,7 @@
         <h3 style="color: #003366; margin: 0;">Memuat Studio...</h3>
     </div>
 
+    <!-- MODAL REGISTRASI PENULIS -->
     <div id="author-modal" class="modal-overlay">
         <div class="modal-box">
             <h3><i class="fa-solid fa-file-signature"></i> Registrasi Hak Cipta</h3>
@@ -152,6 +176,7 @@
         </div>
     </div>
 
+    <!-- MODAL AKTIVASI BIMBINGAN -->
     <div id="bimbingan-modal" class="modal-overlay">
         <div class="modal-box">
             <h3><i class="fa-solid fa-handshake"></i> Aktivasi Masa Bimbingan</h3>
@@ -168,6 +193,7 @@
         </div>
     </div>
 
+    <!-- MODAL PENGAJUAN TAMAT -->
     <div id="tamat-modal" class="modal-overlay">
         <div class="modal-box">
             <h3><i class="fa-solid fa-flag-checkered"></i> Pengajuan Naskah Tamat</h3>
@@ -189,6 +215,23 @@
             </form>
         </div>
     </div>
+
+    <!-- TAMBAHAN: MODAL EVALUASI MENTOR & AI -->
+    <div id="eval-mentor-modal" class="modal-overlay">
+        <div class="eval-box-mentor">
+            <h3 class="eval-header-title"><i class="fa-solid fa-clipboard-check"></i> Catatan & Evaluasi Mentor</h3>
+            <div id="eval-content-container">
+                <div style="text-align:center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat data...</div>
+            </div>
+            <button class="btn-close-eval" onclick="document.getElementById('eval-mentor-modal').classList.remove('active')">Tutup</button>
+        </div>
+    </div>
+
+    <!-- TAMBAHAN: FLOATING BUTTON -->
+    <button class="floating-eval-btn" onclick="bukaEvaluasiMentor()" title="Lihat Catatan Mentor">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span class="badge-notif" id="eval-notif">!</span>
+    </button>
 
     <div class="container">
         <div class="page-header">
@@ -288,20 +331,13 @@
         let chapterCount = 0;
         let isTamat = false;
 
-        // --- URL APPS SCRIPT ---
         const GAS_URL_STUDIO = "https://script.google.com/macros/s/AKfycbxhnEISuowiQsAXqFTNDkalNXAT36rDFcwsvV1sGYShakSjhsW4NQQIahx2SDaHWmisTw/exec";
 
-        // ============================================================
-        // FORMAT TEKS (TOOLBAR)
-        // ============================================================
         window.formatText = (command) => {
             document.execCommand(command, false, null);
             document.getElementById('editor').focus();
         };
 
-        // ============================================================
-        // WORD COUNTER
-        // ============================================================
         const editorDiv   = document.getElementById('editor');
         const countDisplay = document.getElementById('word-count');
         editorDiv.addEventListener('input', () => {
@@ -310,9 +346,6 @@
             countDisplay.innerText = words.length.toLocaleString('id-ID');
         });
 
-        // ============================================================
-        // INIT — CEK AUTH & PITCHING
-        // ============================================================
         (async () => {
             currentUser = await checkAuth('siswa');
             if (currentUser) {
@@ -324,9 +357,6 @@
             }
         })();
 
-        // ============================================================
-        // CEK STATUS PITCHING & PROFIL PENULIS
-        // ============================================================
         async function checkPitchingAndAuthorData() {
             try {
                 const pitchRef  = doc(db, 'pitching_projects', currentUser.uid);
@@ -353,7 +383,11 @@
                     authorData = authorSnap.data();
                     isTamat = authorData.is_tamat || false;
                     
-                    // CEK STATUS BIMBINGAN
+                    // --- Cek Notifikasi Evaluasi ---
+                    if (authorData.evaluasi_final || (authorData.evaluasi_checkpoints && authorData.evaluasi_checkpoints.length > 0)) {
+                        document.getElementById('eval-notif').style.display = 'flex';
+                    }
+                    
                     if (!authorData.bimbingan_active) {
                         document.getElementById('main-loading').style.display = 'none';
                         document.getElementById('bimbingan-modal').classList.add('active');
@@ -368,9 +402,94 @@
             }
         }
 
-        // ============================================================
-        // SUBMIT FORM REGISTRASI PENULIS
-        // ============================================================
+        // --- TAMBAHAN: BUKA POPUP EVALUASI MENTOR ---
+        window.bukaEvaluasiMentor = async () => {
+            document.getElementById('eval-mentor-modal').classList.add('active');
+            const container = document.getElementById('eval-content-container');
+            container.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat data evaluasi...</div>';
+
+            try {
+                const docSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
+                if (!docSnap.exists()) {
+                    container.innerHTML = '<p style="text-align:center; color:#64748b;">Belum ada data penulis.</p>';
+                    return;
+                }
+
+                const data = docSnap.data();
+                const evalFinal = data.evaluasi_final;
+                const checkpoints = data.evaluasi_checkpoints || [];
+
+                let html = '';
+
+                if (!evalFinal && checkpoints.length === 0) {
+                    html = '<div class="eval-section" style="text-align:center; color:#64748b;"><i class="fa-solid fa-folder-open" style="font-size:2rem; margin-bottom:10px;"></i><br>Belum ada catatan atau evaluasi dari mentor saat ini.</div>';
+                }
+
+                // Render Evaluasi Final
+                if (evalFinal) {
+                    let scoreHtml = '';
+                    if (evalFinal.skor_detail) {
+                        scoreHtml = `
+                            <div class="score-grid-readonly">
+                                <div class="score-item-readonly"><span>Ide & Orisinalitas</span><strong>${evalFinal.skor_detail.t1}</strong></div>
+                                <div class="score-item-readonly"><span>Struktur Alur</span><strong>${evalFinal.skor_detail.t2}</strong></div>
+                                <div class="score-item-readonly"><span>Karakter</span><strong>${evalFinal.skor_detail.t3}</strong></div>
+                                <div class="score-item-readonly"><span>Genre & Tone</span><strong>${evalFinal.skor_detail.t4}</strong></div>
+                                <div class="score-item-readonly"><span>Teknik & Pacing</span><strong>${evalFinal.skor_detail.t5}</strong></div>
+                                <div class="score-item-readonly"><span>Gaya Bahasa</span><strong>${evalFinal.skor_detail.t6}</strong></div>
+                                <div class="score-item-readonly"><span>Kekuatan Dialog</span><strong>${evalFinal.skor_detail.t7}</strong></div>
+                                <div class="score-item-readonly"><span>Plot Hole</span><strong>${evalFinal.skor_detail.t8}</strong></div>
+                                <div class="score-item-readonly"><span>Resolusi (UTS)</span><strong>${evalFinal.skor_detail.uts}</strong></div>
+                                <div class="score-item-readonly"><span>PUEBI (UAS)</span><strong>${evalFinal.skor_detail.uas}</strong></div>
+                            </div>
+                        `;
+                    }
+                    
+                    let dateStr = evalFinal.timestamp && evalFinal.timestamp.toDate ? evalFinal.timestamp.toDate().toLocaleDateString('id-ID') : '-';
+                    
+                    html += `
+                        <div class="eval-section" style="border-left: 4px solid #8b5cf6;">
+                            <h4><i class="fa-solid fa-graduation-cap" style="color:#8b5cf6;"></i> Evaluasi Final Naskah</h4>
+                            <div class="eval-meta">
+                                <span>Oleh: ${evalFinal.nama_mentor || 'AI Mentor'}</span>
+                                <span>${dateStr}</span>
+                            </div>
+                            <p class="catatan">${evalFinal.catatan}</p>
+                            ${scoreHtml}
+                        </div>
+                    `;
+                }
+
+                // Render Checkpoints (Dibalik agar yang terbaru di atas)
+                if (checkpoints.length > 0) {
+                    const reversedCheckpoints = [...checkpoints].reverse();
+                    
+                    html += `<h4 style="margin:20px 0 10px 0; color:var(--primary); font-size:1.1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Evaluasi Progres</h4>`;
+                    
+                    reversedCheckpoints.forEach(cp => {
+                        let dateStr = cp.timestamp && cp.timestamp.toDate ? cp.timestamp.toDate().toLocaleDateString('id-ID') : '-';
+                        html += `
+                            <div class="eval-section">
+                                <h4>Progres Bab ${cp.bab_dari} - ${cp.bab_sampai}</h4>
+                                <div class="eval-meta">
+                                    <span>Oleh: ${cp.nama_mentor || 'AI Mentor'}</span>
+                                    <span>${dateStr}</span>
+                                </div>
+                                <p class="catatan">${cp.catatan}</p>
+                            </div>
+                        `;
+                    });
+                }
+
+                container.innerHTML = html;
+                document.getElementById('eval-notif').style.display = 'none'; // Sembunyikan notifikasi setelah dibuka
+
+            } catch (error) {
+                container.innerHTML = '<p style="text-align:center; color:red;">Gagal memuat data evaluasi.</p>';
+            }
+        };
+
+
         document.getElementById('author-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -379,14 +498,14 @@
 
             try {
                 authorData = {
-                    uid       : currentUser.uid,
-                    real_name : currentUser.name,
-                    pen_name  : document.getElementById('pen_name').value,
-                    email     : document.getElementById('author_email').value,
+                    uid        : currentUser.uid,
+                    real_name  : currentUser.name,
+                    pen_name   : document.getElementById('pen_name').value,
+                    email      : document.getElementById('author_email').value,
                     novel_title: pitchData.judul,
-                    is_tamat  : false,
+                    is_tamat   : false,
                     bimbingan_active: false,
-                    createdAt : serverTimestamp()
+                    createdAt  : serverTimestamp()
                 };
                 await setDoc(doc(db, 'author_profiles', currentUser.uid), authorData);
                 document.getElementById('author-modal').classList.remove('active');
@@ -401,9 +520,6 @@
             }
         });
 
-        // ============================================================
-        // SUBMIT FORM AKTIVASI BIMBINGAN
-        // ============================================================
         document.getElementById('bimbingan-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -419,7 +535,6 @@
                 };
                 await updateDoc(doc(db, 'author_profiles', currentUser.uid), bimbinganUpdate);
                 
-                // Refresh data
                 const updatedSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
                 authorData = updatedSnap.data();
                 
@@ -436,16 +551,12 @@
             }
         });
 
-        // ============================================================
-        // SETUP PANEL BIMBINGAN
-        // ============================================================
         function setupBimbingan(data) {
             document.getElementById('bimbingan-panel').style.display = 'block';
             
             let tokens = data.bimbingan_token !== undefined ? data.bimbingan_token : 5;
             document.getElementById('sisa-token').innerText = tokens;
 
-            // Hitung sisa bulan
             let sisaBulan = 12;
             if (data.bimbingan_start_date) {
                 const startDate = data.bimbingan_start_date.toDate();
@@ -468,17 +579,12 @@
             }
         }
 
-       // ============================================================
-        // HUBUNGI PEMBIMBING (WA INTEGRATION) - REVISI
-        // ============================================================
         window.hubungiPembimbing = async () => {
             const btnWa = document.getElementById('btn-wa');
             btnWa.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan...';
             btnWa.disabled = true;
 
             try {
-                // PERBAIKAN 1: Pakai query 'asc' (agar tidak minta index baru di Firebase)
-                // lalu kita ambil array elemen yang paling akhir (bab terbaru).
                 const q = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
                 const snap = await getDocs(q);
                 let linkNaskah = "Belum ada naskah yang dikerjakan.";
@@ -488,21 +594,17 @@
                     linkNaskah = latestData.link_word || latestData.link_pdf || "Link tidak ditemukan";
                 }
 
-                // PERBAIKAN 2: Beri nilai default (|| 0) jika data bimbingan_token kosong/undefined
                 const authorRef = doc(db, 'author_profiles', currentUser.uid);
                 const docSnap = await getDoc(authorRef);
                 let currentTokens = docSnap.data().bimbingan_token || 0; 
 
                 if (currentTokens > 0) {
-                    await updateDoc(authorRef, {
-                        bimbingan_token: increment(-1)
-                    });
+                    await updateDoc(authorRef, { bimbingan_token: increment(-1) });
                     
                     currentTokens--;
                     authorData.bimbingan_token = currentTokens;
-                    setupBimbingan(authorData); // Update UI Token
+                    setupBimbingan(authorData); 
 
-                    // Template chat WA
                     const textPesan = `Halo Kak Pembimbing Mukhamad Bayu Aji Tolafudin,\n\nSaya ${currentUser.name} ingin menggunakan Token Bimbingan untuk berkonsultasi terkait progres penulisan saya.\n\nBerikut adalah link naskah terbaru saya:\n${linkNaskah}\n\nMohon arahannya Kak. Terima kasih!`;
                     const waUrl = `https://wa.me/6285939188592?text=${encodeURIComponent(textPesan)}`;
                     
@@ -513,19 +615,14 @@
                 }
             } catch (error) {
                 console.error("Detail Error:", error);
-                // Tambahkan error.message agar kita tahu kalau gagal lagi, masalahnya ada di mana
                 Swal.fire('Gagal', 'Sistem error: ' + error.message, 'error'); 
                 setupBimbingan(authorData);
             } finally {
-                // Kembalikan tombol ke keadaan semula
                 btnWa.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Chat Pembimbing Sekarang';
                 btnWa.disabled = false;
             }
         };
 
-        // ============================================================
-        // BUKA STUDIO
-        // ============================================================
         async function bukaStudio() {
             document.getElementById('blocker-panel').style.display  = 'none';
             document.getElementById('studio-card').style.display    = 'block';
@@ -539,9 +636,6 @@
             await loadHistory();
         }
 
-        // ============================================================
-        // LOAD RIWAYAT BAB
-        // ============================================================
         async function loadHistory() {
             try {
                 const q    = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
@@ -551,7 +645,6 @@
                 chapterCount = snap.size;
                 document.getElementById('total-chapters').innerText = chapterCount;
 
-                // Aktifkan tombol tamat jika sudah >= 10 bab
                 if (chapterCount >= 10 && !isTamat) {
                     document.getElementById('btn-ajukan-tamat').disabled = false;
                     document.getElementById('btn-ajukan-tamat').removeAttribute('title');
@@ -571,7 +664,6 @@
                         dateStr = data.timestamp.toDate().toLocaleDateString('id-ID');
                     }
 
-                    // Simpan fileId sebagai data attribute agar aman dari karakter aneh
                     html += `
                         <div class="chapter-card" id="card-${chapDoc.id}">
                             <div class="chapter-info">
@@ -589,13 +681,7 @@
                                     <i class="fa-solid fa-file-word"></i> Docs
                                 </a>
                                 ${!isTamat ? `
-                                <button 
-                                    class="btn-hapus" 
-                                    data-doc-id="${chapDoc.id}"
-                                    data-file-word="${data.fileId_word || ''}"
-                                    data-file-pdf="${data.fileId_pdf || ''}"
-                                    data-judul="${data.judul_bab || 'Bab ini'}"
-                                    onclick="hapusBab(this)">
+                                <button class="btn-hapus" data-doc-id="${chapDoc.id}" data-file-word="${data.fileId_word || ''}" data-file-pdf="${data.fileId_pdf || ''}" data-judul="${data.judul_bab || 'Bab ini'}" onclick="hapusBab(this)">
                                     <i class="fa-solid fa-trash"></i> Hapus
                                 </button>` : ''}
                             </div>
@@ -609,9 +695,6 @@
             }
         }
 
-        // ============================================================
-        // HAPUS BAB
-        // ============================================================
         window.hapusBab = async (btnEl) => {
             const docId      = btnEl.dataset.docId;
             const fileIdWord = btnEl.dataset.fileWord;
@@ -634,39 +717,27 @@
             btnEl.innerHTML  = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
             try {
-                // 1. Hapus file dari Google Drive via GAS
                 const gasRes = await fetch(GAS_URL_STUDIO, {
                     method : 'POST',
-                    body   : JSON.stringify({
-                        actionType  : 'delete_chapter',
-                        fileIdWord  : fileIdWord,
-                        fileIdPdf   : fileIdPdf
-                    }),
+                    body   : JSON.stringify({ actionType : 'delete_chapter', fileIdWord : fileIdWord, fileIdPdf  : fileIdPdf }),
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
 
                 const gasData = await gasRes.json();
-                if (gasData.status !== 'success') {
-                    throw new Error(gasData.message || 'Gagal menghapus file di Google Drive.');
-                }
+                if (gasData.status !== 'success') throw new Error(gasData.message || 'Gagal menghapus file di Google Drive.');
 
-                // 2. Hapus dokumen dari Firestore & kurangi word_count di users
                 const chapSnap = await getDoc(doc(db, 'chapters', docId));
                 const deletedWords = chapSnap.exists() ? (parseInt(chapSnap.data().jumlah_kata) || 0) : 0;
 
                 await deleteDoc(doc(db, 'chapters', docId));
 
                 if (deletedWords > 0) {
-                    await updateDoc(doc(db, 'users', currentUser.uid), {
-                        word_count: increment(-deletedWords)
-                    });
+                    await updateDoc(doc(db, 'users', currentUser.uid), { word_count: increment(-deletedWords) });
                 }
 
-                // 3. Hapus card dari DOM langsung
                 const card = document.getElementById('card-' + docId);
                 if (card) card.remove();
 
-                // 4. Update counter
                 chapterCount--;
                 document.getElementById('total-chapters').innerText = chapterCount;
 
@@ -677,17 +748,10 @@
                 }
 
                 if (chapterCount === 0) {
-                    document.getElementById('history-container').innerHTML =
-                        '<p style="text-align:center; color:#94a3b8; font-style:italic; padding:20px;">Belum ada bab yang ditulis.</p>';
+                    document.getElementById('history-container').innerHTML = '<p style="text-align:center; color:#94a3b8; font-style:italic; padding:20px;">Belum ada bab yang ditulis.</p>';
                 }
 
-                Swal.fire({
-                    title : 'Terhapus!',
-                    text  : `"${judulBab}" berhasil dihapus dari sistem dan Drive.`,
-                    icon  : 'success',
-                    timer : 2000,
-                    showConfirmButton: false
-                });
+                Swal.fire({ title : 'Terhapus!', text  : `"${judulBab}" berhasil dihapus dari sistem dan Drive.`, icon  : 'success', timer : 2000, showConfirmButton: false });
 
             } catch (error) {
                 console.error(error);
@@ -697,9 +761,6 @@
             }
         };
 
-        // ============================================================
-        // SUBMIT FORM SIMPAN BAB
-        // ============================================================
         document.getElementById('editor-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const isiTeks = editorDiv.innerText.trim();
@@ -763,9 +824,6 @@
             }
         });
 
-        // ============================================================
-        // MODAL TAMAT
-        // ============================================================
         window.bukaModalTamat = () => {
             document.getElementById('tamat-modal').classList.add('active');
         };
@@ -788,9 +846,6 @@
             }
         });
 
-        // ============================================================
-        // GABUNGKAN NASKAH
-        // ============================================================
         window.gabungkanNaskah = async () => {
             const btnMerge = document.getElementById('btn-merge');
             btnMerge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyatukan... (Mohon Tunggu)';
