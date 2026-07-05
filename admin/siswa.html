@@ -70,6 +70,11 @@
         .nilai-input.tambahan:focus { border-color: #d97706; background: #fff; }
         .nilai-input.saving { border-color: #f59e0b; background: #fffaf0; opacity: 0.7; }
 
+        /* Style khusus untuk nilai naskah inkubasi (dari evaluasi final AI) */
+        .nilai-input.naskah { background-color: #f5f3ff; border-color: #c4b5fd; color: #6d28d9; }
+        .nilai-input.naskah:focus { border-color: #7c3aed; background: #fff; }
+        .naskah-info-tag { font-size: 0.65rem; color: #7c3aed; font-weight: 600; display: block; margin-top: 4px; }
+
         /* Tombol */
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
         .btn-secondary { background: #f1f5f9; color: #334155; }
@@ -213,7 +218,8 @@
                 await updateDoc(doc(db, 'users', uid), updateData);
                 
                 el.classList.remove('saving');
-                showToast(`✓ ${fieldName === 'extra1' ? 'Kuis/Keaktifan' : 'Tugas Tambahan'} tersimpan otomatis`, 'success');
+                const labelMap = { extra1: 'Kuis/Keaktifan', extra2: 'Tugas Tambahan', naskah: 'Nilai Naskah Inkubasi' };
+                showToast(`✓ ${labelMap[fieldName] || fieldName} tersimpan otomatis`, 'success');
             } catch(e) {
                 console.error(e);
                 el.classList.remove('saving');
@@ -288,14 +294,15 @@
                         </div>
 
                         <button class="extra-nilai-btn" onclick="window.toggleTambahan('${u.id}')">
-                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.8rem;"></i>
+                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis / Naskah Inkubasi <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.8rem;"></i>
                         </button>
 
                         <div id="extra-${u.id}" class="extra-nilai-container">
                             <p style="margin-top:0; font-size:0.8rem; color:#b45309; text-align:center;"><i class="fa-solid fa-bolt" style="color:#f59e0b;"></i> Nilai akan tersimpan otomatis saat diinput</p>
-                            <div class="nilai-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom:0;">
+                            <div class="nilai-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:0;">
                                 ${renderInputAuto(u.id, 'extra1', 'Kuis/Keaktifan', n.nilai_extra1)}
                                 ${renderInputAuto(u.id, 'extra2', 'Tugas Tambahan', n.nilai_extra2)}
+                                ${renderInputAuto(u.id, 'naskah', 'Naskah Inkubasi', n.nilai_naskah, true)}
                             </div>
                         </div>
 
@@ -336,15 +343,18 @@
             `;
         }
 
-        // Input untuk nilai extra (dengan auto-save)
-        function renderInputAuto(uid, key, label, val) {
+        // Input untuk nilai extra (dengan auto-save). isFromNaskah=true untuk styling & keterangan sumber AI.
+        function renderInputAuto(uid, key, label, val, isFromNaskah=false) {
+            const cls = isFromNaskah ? 'nilai-input tambahan naskah' : 'nilai-input tambahan';
+            const info = isFromNaskah ? '<span class="naskah-info-tag"><i class="fa-solid fa-robot"></i> Dari evaluasi final AI</span>' : '';
             return `
                 <div class="input-wrapper">
                     <label>${label}</label>
                     <input type="number" id="${key}-${uid}" value="${val!==undefined && val!==null ? val : ''}" 
-                        class="nilai-input tambahan" placeholder="0" min="0" max="100"
+                        class="${cls}" placeholder="0" min="0" max="100"
                         onchange="window.autoSaveExtra('${uid}', '${key}', this.value)"
                         onblur="window.autoSaveExtra('${uid}', '${key}', this.value)">
+                    ${info}
                 </div>
             `;
         }
@@ -365,7 +375,7 @@
             }
         };
 
-        // --- RUMUS BARU (DENGAN BOBOT TAMBAHAN 10%) ---
+        // --- RUMUS BARU (DENGAN BOBOT TAMBAHAN 10%, KINI TERMASUK NILAI NASKAH) ---
         window.save = async (uid) => {
             const btn = event.currentTarget;
             const originalText = btn.innerHTML;
@@ -373,7 +383,6 @@
             btn.disabled = true;
 
             try {
-                let totalTugas = 0;
                 let dataToSave = {};
 
                 // 1. Ambil & Hitung Tugas 1-8 (Rata-rata 40% dari total)
@@ -408,18 +417,22 @@
                 dataToSave['nilai_uas'] = valUas === '' ? null : numUas;
                 let scoreUas = numUas * 0.25;
 
-                // 4. Ambil Nilai Tambahan/Kuis (10% maksimal)
+                // 4. Ambil Nilai Tambahan/Kuis/Naskah (10% maksimal, dirata-rata dari yang terisi saja)
+                // FIX: sekarang termasuk 'naskah' (nilai_naskah dari evaluasi final AI Studio Menulis)
                 const elEx1 = document.getElementById(`extra1-${uid}`);
                 const elEx2 = document.getElementById(`extra2-${uid}`);
-                let valEx1 = elEx1.value.trim() === '' ? 0 : parseFloat(elEx1.value.trim());
-                let valEx2 = elEx2.value.trim() === '' ? 0 : parseFloat(elEx2.value.trim());
-                
-                dataToSave['nilai_extra1'] = elEx1.value.trim() === '' ? null : valEx1;
-                dataToSave['nilai_extra2'] = elEx2.value.trim() === '' ? null : valEx2;
+                const elNaskah = document.getElementById(`naskah-${uid}`);
 
-                // Jika dua-duanya diisi, dirata-rata lalu kalikan 10% bobot.
-                let divisorExtra = (valEx1 > 0 && valEx2 > 0) ? 2 : (valEx1 > 0 || valEx2 > 0 ? 1 : 0);
-                let avgExtra = divisorExtra > 0 ? (valEx1 + valEx2) / divisorExtra : 0;
+                let valEx1 = elEx1.value.trim() === '' ? null : parseFloat(elEx1.value.trim());
+                let valEx2 = elEx2.value.trim() === '' ? null : parseFloat(elEx2.value.trim());
+                let valNaskah = elNaskah.value.trim() === '' ? null : parseFloat(elNaskah.value.trim());
+
+                dataToSave['nilai_extra1'] = valEx1;
+                dataToSave['nilai_extra2'] = valEx2;
+                dataToSave['nilai_naskah'] = valNaskah;
+
+                const extraValues = [valEx1, valEx2, valNaskah].filter(v => v !== null && !isNaN(v));
+                const avgExtra = extraValues.length > 0 ? (extraValues.reduce((a, b) => a + b, 0) / extraValues.length) : 0;
                 let scoreExtra = avgExtra * 0.10;
 
                 // Hitung Final Score (Max 100) dan Konversi ke IPS (Max 4.0)
@@ -482,4 +495,3 @@
     </script>
 </body>
 </html>
- 
