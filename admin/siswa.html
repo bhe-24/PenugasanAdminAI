@@ -191,6 +191,17 @@
             render(filtered);
         };
 
+        // --- FUNGSI UPDATE SEMESTER OTOMATIS ---
+        window.updateSemester = async (uid, val) => {
+            try {
+                await updateDoc(doc(db, 'users', uid), { semester: parseInt(val) || 1 });
+                showToast("Semester diperbarui!", "success");
+                loadData(); // Re-render UI untuk mengubah label T1-T8 jika masuk Semester 3
+            } catch (e) {
+                showToast("Gagal update semester", "error");
+            }
+        };
+
         // --- FUNGSI BUKA TUTUP KOLOM TAMBAHAN ---
         window.toggleTambahan = (uid) => {
             const container = document.getElementById(`extra-${uid}`);
@@ -211,9 +222,30 @@
             el.classList.add('saving');
             
             try {
-                const updateData = {};
+                let updateData = {};
                 const numValue = value.trim() === '' ? null : parseFloat(value.trim());
                 updateData[`nilai_${fieldName}`] = numValue;
+
+                // SPECIAL LOGIC SEMESTER 3: Jika input Naskah diubah manual, sinkronkan ke 10 kolom & Hitung IPS
+                const student = allStudents.find(s => s.id === uid);
+                if (student && student.semester == 3 && fieldName === 'naskah') {
+                    for(let i=1; i<=8; i++) {
+                        updateData[`nilai_t${i}`] = numValue;
+                        const tEl = document.getElementById(`t${i}-${uid}`);
+                        if(tEl) tEl.value = value;
+                    }
+                    updateData['nilai_uts'] = numValue;
+                    updateData['nilai_uas'] = numValue;
+                    
+                    if(document.getElementById(`uts-${uid}`)) document.getElementById(`uts-${uid}`).value = value;
+                    if(document.getElementById(`uas-${uid}`)) document.getElementById(`uas-${uid}`).value = value;
+
+                    // Hitung otomatis IPS saat Naskah disebar merata
+                    let ipsHitung = numValue !== null ? (numValue / 100) * 4 : 0;
+                    updateData['ips'] = ipsHitung;
+                    const ipsDisplay = document.getElementById(`ips-display-${uid}`);
+                    if (ipsDisplay) ipsDisplay.innerText = `IPS: ${ipsHitung.toFixed(2)}`;
+                }
 
                 await updateDoc(doc(db, 'users', uid), updateData);
                 
@@ -246,9 +278,8 @@
             list.forEach(u => {
                 const n = u; 
                 const ips = parseFloat(u.ips||0).toFixed(2);
-                
-                // Status KHS (Default False jika belum ada)
                 const isKHSOpen = u.akses_khs === true; 
+                const isSem3 = (u.semester == 3);
 
                 // --- LOGIKA DETEKSI SISWA PASIF ---
                 let totalTugasTerisi = 0;
@@ -258,9 +289,23 @@
                 if (n.nilai_uts !== undefined && n.nilai_uts !== null && n.nilai_uts !== "") totalTugasTerisi++;
                 if (n.nilai_uas !== undefined && n.nilai_uas !== null && n.nilai_uas !== "") totalTugasTerisi++;
 
-                const isInactive = totalTugasTerisi < 5;
+                // Jika sem 3, status kurung aktif kita sembunyikan/abaikan
+                const isInactive = totalTugasTerisi < 5 && !isSem3;
                 const cardClass = isInactive ? 'student-card inactive' : 'student-card';
                 const nameClass = isInactive ? 'student-name inactive-name' : 'student-name';
+                
+                // --- DYNAMIC LABELS KHUSUS SEMESTER 3 ---
+                const lT1 = isSem3 ? 'Kekuatan Ide' : 'T1';
+                const lT2 = isSem3 ? 'Struktur Plot' : 'T2';
+                const lT3 = isSem3 ? 'Penokohan' : 'T3';
+                const lT4 = isSem3 ? 'Gaya Bahasa' : 'T4';
+                const lT5 = isSem3 ? 'Dialog' : 'T5';
+                const lT6 = isSem3 ? 'Setting' : 'T6';
+                const lT7 = isSem3 ? 'Plot Hole' : 'T7';
+                const lT8 = isSem3 ? 'Pesan Moral' : 'T8';
+                const lUTS = isSem3 ? 'Tata Bahasa' : 'UTS';
+                const lUAS = isSem3 ? 'Layak Terbit' : 'UAS';
+                const colClass = isSem3 ? 'naskah' : '';
                 
                 htmlBuffer += `
                     <div class="${cardClass}" id="card-${u.id}">
@@ -268,6 +313,7 @@
                             <div>
                                 <h3 class="${nameClass}"><i class="fa-solid fa-user-graduate"></i> ${u.name}</h3>
                                 <small style="color:#64748b;">${u.email || 'Tanpa Email'}</small>
+                                ${isSem3 ? '<br><span class="ips-badge" style="background:#8b5cf6; margin-top:8px; display:inline-block; font-size:0.75rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Mode Penilaian Naskah (Sem 3)</span>' : ''}
                                 ${isInactive ? '<br><span class="ips-badge badge-danger" style="margin-top:8px; display:inline-block;"><i class="fa-solid fa-triangle-exclamation"></i> Kurang Aktif (Tugas Belum Cukup)</span>' : ''}
                             </div>
                             <div class="student-meta">
@@ -275,22 +321,23 @@
                                 <div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
                                     <span style="font-size:0.85rem; font-weight:bold;">Sem:</span> 
                                     <input type="number" id="sem-${u.id}" value="${u.semester||1}" 
-                                        style="width:50px; text-align:center; border:1px solid #ccc; border-radius:4px; padding:4px;">
+                                        style="width:50px; text-align:center; border:1px solid #ccc; border-radius:4px; padding:4px;"
+                                        onchange="window.updateSemester('${u.id}', this.value)">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="nilai-grid">
-                            ${renderInput(u.id, 't1', 'T1', n.nilai_t1)}
-                            ${renderInput(u.id, 't2', 'T2', n.nilai_t2)}
-                            ${renderInput(u.id, 't3', 'T3', n.nilai_t3)}
-                            ${renderInput(u.id, 't4', 'T4', n.nilai_t4)}
-                            ${renderInput(u.id, 't5', 'T5', n.nilai_t5)}
-                            ${renderInput(u.id, 't6', 'T6', n.nilai_t6)}
-                            ${renderInput(u.id, 't7', 'T7', n.nilai_t7)}
-                            ${renderInput(u.id, 't8', 'T8', n.nilai_t8)}
-                            ${renderInput(u.id, 'uts', 'UTS', n.nilai_uts, true)}
-                            ${renderInput(u.id, 'uas', 'UAS', n.nilai_uas, true)}
+                            ${renderInput(u.id, 't1', lT1, n.nilai_t1, false, colClass)}
+                            ${renderInput(u.id, 't2', lT2, n.nilai_t2, false, colClass)}
+                            ${renderInput(u.id, 't3', lT3, n.nilai_t3, false, colClass)}
+                            ${renderInput(u.id, 't4', lT4, n.nilai_t4, false, colClass)}
+                            ${renderInput(u.id, 't5', lT5, n.nilai_t5, false, colClass)}
+                            ${renderInput(u.id, 't6', lT6, n.nilai_t6, false, colClass)}
+                            ${renderInput(u.id, 't7', lT7, n.nilai_t7, false, colClass)}
+                            ${renderInput(u.id, 't8', lT8, n.nilai_t8, false, colClass)}
+                            ${renderInput(u.id, 'uts', lUTS, n.nilai_uts, !isSem3, colClass)}
+                            ${renderInput(u.id, 'uas', lUAS, n.nilai_uas, !isSem3, colClass)}
                         </div>
 
                         <button class="extra-nilai-btn" onclick="window.toggleTambahan('${u.id}')">
@@ -328,7 +375,6 @@
             div.innerHTML = htmlBuffer;
         }
 
-        // Penambahan parameter customClass untuk input nilai tambahan
         function renderInput(uid, key, label, val, isExam=false, customClass="") {
             let cls = 'nilai-input';
             if (isExam) cls += ' ujian';
@@ -343,7 +389,6 @@
             `;
         }
 
-        // Input untuk nilai extra (dengan auto-save). isFromNaskah=true untuk styling & keterangan sumber AI.
         function renderInputAuto(uid, key, label, val, isFromNaskah=false) {
             const cls = isFromNaskah ? 'nilai-input tambahan naskah' : 'nilai-input tambahan';
             const info = isFromNaskah ? '<span class="naskah-info-tag"><i class="fa-solid fa-robot"></i> Dari evaluasi final AI</span>' : '';
@@ -368,7 +413,7 @@
                 });
                 
                 showToast(newStatus ? "Akses KHS Siswa Dibuka!" : "Akses KHS Siswa Dikunci!", "success");
-                loadData(); // Refresh UI untuk mengganti warna tombol
+                loadData(); 
             } catch (e) {
                 console.error(e);
                 showToast("Gagal mengubah akses KHS.", "error");
@@ -399,7 +444,6 @@
                         jumlahTugasTerisi++;
                     }
                 }
-                // Rata-rata tugas * 40%
                 let rataRataTugas = jumlahTugasTerisi > 0 ? (sumTugas / jumlahTugasTerisi) : 0;
                 let scoreTugas = rataRataTugas * 0.40; 
 
@@ -418,7 +462,6 @@
                 let scoreUas = numUas * 0.25;
 
                 // 4. Ambil Nilai Tambahan/Kuis/Naskah (10% maksimal, dirata-rata dari yang terisi saja)
-                // FIX: sekarang termasuk 'naskah' (nilai_naskah dari evaluasi final AI Studio Menulis)
                 const elEx1 = document.getElementById(`extra1-${uid}`);
                 const elEx2 = document.getElementById(`extra2-${uid}`);
                 const elNaskah = document.getElementById(`naskah-${uid}`);
@@ -438,7 +481,7 @@
                 // Hitung Final Score (Max 100) dan Konversi ke IPS (Max 4.0)
                 let finalScore = scoreTugas + scoreUts + scoreUas + scoreExtra;
                 
-                // Pastikan tidak lebih dari 100 (jika guru ngasih nilai bonus di luar nalar)
+                // Pastikan tidak lebih dari 100
                 if (finalScore > 100) finalScore = 100;
 
                 const ips = (finalScore / 100) * 4;
@@ -453,7 +496,6 @@
 
                 showToast(`Berhasil! IPS Siswa: ${ips.toFixed(2)}`, 'success');
                 
-                // Load ulang tanpa mem-freeze layar agar data baru tampil
                 setTimeout(() => loadData(), 500); 
 
             } catch(e) {
@@ -472,7 +514,7 @@
                 try {
                     await deleteDoc(doc(db, 'users', uid));
                     showToast(`Siswa ${name} berhasil dihapus.`, 'success');
-                    loadData(); // Reload UI
+                    loadData(); 
                 } catch(e) {
                     console.error(e);
                     showToast("Gagal menghapus siswa: " + e.message, 'error');
