@@ -19,7 +19,6 @@
         body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
         .container { max-width: 1300px; width: 95%; margin: 0 auto; padding: 25px; }
 
-        /* Sweetalert2 HARUS selalu di atas modal fullscreen -- lihat catatan di evaluasi-pitching.html */
         .swal2-container { z-index: 4000 !important; }
 
         .brand-header {
@@ -345,7 +344,7 @@
                 const finalScoreHTML = s.evaluasiFinal
                     ? `<div class="final-score-box">
                          <div><i class="fa-solid fa-star" style="color:#f59e0b;"></i> Skor Evaluasi Final: <span class="score-num">${s.evaluasiFinal.skor ?? '-'}/100</span></div>
-                         <button class="btn-sm btn-rapor" onclick="kirimNilaiRapor('${s.uid}', ${s.evaluasiFinal.skor ?? 'null'})"><i class="fa-solid fa-paper-plane"></i> Kirim/Update ke Rapor (siswa.html)</button>
+                         <button class="btn-sm btn-rapor" onclick="kirimNilaiRapor('${s.uid}', ${s.evaluasiFinal.skor ?? 'null'})"><i class="fa-solid fa-paper-plane"></i> Kirim & Sinkronisasi Rapor</button>
                        </div>`
                     : '';
 
@@ -431,7 +430,7 @@
         };
 
         // ============================================================
-        // KIRIM / UPDATE NILAI KE RAPOR (users/{uid}.nilai_naskah)
+        // KIRIM / UPDATE NILAI KE RAPOR (users/{uid}) & AUTO-SYNC IPS (SEM 3)
         // ============================================================
         window.kirimNilaiRapor = async (uid, skor) => {
             if (skor === null || skor === undefined) {
@@ -439,8 +438,41 @@
                 return;
             }
             try {
-                await updateDoc(doc(db, 'users', uid), { nilai_naskah: skor });
-                Swal.fire('Terkirim!', `Skor ${skor}/100 berhasil dikirim ke halaman Data Siswa & Nilai. Admin bisa menyesuaikannya lebih lanjut di sana.`, 'success');
+                // 1. Ambil data siswa untuk mengecek Semesternya
+                const userRef = doc(db, 'users', uid);
+                const userSnap = await getDoc(userRef);
+                
+                let updateData = { nilai_naskah: skor };
+                let msgSuffix = '';
+
+                // 2. Logika Khusus Semester 3 (Nilai disebar otomatis & IPS Dihitung langsung)
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    const sem = userData.semester || 1;
+
+                    if (sem == 3) {
+                        // Karena semua 11 kolom (T1-T8, UTS, UAS, naskah) akan diisi dengan skor yang sama,
+                        // Maka nilai akhirnya adalah tepat sebesar `skor` itu sendiri.
+                        // IPS Maksimum = 4.0. Formulanya: (Total / 100) * 4
+                        let ipsHitung = (parseFloat(skor) / 100) * 4;
+
+                        updateData = {
+                            nilai_naskah: skor,
+                            nilai_t1: skor, nilai_t2: skor, nilai_t3: skor, nilai_t4: skor,
+                            nilai_t5: skor, nilai_t6: skor, nilai_t7: skor, nilai_t8: skor,
+                            nilai_uts: skor, nilai_uas: skor,
+                            ips: ipsHitung // <-- IPS LANGSUNG TERSIMPAN
+                        };
+                        msgSuffix = '<br><br><small><i>Siswa terdeteksi <b>Semester 3</b>. Nilai otomatis disebar ke 10 aspek penilaian dan <b>IPS otomatis dihitung</b>! Admin tidak perlu sinkronisasi manual di halaman Data Siswa.</i></small>';
+                    }
+                }
+
+                await updateDoc(userRef, updateData);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil Terkirim & Sinkron!',
+                    html: `Skor <b>${skor}/100</b> berhasil dikirim ke halaman Data Siswa & Nilai.${msgSuffix}`
+                });
             } catch (error) {
                 console.error(error);
                 Swal.fire('Gagal', 'Gagal mengirim nilai ke rapor: ' + error.message, 'error');
@@ -563,7 +595,7 @@
         };
 
         // ============================================================
-        // SIMPAN EVALUASI (progress -> arrayUnion checkpoint, final -> evaluasi_final)
+        // SIMPAN EVALUASI
         // ============================================================
         window.simpanEvaluasi = async () => {
             const catatan = document.getElementById('mentor-feedback').value.trim();
@@ -591,8 +623,6 @@
 
             try {
                 if (activeMode === 'progress') {
-                    // FIX: item di dalam array TIDAK BOLEH pakai serverTimestamp() (dibatasi Firestore),
-                    // jadi pakai new Date() untuk timestamp di dalam arrayUnion.
                     await updateDoc(doc(db, 'author_profiles', activeUid), {
                         evaluasi_checkpoints: arrayUnion({
                             bab_dari: activeBabDari,
@@ -616,7 +646,7 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Evaluasi Tersimpan!',
-                    text: activeMode === 'final' ? 'Evaluasi final tersimpan. Jangan lupa klik "Kirim ke Rapor" pada kartu siswa.' : 'Catatan progres berhasil disimpan.',
+                    text: activeMode === 'final' ? 'Evaluasi final tersimpan. Jangan lupa klik "Kirim & Sinkronisasi Rapor" pada kartu siswa.' : 'Catatan progres berhasil disimpan.',
                     confirmButtonColor: '#003366'
                 }).then(() => {
                     isSubmitting = false;
