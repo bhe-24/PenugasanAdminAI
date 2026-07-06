@@ -313,6 +313,14 @@
         .ips-neon-yellow { border: 1px solid #facc15; color: #facc15; box-shadow: 0 0 15px rgba(250,204,21,0.35); }
         .ips-neon-red { border: 1px solid #f87171; color: #f87171; box-shadow: 0 0 15px rgba(248,113,113,0.35); }
 
+        /* Pulse animation utk highlight saat data berubah realtime */
+        @keyframes pulseUpdate {
+            0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+            100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+        }
+        .just-updated { animation: pulseUpdate 1s ease-out; }
+
         /* Stats row */
         .profile-stats {
             display: grid;
@@ -376,6 +384,14 @@
             height: 1px;
             background: var(--border);
         }
+
+        .live-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #10b981; display: inline-block;
+            animation: liveBlink 1.6s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes liveBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
         .chart-header {
             display: flex;
@@ -562,12 +578,6 @@
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* Skeleton shimmer */
-        @keyframes shimmer {
-            0% { background-position: -200px 0; }
-            100% { background-position: calc(200px + 100%) 0; }
-        }
-
         /* --- 10. RESPONSIVE MOBILE --- */
         @media (max-width: 768px) {
             .container { padding: 12px; }
@@ -716,6 +726,7 @@
                         <div class="card-title">
                             <i class="fa-solid fa-chart-area" style="color:var(--accent)"></i>
                             Riwayat IPS Harian
+                            <span class="live-dot" title="Terhubung realtime dengan penilaian admin"></span>
                         </div>
 
                         <div class="chart-header">
@@ -799,7 +810,8 @@
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
         import {
-            doc, updateDoc, getDoc, collection, query, orderBy, limit, getDocs, setDoc, serverTimestamp
+            doc, updateDoc, getDoc, collection, query, orderBy, limit, getDocs, setDoc, serverTimestamp,
+            onSnapshot
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ============================================================
@@ -822,6 +834,9 @@
         const IMGBB_API_KEY = "2f45fcafb6dfb2dbae295499022ce476";
         let currentUser = null;
         let ipsChart = null;
+        // Menyimpan unsubscribe function listener realtime, supaya bisa dibersihkan kalau perlu
+        let unsubHistory = null;
+        let unsubUserDoc = null;
 
         window.closeOverlay = () => document.getElementById('alert-overlay').classList.remove('active');
 
@@ -836,36 +851,103 @@
         }
 
         // ============================================================
-        // CHART (DIPERBAIKI: HANYA MENGGUNAKAN DATA ASLI)
+        // FIX PENTING: GRAFIK REALTIME
+        // Sebelumnya pakai getDocs() sekali saja saat halaman dibuka, jadi kalau
+        // admin menilai SETELAH siswa membuka halaman ini, grafik tidak pernah
+        // ter-update sampai di-refresh manual. Sekarang pakai onSnapshot() --
+        // setiap ada perubahan/tambahan data ipsHistory (dari admin/siswa.html
+        // ATAU dari siswa sendiri menyimpan profil), grafik otomatis digambar ulang.
         // ============================================================
-        async function loadIPSHistory(uid) {
-            let historyData = [];
-            try {
-                const histRef = collection(db, 'users', uid, 'ipsHistory');
-                const q = query(histRef, orderBy('date', 'asc'), limit(14));
-                const snap = await getDocs(q);
+        function listenIPSHistory(uid) {
+            if (unsubHistory) unsubHistory(); // hentikan listener lama kalau ada
+
+            const histRef = collection(db, 'users', uid, 'ipsHistory');
+            // FIX: urutkan berdasarkan 'dateKey' (format YYYY-MM-DD) yang urut benar
+            // lintas bulan/tahun. Field lama 'date' (mis. "06 Jul") tidak selalu urut
+            // benar secara leksikografis. Dokumen lama tanpa 'dateKey' akan tampil
+            // di awal urutan -- tidak masalah karena tetap dipakai sbg fallback.
+            const q = query(histRef, orderBy('dateKey', 'asc'), limit(30));
+
+            unsubHistory = onSnapshot(q, (snap) => {
+                let historyData = [];
                 snap.forEach(d => historyData.push(d.data()));
-            } catch (e) {
-                console.warn("History belum tersedia.");
-            }
 
-            // Jika belum ada history, jangan buat angka acak.
-            // Gunakan satu titik data jujur dari IPS terkini.
-            if (historyData.length === 0 && currentUser) {
-                const ipsNow = parseFloat(currentUser.ips || 0);
-                const today = new Date();
-                
-                // Menambahkan data lurus 7 hari ke belakang dengan nilai yang SAMA (ipsNow)
-                // Agar grafik terlihat sebagai garis stabil yang akurat, bukan titik kosong.
-                for (let i = 6; i >= 0; i--) {
-                    const d = new Date(today);
-                    d.setDate(d.getDate() - i);
-                    const label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-                    historyData.push({ date: label, ips: ipsNow });
+                // Jika belum ada history sama sekali, tampilkan garis datar jujur
+                // dari IPS saat ini (bukan angka acak), sama seperti sebelumnya.
+                if (historyData.length === 0 && currentUser) {
+                    const ipsNow = parseFloat(currentUser.ips || 0);
+                    const today = new Date();
+                    for (let i = 6; i >= 0; i--) {
+                        const d = new Date(today);
+                        d.setDate(d.getDate() - i);
+                        const label = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+                        historyData.push({ date: label, ips: ipsNow });
+                    }
                 }
-            }
 
-            renderChart(historyData);
+                renderChart(historyData);
+            }, (error) => {
+                console.error('Listener ipsHistory gagal:', error);
+            });
+        }
+
+        // ============================================================
+        // FIX: LISTENER REALTIME PADA DOKUMEN USER
+        // Supaya badge IPS, angka di kartu statistik, dan label besar di atas
+        // grafik ikut berubah seketika saat admin menyimpan nilai -- tanpa perlu
+        // reload halaman. Listener ini HANYA memperbarui tampilan IPS, TIDAK
+        // menimpa isi form (nama/HP/bio dll) supaya tidak mengganggu siswa yang
+        // sedang mengetik di form edit profil.
+        // ============================================================
+        function listenUserDoc(uid) {
+            if (unsubUserDoc) unsubUserDoc();
+
+            const userRef = doc(db, 'users', uid);
+            unsubUserDoc = onSnapshot(userRef, (snap) => {
+                if (!snap.exists()) return;
+                const data = snap.data();
+                const ipsBaru = parseFloat(data.ips || 0);
+                const ipsLama = currentUser ? parseFloat(currentUser.ips || 0) : null;
+
+                currentUser = { uid, ...data };
+                updateIPSDisplay(currentUser);
+
+                // Kasih efek kedip halus kalau IPS benar-benar berubah, biar kelihatan "hidup"
+                if (ipsLama !== null && ipsBaru !== ipsLama) {
+                    const badge = document.getElementById('ips-badge');
+                    badge.classList.remove('just-updated');
+                    // trigger reflow supaya animasi bisa diulang
+                    void badge.offsetWidth;
+                    badge.classList.add('just-updated');
+                }
+            }, (error) => {
+                console.error('Listener users/{uid} gagal:', error);
+            });
+        }
+
+        // Hanya memperbarui elemen terkait IPS/semester, tidak menyentuh form input
+        function updateIPSDisplay(user) {
+            const ips = parseFloat(user.ips || 0);
+            const sem = user.semester || 1;
+
+            document.getElementById('display-sem').innerText = `Semester ${sem}`;
+            document.getElementById('display-ips').innerText = ips.toFixed(2);
+            document.getElementById('stat-sem').innerText = sem;
+            document.getElementById('stat-ips-val').innerText = ips.toFixed(2);
+            document.getElementById('chart-current-ips').innerHTML = `${ips.toFixed(2)} <span>IPS terkini</span>`;
+
+            const ipsBadge = document.getElementById('ips-badge');
+            ipsBadge.className = 'badge-ips';
+            if (ips >= 3.00) {
+                ipsBadge.classList.add('ips-neon-green');
+                ipsBadge.innerHTML = `<i class="fa-solid fa-trophy"></i> IPS: ${ips.toFixed(2)}`;
+            } else if (ips >= 2.00) {
+                ipsBadge.classList.add('ips-neon-yellow');
+                ipsBadge.innerHTML = `<i class="fa-solid fa-chart-line"></i> IPS: ${ips.toFixed(2)}`;
+            } else {
+                ipsBadge.classList.add('ips-neon-red');
+                ipsBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> IPS: ${ips.toFixed(2)}`;
+            }
         }
 
         function renderChart(data) {
@@ -984,13 +1066,14 @@
         }
 
         // ============================================================
-        // RENDER PROFIL (DIPERBAIKI: HARI AKTIF REALISTIS)
+        // RENDER PROFIL AWAL + PASANG LISTENER REALTIME
         // ============================================================
         (async () => {
             currentUser = await checkAuth('siswa');
             if (currentUser) {
                 renderProfile(currentUser);
-                await loadIPSHistory(currentUser.uid);
+                listenIPSHistory(currentUser.uid);
+                listenUserDoc(currentUser.uid);
             }
         })();
 
@@ -999,49 +1082,23 @@
             document.getElementById('profile-content').classList.remove('hidden');
 
             const name = user.name || 'Siswa';
-            const ips = parseFloat(user.ips || 0);
-            const sem = user.semester || 1;
 
             document.getElementById('display-name').innerText = name;
             document.getElementById('display-email').innerText = user.email || 'email@sekolah.id';
-            document.getElementById('display-sem').innerText = `Semester ${sem}`;
-            document.getElementById('display-ips').innerText = ips.toFixed(2);
+
+            updateIPSDisplay(user);
 
             // MENGHITUNG HARI AKTIF SECARA AKURAT
             let hariAktif = 1;
             const createdField = user.createdAt || user.timestamp || user.waktuDaftar;
             
             if (createdField) {
-                // Mengkonversi timestamp Firebase ke Date Javascript
                 const createdDate = createdField.toDate ? createdField.toDate() : new Date(createdField);
                 const now = new Date();
-                
-                // Menghitung selisih waktu dalam milidetik, lalu diubah ke hari
                 const diffTime = Math.abs(now - createdDate);
                 hariAktif = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); 
             }
-
-            // Stats
-            document.getElementById('stat-sem').innerText = sem;
-            document.getElementById('stat-ips-val').innerText = ips.toFixed(2);
             document.getElementById('stat-days').innerText = hariAktif;
-
-            // Chart top IPS
-            document.getElementById('chart-current-ips').innerHTML = `${ips.toFixed(2)} <span>IPS terkini</span>`;
-
-            // Neon badge
-            const ipsBadge = document.getElementById('ips-badge');
-            ipsBadge.className = 'badge-ips';
-            if (ips >= 3.00) {
-                ipsBadge.classList.add('ips-neon-green');
-                ipsBadge.innerHTML = `<i class="fa-solid fa-trophy"></i> IPS: ${ips.toFixed(2)}`;
-            } else if (ips >= 2.00) {
-                ipsBadge.classList.add('ips-neon-yellow');
-                ipsBadge.innerHTML = `<i class="fa-solid fa-chart-line"></i> IPS: ${ips.toFixed(2)}`;
-            } else {
-                ipsBadge.classList.add('ips-neon-red');
-                ipsBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> IPS: ${ips.toFixed(2)}`;
-            }
 
             if (user.photoURL) {
                 document.getElementById('display-pic').src = user.photoURL;
@@ -1113,16 +1170,16 @@
                 await updateDoc(doc(db, 'users', currentUser.uid), payload);
                 document.getElementById('display-name').innerText = payload.name;
 
-                // Catat riwayat IPS hari ini (jika ada IPS)
+                // Catat riwayat IPS hari ini (jika ada IPS). Listener onSnapshot di atas
+                // akan otomatis menggambar ulang grafik begitu dokumen ini tersimpan --
+                // tidak perlu lagi manual memanggil loadIPSHistory().
                 const ipsNow = parseFloat(currentUser.ips || 0);
                 if (ipsNow >= 0) {
                     const today = new Date();
                     const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD
                     const label = today.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
                     const histRef = doc(db, 'users', currentUser.uid, 'ipsHistory', dateKey);
-                    await setDoc(histRef, { date: label, ips: ipsNow, updatedAt: serverTimestamp() }, { merge: true });
-                    // Reload chart
-                    await loadIPSHistory(currentUser.uid);
+                    await setDoc(histRef, { date: label, dateKey: dateKey, ips: ipsNow, sumber: 'siswa_edit_profil', updatedAt: serverTimestamp() }, { merge: true });
                 }
 
                 showAlert('success', 'Berhasil!', 'Data profil tersimpan dengan baik.');
