@@ -191,6 +191,17 @@
             render(filtered);
         };
 
+        // --- FUNGSI UPDATE SEMESTER OTOMATIS ---
+        window.updateSemester = async (uid, val) => {
+            try {
+                await updateDoc(doc(db, 'users', uid), { semester: parseInt(val) || 1 });
+                showToast("Semester diperbarui!", "success");
+                loadData(); // Re-render UI untuk mengubah label T1-T8 jika masuk Semester 3
+            } catch (e) {
+                showToast("Gagal update semester", "error");
+            }
+        };
+
         // --- FUNGSI BUKA TUTUP KOLOM TAMBAHAN ---
         window.toggleTambahan = (uid) => {
             const container = document.getElementById(`extra-${uid}`);
@@ -211,14 +222,14 @@
             el.classList.add('saving');
             
             try {
-                const updateData = {};
+                let updateData = {};
                 const numValue = value.trim() === '' ? null : parseFloat(value.trim());
                 updateData[`nilai_${fieldName}`] = numValue;
 
                 await updateDoc(doc(db, 'users', uid), updateData);
                 
                 el.classList.remove('saving');
-                const labelMap = { extra1: 'Kuis/Keaktifan', extra2: 'Tugas Tambahan', naskah: 'Nilai Naskah Inkubasi' };
+                const labelMap = { extra1: 'Kuis/Keaktifan', extra2: 'Tugas Tambahan', naskah: 'Nilai Naskah (Avg)' };
                 showToast(`✓ ${labelMap[fieldName] || fieldName} tersimpan otomatis`, 'success');
             } catch(e) {
                 console.error(e);
@@ -246,9 +257,8 @@
             list.forEach(u => {
                 const n = u; 
                 const ips = parseFloat(u.ips||0).toFixed(2);
-                
-                // Status KHS (Default False jika belum ada)
                 const isKHSOpen = u.akses_khs === true; 
+                const isSem3 = (u.semester == 3);
 
                 // --- LOGIKA DETEKSI SISWA PASIF ---
                 let totalTugasTerisi = 0;
@@ -258,9 +268,24 @@
                 if (n.nilai_uts !== undefined && n.nilai_uts !== null && n.nilai_uts !== "") totalTugasTerisi++;
                 if (n.nilai_uas !== undefined && n.nilai_uas !== null && n.nilai_uas !== "") totalTugasTerisi++;
 
-                const isInactive = totalTugasTerisi < 5;
+                const isInactive = totalTugasTerisi < 5 && !isSem3;
                 const cardClass = isInactive ? 'student-card inactive' : 'student-card';
                 const nameClass = isInactive ? 'student-name inactive-name' : 'student-name';
+                
+                // --- DYNAMIC LABELS KHUSUS SEMESTER 3 ---
+                // Nama label sengaja disingkat agar muat di kotak kecil
+                const lT1 = isSem3 ? 'Ide & Asli' : 'T1';
+                const lT2 = isSem3 ? 'Struktur' : 'T2';
+                const lT3 = isSem3 ? 'Karakter' : 'T3';
+                const lT4 = isSem3 ? 'Genre' : 'T4';
+                const lT5 = isSem3 ? 'Teknik' : 'T5';
+                const lT6 = isSem3 ? 'Diksi' : 'T6';
+                const lT7 = isSem3 ? 'Dialog' : 'T7';
+                const lT8 = isSem3 ? 'Plot Hole' : 'T8';
+                const lUTS = isSem3 ? 'Resolusi (UTS)' : 'UTS';
+                const lUAS = isSem3 ? 'PUEBI (UAS)' : 'UAS';
+                
+                const colClass = isSem3 ? 'naskah' : ''; // Biar warnanya ungu ala AI
                 
                 htmlBuffer += `
                     <div class="${cardClass}" id="card-${u.id}">
@@ -268,6 +293,7 @@
                             <div>
                                 <h3 class="${nameClass}"><i class="fa-solid fa-user-graduate"></i> ${u.name}</h3>
                                 <small style="color:#64748b;">${u.email || 'Tanpa Email'}</small>
+                                ${isSem3 ? '<br><span class="ips-badge" style="background:#8b5cf6; margin-top:8px; display:inline-block; font-size:0.75rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Mode 10 Komponen Naskah (Sem 3)</span>' : ''}
                                 ${isInactive ? '<br><span class="ips-badge badge-danger" style="margin-top:8px; display:inline-block;"><i class="fa-solid fa-triangle-exclamation"></i> Kurang Aktif (Tugas Belum Cukup)</span>' : ''}
                             </div>
                             <div class="student-meta">
@@ -275,26 +301,27 @@
                                 <div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
                                     <span style="font-size:0.85rem; font-weight:bold;">Sem:</span> 
                                     <input type="number" id="sem-${u.id}" value="${u.semester||1}" 
-                                        style="width:50px; text-align:center; border:1px solid #ccc; border-radius:4px; padding:4px;">
+                                        style="width:50px; text-align:center; border:1px solid #ccc; border-radius:4px; padding:4px;"
+                                        onchange="window.updateSemester('${u.id}', this.value)">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="nilai-grid">
-                            ${renderInput(u.id, 't1', 'T1', n.nilai_t1)}
-                            ${renderInput(u.id, 't2', 'T2', n.nilai_t2)}
-                            ${renderInput(u.id, 't3', 'T3', n.nilai_t3)}
-                            ${renderInput(u.id, 't4', 'T4', n.nilai_t4)}
-                            ${renderInput(u.id, 't5', 'T5', n.nilai_t5)}
-                            ${renderInput(u.id, 't6', 'T6', n.nilai_t6)}
-                            ${renderInput(u.id, 't7', 'T7', n.nilai_t7)}
-                            ${renderInput(u.id, 't8', 'T8', n.nilai_t8)}
-                            ${renderInput(u.id, 'uts', 'UTS', n.nilai_uts, true)}
-                            ${renderInput(u.id, 'uas', 'UAS', n.nilai_uas, true)}
+                            ${renderInput(u.id, 't1', lT1, n.nilai_t1, false, colClass)}
+                            ${renderInput(u.id, 't2', lT2, n.nilai_t2, false, colClass)}
+                            ${renderInput(u.id, 't3', lT3, n.nilai_t3, false, colClass)}
+                            ${renderInput(u.id, 't4', lT4, n.nilai_t4, false, colClass)}
+                            ${renderInput(u.id, 't5', lT5, n.nilai_t5, false, colClass)}
+                            ${renderInput(u.id, 't6', lT6, n.nilai_t6, false, colClass)}
+                            ${renderInput(u.id, 't7', lT7, n.nilai_t7, false, colClass)}
+                            ${renderInput(u.id, 't8', lT8, n.nilai_t8, false, colClass)}
+                            ${renderInput(u.id, 'uts', lUTS, n.nilai_uts, !isSem3, colClass)}
+                            ${renderInput(u.id, 'uas', lUAS, n.nilai_uas, !isSem3, colClass)}
                         </div>
 
                         <button class="extra-nilai-btn" onclick="window.toggleTambahan('${u.id}')">
-                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis / Naskah Inkubasi <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.8rem;"></i>
+                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Input Nilai Tambahan / Kuis / Naskah (Avg) <i id="btn-extra-icon-${u.id}" class="fa-solid fa-chevron-down" style="margin-left:auto; font-size:0.8rem;"></i>
                         </button>
 
                         <div id="extra-${u.id}" class="extra-nilai-container">
@@ -302,13 +329,13 @@
                             <div class="nilai-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:0;">
                                 ${renderInputAuto(u.id, 'extra1', 'Kuis/Keaktifan', n.nilai_extra1)}
                                 ${renderInputAuto(u.id, 'extra2', 'Tugas Tambahan', n.nilai_extra2)}
-                                ${renderInputAuto(u.id, 'naskah', 'Naskah Inkubasi', n.nilai_naskah, true)}
+                                ${renderInputAuto(u.id, 'naskah', 'Naskah (Avg)', n.nilai_naskah, true)}
                             </div>
                         </div>
 
                         <div class="card-actions">
                             <button class="btn-save" onclick="window.save('${u.id}')">
-                                <i class="fa-solid fa-calculator"></i> Simpan Nilai
+                                <i class="fa-solid fa-calculator"></i> Simpan Nilai & Hitung IPS
                             </button>
                             
                             ${isKHSOpen 
@@ -346,7 +373,7 @@
         // Input untuk nilai extra (dengan auto-save). isFromNaskah=true untuk styling & keterangan sumber AI.
         function renderInputAuto(uid, key, label, val, isFromNaskah=false) {
             const cls = isFromNaskah ? 'nilai-input tambahan naskah' : 'nilai-input tambahan';
-            const info = isFromNaskah ? '<span class="naskah-info-tag"><i class="fa-solid fa-robot"></i> Dari evaluasi final AI</span>' : '';
+            const info = isFromNaskah ? '<span class="naskah-info-tag"><i class="fa-solid fa-robot"></i> Rata-rata dari AI</span>' : '';
             return `
                 <div class="input-wrapper">
                     <label>${label}</label>
@@ -418,7 +445,6 @@
                 let scoreUas = numUas * 0.25;
 
                 // 4. Ambil Nilai Tambahan/Kuis/Naskah (10% maksimal, dirata-rata dari yang terisi saja)
-                // FIX: sekarang termasuk 'naskah' (nilai_naskah dari evaluasi final AI Studio Menulis)
                 const elEx1 = document.getElementById(`extra1-${uid}`);
                 const elEx2 = document.getElementById(`extra2-${uid}`);
                 const elNaskah = document.getElementById(`naskah-${uid}`);
@@ -451,18 +477,16 @@
                 // Update Firestore
                 await updateDoc(doc(db,'users',uid), dataToSave);
 
-                // FIX PENTING: catat titik riwayat IPS hari ini setiap kali admin menilai.
-                // Sebelumnya, riwayat IPS (dipakai grafik di profil/index.html) HANYA tercatat
-                // saat SISWA menyimpan form profilnya sendiri -- jadi grafiknya tidak pernah
-                // ter-update saat admin yang mengubah nilai di sini. Sekarang keduanya menulis
-                // ke koleksi yang sama (users/{uid}/ipsHistory), jadi grafik selalu sinkron
-                // dengan nilai terbaru, dari sumber mana pun perubahannya berasal.
+                // FIX PENTING: catat titik riwayat IPS hari ini setiap kali admin menilai,
+                // supaya grafik "Riwayat IPS Harian" di profil/index.html ikut ter-update
+                // realtime (lihat listenIPSHistory/onSnapshot di sana). Sebelumnya riwayat
+                // ini HANYA tercatat saat siswa menyimpan form profilnya sendiri.
                 const today = new Date();
-                const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD, dipakai juga sbg ID dokumen
+                const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD, juga dipakai sbg ID dokumen
                 const label = today.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
                 await setDoc(doc(db, 'users', uid, 'ipsHistory', dateKey), {
                     date: label,
-                    dateKey: dateKey, // field terurut yang benar (string tanggal saja tidak selalu urut lintas bulan/tahun)
+                    dateKey: dateKey, // field terurut yang benar lintas bulan/tahun
                     ips: ips,
                     sumber: 'admin_penilaian',
                     updatedAt: serverTimestamp()
