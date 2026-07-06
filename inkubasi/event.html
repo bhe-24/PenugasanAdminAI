@@ -13,24 +13,20 @@
     <style>
         /* ===================================================================
            TOKEN DESAIN — "Papan Mading Digital"
-           Konsep: kop surat akademik + kertas, bukan dashboard SaaS generik.
-           Warna: navy kertas tua, krem kertas, mustard sebagai segel/stempel,
-           hijau lumut utk dibuka, biru kelas utk akan datang, terracotta redup
-           utk terlewat (bukan merah alarm — ini arsip, bukan error).
         =================================================================== */
         :root {
-            --ink: #1b2a3d;          /* navy tua - teks utama & header */
-            --ink-soft: #4b5d70;     /* abu kebiruan - teks sekunder */
-            --paper: #ffffff;        /* putih bersih - background */
-            --paper-card: #ffffff;   /* putih - kartu */
-            --line: #e4e7ec;         /* garis/divider netral */
-            --gold: #c9952c;         /* mustard tua - aksen/segel */
+            --ink: #1b2a3d;          
+            --ink-soft: #4b5d70;     
+            --paper: #ffffff;        
+            --paper-card: #ffffff;   
+            --line: #e4e7ec;         
+            --gold: #c9952c;         
             --gold-soft: #f1dfa8;
-            --open: #4d7c4a;         /* hijau lumut - dibuka */
+            --open: #4d7c4a;         
             --open-bg: #e7f0e0;
-            --soon: #2f5d8a;         /* biru kelas - akan datang */
+            --soon: #2f5d8a;         
             --soon-bg: #e3edf7;
-            --past: #8a5a3f;         /* terracotta redup - terlewat */
+            --past: #8a5a3f;         
             --past-bg: #f1e6dc;
             --radius: 18px;
         }
@@ -50,7 +46,6 @@
 
         a, button { font-family: inherit; }
 
-        /* Hormati preferensi reduced motion */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
         }
@@ -90,7 +85,6 @@
         /* --- MAIN --- */
         .container { max-width: 760px; margin: 0 auto; padding: 0 16px; }
 
-        /* Sapaan personal */
         .greeting-bar {
             display: flex; align-items: center; gap: 10px; margin-top: 22px;
             font-size: 0.82rem; color: var(--ink-soft); font-weight: 500;
@@ -103,7 +97,6 @@
         }
         .page-desc { color: var(--ink-soft); font-size: 0.92rem; margin-bottom: 18px; line-height: 1.6; max-width: 56ch; }
 
-        /* Ringkasan cepat — insight personal di atas */
         .summary-strip {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
             margin-bottom: 22px;
@@ -200,7 +193,6 @@
         .ev-deadline.urgent { color: #b3401d; }
         .ev-deadline.urgent i { color: #b3401d; }
 
-        /* Progress bar waktu tersisa, hanya utk event aktif */
         .ev-progress-wrap { margin-top: 2px; }
         .ev-progress-track {
             height: 6px; border-radius: 50px; background: #ece3cd; overflow: hidden;
@@ -225,7 +217,6 @@
         .btn-soon:hover { background: #254a6f; }
 
         .btn-disabled { background: #ece3cd; color: #a89a78; cursor: not-allowed; }
-
         .btn-action:focus-visible { box-shadow: 0 0 0 3px var(--gold-soft); }
 
         /* --- LOADING --- */
@@ -315,8 +306,8 @@
                 <p class="header-subtitle">Tantangan &amp; Pengumpulan Karya</p>
             </div>
         </div>
-        <!-- Tombol kembali diarahkan ke index.html (Dasbor Inkubasi) -->
-        <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Kembali</span></a>
+        <!-- TOMBOL KEMBALI MENGARAH KE DASHBOARD INKUBASI -->
+        <a href="/dashboard/inkubasi.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Dasbor</span></a>
     </header>
 
     <main class="container">
@@ -353,7 +344,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
-        // Menggunakan impor standar dari sistem aplikasi utama Cendekia Aksara
         import { db, checkAuth } from "/js/firebase-config.js";
         import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -365,7 +355,6 @@
         const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
         const hariNama = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
-        // --- UTIL: escape HTML supaya data dari Firestore tidak merusak layout / XSS ---
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
             return String(str)
@@ -391,13 +380,17 @@
         }
         setGreeting();
 
-        // Autentikasi menggunakan file terpusat aplikasi
         (async () => {
             const userData = await checkAuth('siswa');
-            if (!userData) return;
+            
+            // JIKA BELUM LOGIN, DIARAHKAN KE INDEX ROOT
+            if (!userData) {
+                window.location.href = '/';
+                return;
+            }
 
-            // Pastikan hanya siswa semester 3 yang dapat mengakses halaman ini
             const semesterSaatIni = parseInt(userData.semester) || 1;
+            // JIKA BUKAN SEMESTER 3, KEMBALI KE DASHBOARD UMUM
             if (semesterSaatIni < 3) {
                 window.location.href = '/dashboard/index.html';
                 return;
@@ -420,7 +413,6 @@
                     const data = doc.data();
                     const id = doc.id;
 
-                    // --- LOGIKA KATEGORI ---
                     let startDate;
                     if (data.publishDate) {
                         startDate = new Date(data.publishDate);
@@ -460,7 +452,6 @@
                         category = 'aktif';
                     }
 
-                    // Hitung progres waktu tersisa untuk event aktif (berbasis window 14 hari sejak publish)
                     let progressPercent = null;
                     let daysLeft = null;
                     if (category === 'aktif') {
@@ -557,7 +548,7 @@
                     const urgent = data.daysLeft !== null && data.daysLeft <= 2;
                     badgeHtml = `<div class="badge badge-open"><i class="fa-solid fa-door-open"></i> Dibuka</div>`;
                     btnHtml = `<button class="btn-action btn-open"><i class="fa-solid fa-paper-plane"></i> Kirim Karya Sekarang</button>`;
-                    cardTagOpen = `<a href="pengumpulan-karya.html?id=${encodeURIComponent(id)}" class="event-card cat-aktif" style="animation-delay:${delay}s">`;
+                    cardTagOpen = `<a href="/inkubasi/pengumpulan-karya.html?id=${encodeURIComponent(id)}" class="event-card cat-aktif" style="animation-delay:${delay}s">`;
                     cardTagClose = `</a>`;
 
                     if (data.progressPercent !== null) {
