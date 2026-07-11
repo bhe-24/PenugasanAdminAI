@@ -17,23 +17,20 @@
         .btn-back { background: #dc3545; text-decoration: none; }
         .btn-print { background: #28a745; }
         
-        /* WADAH KERTAS AGAR BISA DIGESER DI HP */
         .paper-container { 
             margin-top: 80px; display: flex; justify-content: center; padding-bottom: 50px; 
-            overflow-x: auto; /* Bisa digeser ke samping di HP */
+            overflow-x: auto;
             padding-left: 15px; padding-right: 15px;
         }
         
-        /* KERTAS ASLI A4 (Tidak boleh di-scale agar PDF tidak rusak) */
         .paper { 
             background: white; 
-            width: 210mm; min-height: 297mm; /* Paten A4 */
+            width: 210mm; min-height: 297mm;
             padding: 15mm 20mm; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.5); 
             position: relative; color: #000; 
-            flex-shrink: 0; /* Mencegah kertas menyusut di layar kecil */
+            flex-shrink: 0;
         }
         
-        /* DESAIN KWITANSI */
         .header { text-align: center; border-bottom: 3px double #003366; padding-bottom: 15px; margin-bottom: 30px; }
         .logo { height: 80px; margin-bottom: 10px; display: block; margin: 0 auto; }
         .title { font-family: 'Merriweather', serif; font-size: 24pt; font-weight: 900; margin: 0; color: #003366; text-transform: uppercase; letter-spacing: 2px; }
@@ -52,10 +49,11 @@
         .invoice-table th { background: #003366; color: white; padding: 10px; text-align: left; text-transform: uppercase; font-family: sans-serif; font-size: 9pt; border: 1px solid #003366; }
         .invoice-table td { border: 1px solid #ccc; padding: 10px; }
         .invoice-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .invoice-table tr.denda-row td { color: #b91c1c; font-weight: bold; }
         .col-price { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; width: 130px; }
 
         .total-container { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-        .total-box { width: 250px; }
+        .total-box { width: 280px; }
         .grand-total { border-top: 2px solid #003366; border-bottom: 2px solid #003366; padding: 10px 0; margin-top: 5px; font-weight: 900; font-size: 14pt; color: #003366; display: flex; justify-content: space-between; }
 
         .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; }
@@ -126,7 +124,7 @@
                         <span>Metode</span><span id="k-method">Transfer</span>
                     </div>
                     <div class="grand-total">
-                        <span>TOTAL</span>
+                        <span>TOTAL DIBAYAR</span>
                         <span id="k-total">Rp -</span>
                     </div>
                 </div>
@@ -150,9 +148,8 @@
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // INIT DATA SECEPAT KILAT (Tanpa Proxy)
         (async () => {
             const user = await checkAuth('siswa');
             if(user) {
@@ -180,7 +177,6 @@
             document.getElementById('k-date').innerText = dateStr;
             document.getElementById('k-ttd-date').innerText = dateStr;
 
-            const status = user.statusPembayaran;
             const stamp = document.getElementById('status-mark');
             const totalEl = document.getElementById('k-total');
             const tbody = document.getElementById('tbody-rincian');
@@ -188,7 +184,7 @@
             const sem = parseInt(String(user.semester).replace(/\D/g, '')) || 1;
 
             if (sem < 3) {
-                // === LOGIKA SEMESTER 1-2 (HITUNG UJIAN) ===
+                // === LOGIKA SEMESTER 1-2 (HITUNG UJIAN) -- TIDAK BERUBAH ===
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snap = await getDocs(q);
                 const count = snap.size;
@@ -204,25 +200,65 @@
                 `;
 
             } else {
-                // === LOGIKA SEMESTER 3+ (BIAYA LENGKAP) ===
-                tbody.innerHTML = `
-                    <tr><td style="text-align:center;">1</td><td>Buku Rapor Akademik (Cetak)</td><td class="col-price">Rp 20.450</td></tr>
-                    <tr><td style="text-align:center;">2</td><td>Special Book (Random)</td><td class="col-price">Rp 25.000</td></tr>
-                    <tr><td style="text-align:center;">3</td><td>Biaya Administrasi</td><td class="col-price">Rp 5.000</td></tr>
-                    <tr><td style="text-align:center;">4</td><td>Biaya Bimbingan</td><td class="col-price">Rp 25.000</td></tr>
-                `;
+                // ============================================================
+                // SEMESTER 3+: FIX PENTING -- sekarang bersumber dari
+                // finance_logs (riwayat riil per tahap bayar) + sem3_status,
+                // BUKAN dari statusPembayaran yang bisa ter-reset tombol admin.
+                // Ini juga otomatis menampilkan denda riil jika Cicilan Tahap 2
+                // dibayar setelah kena keterlambatan.
+                // ============================================================
+                const qLogs = query(collection(db, 'finance_logs'), where('studentUid', '==', user.uid), orderBy('timestamp', 'asc'));
+                const logSnap = await getDocs(qLogs);
+                const sem3Logs = [];
+                logSnap.forEach(d => {
+                    const l = d.data();
+                    if ((parseInt(l.semester) || 1) >= 3) sem3Logs.push(l);
+                });
 
-                if (status === 'Cicilan') {
-                    stamp.innerText = "CICILAN";
-                    stamp.style.color = "#d63384"; stamp.style.borderColor = "#d63384";
-                    totalEl.innerText = "Rp 37.725";
-                    document.getElementById('k-method').innerText = "Cicilan Tahap 1 (50%)";
-                    document.getElementById('k-ref').innerText += "-DP";
+                const sem3Status = user.sem3_status || 'belum';
+
+                if (sem3Logs.length === 0 || sem3Status === 'belum') {
+                    // Belum ada riwayat bayar sama sekali
+                    stamp.innerText = "BELUM LUNAS";
+                    stamp.style.color = "#991b1b"; stamp.style.borderColor = "#991b1b";
+                    totalEl.innerText = "Rp 0";
+                    document.getElementById('k-method').innerText = "-";
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">Belum ada riwayat pembayaran administrasi semester 3.</td></tr>`;
                 } else {
-                    stamp.innerText = "LUNAS";
-                    stamp.style.color = "#0f5132"; stamp.style.borderColor = "#0f5132";
-                    totalEl.innerText = "Rp 75.450";
-                    document.getElementById('k-method').innerText = "Lunas Penuh";
+                    let rows = '';
+                    let total = 0;
+                    let no = 1;
+                    const BASE_CICILAN = 37725;
+
+                    sem3Logs.forEach(l => {
+                        const amount = l.amount || 0;
+                        total += amount;
+                        const isTahap2 = /tahap 2|pelunasan/i.test(l.type || '');
+                        const dendaPada = isTahap2 ? Math.max(0, amount - BASE_CICILAN) : 0;
+                        const labelUtama = l.type || 'Pembayaran';
+
+                        if (dendaPada > 0) {
+                            rows += `<tr><td style="text-align:center;">${no}</td><td>${labelUtama} (Pokok Rp ${BASE_CICILAN.toLocaleString('id-ID')})</td><td class="col-price">Rp ${BASE_CICILAN.toLocaleString('id-ID')}</td></tr>`;
+                            rows += `<tr class="denda-row"><td style="text-align:center;">${no}b</td><td>Denda Keterlambatan Cicilan Tahap 2</td><td class="col-price">Rp ${dendaPada.toLocaleString('id-ID')}</td></tr>`;
+                        } else {
+                            rows += `<tr><td style="text-align:center;">${no}</td><td>${labelUtama}</td><td class="col-price">Rp ${amount.toLocaleString('id-ID')}</td></tr>`;
+                        }
+                        no++;
+                    });
+
+                    tbody.innerHTML = rows;
+                    totalEl.innerText = "Rp " + total.toLocaleString('id-ID');
+
+                    if (sem3Status === 'lunas') {
+                        stamp.innerText = "LUNAS";
+                        stamp.style.color = "#0f5132"; stamp.style.borderColor = "#0f5132";
+                        document.getElementById('k-method').innerText = sem3Logs.length > 1 ? "Cicilan (Lunas Keduanya)" : "Lunas Penuh";
+                    } else if (sem3Status === 'cicilan1_lunas') {
+                        stamp.innerText = "CICILAN";
+                        stamp.style.color = "#d63384"; stamp.style.borderColor = "#d63384";
+                        document.getElementById('k-method').innerText = "Cicilan Tahap 1 (50%)";
+                        document.getElementById('k-ref').innerText += "-DP";
+                    }
                 }
             }
         }
