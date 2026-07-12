@@ -102,6 +102,18 @@
         .tag-ujian { background: #e0f2fe; color: #0284c7; }
         .tag-sem3 { background: #ede9fe; color: #6d28d9; }
 
+        /* Badge status untuk tab Kelola Semester 3 */
+        .st3-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+        .st3-belum { background: #fee2e2; color: #991b1b; }
+        .st3-cicilan { background: #fef3c7; color: #b45309; }
+        .st3-lunas { background: #dcfce7; color: #166534; }
+        .btn-group-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .btn-act-sm { padding: 9px 6px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; color: white; font-size: 0.72rem; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 4px; font-family: 'Poppins'; text-align: center; line-height: 1.2;}
+        .btn-act-sm:hover { filter: brightness(0.9); transform: translateY(-2px); }
+        .bg-amber { background: #f59e0b; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-gray { background: #94a3b8; }
+
         .req-name { font-weight: 700; color: var(--primary); font-size: 1.15rem; margin-bottom: 5px; }
         .req-info { font-size: 0.85rem; color: var(--text-gray); margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
         .req-amount { font-size: 1.6rem; font-weight: 800; color: var(--text-dark); margin: 5px 0 20px; }
@@ -199,6 +211,25 @@
             <div class="tab-item" id="tab-btn-arsip" onclick="switchTab('arsip')">
                 <i class="fa-solid fa-history"></i> Riwayat Otomatis
             </div>
+            <div class="tab-item" id="tab-btn-kelola" onclick="switchTab('kelola')">
+                <i class="fa-solid fa-sliders"></i> Kelola Semester 3
+            </div>
+        </div>
+
+        <!-- TAB: KELOLA SEMESTER 3 (kontrol manual, tidak bergantung deteksi otomatis) -->
+        <div id="tab-kelola" class="content-card hidden">
+            <div style="margin-bottom:20px;">
+                <h3 style="margin:0 0 8px 0; color:var(--primary);"><i class="fa-solid fa-sliders"></i> Kelola Status Pembayaran Semester 3</h3>
+                <p style="margin:0; font-size:0.85rem; color:var(--text-gray); line-height:1.5;">
+                    Gunakan ini untuk menandai status siswa semester 3 secara langsung -- berguna kalau tool perbaikan otomatis tidak menemukan riwayat transaksi siswa tersebut (misalnya siswa bayar sebelum sistem log ada). Perubahan di sini langsung tampil di halaman pembayaran siswa.
+                </p>
+                <input type="text" id="kelola-search" class="date-input" style="width:100%; max-width:350px; margin-top:12px;" placeholder="Cari nama siswa..." oninput="renderKelolaList()">
+            </div>
+            <div id="list-kelola" class="req-grid"></div>
+            <div id="empty-kelola" class="hidden" style="text-align:center; padding:60px 20px; color:#94a3b8;">
+                <i class="fa-regular fa-folder-open" style="font-size:3rem; opacity:0.4; margin-bottom:15px;"></i>
+                <p>Tidak ada siswa semester 3 ditemukan.</p>
+            </div>
         </div>
 
         <!-- TAB: ANTREAN -->
@@ -266,6 +297,7 @@
 
     let currentAdmin = null;
     let allArchiveData = []; // Menyimpan semua data arsip dari Firebase
+    let allSem3Students = []; // Daftar siswa semester 3 untuk tab Kelola
 
     // FIX: dua sumber antrean digabung -- normal (ujian sem 1-2) dan sem3 (independen)
     let waitingNormal = new Map();
@@ -292,6 +324,19 @@
             waitingSem3.clear();
             snap.forEach(d => waitingSem3.set(d.id, { id: d.id, ...d.data(), _kind: 'sem3' }));
             renderVerifList();
+        });
+
+        // REAL-TIME LISTENER BARU: Semua siswa semester 3 (untuk tab Kelola Manual)
+        const qAllSiswa = query(collection(db, 'users'), where('role', '==', 'siswa'));
+        onSnapshot(qAllSiswa, (snap) => {
+            allSem3Students = [];
+            snap.forEach(d => {
+                const data = d.data();
+                const sem = parseInt(data.semester) || 1;
+                if (sem >= 3) allSem3Students.push({ id: d.id, ...data });
+            });
+            allSem3Students.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            renderKelolaList();
         });
 
         // REAL-TIME LISTENER: Arsip Pemasukan
@@ -752,11 +797,95 @@
         });
     };
 
+    // ============================================================
+    // TAB KELOLA SEMESTER 3 -- kontrol manual per siswa, tidak
+    // bergantung pada deteksi otomatis dari finance_logs sama sekali.
+    // ============================================================
+    window.renderKelolaList = () => {
+        const container = document.getElementById('list-kelola');
+        if (!container) return; // tab belum ke-render di DOM saat listener pertama kali jalan
+
+        const searchEl = document.getElementById('kelola-search');
+        const keyword = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+        const filtered = keyword
+            ? allSem3Students.filter(s => (s.name || '').toLowerCase().includes(keyword))
+            : allSem3Students;
+
+        document.getElementById('empty-kelola').classList.toggle('hidden', filtered.length > 0);
+        container.innerHTML = '';
+
+        filtered.forEach(u => {
+            const status = u.sem3_status || 'belum';
+            let badgeClass = 'st3-belum', badgeText = 'Belum Bayar';
+            if (status === 'cicilan1_lunas') { badgeClass = 'st3-cicilan'; badgeText = 'Cicilan Tahap 1 Lunas'; }
+            else if (status === 'lunas') { badgeClass = 'st3-lunas'; badgeText = 'Lunas Penuh'; }
+
+            const uidStr = u.id.substring(0,5).toUpperCase();
+
+            container.innerHTML += `
+                <div class="req-card sem3-card">
+                    <span class="req-tag tag-sem3"><i class="fa-solid fa-graduation-cap"></i> Sem ${u.semester || 3}</span>
+                    <div class="req-name">${u.name || 'Tanpa Nama'}</div>
+                    <div class="req-info"><span><i class="fa-solid fa-hashtag"></i> ID: ${uidStr}</span></div>
+                    <span class="st3-badge ${badgeClass}">${badgeText}</span>
+                    <div class="btn-group-3">
+                        <button class="btn-act-sm bg-gray" onclick="setSem3Status('${u.id}', '${(u.name||'').replace(/'/g,"\\'")}', 'belum')"><i class="fa-solid fa-rotate-left"></i> Belum</button>
+                        <button class="btn-act-sm bg-amber" onclick="setSem3Status('${u.id}', '${(u.name||'').replace(/'/g,"\\'")}', 'cicilan1_lunas')"><i class="fa-solid fa-coins"></i> Cicilan 1</button>
+                        <button class="btn-act-sm bg-purple" onclick="setSem3Status('${u.id}', '${(u.name||'').replace(/'/g,"\\'")}', 'lunas')"><i class="fa-solid fa-check-double"></i> Lunas</button>
+                    </div>
+                </div>
+            `;
+        });
+    };
+
+    window.setSem3Status = (uid, name, targetStatus) => {
+        const labelMap = { belum: 'Belum Bayar', cicilan1_lunas: 'Cicilan Tahap 1 Lunas', lunas: 'Lunas Penuh' };
+        showModal('confirm', `Tandai "${labelMap[targetStatus]}"?`, `Status pembayaran semester 3 milik ${name} akan langsung diubah menjadi "${labelMap[targetStatus]}" dan tampil di halaman pembayaran siswa. Ini adalah koreksi manual, bukan transaksi baru. Lanjutkan?`, async () => {
+            showModal('loading', 'Menyimpan...', 'Memperbarui status siswa...');
+            try {
+                let updateData = { sem3_paymentStatus: null, sem3_pendingAmount: 0, sem3_pendingStage: null };
+
+                if (targetStatus === 'belum') {
+                    updateData.sem3_status = null;
+                    updateData.sem3_cycle_start = null;
+                    updateData.sem3_cicilan2_due = null;
+                } else if (targetStatus === 'cicilan1_lunas') {
+                    const due = new Date();
+                    due.setMonth(due.getMonth() + CICILAN2_DUE_MONTHS);
+                    updateData.sem3_status = 'cicilan1_lunas';
+                    updateData.sem3_cycle_start = serverTimestamp();
+                    updateData.sem3_cicilan2_due = due;
+                } else if (targetStatus === 'lunas') {
+                    updateData.sem3_status = 'lunas';
+                    updateData.sem3_cycle_start = serverTimestamp();
+                }
+
+                await updateDoc(doc(db, 'users', uid), updateData);
+
+                // Catat sebagai koreksi manual di Riwayat (amount 0 supaya tidak mengubah total pemasukan riil)
+                await addDoc(collection(db, 'finance_logs'), {
+                    studentName: name, studentUid: uid, amount: 0, semester: 3,
+                    type: `Koreksi Manual Admin (Sem3 -> ${labelMap[targetStatus]})`,
+                    adminName: currentAdmin.name, timestamp: serverTimestamp()
+                });
+
+                closeModal();
+                showModal('success', 'Berhasil', `Status ${name} sekarang: ${labelMap[targetStatus]}.`);
+            } catch (e) {
+                showModal('error', 'Gagal', e.message);
+            }
+        });
+    };
+
     window.switchTab = (tab) => {
         document.getElementById('tab-verif').classList.toggle('hidden', tab !== 'verif');
         document.getElementById('tab-arsip').classList.toggle('hidden', tab !== 'arsip');
+        document.getElementById('tab-kelola').classList.toggle('hidden', tab !== 'kelola');
         document.getElementById('tab-btn-verif').classList.toggle('active', tab === 'verif');
         document.getElementById('tab-btn-arsip').classList.toggle('active', tab === 'arsip');
+        document.getElementById('tab-btn-kelola').classList.toggle('active', tab === 'kelola');
+        if (tab === 'kelola') renderKelolaList();
     }
 
     // --- FUNGSI MODAL ---
