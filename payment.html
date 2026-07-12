@@ -99,8 +99,8 @@
         .info-banner i { margin-top: 2px; }
 
         /* ACTION BUTTONS */
-        .action-area { margin-top: 25px; }
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .action-area { margin-top: 25px; display: flex; flex-direction: column; gap: 10px; }
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
 
         .btn-action {
             display: flex; width: 100%; padding: 14px; border: none; border-radius: 12px;
@@ -139,13 +139,31 @@
         #modal-notification.success .modal-box { border-top-color: #10b981; }
         #modal-notification.error .modal-box { border-top-color: #ef4444; }
 
+        /* --- OPTIMASI UI MOBILE --- */
         @media (max-width: 768px) {
-            .container { padding: 15px; }
-            .page-header { flex-direction: column; align-items: flex-start; text-align: left; }
-            .btn-back { width: 100%; justify-content: center; margin-top: 10px; }
-            .content-grid { grid-template-columns: 1fr; gap: 20px; }
+            .container { padding: 0 0 20px 0; } /* Hapus padding pinggir agar header bisa mentok */
+            .page-header {
+                border-radius: 0 0 25px 25px; /* Hapus radius atas */
+                margin: 0 0 20px 0; /* Bleed ke sisi atas dan samping */
+                padding: 25px 20px;
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+            }
+            .header-logo-circle { width: 60px; height: 60px; }
+            .header-content h1 { font-size: 1.4rem; }
+            .header-content p { font-size: 0.85rem; }
+            .btn-back { width: 100%; justify-content: center; margin-top: 5px; }
+            
+            .content-grid { 
+                grid-template-columns: 1fr; 
+                gap: 20px; 
+                padding: 0 20px; /* Kembalikan padding untuk elemen grid (card) */
+            }
+            .card { padding: 20px; border-radius: 15px; }
             .bill-amount { font-size: 2rem; }
         }
+        
         @media (max-width: 480px) {
             .action-grid { grid-template-columns: 1fr; }
         }
@@ -221,24 +239,6 @@
         </div>
     </div>
 
-    <div id="modal-confirm" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-icon-lg">🤔</div>
-            <h3 class="modal-h3">Bantuan</h3>
-            <p class="modal-p">Jika dalam 5 menit belum lunas, hubungi admin via WhatsApp.</p>
-            <button class="btn-modal btn-yes" onclick="closeAllModals()">Oke</button>
-        </div>
-    </div>
-
-    <div id="modal-timer" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-icon-lg">⏳</div>
-            <h3 class="modal-h3">Proses Verifikasi</h3>
-            <p class="modal-p">Sistem sedang memantau mutasi secara otomatis.</p>
-            <button class="btn-action btn-receipt" onclick="closeAllModals()" style="background:#f1f5f9; color:#333; margin-top:15px;">Tutup</button>
-        </div>
-    </div>
-
     <div id="modal-loading" class="modal-overlay">
         <div class="modal-box" style="width:auto; padding:30px;">
             <i class="fa-solid fa-circle-notch fa-spin" style="font-size:3rem; color:#003366;"></i>
@@ -251,7 +251,7 @@
         import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // ============================================================
-        // LOGIKA DINAMIS TOMBOL KEMBALI (dipertahankan dari versi Anda)
+        // LOGIKA DINAMIS TOMBOL KEMBALI
         // ============================================================
         const urlParams = new URLSearchParams(window.location.search);
         const fromInkubasi = urlParams.get('ref') === 'inkubasi';
@@ -274,15 +274,9 @@
         let unsubscribePayment = null;
         let unsubscribePaymentSem3 = null;
 
-        // ============================================================
-        // KONSTANTA KHUSUS SEMESTER 3 (HARUS SAMA dengan admin/keuangan.html)
-        // FIX PENTING: semester 3 sekarang membaca field terpisah
-        // (prefix "sem3_") yang ditulis oleh tombol "Kelola Semester 3"
-        // di admin -- bukan lagi statusPembayaran/paymentStatus yang lama.
-        // ============================================================
-        const CICILAN2_DUE_MONTHS = 3; // ASUMSI jarak Cicilan 1 -> jatuh tempo Cicilan 2
-        const DENDA_PCT_PER_MINGGU = 0.10; // 10% per minggu, MAJEMUK
-        const MASA_TENGGANG_MS = 7 * 24 * 60 * 60 * 1000; // 1 minggu tenggang sebelum denda mulai
+        const CICILAN2_DUE_MONTHS = 3; 
+        const DENDA_PCT_PER_MINGGU = 0.10; 
+        const MASA_TENGGANG_MS = 7 * 24 * 60 * 60 * 1000; 
 
         function hitungTagihanCicilan2(dueDateObj, baseAmount) {
             const now = new Date();
@@ -300,7 +294,6 @@
             return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
         }
 
-        // --- CUSTOM MODAL FUNCTION (GANTI ALERT) ---
         window.showCustomModal = (type, title, message) => {
             const modal = document.getElementById('modal-notification');
             const icon = document.getElementById('noti-icon');
@@ -319,7 +312,6 @@
             modal.classList.add('active');
         };
 
-        // --- PAYMENT FLOW OTOMATIS (SEMESTER 1-2, TIDAK BERUBAH) ---
         window.showQRIS = async (amount, label) => {
             document.getElementById('modal-loading').classList.add('active');
 
@@ -332,10 +324,16 @@
                     pendingAmount: finalAmount 
                 });
 
+                // Update lokal untuk jaga-jaga kalau dibuka ulang
+                currentUser.paymentStatus = 'waiting';
+                currentUser.pendingAmount = finalAmount;
+
                 document.getElementById('qris-amount').innerText = "Rp " + finalAmount.toLocaleString('id-ID');
                 document.getElementById('qris-title').innerText = label + " (+ Kode Unik)";
                 document.getElementById('modal-loading').classList.remove('active');
                 document.getElementById('modal-qris').classList.add('active');
+                
+                setWaitingUI(); // Rubah tombol jadi "Lihat Kode Bayar"
 
                 if (unsubscribePayment) unsubscribePayment();
                 unsubscribePayment = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
@@ -352,7 +350,6 @@
             }
         };
 
-        // --- PAYMENT FLOW BARU KHUSUS SEMESTER 3 (field independen sem3_*) ---
         window.showQRIS3 = async (amount, label, stage) => {
             document.getElementById('modal-loading').classList.add('active');
 
@@ -365,11 +362,18 @@
                     sem3_pendingAmount: finalAmount,
                     sem3_pendingStage: stage
                 });
+                
+                // Update lokal 
+                currentUser.sem3_paymentStatus = 'waiting';
+                currentUser.sem3_pendingAmount = finalAmount;
+                currentUser.sem3_pendingStage = stage;
 
                 document.getElementById('qris-amount').innerText = "Rp " + finalAmount.toLocaleString('id-ID');
                 document.getElementById('qris-title').innerText = label + " (+ Kode Unik)";
                 document.getElementById('modal-loading').classList.remove('active');
                 document.getElementById('modal-qris').classList.add('active');
+
+                setWaitingUI(); // Rubah tombol
 
                 if (unsubscribePaymentSem3) unsubscribePaymentSem3();
                 unsubscribePaymentSem3 = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
@@ -386,6 +390,30 @@
             }
         };
 
+        // FUNGSI BARU: Buka ulang QRIS tanpa update firestore (tanpa buat kode unik baru)
+        window.reopenPendingPayment = () => {
+            let amount = 0;
+            let label = 'Tagihan';
+
+            const rawSem = currentUser.semester || 1;
+            const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
+
+            if (sem < 3) {
+                amount = currentUser.pendingAmount || 0;
+                label = 'Uang Ujian';
+            } else {
+                amount = currentUser.sem3_pendingAmount || 0;
+                const stage = currentUser.sem3_pendingStage || '';
+                if (stage === 'cicilan1') label = 'Cicilan Tahap 1 (50%)';
+                else if (stage === 'cicilan2') label = 'Pelunasan Cicilan Tahap 2';
+                else label = 'Lunas Penuh';
+            }
+
+            document.getElementById('qris-amount').innerText = "Rp " + amount.toLocaleString('id-ID');
+            document.getElementById('qris-title').innerText = label + " (+ Kode Unik)";
+            document.getElementById('modal-qris').classList.add('active');
+        };
+
         function handlePaymentSuccess() {
             closeAllModals();
             showCustomModal('success', 'Berhasil', 'PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.');
@@ -393,8 +421,6 @@
         }
 
         window.closeAllModals = () => {
-            if (unsubscribePayment) unsubscribePayment();
-            if (unsubscribePaymentSem3) unsubscribePaymentSem3();
             document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
         };
 
@@ -426,11 +452,24 @@
             }
         })();
 
+        // PERUBAHAN: Action area menampilkan tombol "Lihat Kode Bayar" & "Muat Ulang Status"
         function setWaitingUI() {
             const badge = document.getElementById('status-badge');
             const actionArea = document.getElementById('action-area');
-            if(badge) { badge.className = 'status-badge st-waiting'; badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU PEMBAYARAN'; }
-            if(actionArea) { actionArea.innerHTML = `<button onclick="location.reload()" class="btn-action btn-waiting"><i class="fa-solid fa-hourglass-half"></i> Mengecek Otomatis...</button>`; }
+            if(badge) { 
+                badge.className = 'status-badge st-waiting'; 
+                badge.innerHTML = '<i class="fa-solid fa-clock"></i> MENUNGGU VERIFIKASI'; 
+            }
+            if(actionArea) { 
+                actionArea.innerHTML = `
+                    <button onclick="reopenPendingPayment()" class="btn-action btn-pay" style="background: #0ea5e9; color: white;">
+                        <i class="fa-solid fa-qrcode"></i> Lihat Kode Bayar
+                    </button>
+                    <button onclick="location.reload()" class="btn-action btn-waiting" style="background: #f1f5f9; color: #475569;">
+                        <i class="fa-solid fa-rotate-right"></i> Muat Ulang Halaman
+                    </button>
+                `; 
+            }
         }
 
         async function renderData(user, sem) {
