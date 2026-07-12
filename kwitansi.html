@@ -211,7 +211,7 @@
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         (async () => {
             const user = await checkAuth('siswa');
@@ -277,13 +277,32 @@
             // ============================================================
             const BASE_CICILAN = 37725;
 
-            const qLogs = query(collection(db, 'finance_logs'), where('studentUid', '==', user.uid), orderBy('timestamp', 'asc'));
-            const logSnap = await getDocs(qLogs);
-            const sem3Logs = [];
-            logSnap.forEach(d => {
-                const l = d.data();
-                if ((parseInt(l.semester) || 1) >= 3) sem3Logs.push(l);
-            });
+            // FIX PENTING: sebelumnya query ini pakai where() + orderBy() sekaligus,
+            // yang di Firestore MEMBUTUHKAN composite index khusus. Kalau index itu
+            // belum dibuat, query akan GAGAL DIAM-DIAM (error hanya masuk console),
+            // dan seluruh proses render kuitansi berhenti total -- itulah sebabnya
+            // rincian & nominal tidak pernah muncul padahal status sudah "Lunas".
+            // Solusinya: ambil datanya tanpa orderBy (tidak butuh index), lalu urutkan
+            // sendiri di JavaScript. Selain itu, dibungkus try/catch terpisah supaya
+            // kalaupun gagal karena sebab lain, kuitansi TETAP tampil dengan harga
+            // standar sebagai fallback -- tidak lagi kosong sama sekali.
+            let sem3Logs = [];
+            try {
+                const qLogs = query(collection(db, 'finance_logs'), where('studentUid', '==', user.uid));
+                const logSnap = await getDocs(qLogs);
+                logSnap.forEach(d => {
+                    const l = d.data();
+                    if ((parseInt(l.semester) || 1) >= 3) sem3Logs.push(l);
+                });
+                sem3Logs.sort((a, b) => {
+                    const ta = (a.timestamp && a.timestamp.seconds) ? a.timestamp.seconds : 0;
+                    const tb = (b.timestamp && b.timestamp.seconds) ? b.timestamp.seconds : 0;
+                    return ta - tb;
+                });
+            } catch (logErr) {
+                console.error('Gagal mengambil riwayat finance_logs, memakai harga standar sebagai fallback:', logErr);
+                sem3Logs = [];
+            }
 
             const sem3Status = user.sem3_status || 'belum';
 
