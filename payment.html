@@ -83,11 +83,20 @@
         .st-paid { background: #dcfce7; color: #166534; }
         .st-cicil { background: #fef3c7; color: #b45309; }
         .st-waiting { background: #e0f2fe; color: #0369a1; }
+        .st-overdue { background: #fecaca; color: #7f1d1d; }
 
         /* DETAILS */
         .details-box { background: #f8fafc; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid #f1f5f9; }
         .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; color: #475569; }
+        .detail-row.denda { color: #b91c1c; font-weight: 600; }
         .detail-total { border-top: 2px dashed #cbd5e1; margin-top: 10px; padding-top: 10px; font-weight: 700; color: #1e293b; font-size: 1rem; }
+
+        .info-banner { border-radius: 12px; padding: 14px 16px; font-size: 0.85rem; margin-bottom: 18px; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+        .info-banner.blue { background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }
+        .info-banner.amber { background: #fef3c7; color: #78350f; border: 1px solid #fde68a; }
+        .info-banner.red { background: #fee2e2; color: #7f1d1d; border: 1px solid #fecaca; }
+        .info-banner.green { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+        .info-banner i { margin-top: 2px; }
 
         /* ACTION BUTTONS */
         .action-area { margin-top: 25px; }
@@ -105,6 +114,7 @@
         .btn-cicil { background: #fff; border: 2px solid #f59e0b; color: #d97706; }
         .btn-cicil:hover { background: #fffbeb; }
         .btn-waiting { background: #cbd5e1; color: #475569; cursor: default; }
+        .btn-danger-pay { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; }
 
         /* MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 2000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; }
@@ -154,7 +164,6 @@
                     <p>Kelola tagihan dan administrasi akademik Anda.</p>
                 </div>
             </div>
-            <!-- LOGIKA TOMBOL KEMBALI DI JAVASCRIPT -->
             <a href="/dashboard/index.html" class="btn-back" id="btn-kembali">
                 <i class="fa-solid fa-arrow-left"></i> <span id="kembali-text">Dashboard Utama</span>
             </a>
@@ -180,6 +189,7 @@
                     </div>
                     <div id="status-badge" class="status-badge st-unpaid">Memuat...</div>
                 </div>
+                <div id="info-banner-area"></div>
                 <div class="details-box" id="rincian-list"></div>
                 <div id="action-area" class="action-area"></div>
             </div>
@@ -241,7 +251,7 @@
         import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // ============================================================
-        // LOGIKA DINAMIS TOMBOL KEMBALI
+        // LOGIKA DINAMIS TOMBOL KEMBALI (dipertahankan dari versi Anda)
         // ============================================================
         const urlParams = new URLSearchParams(window.location.search);
         const fromInkubasi = urlParams.get('ref') === 'inkubasi';
@@ -251,11 +261,9 @@
         
         if (btnKembali && textKembali) {
             if (fromInkubasi) {
-                // Jika asalnya dari Inkubasi
                 btnKembali.href = '/dashboard/inkubasi.html';
                 textKembali.innerText = 'Ruang Inkubasi'; 
             } else {
-                // Jika tidak, default arahkan ke Dashboard
                 btnKembali.href = '/dashboard/index.html'; 
                 textKembali.innerText = 'Dashboard Utama';
             }
@@ -264,6 +272,33 @@
 
         let currentUser = null;
         let unsubscribePayment = null;
+        let unsubscribePaymentSem3 = null;
+
+        // ============================================================
+        // KONSTANTA KHUSUS SEMESTER 3 (HARUS SAMA dengan admin/keuangan.html)
+        // FIX PENTING: semester 3 sekarang membaca field terpisah
+        // (prefix "sem3_") yang ditulis oleh tombol "Kelola Semester 3"
+        // di admin -- bukan lagi statusPembayaran/paymentStatus yang lama.
+        // ============================================================
+        const CICILAN2_DUE_MONTHS = 3; // ASUMSI jarak Cicilan 1 -> jatuh tempo Cicilan 2
+        const DENDA_PCT_PER_MINGGU = 0.10; // 10% per minggu, MAJEMUK
+        const MASA_TENGGANG_MS = 7 * 24 * 60 * 60 * 1000; // 1 minggu tenggang sebelum denda mulai
+
+        function hitungTagihanCicilan2(dueDateObj, baseAmount) {
+            const now = new Date();
+            if (!dueDateObj) return { totalTagihan: baseAmount, mingguTelat: 0, denda: 0, sudahJatuhTempo: false, sudahKenaDenda: false };
+            const selisihMs = now - dueDateObj;
+            if (selisihMs <= 0) return { totalTagihan: baseAmount, mingguTelat: 0, denda: 0, sudahJatuhTempo: false, sudahKenaDenda: false };
+            if (selisihMs <= MASA_TENGGANG_MS) return { totalTagihan: baseAmount, mingguTelat: 0, denda: 0, sudahJatuhTempo: true, sudahKenaDenda: false };
+            const msPerMinggu = 7 * 24 * 60 * 60 * 1000;
+            const mingguTelat = Math.floor(selisihMs / msPerMinggu);
+            const totalTagihan = Math.round(baseAmount * Math.pow(1 + DENDA_PCT_PER_MINGGU, mingguTelat));
+            return { totalTagihan, mingguTelat, denda: totalTagihan - baseAmount, sudahJatuhTempo: true, sudahKenaDenda: true };
+        }
+
+        function tanggalIndo(d) {
+            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
 
         // --- CUSTOM MODAL FUNCTION (GANTI ALERT) ---
         window.showCustomModal = (type, title, message) => {
@@ -284,7 +319,7 @@
             modal.classList.add('active');
         };
 
-        // --- PAYMENT FLOW OTOMATIS ---
+        // --- PAYMENT FLOW OTOMATIS (SEMESTER 1-2, TIDAK BERUBAH) ---
         window.showQRIS = async (amount, label) => {
             document.getElementById('modal-loading').classList.add('active');
 
@@ -317,6 +352,40 @@
             }
         };
 
+        // --- PAYMENT FLOW BARU KHUSUS SEMESTER 3 (field independen sem3_*) ---
+        window.showQRIS3 = async (amount, label, stage) => {
+            document.getElementById('modal-loading').classList.add('active');
+
+            const uniqueCode = Math.floor(Math.random() * 500) + 1;
+            const finalAmount = amount + uniqueCode;
+
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    sem3_paymentStatus: 'waiting',
+                    sem3_pendingAmount: finalAmount,
+                    sem3_pendingStage: stage
+                });
+
+                document.getElementById('qris-amount').innerText = "Rp " + finalAmount.toLocaleString('id-ID');
+                document.getElementById('qris-title').innerText = label + " (+ Kode Unik)";
+                document.getElementById('modal-loading').classList.remove('active');
+                document.getElementById('modal-qris').classList.add('active');
+
+                if (unsubscribePaymentSem3) unsubscribePaymentSem3();
+                unsubscribePaymentSem3 = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
+                    const data = docSnap.data();
+                    if (data.sem3_paymentStatus === 'verified' || (data.sem3_paymentStatus == null && data.sem3_status)) {
+                        if (unsubscribePaymentSem3) unsubscribePaymentSem3();
+                        handlePaymentSuccess();
+                    }
+                });
+
+            } catch(e) {
+                document.getElementById('modal-loading').classList.remove('active');
+                showCustomModal('error', 'Gagal', 'Gagal mengaktifkan sistem pembayaran.');
+            }
+        };
+
         function handlePaymentSuccess() {
             closeAllModals();
             showCustomModal('success', 'Berhasil', 'PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.');
@@ -325,6 +394,7 @@
 
         window.closeAllModals = () => {
             if (unsubscribePayment) unsubscribePayment();
+            if (unsubscribePaymentSem3) unsubscribePaymentSem3();
             document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
         };
 
@@ -335,11 +405,20 @@
                 const sem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 renderData(currentUser, sem);
 
-                // Listener untuk mendeteksi perubahan status lunas secara real-time
-                if (currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
+                if (sem < 3 && currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas') {
                     setWaitingUI();
                     onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
                         if (docSnap.data().paymentStatus === 'verified' || docSnap.data().statusPembayaran === 'Lunas') {
+                            handlePaymentSuccess();
+                        }
+                    });
+                }
+
+                if (sem >= 3 && currentUser.sem3_paymentStatus === 'waiting') {
+                    setWaitingUI();
+                    onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
+                        const d = docSnap.data();
+                        if (d.sem3_paymentStatus === 'verified' || d.sem3_paymentStatus == null) {
                             handlePaymentSuccess();
                         }
                     });
@@ -368,26 +447,18 @@
             const detailsEl = document.getElementById('rincian-list');
             const actionArea = document.getElementById('action-area');
             const labelTagihan = document.getElementById('label-tagihan');
+            const bannerArea = document.getElementById('info-banner-area');
+            bannerArea.innerHTML = '';
 
-            // --- JIKA PEMBAYARAN SEDANG DIPROSES (WAITING) ---
-            if (paymentStatus === 'waiting' && status !== 'Lunas') {
-                setWaitingUI();
-                if (sem < 3) {
+            if (sem < 3) {
+                if (paymentStatus === 'waiting' && status !== 'Lunas') {
+                    setWaitingUI();
                     const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                     const snap = await getDocs(q);
                     amountEl.innerText = "Rp " + (snap.size * 1000).toLocaleString('id-ID');
-                } else {
-                    const nominal = (status === 'Cicilan') ? 37725 : 75450;
-                    amountEl.innerText = "Rp " + nominal.toLocaleString('id-ID');
+                    return;
                 }
-                return;
-            }
 
-            // ====================================================
-            // LOGIKA PEMBAYARAN SEMESTER 1 & 2
-            // ====================================================
-            if (sem < 3) {
-                // Di Semester 1 & 2, jika admin menghapus/mematikan ujian, tagihan bisa 0.
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snap = await getDocs(q);
                 const count = snap.size;
@@ -405,35 +476,76 @@
                     if(totalBayar > 0) {
                         actionArea.innerHTML = `<button onclick="showQRIS(${totalBayar}, 'Uang Ujian')" class="btn-action btn-pay"><i class="fa-solid fa-qrcode"></i> Bayar Sekarang</button>`;
                     } else {
-                        // Jika tidak ada tagihan (Admin mematikan ujian)
                         actionArea.innerHTML = `<div style="text-align:center; color:#64748b; font-size:0.9rem; margin-top:10px;"><i class="fa-solid fa-circle-check"></i> Tidak ada tagihan ujian aktif saat ini.</div>`;
                     }
                 }
-            } 
-            // ====================================================
-            // LOGIKA KHUSUS SEMESTER 3 (INDEPENDEN & PERMANEN)
-            // ====================================================
-            else {
-                // Di Semester 3, tagihan tidak mempedulikan ujian. Selalu muncul detail ini.
-                detailsEl.innerHTML = `<div class="detail-row"><span>Buku Rapor</span><span>Rp 20.450</span></div><div class="detail-row"><span>Special Book</span><span>Rp 25.000</span></div><div class="detail-row"><span>Administrasi</span><span>Rp 5.000</span></div><div class="detail-row"><span>Bimbingan</span><span>Rp 25.000</span></div><div class="detail-row detail-total"><span>TOTAL FULL</span><span>Rp 75.450</span></div>`;
+                return;
+            }
 
-                // Jika sudah Lunas, akan SELAMANYA dikunci menjadi Lunas
-                if (status === 'Lunas') {
-                    labelTagihan.innerText = "TOTAL ADMINISTRASI";
-                    amountEl.innerText = "Rp 75.450";
-                    badge.className = 'status-badge st-paid'; badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
-                    actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Download Kwitansi</a>`;
-                } else if (status === 'Cicilan') {
-                    labelTagihan.innerText = "SISA TAGIHAN";
-                    amountEl.innerText = "Rp 37.725"; 
-                    badge.className = 'status-badge st-cicil'; badge.innerHTML = 'CICILAN AKTIF (50%)';
-                    actionArea.innerHTML = `<div class="action-grid"><button onclick="showQRIS(37725, 'Sisa Cicilan')" class="btn-action btn-pay"><i class="fa-solid fa-wallet"></i> Lunasi Sisa</button><a href="kwitansi.html" class="btn-action btn-receipt" style="background:#64748b;"><i class="fa-solid fa-file-invoice"></i> Bukti DP</a></div>`;
-                } else {
-                    labelTagihan.innerText = "TOTAL ADMINISTRASI";
-                    amountEl.innerText = "Rp 75.450";
-                    badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
-                    actionArea.innerHTML = `<div class="action-grid"><button onclick="showQRIS(37725, 'Cicilan 50%')" class="btn-action btn-cicil">Cicil 50%</button><button onclick="showQRIS(75450, 'Lunas Penuh')" class="btn-action btn-pay">Lunas</button></div>`;
+            const BIAYA_LUNAS = 75450;
+            const BIAYA_CICILAN = 37725;
+
+            const sem3Status = user.sem3_status || 'belum';
+
+            if (user.sem3_paymentStatus === 'waiting') {
+                setWaitingUI();
+                amountEl.innerText = "Rp " + (user.sem3_pendingAmount || 0).toLocaleString('id-ID');
+                return;
+            }
+
+            if (sem3Status === 'lunas') {
+                labelTagihan.innerText = "STATUS ADMINISTRASI";
+                amountEl.innerText = "LUNAS";
+                badge.className = 'status-badge st-paid'; badge.innerHTML = '<i class="fa-solid fa-check"></i> LUNAS';
+
+                let masaBerlakuHTML = '';
+                if (user.sem3_cycle_start && user.sem3_cycle_start.toDate) {
+                    const mulai = user.sem3_cycle_start.toDate();
+                    const berakhir = new Date(mulai);
+                    berakhir.setMonth(berakhir.getMonth() + 12);
+                    masaBerlakuHTML = `<div class="detail-row"><span>Berlaku Sejak</span><span>${tanggalIndo(mulai)}</span></div><div class="detail-row"><span>Berlaku Hingga</span><span>${tanggalIndo(berakhir)}</span></div>`;
                 }
+                detailsEl.innerHTML = `${masaBerlakuHTML}<div class="detail-row detail-total"><span>STATUS</span><span>Lunas Penuh</span></div>`;
+                bannerArea.innerHTML = `<div class="info-banner green"><i class="fa-solid fa-circle-check"></i><span>Administrasi semester 3 Anda sudah lunas dan berlaku selama 12 bulan sejak tanggal pembayaran.</span></div>`;
+                actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Lihat Kwitansi</a>`;
+
+            } else if (sem3Status === 'cicilan1_lunas') {
+                const dueDate = (user.sem3_cicilan2_due && user.sem3_cicilan2_due.toDate) ? user.sem3_cicilan2_due.toDate() : null;
+                const hitung = hitungTagihanCicilan2(dueDate, BIAYA_CICILAN);
+
+                labelTagihan.innerText = hitung.sudahKenaDenda ? "TAGIHAN CICILAN 2 + DENDA" : "TAGIHAN CICILAN TAHAP 2";
+                amountEl.innerText = "Rp " + hitung.totalTagihan.toLocaleString('id-ID');
+
+                let rincianHTML = `<div class="detail-row"><span>Cicilan Tahap 1 (Lunas)</span><span>Rp ${BIAYA_CICILAN.toLocaleString('id-ID')}</span></div>`;
+                rincianHTML += `<div class="detail-row"><span>Cicilan Tahap 2 (Pokok)</span><span>Rp ${BIAYA_CICILAN.toLocaleString('id-ID')}</span></div>`;
+                if (dueDate) rincianHTML += `<div class="detail-row"><span>Jatuh Tempo</span><span>${tanggalIndo(dueDate)}</span></div>`;
+                if (hitung.sudahKenaDenda) {
+                    rincianHTML += `<div class="detail-row denda"><span>Denda Keterlambatan (${hitung.mingguTelat} minggu &times; 10%, majemuk)</span><span>+Rp ${hitung.denda.toLocaleString('id-ID')}</span></div>`;
+                }
+                rincianHTML += `<div class="detail-row detail-total"><span>TOTAL TAGIHAN</span><span>Rp ${hitung.totalTagihan.toLocaleString('id-ID')}</span></div>`;
+                detailsEl.innerHTML = rincianHTML;
+
+                if (hitung.sudahKenaDenda) {
+                    badge.className = 'status-badge st-overdue'; badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> TERLAMBAT';
+                    bannerArea.innerHTML = `<div class="info-banner red"><i class="fa-solid fa-triangle-exclamation"></i><span>Pembayaran Cicilan Tahap 2 sudah melewati tenggat lebih dari 1 minggu. Denda 10% per minggu (majemuk) terus bertambah setiap minggu sampai dilunasi. Segera lakukan pembayaran.</span></div>`;
+                    actionArea.innerHTML = `<button onclick="showQRIS3(${hitung.totalTagihan}, 'Pelunasan Cicilan Tahap 2 (+Denda)', 'cicilan2')" class="btn-action btn-danger-pay"><i class="fa-solid fa-circle-exclamation"></i> Bayar Sekarang (+Denda)</button>`;
+                } else if (hitung.sudahJatuhTempo) {
+                    badge.className = 'status-badge st-cicil'; badge.innerHTML = 'CICILAN 2 JATUH TEMPO';
+                    bannerArea.innerHTML = `<div class="info-banner amber"><i class="fa-solid fa-hourglass-half"></i><span>Cicilan Tahap 2 sudah jatuh tempo. Anda punya masa tenggang 1 minggu sebelum denda mulai berjalan.</span></div>`;
+                    actionArea.innerHTML = `<button onclick="showQRIS3(${BIAYA_CICILAN}, 'Pelunasan Cicilan Tahap 2', 'cicilan2')" class="btn-action btn-pay"><i class="fa-solid fa-wallet"></i> Lunasi Cicilan Tahap 2</button>`;
+                } else {
+                    badge.className = 'status-badge st-cicil'; badge.innerHTML = 'CICILAN AKTIF (50%)';
+                    bannerArea.innerHTML = `<div class="info-banner blue"><i class="fa-solid fa-circle-info"></i><span>Cicilan Tahap 1 sudah lunas. Cicilan Tahap 2 akan ditagih otomatis mulai <b>${dueDate ? tanggalIndo(dueDate) : '-'}</b>.</span></div>`;
+                    actionArea.innerHTML = `<a href="kwitansi.html" class="btn-action btn-receipt"><i class="fa-solid fa-file-invoice"></i> Bukti Cicilan Tahap 1</a>`;
+                }
+
+            } else {
+                labelTagihan.innerText = "TOTAL ADMINISTRASI";
+                amountEl.innerText = "Rp " + BIAYA_LUNAS.toLocaleString('id-ID');
+                badge.className = 'status-badge st-unpaid'; badge.innerHTML = 'BELUM BAYAR';
+                detailsEl.innerHTML = `<div class="detail-row"><span>Buku Rapor</span><span>Rp 20.450</span></div><div class="detail-row"><span>Special Book</span><span>Rp 25.000</span></div><div class="detail-row"><span>Administrasi</span><span>Rp 5.000</span></div><div class="detail-row"><span>Bimbingan</span><span>Rp 25.000</span></div><div class="detail-row detail-total"><span>TOTAL FULL</span><span>Rp 75.450</span></div>`;
+                bannerArea.innerHTML = `<div class="info-banner blue"><i class="fa-solid fa-circle-info"></i><span>Administrasi semester 3 berlaku independen selama 12 bulan sejak pembayaran pertama, tidak terpengaruh siklus ujian semester 1-2.</span></div>`;
+                actionArea.innerHTML = `<div class="action-grid"><button onclick="showQRIS3(${BIAYA_CICILAN}, 'Cicilan Tahap 1 (50%)', 'cicilan1')" class="btn-action btn-cicil">Cicil 50%</button><button onclick="showQRIS3(${BIAYA_LUNAS}, 'Lunas Penuh', 'lunas')" class="btn-action btn-pay">Lunas</button></div>`;
             }
         }
     </script>
