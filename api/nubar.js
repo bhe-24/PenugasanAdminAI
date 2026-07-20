@@ -28,7 +28,7 @@ Nubar Literasi adalah program Open Submission Antologi. Peserta yang mendaftar W
 Instruksi Saat Ini:
 Buatkan rancangan proyek Nubar Literasi untuk periode "${bulan}" dengan Tema Utama "${tema}". Pastikan konsep ini UNIK dan memiliki ciri khas yang membedakannya dengan proyek periode lain.
 
-OUTPUT WAJIB (Harus dalam Format JSON Murni tanpa Markdown \`\`\`json):
+OUTPUT WAJIB (JANGAN ADA KATA-KATA LAIN SELAIN JSON):
 {
   "informasi_periode": {
     "nama_periode": "Nubar Literasi [Bulan Tahun]",
@@ -86,19 +86,26 @@ OUTPUT WAJIB (Harus dalam Format JSON Murni tanpa Markdown \`\`\`json):
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { 
-                temperature: 0.8, // Sedikit kreatif agar tiap proyek tidak monoton
+                temperature: 0.8,
                 responseMimeType: "application/json" 
             }
         });
         
         let textResponse = result.response.text();
-        textResponse = textResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        // PEMBERSIHAN EKSTREM: Buang semua karakter sebelum { dan sesudah }
+        const startIndex = textResponse.indexOf('{');
+        const endIndex = textResponse.lastIndexOf('}');
+        
+        if (startIndex !== -1 && endIndex !== -1) {
+            textResponse = textResponse.substring(startIndex, endIndex + 1);
+        }
         
         const finalResult = JSON.parse(textResponse);
         res.status(200).json(finalResult);
 
     } catch (error) {
         console.error("API Nubar Error:", error);
-        res.status(500).json({ error: error.message || "Sistem AI sedang sibuk." });
+        res.status(500).json({ error: "Sistem AI gagal memproses data (Format tidak sesuai). Coba lagi." });
     }
 }
