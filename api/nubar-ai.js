@@ -1,34 +1,42 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+export const config = {
+    runtime: 'edge', // MANTRA RAHASIA MENGATASI TIMEOUT 10 DETIK VERCEL
+};
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+export default async function handler(req) {
+    // 1. PENGATURAN CORS UNTUK EDGE RUNTIME
+    const corsHeaders = {
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,OPTIONS,POST',
+        'Access-Control-Allow-Headers': 'Content-Type',
+    };
 
-module.exports = async function handler(req, res) {
-    // Pengaturan CORS
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*'); 
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    if (req.method === 'OPTIONS') {
+        return new Response('OK', { headers: corsHeaders });
+    }
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method !== 'POST') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
+    }
 
     try {
-        const { bulan, tema } = req.body;
+        const body = await req.json();
+        const { bulan, tema } = body;
 
         if (!bulan || !tema) {
-            return res.status(400).json({ error: 'Bulan dan Tema wajib diisi.' });
+            return new Response(JSON.stringify({ error: 'Bulan dan Tema wajib diisi.' }), { status: 400, headers: corsHeaders });
         }
 
         const promptText = `
-Peran: Kamu adalah Asisten Resmi Nubar Literasi (Nulis Bareng), sebuah program penerbitan buku antologi yang diselenggarakan secara berkala. Tugasmu adalah memberikan informasi lengkap, terstruktur, dan konsisten mengenai setiap periode Nubar Literasi.
+Peran: Kamu adalah Tim Manajemen Konseptor Proyek Nubar Literasi (Nulis Bareng), sebuah program penerbitan buku antologi yang diselenggarakan secara berkala. Tugasmu adalah memberikan informasi lengkap, terstruktur, dan konsisten mengenai setiap periode Nubar Literasi.
 
 Konsep Dasar:
-Nubar Literasi adalah program Open Submission Antologi. Peserta yang mendaftar WAJIB sudah memiliki naskah yang selesai sesuai ketentuan. Program ini bukan kelas belajar menulis dari awal, melainkan wadah untuk menghimpun karya para penulis agar diterbitkan dalam satu buku antologi. Sebagai pendamping, setiap peserta akan memperoleh E-Book Materi yang berisi panduan sesuai tema periode. E-book tersebut berfungsi sebagai referensi untuk meningkatkan kualitas karya, bukan sebagai tugas yang harus diselesaikan.
+Nubar Literasi adalah program Open Submission Antologi. Peserta yang mendaftar WAJIB sudah memiliki naskah yang selesai sesuai ketentuan. Program ini bukan kelas belajar menulis dari awal, melainkan wadah untuk menghimpun karya para penulis agar diterbitkan dalam satu buku antologi. Sebagai pendamping, setiap peserta akan memperoleh E-Book Materi yang berisi panduan sesuai tema periode.
 
 Instruksi Saat Ini:
 Buatkan rancangan proyek Nubar Literasi untuk periode "${bulan}" dengan Tema Utama "${tema}". Pastikan konsep ini UNIK dan memiliki ciri khas yang membedakannya dengan proyek periode lain.
 
-OUTPUT WAJIB (JANGAN ADA KATA-KATA LAIN SELAIN JSON):
+OUTPUT WAJIB (JANGAN ADA KATA-KATA LAIN SELAIN JSON MURNI):
 {
   "informasi_periode": {
     "nama_periode": "Nubar Literasi [Bulan Tahun]",
@@ -81,31 +89,49 @@ OUTPUT WAJIB (JANGAN ADA KATA-KATA LAIN SELAIN JSON):
 }
 `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: promptText }] }],
-            generationConfig: { 
-                temperature: 0.8,
-                responseMimeType: "application/json" 
-            }
+        const apiKey = process.env.GEMINI_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+        // Fetch langsung dari backend (Edge)
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: promptText }] }],
+                generationConfig: { 
+                    temperature: 0.8,
+                    responseMimeType: "application/json" 
+                }
+            })
         });
-        
-        let textResponse = result.response.text();
-        
-        // PEMBERSIHAN EKSTREM: Buang semua karakter sebelum { dan sesudah }
+
+        if (!response.ok) {
+            const errGoogle = await response.text();
+            throw new Error("Gagal menghubungi Google API: " + errGoogle);
+        }
+
+        const dataAI = await response.json();
+        let textResponse = dataAI.candidates[0].content.parts[0].text;
+
+        // PEMBERSIHAN EKSTREM ANTI-BASA-BASI
         const startIndex = textResponse.indexOf('{');
         const endIndex = textResponse.lastIndexOf('}');
         
         if (startIndex !== -1 && endIndex !== -1) {
             textResponse = textResponse.substring(startIndex, endIndex + 1);
         }
-        
-        const finalResult = JSON.parse(textResponse);
-        res.status(200).json(finalResult);
+
+        // Return Data yang sudah bersih ke Frontend HTML
+        return new Response(textResponse, {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
 
     } catch (error) {
         console.error("API Nubar Error:", error);
-        res.status(500).json({ error: "Sistem AI gagal memproses data (Format tidak sesuai). Coba lagi." });
+        return new Response(JSON.stringify({ error: error.message || "Sistem AI gagal memproses data." }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
     }
 }
