@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detail Proyek Nubar - Cendekia Aksara</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Pustaka PDFMake -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
@@ -24,21 +24,36 @@
 
         .section-box { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 25px; }
         .section-title { font-family: 'Playfair Display', serif; color: #003366; font-size: 1.3rem; border-bottom: 2px dashed #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;}
-        
+
         .list-dot { list-style-type: disc; margin-left: 20px; color: #475569; font-size: 0.95rem;}
         .list-dot li { margin-bottom: 8px; }
-        
+
         .table-timeline { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         .table-timeline th { background: #003366; color: white; padding: 12px; text-align: left; border: 1px solid #002244; }
         .table-timeline td { padding: 12px; border: 1px solid #cbd5e1; color: #334155; font-weight: 500;}
         .table-timeline tr:nth-child(even) { background: #f8fafc; }
-        
-        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        .progress-step { display: flex; gap: 12px; align-items: flex-start; position: relative; padding-bottom: 22px; }
+        .progress-step:last-child { padding-bottom: 0; }
+        .progress-step::before { content: ''; position: absolute; left: 11px; top: 26px; bottom: 0; width: 2px; background: #e2e8f0; }
+        .progress-step:last-child::before { display: none; }
+        .progress-dot { width: 24px; height: 24px; border-radius: 50%; background: #003366; color: white; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 1; }
+
+        #loading-screen, #auth-gate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #auth-gate { z-index: 10000; }
+
+        .data-missing { color: #94a3b8; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
+    <!-- Gerbang sesi: sebelumnya TIDAK ADA di halaman ini, sekarang disamakan dengan nubar.html -->
+    <div id="auth-gate">
+        <i class="fa-solid fa-shield-halved fa-fade" style="font-size: 3rem; color: #003366; margin-bottom: 16px;"></i>
+        <p style="color:#64748b; font-size: 0.9rem;">Memeriksa sesi admin...</p>
+    </div>
+
+    <div id="loading-screen" style="display:none;">
         <i class="fa-solid fa-folder-open fa-bounce" style="font-size: 4rem; color: #003366; margin-bottom: 20px;"></i>
         <h2 style="font-family:'Playfair Display', serif; margin:0; color: #003366; font-size: 1.5rem;">Membuka Berkas...</h2>
     </div>
@@ -52,26 +67,31 @@
     </header>
 
     <main class="max-w-5xl mx-auto p-4 md:p-8">
-        
+
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
             <div>
                 <span class="bg-[#dcfce7] text-[#166534] text-[11px] font-bold px-3 py-1 rounded-full uppercase border border-[#bbf7d0]" id="ui-periode">MEMUAT...</span>
                 <h1 class="text-3xl font-serif font-black text-[#003366] mt-2 mb-1" id="ui-tema">Judul Tema</h1>
                 <p class="text-lg font-serif italic text-[#d4af37]" id="ui-tagline">"Tagline"</p>
             </div>
-            <button onclick="cetakPDFNubar()" class="bg-[#b91c1c] hover:bg-[#991b1b] text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2 whitespace-nowrap">
+            <button onclick="cetakPDFNubar()" id="btn-cetak-pdf" class="bg-[#b91c1c] hover:bg-[#991b1b] text-white px-6 py-3 rounded-xl font-bold shadow-lg transition flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">
                 <i class="fa-solid fa-file-pdf"></i> Cetak Pedoman PDF Resmi
             </button>
         </div>
 
+        <div class="section-box" id="ui-deskripsi-box" style="border-top: 4px solid #d4af37;">
+            <h2 class="section-title"><i class="fa-solid fa-align-left"></i> Deskripsi Program</h2>
+            <p class="text-sm text-gray-600 leading-relaxed" id="ui-deskripsi"></p>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             <div class="space-y-6">
                 <div class="section-box">
                     <h2 class="section-title"><i class="fa-solid fa-book-open"></i> Konsep Buku Antologi</h2>
                     <ul class="list-dot" id="ui-konsep-buku"></ul>
                 </div>
-                
+
                 <div class="section-box">
                     <h2 class="section-title"><i class="fa-solid fa-pen-ruler"></i> Ketentuan Naskah</h2>
                     <ul class="list-dot" id="ui-ketentuan"></ul>
@@ -81,7 +101,7 @@
                     <h2 class="section-title"><i class="fa-solid fa-laptop-file"></i> E-Book Materi Peserta</h2>
                     <ul class="list-dot" id="ui-ebook"></ul>
                 </div>
-                
+
                 <div class="section-box">
                     <h2 class="section-title"><i class="fa-solid fa-bullseye"></i> Target Akhir Program</h2>
                     <ul class="list-dot" id="ui-target"></ul>
@@ -100,6 +120,11 @@
                 <div class="section-box">
                     <h2 class="section-title"><i class="fa-solid fa-diagram-project"></i> Alur Kegiatan</h2>
                     <ul class="list-dot" style="list-style-type: decimal;" id="ui-alur"></ul>
+                </div>
+
+                <div class="section-box">
+                    <h2 class="section-title"><i class="fa-solid fa-list-check"></i> Progres Proyek</h2>
+                    <div id="ui-progress"></div>
                 </div>
 
                 <div class="section-box">
@@ -122,169 +147,392 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = { apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", authDomain: "mading-cf676.firebaseapp.com", projectId: "mading-cf676", storageBucket: "mading-cf676.firebasestorage.app", messagingSenderId: "72175203671", appId: "1:72175203671:web:7a0676a55beb64bc96ba12" };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        let nubarData = null; // Menyimpan data JSON untuk dicetak PDF
+        const auth = getAuth(app);
+
+        window.nubarData = null; // disimpan global agar bisa dipakai fungsi cetakPDFNubar()
 
         const urlParams = new URLSearchParams(window.location.search);
         const docId = urlParams.get('id');
 
-        window.onload = async () => {
-            if(!docId) return window.location.href = 'nubar.html';
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        // --- GERBANG SESI (Firebase Auth) ---
+        // Sebelumnya halaman ini bisa dibuka siapa saja tanpa login. Sekarang disamakan
+        // dengan nubar.html supaya seluruh panel admin konsisten terkunci.
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                document.getElementById('auth-gate').style.display = 'none';
+                document.getElementById('loading-screen').style.display = 'flex';
+                initPage();
+            } else {
+                window.location.href = '../index.html';
+            }
+        });
+
+        async function initPage() {
+            if (!docId) return window.location.href = 'nubar.html';
 
             try {
                 const snapshot = await getDoc(doc(db, 'nubar_projects', docId));
-                if(!snapshot.exists()) throw new Error("Data tidak ditemukan.");
-                
+                if (!snapshot.exists()) throw new Error("Data proyek tidak ditemukan.");
+
                 const data = snapshot.data();
-                nubarData = data.konsep_ai; // Assign ke variabel global
+                const konsep = data.konsep_ai;
 
-                // Render UI
-                document.getElementById('ui-periode').innerText = nubarData.informasi_periode.nama_periode;
-                document.getElementById('ui-tema').innerText = nubarData.informasi_periode.tema_utama;
-                document.getElementById('ui-tagline').innerText = `"${nubarData.informasi_periode.tagline}"`;
+                if (!konsep || !konsep.informasi_periode) {
+                    throw new Error("Data proyek ini tidak lengkap / rusak dan tidak bisa ditampilkan.");
+                }
 
-                // Render Object
-                renderObjectToList('ui-konsep-buku', nubarData.konsep_buku);
-                renderObjectToList('ui-cover', nubarData.konsep_cover);
-                renderObjectToList('ui-layout', nubarData.konsep_layout);
-
-                // Render Arrays
-                renderArrayToList('ui-ketentuan', nubarData.ketentuan_naskah);
-                renderArrayToList('ui-ebook', nubarData.ebook_materi);
-                renderArrayToList('ui-alur', nubarData.alur_kegiatan);
-                renderArrayToList('ui-target', nubarData.target_akhir);
-
-                // Render Timeline Table
-                const tBody = document.getElementById('ui-timeline');
-                nubarData.timeline.forEach(t => {
-                    tBody.innerHTML += `<tr><td>${t.kegiatan}</td><td>${t.waktu}</td></tr>`;
-                });
+                window.nubarData = konsep;
+                renderPage(konsep);
 
                 document.getElementById('loading-screen').style.display = 'none';
 
             } catch (e) {
-                alert(e.message);
+                document.getElementById('loading-screen').style.display = 'none';
+                await Swal_fallback_alert(e.message);
                 window.location.href = 'nubar.html';
             }
-        };
+        }
+
+        // SweetAlert tidak dimuat di halaman ini secara default; pakai alert bawaan sebagai fallback aman
+        async function Swal_fallback_alert(msg) {
+            alert(msg);
+        }
+
+        function renderPage(nubarData) {
+            const info = nubarData.informasi_periode || {};
+            document.getElementById('ui-periode').innerText = info.nama_periode || '-';
+            document.getElementById('ui-tema').innerText = info.tema_utama || 'Tanpa Judul';
+            document.getElementById('ui-tagline').innerText = info.tagline ? `"${info.tagline}"` : '';
+            document.getElementById('ui-deskripsi').innerText = info.deskripsi || 'Deskripsi belum tersedia.';
+
+            renderObjectToList('ui-konsep-buku', nubarData.konsep_buku);
+            renderObjectToList('ui-cover', nubarData.konsep_cover);
+            renderObjectToList('ui-layout', nubarData.konsep_layout);
+
+            renderArrayToList('ui-ketentuan', nubarData.ketentuan_naskah);
+            renderArrayToList('ui-ebook', nubarData.ebook_materi);
+            renderArrayToList('ui-alur', nubarData.alur_kegiatan);
+            renderArrayToList('ui-target', nubarData.target_akhir);
+
+            // Timeline
+            const tBody = document.getElementById('ui-timeline');
+            const timeline = Array.isArray(nubarData.timeline) ? nubarData.timeline : [];
+            if (timeline.length === 0) {
+                tBody.innerHTML = `<tr><td colspan="2" class="data-missing text-center">Timeline belum tersedia</td></tr>`;
+            } else {
+                timeline.forEach(t => {
+                    tBody.innerHTML += `<tr><td>${escapeHtml(t.kegiatan)}</td><td>${escapeHtml(t.waktu)}</td></tr>`;
+                });
+            }
+
+            // Progres proyek — sebelumnya field ini digenerate AI tapi tidak pernah ditampilkan di mana pun
+            const progressEl = document.getElementById('ui-progress');
+            const progress = Array.isArray(nubarData.progress_proyek) ? nubarData.progress_proyek : [];
+            if (progress.length === 0) {
+                progressEl.innerHTML = `<p class="data-missing text-sm">Belum ada data progres.</p>`;
+            } else {
+                progressEl.innerHTML = progress.map((step, i) => `
+                    <div class="progress-step">
+                        <div class="progress-dot">${i + 1}</div>
+                        <p class="text-sm text-gray-600 pt-0.5">${escapeHtml(step)}</p>
+                    </div>
+                `).join('');
+            }
+
+            // Jika field kritis untuk PDF hilang, nonaktifkan tombol cetak daripada crash saat diklik
+            const requiredForPdf = ['konsep_buku', 'ketentuan_naskah', 'ebook_materi', 'alur_kegiatan', 'timeline', 'konsep_cover', 'konsep_layout', 'target_akhir'];
+            const missing = requiredForPdf.filter(k => !nubarData[k]);
+            if (missing.length > 0) {
+                const btn = document.getElementById('btn-cetak-pdf');
+                btn.disabled = true;
+                btn.title = 'Data belum lengkap untuk dicetak: ' + missing.join(', ');
+            }
+        }
 
         function renderArrayToList(elementId, arr) {
             const ul = document.getElementById(elementId);
-            arr.forEach(item => { ul.innerHTML += `<li>${item}</li>`; });
+            if (!Array.isArray(arr) || arr.length === 0) {
+                ul.innerHTML = `<li class="data-missing">Belum ada data</li>`;
+                return;
+            }
+            arr.forEach(item => { ul.innerHTML += `<li>${escapeHtml(item)}</li>`; });
         }
 
         function renderObjectToList(elementId, obj) {
             const ul = document.getElementById(elementId);
+            if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) {
+                ul.innerHTML = `<li class="data-missing">Belum ada data</li>`;
+                return;
+            }
             for (const [key, value] of Object.entries(obj)) {
                 const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                ul.innerHTML += `<li><strong>${cleanKey}:</strong> ${value}</li>`;
+                ul.innerHTML += `<li><strong>${escapeHtml(cleanKey)}:</strong> ${escapeHtml(value)}</li>`;
             }
         }
 
+        // Mengunduh gambar eksternal (logo) sebagai base64 supaya bisa dipakai pdfMake.
+        // Dibungkus try/catch: jika host logo memblokir CORS, PDF tetap harus jadi (tanpa logo), bukan gagal total.
+        async function getBase64FromUrl(url) {
+            const response = await fetch(url, { mode: 'cors' });
+            if (!response.ok) throw new Error('Gagal mengambil logo');
+            const blob = await response.blob();
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        function sanitizeFilename(str) {
+            return String(str || 'Nubar')
+                .normalize('NFKD')
+                .replace(/[^\w\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '_')
+                .slice(0, 80);
+        }
+
         // --- SISTEM PEMBUAT PDF RESMI (PDFMAKE) ---
-        window.cetakPDFNubar = () => {
-            if(!nubarData) return;
+        window.cetakPDFNubar = async () => {
+            const nubarData = window.nubarData;
+            if (!nubarData) return;
 
-            // Converter Helper Arrays to PDF lists
-            const mapList = (arr) => arr.map(item => ({ text: item, margin: [0,0,0,5] }));
-            
-            // Converter Helper Objects to PDF lists
-            const mapObjList = (obj) => {
-                return Object.entries(obj).map(([key, val]) => {
-                    const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    return { text: [ {text: `${cleanKey}: `, bold: true}, val ], margin: [0,0,0,5] };
-                });
-            };
+            const btn = document.getElementById('btn-cetak-pdf');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan PDF...';
 
-            // Setup Timeline Table
-            const timelineBody = [ [{text: 'Fase / Kegiatan', style: 'th'}, {text: 'Target Waktu', style: 'th'}] ];
-            nubarData.timeline.forEach(t => { timelineBody.push([t.kegiatan, t.waktu]); });
+            try {
+                const info = nubarData.informasi_periode || {};
+                const konsepBuku = nubarData.konsep_buku || {};
+                const konsepCover = nubarData.konsep_cover || {};
+                const konsepLayout = nubarData.konsep_layout || {};
+                const ketentuan = nubarData.ketentuan_naskah || [];
+                const ebook = nubarData.ebook_materi || [];
+                const alur = nubarData.alur_kegiatan || [];
+                const timeline = nubarData.timeline || [];
+                const target = nubarData.target_akhir || [];
+                const progress = nubarData.progress_proyek || [];
 
-            const docDefinition = {
-                pageSize: 'A4',
-                pageMargins: [50, 60, 50, 60],
-                footer: function(currentPage, pageCount) {
-                    return { text: `Halaman ${currentPage} dari ${pageCount}`, alignment: 'center', fontSize: 9, margin: [0, 20, 0, 0], color: '#64748b' };
-                },
-                content: [
-                    // KOP SURAT / HEADER
-                    { text: 'RANCANGAN PROYEK ANTOLOGI', style: 'docTitle' },
-                    { text: 'CENDEKIA AKSARA', style: 'docSubtitle' },
-                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2, lineColor: '#003366' }], margin: [0, 10, 0, 25] },
+                let logoBase64 = null;
+                try {
+                    logoBase64 = await getBase64FromUrl('https://i.imgur.com/5Srjyo4.png');
+                } catch (logoErr) {
+                    console.warn('Logo tidak bisa dimuat untuk PDF, lanjut tanpa logo:', logoErr);
+                }
 
-                    // INFO UTAMA
-                    { text: nubarData.informasi_periode.nama_periode.toUpperCase(), style: 'h1' },
-                    { text: `TEMA: ${nubarData.informasi_periode.tema_utama.toUpperCase()}`, style: 'h2', color: '#d4af37' },
-                    { text: `"${nubarData.informasi_periode.tagline}"`, italics: true, alignment: 'center', margin: [0,0,0,20], color: '#555' },
-                    { text: nubarData.informasi_periode.deskripsi, alignment: 'justify', margin: [0,0,0,30] },
+                const mapList = (arr) => (arr && arr.length ? arr.map(item => ({ text: item, margin: [0, 0, 0, 6] })) : [{ text: 'Belum ada data', italics: true, color: '#94a3b8' }]);
 
-                    // BAB 1
-                    { text: '1. KONSEP BUKU', style: 'h3' },
-                    { ul: mapObjList(nubarData.konsep_buku), margin: [15,0,0,20] },
+                const mapObjList = (obj) => {
+                    const entries = Object.entries(obj || {});
+                    if (entries.length === 0) return [{ text: 'Belum ada data', italics: true, color: '#94a3b8' }];
+                    return entries.map(([key, val]) => {
+                        const cleanKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        return { text: [{ text: `${cleanKey}: `, bold: true, color: '#003366' }, String(val)], margin: [0, 0, 0, 6] };
+                    });
+                };
 
-                    // BAB 2
-                    { text: '2. KETENTUAN NASKAH', style: 'h3' },
-                    { ul: mapList(nubarData.ketentuan_naskah), margin: [15,0,0,20] },
+                const timelineBody = [[{ text: 'Fase / Kegiatan', style: 'th' }, { text: 'Target Waktu', style: 'th' }]];
+                if (timeline.length === 0) {
+                    timelineBody.push([{ text: 'Belum ada data', italics: true, colSpan: 2, color: '#94a3b8' }, {}]);
+                } else {
+                    timeline.forEach(t => timelineBody.push([t.kegiatan || '-', t.waktu || '-']));
+                }
 
-                    // BAB 3
-                    { text: '3. ALUR KEGIATAN', style: 'h3' },
-                    { ol: mapList(nubarData.alur_kegiatan), margin: [15,0,0,20] },
+                const generatedDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-                    // TIMELINE (Page Break biar rapi)
-                    { text: '4. JADWAL TIMELINE', style: 'h3', pageBreak: 'before' },
-                    {
-                        table: { headerRows: 1, widths: ['*', 'auto'], body: timelineBody },
-                        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1', paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 5, paddingBottom: () => 5 },
-                        margin: [0,0,0,30]
+                // Elemen daftar isi bergaya (tanpa nomor halaman otomatis, karena pdfmake tidak
+                // menyediakan pengait TOC->halaman secara native untuk struktur dinamis ini)
+                const daftarIsi = [
+                    '1. Konsep Buku Antologi',
+                    '2. Ketentuan Naskah',
+                    '3. Alur Kegiatan',
+                    '4. Jadwal Timeline',
+                    '5. Progres Proyek',
+                    '6. Konten E-Book Materi Pendamping',
+                    '7. Panduan Visual & Layout',
+                    '8. Target Akhir Peserta'
+                ];
+
+                const coverLogo = logoBase64
+                    ? { image: logoBase64, width: 90, alignment: 'center', margin: [0, 40, 0, 20] }
+                    : { text: '', margin: [0, 40, 0, 20] };
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [50, 70, 50, 60],
+                    watermark: { text: 'CENDEKIA AKSARA', color: '#003366', opacity: 0.05, bold: true, fontSize: 60 },
+
+                    header: function (currentPage) {
+                        if (currentPage === 1) return null;
+                        return {
+                            margin: [50, 20, 50, 0],
+                            columns: [
+                                { text: 'NUBAR LITERASI', fontSize: 8, bold: true, color: '#003366' },
+                                { text: (info.nama_periode || '').toUpperCase(), fontSize: 8, color: '#94a3b8', alignment: 'right' }
+                            ]
+                        };
+                    },
+                    footer: function (currentPage, pageCount) {
+                        return {
+                            margin: [50, 10, 50, 0],
+                            columns: [
+                                { text: `Dicetak ${generatedDate}`, fontSize: 8, color: '#94a3b8' },
+                                { text: `Halaman ${currentPage} dari ${pageCount}`, fontSize: 8, color: '#94a3b8', alignment: 'right' }
+                            ]
+                        };
                     },
 
-                    // BAB 5 & 6
-                    { text: '5. KONTEN E-BOOK MATERI PENDAMPING', style: 'h3' },
-                    { ul: mapList(nubarData.ebook_materi), margin: [15,0,0,20] },
+                    content: [
+                        // ================= HALAMAN SAMPUL =================
+                        coverLogo,
+                        { text: 'DOKUMEN RESMI', style: 'coverKicker', alignment: 'center' },
+                        { canvas: [{ type: 'line', x1: 180, y1: 0, x2: 315, y2: 0, lineWidth: 1.5, lineColor: '#d4af37' }], alignment: 'center', margin: [0, 8, 0, 30] },
 
-                    { text: '6. PANDUAN VISUAL & LAYOUT', style: 'h3' },
-                    { text: 'A. Konsep Cover', bold: true, margin: [0,0,0,5] },
-                    { ul: mapObjList(nubarData.konsep_cover), margin: [15,0,0,15] },
-                    { text: 'B. Format Tata Letak (Layout)', bold: true, margin: [0,0,0,5] },
-                    { ul: mapObjList(nubarData.konsep_layout), margin: [15,0,0,20] },
+                        { text: 'RANCANGAN PROYEK ANTOLOGI', style: 'docTitle', alignment: 'center' },
+                        { text: 'PROGRAM NULIS BARENG (NUBAR) LITERASI', style: 'docSubtitle', alignment: 'center', margin: [0, 4, 0, 60] },
 
-                    // BAB 7
-                    { text: '7. TARGET AKHIR PESERTA', style: 'h3' },
-                    { ul: mapList(nubarData.target_akhir), margin: [15,0,0,30] },
-
-                    // PENUTUP / TANDA TANGAN
-                    {
-                        columns: [
-                            { width: '*', text: '' },
-                            {
-                                width: 200,
-                                alignment: 'center',
-                                text: [
-                                    { text: 'Diterbitkan Oleh,\n\n', margin: [0,0,0,50] },
-                                    { text: '\n\n\nManajemen Cendekia Aksara\n', bold: true, decoration: 'underline' },
-                                    { text: 'Divisi Publikasi & Antologi', fontSize: 9, color: '#666' }
-                                ]
+                        {
+                            table: {
+                                widths: ['*'],
+                                body: [[{
+                                    stack: [
+                                        { text: (info.nama_periode || '-').toUpperCase(), style: 'coverPeriode', alignment: 'center' },
+                                        { text: (info.tema_utama || '-').toUpperCase(), style: 'coverTema', alignment: 'center', margin: [0, 8, 0, 8] },
+                                        { text: info.tagline ? `"${info.tagline}"` : '', italics: true, alignment: 'center', color: '#d4af37', fontSize: 12 }
+                                    ],
+                                    margin: [30, 25, 30, 25]
+                                }]]
+                            },
+                            layout: {
+                                hLineWidth: () => 1.2, vLineWidth: () => 1.2,
+                                hLineColor: () => '#003366', vLineColor: () => '#003366'
                             }
-                        ]
-                    }
-                ],
-                styles: {
-                    docTitle: { fontSize: 18, bold: true, alignment: 'center', color: '#003366', letterSpacing: 1 },
-                    docSubtitle: { fontSize: 14, alignment: 'center', color: '#64748b', letterSpacing: 2 },
-                    h1: { fontSize: 16, bold: true, alignment: 'center', color: '#003366', margin: [0,0,0,5] },
-                    h2: { fontSize: 14, bold: true, alignment: 'center', margin: [0,0,0,5] },
-                    h3: { fontSize: 12, bold: true, color: '#003366', margin: [0,0,0,10], decoration: 'underline' },
-                    th: { bold: true, fillColor: '#003366', color: 'white', alignment: 'center' }
-                },
-                defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4, color: '#333' }
-            };
+                        },
 
-            pdfMake.createPdf(docDefinition).download(`Pedoman_Nubar_${nubarData.informasi_periode.tema_utama.replace(/\s/g,'_')}.pdf`);
+                        { text: 'CENDEKIA AKSARA', style: 'coverFooterBrand', alignment: 'center', margin: [0, 80, 0, 0] },
+                        { text: `Diterbitkan ${generatedDate}`, alignment: 'center', color: '#94a3b8', fontSize: 9 },
+
+                        // ================= DAFTAR ISI =================
+                        { text: 'DAFTAR ISI', style: 'h1', pageBreak: 'before', margin: [0, 0, 0, 20] },
+                        {
+                            stack: daftarIsi.map(item => ({
+                                text: item, margin: [0, 0, 0, 12], fontSize: 11.5, color: '#334155'
+                            }))
+                        },
+
+                        // ================= RINGKASAN =================
+                        { text: info.nama_periode || '', style: 'h1', pageBreak: 'before' },
+                        { text: (info.tema_utama || '').toUpperCase(), style: 'h2', color: '#d4af37', margin: [0, 0, 0, 5] },
+                        { text: info.tagline ? `"${info.tagline}"` : '', italics: true, alignment: 'center', margin: [0, 0, 0, 20], color: '#555' },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1, lineColor: '#e2e8f0' }], margin: [0, 0, 0, 20] },
+                        { text: info.deskripsi || 'Deskripsi belum tersedia.', alignment: 'justify', margin: [0, 0, 0, 30], lineHeight: 1.4 },
+
+                        // BAB 1
+                        { text: '1. Konsep Buku', style: 'h3' },
+                        { ul: mapObjList(konsepBuku), margin: [15, 0, 0, 20] },
+
+                        // BAB 2
+                        { text: '2. Ketentuan Naskah', style: 'h3' },
+                        { ul: mapList(ketentuan), margin: [15, 0, 0, 20] },
+
+                        // BAB 3
+                        { text: '3. Alur Kegiatan', style: 'h3' },
+                        { ol: mapList(alur), margin: [15, 0, 0, 20] },
+
+                        // BAB 4 - TIMELINE
+                        { text: '4. Jadwal Timeline', style: 'h3', pageBreak: 'before' },
+                        {
+                            table: { headerRows: 1, widths: ['*', 'auto'], body: timelineBody },
+                            layout: {
+                                hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+                                hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                                paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 6, paddingBottom: () => 6
+                            },
+                            margin: [0, 0, 0, 30]
+                        },
+
+                        // BAB 5 - PROGRES
+                        { text: '5. Progres Proyek', style: 'h3' },
+                        progress.length === 0
+                            ? { text: 'Belum ada data progres.', italics: true, color: '#94a3b8', margin: [15, 0, 0, 20] }
+                            : { ol: mapList(progress), margin: [15, 0, 0, 20] },
+
+                        // BAB 6
+                        { text: '6. Konten E-Book Materi Pendamping', style: 'h3' },
+                        { ul: mapList(ebook), margin: [15, 0, 0, 20] },
+
+                        // BAB 7
+                        { text: '7. Panduan Visual & Layout', style: 'h3' },
+                        { text: 'A. Konsep Cover', bold: true, color: '#003366', margin: [0, 0, 0, 6] },
+                        { ul: mapObjList(konsepCover), margin: [15, 0, 0, 15] },
+                        { text: 'B. Format Tata Letak (Layout)', bold: true, color: '#003366', margin: [0, 0, 0, 6] },
+                        { ul: mapObjList(konsepLayout), margin: [15, 0, 0, 20] },
+
+                        // BAB 8
+                        { text: '8. Target Akhir Peserta', style: 'h3' },
+                        { ul: mapList(target), margin: [15, 0, 0, 30] },
+
+                        // PENUTUP / TANDA TANGAN
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1, lineColor: '#e2e8f0' }], margin: [0, 10, 0, 30] },
+                        {
+                            columns: [
+                                { width: '*', text: '' },
+                                {
+                                    width: 220,
+                                    alignment: 'center',
+                                    text: [
+                                        { text: 'Diterbitkan Oleh,\n\n', margin: [0, 0, 0, 50] },
+                                        { text: '\n\n\nManajemen Cendekia Aksara\n', bold: true, decoration: 'underline' },
+                                        { text: 'Divisi Publikasi & Antologi\n', fontSize: 9, color: '#666' },
+                                        { text: `Dokumen ini digenerate otomatis oleh sistem pada ${generatedDate}`, fontSize: 7.5, color: '#94a3b8', italics: true, margin: [0, 15, 0, 0] }
+                                    ]
+                                }
+                            ]
+                        }
+                    ],
+                    styles: {
+                        coverKicker: { fontSize: 10, bold: true, color: '#94a3b8', characterSpacing: 3 },
+                        docTitle: { fontSize: 20, bold: true, color: '#003366' },
+                        docSubtitle: { fontSize: 11, color: '#64748b', characterSpacing: 1 },
+                        coverPeriode: { fontSize: 11, bold: true, color: '#0369a1' },
+                        coverTema: { fontSize: 18, bold: true, color: '#003366' },
+                        coverFooterBrand: { fontSize: 13, bold: true, color: '#003366', characterSpacing: 2 },
+                        h1: { fontSize: 18, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 5] },
+                        h2: { fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 5] },
+                        h3: { fontSize: 12.5, bold: true, color: '#ffffff', background: '#003366', margin: [0, 0, 0, 12] },
+                        th: { bold: true, fillColor: '#003366', color: 'white', alignment: 'center' }
+                    },
+                    defaultStyle: { font: 'Roboto', fontSize: 10.5, lineHeight: 1.4, color: '#333' }
+                };
+
+                const safeName = sanitizeFilename(info.tema_utama);
+                pdfMake.createPdf(docDefinition).download(`Pedoman_Nubar_${safeName}.pdf`);
+
+            } catch (err) {
+                console.error(err);
+                alert('Gagal membuat PDF: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         };
     </script>
 </body>
