@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Program Nubar Literasi - Admin Cendekia</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -20,16 +20,27 @@
         .btn-back:hover { background: white; color: #003366; }
 
         .form-box { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; margin-bottom: 30px;}
-        
+
         .nubar-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; transition: 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column;}
         .nubar-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,51,102,0.1); border-color: #cbd5e1; }
         .nubar-card::before { content: ''; position: absolute; top:0; left:0; width: 6px; height: 100%; background: #d4af37; }
-        
+
+        .btn-delete-card { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; background: rgba(220,38,38,0.08); color: #dc2626; border: 1px solid rgba(220,38,38,0.2); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: 0.2s; z-index: 5; }
+        .btn-delete-card:hover { background: #dc2626; color: white; }
+
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
         #loading-screen.active { display: flex; }
+
+        #auth-gate { position: fixed; inset: 0; background: #f8fafc; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
+
+    <!-- Gerbang sesi: ditampilkan sampai status login Firebase Auth dipastikan -->
+    <div id="auth-gate">
+        <i class="fa-solid fa-shield-halved fa-fade" style="font-size: 3rem; color: #003366; margin-bottom: 16px;"></i>
+        <p style="color:#64748b; font-size: 0.9rem;">Memeriksa sesi admin...</p>
+    </div>
 
     <div id="loading-screen">
         <i class="fa-solid fa-robot fa-bounce" style="font-size: 4rem; color: #003366; margin-bottom: 20px;"></i>
@@ -46,11 +57,11 @@
     </header>
 
     <main class="max-w-6xl mx-auto p-4 md:p-8">
-        
+
         <div class="form-box">
             <h2 class="text-2xl font-serif font-bold text-[#003366] mb-2"><i class="fa-solid fa-book-sparkles text-[#d4af37]"></i> Konseptor Nulis Bareng (Nubar)</h2>
             <p class="text-sm text-gray-500 mb-6">Masukkan bulan pelaksanaan dan tema antologi. Sistem cerdas akan merancang seluruh pedoman, jadwal, dan konsep visualnya secara otomatis.</p>
-            
+
             <form id="form-nubar" class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">Bulan & Tahun Periode</label>
@@ -61,15 +72,18 @@
                     <input type="text" id="inp-tema" required placeholder="Contoh: Memori di Sudut Kota" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#003366] outline-none">
                 </div>
                 <div class="col-span-full mt-2">
-                    <button type="submit" class="w-full bg-[#003366] hover:bg-[#002244] text-white font-bold py-3.5 rounded-xl transition shadow-lg">
+                    <button type="submit" id="btn-submit-nubar" class="w-full bg-[#003366] hover:bg-[#002244] text-white font-bold py-3.5 rounded-xl transition shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> Terbitkan Proyek Nubar
                     </button>
                 </div>
             </form>
         </div>
 
-        <h2 class="text-xl font-serif font-bold text-gray-800 mb-4 border-b-2 border-gray-200 pb-2">Arsip Proyek Nubar Literasi</h2>
-        
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-4 border-b-2 border-gray-200 pb-2">
+            <h2 class="text-xl font-serif font-bold text-gray-800">Arsip Proyek Nubar Literasi</h2>
+            <input type="text" id="inp-search" placeholder="Cari periode atau tema..." class="text-sm px-4 py-2 border border-gray-300 rounded-full w-full sm:w-64 focus:ring-2 focus:ring-[#003366] outline-none">
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="nubar-grid">
             <div class="col-span-full text-center py-10 text-gray-400">
                 <i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br>Memuat data proyek...
@@ -81,41 +95,67 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", authDomain: "mading-cf676.firebaseapp.com", projectId: "mading-cf676", storageBucket: "mading-cf676.firebasestorage.app", messagingSenderId: "72175203671", appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", authDomain: "mading-cf676.firebaseapp.com", projectId: "mading-cf676", storageBucket: "mading-cf676.firebasestorage.app", messagingSenderId: "72175203671", appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        let allProjects = []; // cache untuk fitur pencarian client-side
+
+        // --- GERBANG SESI (Firebase Auth) ---
+        // Ini yang dipakai secara sengaja untuk panel Cendekia Aksara (akses terbatas).
         onAuthStateChanged(auth, user => {
-            if(user) loadProjects();
-            else window.location.href = '../index.html';
+            if (user) {
+                document.getElementById('auth-gate').style.display = 'none';
+                loadProjects();
+            } else {
+                window.location.href = '../index.html';
+            }
         });
+
+        // --- Helper anti-XSS: konten dari AI/user tidak pernah di-inject mentah ke innerHTML ---
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
 
         document.getElementById('form-nubar').onsubmit = async (e) => {
             e.preventDefault();
-            const bulan = document.getElementById('inp-bulan').value;
-            const tema = document.getElementById('inp-tema').value;
+            const bulan = document.getElementById('inp-bulan').value.trim();
+            const tema = document.getElementById('inp-tema').value.trim();
+            const btnSubmit = document.getElementById('btn-submit-nubar');
 
+            if (!bulan || !tema) return;
+
+            btnSubmit.disabled = true;
             document.getElementById('loading-screen').classList.add('active');
 
             try {
-                // Panggil Vercel API
                 const res = await fetch('/api/nubar-ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ bulan, tema })
                 });
-                
-                const dataAI = await res.json();
-                if(!res.ok) throw new Error(dataAI.error || "Gagal menghubungi Asisten.");
 
-                // Simpan ke Firestore
+                const dataAI = await res.json();
+                if (!res.ok) throw new Error(dataAI.error || "Gagal menghubungi Asisten.");
+
+                // Validasi minimal struktur sebelum disimpan, supaya kartu/detail tidak crash nanti
+                if (!dataAI.informasi_periode || !dataAI.informasi_periode.tema_utama) {
+                    throw new Error("Respons Asisten tidak lengkap. Silakan coba terbitkan ulang.");
+                }
+
                 const payload = {
                     bulan_periode: bulan,
                     tema_naskah: tema,
@@ -133,42 +173,121 @@
                 Swal.fire('Error', error.message, 'error');
             } finally {
                 document.getElementById('loading-screen').classList.remove('active');
+                btnSubmit.disabled = false;
             }
         };
 
         async function loadProjects() {
             const container = document.getElementById('nubar-grid');
+            container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin text-3xl mb-3"></i><br>Memuat data proyek...</div>';
+
             try {
-                const q = query(collection(db, 'nubar_projects'), orderBy('createdAt', 'desc'));
-                const snap = await getDocs(q);
-                
-                container.innerHTML = '';
-                if(snap.empty) {
-                    container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">Belum ada proyek Nubar yang diterbitkan.</div>';
-                    return;
+                let snap;
+                try {
+                    // Percobaan utama: urutkan langsung dari Firestore
+                    const q = query(collection(db, 'nubar_projects'), orderBy('createdAt', 'desc'));
+                    snap = await getDocs(q);
+                } catch (indexError) {
+                    // Fallback: jika index bermasalah, ambil tanpa orderBy lalu urutkan di client
+                    console.warn('orderBy gagal, fallback ke sort client-side:', indexError);
+                    snap = await getDocs(collection(db, 'nubar_projects'));
                 }
 
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    const konsep = data.konsep_ai.informasi_periode;
-                    
-                    container.innerHTML += `
-                        <div class="nubar-card cursor-pointer" onclick="window.location.href='detail-nubar.html?id=${doc.id}'">
-                            <span class="bg-[#e0f2fe] text-[#0369a1] text-[10px] font-bold px-3 py-1 rounded-full uppercase w-fit mb-3 border border-[#bae6fd]">PERIODE ${data.bulan_periode}</span>
-                            <h3 class="font-serif font-bold text-[#003366] text-xl mb-1">${konsep.tema_utama}</h3>
-                            <p class="text-sm font-semibold text-[#d4af37] italic mb-3">"${konsep.tagline}"</p>
-                            <p class="text-xs text-gray-500 line-clamp-3 mb-4 flex-1">${konsep.deskripsi}</p>
-                            
-                            <div class="mt-auto pt-3 border-t border-gray-100 text-right text-[#003366] font-bold text-sm flex items-center justify-end gap-2 group">
-                                Buka Detail Proyek <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
-                            </div>
-                        </div>
-                    `;
+                let docs = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+                docs.sort((a, b) => {
+                    const ta = a.data.createdAt?.toMillis ? a.data.createdAt.toMillis() : 0;
+                    const tb = b.data.createdAt?.toMillis ? b.data.createdAt.toMillis() : 0;
+                    return tb - ta;
                 });
+
+                allProjects = docs;
+                renderGrid(allProjects);
+
             } catch (e) {
-                container.innerHTML = `<div class="col-span-full text-center text-red-500">Error memuat data: ${e.message}</div>`;
+                container.innerHTML = `<div class="col-span-full text-center text-red-500">Error memuat data: ${escapeHtml(e.message)}</div>`;
             }
         }
+
+        function renderGrid(docs) {
+            const container = document.getElementById('nubar-grid');
+            container.innerHTML = '';
+
+            if (docs.length === 0) {
+                container.innerHTML = '<div class="col-span-full text-center py-10 text-gray-400">Belum ada proyek Nubar yang diterbitkan.</div>';
+                return;
+            }
+
+            docs.forEach(({ id, data }) => {
+                // Setiap kartu dirender secara defensif: satu proyek dengan data rusak
+                // tidak boleh menggagalkan render proyek lain.
+                try {
+                    const konsep = data.konsep_ai?.informasi_periode;
+                    if (!konsep) throw new Error('Struktur data konsep tidak valid');
+
+                    const card = document.createElement('div');
+                    card.className = 'nubar-card cursor-pointer';
+                    card.innerHTML = `
+                        <button class="btn-delete-card" data-id="${id}" title="Hapus proyek">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <span class="bg-[#e0f2fe] text-[#0369a1] text-[10px] font-bold px-3 py-1 rounded-full uppercase w-fit mb-3 border border-[#bae6fd]">PERIODE ${escapeHtml(data.bulan_periode)}</span>
+                        <h3 class="font-serif font-bold text-[#003366] text-xl mb-1">${escapeHtml(konsep.tema_utama)}</h3>
+                        <p class="text-sm font-semibold text-[#d4af37] italic mb-3">"${escapeHtml(konsep.tagline || '-')}"</p>
+                        <p class="text-xs text-gray-500 line-clamp-3 mb-4 flex-1">${escapeHtml(konsep.deskripsi || '')}</p>
+                        <div class="mt-auto pt-3 border-t border-gray-100 text-right text-[#003366] font-bold text-sm flex items-center justify-end gap-2 group">
+                            Buka Detail Proyek <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => {
+                        window.location.href = `detail-nubar.html?id=${id}`;
+                    });
+                    card.querySelector('.btn-delete-card').addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        confirmDelete(id, konsep.tema_utama);
+                    });
+                    container.appendChild(card);
+                } catch (cardError) {
+                    console.warn('Melewati kartu dengan data rusak:', id, cardError);
+                    const errCard = document.createElement('div');
+                    errCard.className = 'nubar-card';
+                    errCard.innerHTML = `<p class="text-red-500 text-sm"><i class="fa-solid fa-triangle-exclamation"></i> Proyek ini memiliki data tidak lengkap (ID: ${escapeHtml(id)}).</p>`;
+                    container.appendChild(errCard);
+                }
+            });
+        }
+
+        async function confirmDelete(id, title) {
+            const result = await Swal.fire({
+                title: 'Hapus Proyek?',
+                text: `Proyek "${title}" akan dihapus permanen dan tidak bisa dikembalikan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            });
+            if (!result.isConfirmed) return;
+
+            try {
+                await deleteDoc(doc(db, 'nubar_projects', id));
+                Swal.fire('Terhapus', 'Proyek berhasil dihapus.', 'success');
+                loadProjects();
+            } catch (e) {
+                Swal.fire('Error', 'Gagal menghapus: ' + e.message, 'error');
+            }
+        }
+
+        document.getElementById('inp-search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            if (!term) return renderGrid(allProjects);
+            const filtered = allProjects.filter(({ data }) => {
+                const periode = (data.bulan_periode || '').toLowerCase();
+                const tema = (data.konsep_ai?.informasi_periode?.tema_utama || '').toLowerCase();
+                return periode.includes(term) || tema.includes(term);
+            });
+            renderGrid(filtered);
+        });
     </script>
 </body>
 </html>
