@@ -638,12 +638,28 @@
                 snap.forEach(d => {
                     let data = d.data();
                     
+                    // AUTO-OPEN: event terjadwal yang tanggal terbitnya sudah tiba -> aktifkan
                     if (data.status === 'scheduled' && data.publishDate) {
                         const pubDate = new Date(data.publishDate);
                         pubDate.setHours(0,0,0,0);
                         if (pubDate.getTime() <= today.getTime()) {
                             data.status = 'active';
                             updateDoc(doc(db, 'weekly_events', d.id), { status: 'active' });
+                        }
+                    }
+
+                    // AUTO-CLOSE: event aktif yang deadline-nya sudah terlewati -> tutup otomatis.
+                    // Sebelumnya tidak ada pengecekan ini sama sekali, jadi event yang sudah lewat
+                    // deadline tetap menampilkan status "AKTIF" sampai admin menutupnya manual.
+                    // Dicek terpisah (bukan else-if) supaya event yang baru saja di-auto-open di atas
+                    // tetap ikut dicek deadline-nya pada iterasi yang sama.
+                    if (data.status === 'active' && data.deadline) {
+                        const deadlineDate = new Date(data.deadline);
+                        deadlineDate.setHours(0,0,0,0);
+                        // Deadline dianggap masih berlaku SAMPAI hari-H (inklusif); ditutup mulai H+1
+                        if (deadlineDate.getTime() < today.getTime()) {
+                            data.status = 'inactive';
+                            updateDoc(doc(db, 'weekly_events', d.id), { status: 'inactive' });
                         }
                     }
                     
