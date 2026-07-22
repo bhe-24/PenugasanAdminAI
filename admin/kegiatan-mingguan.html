@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <title>Kalender Kegiatan Mingguan - Admin Cendekia</title>
     
     <link rel="stylesheet" href="../css/style.css">
@@ -17,50 +17,56 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <style>
-        :root { --primary: #002244; --accent: #d4af37; --bg: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; }
+        :root { --primary: #002244; --accent: #d4af37; --bg: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; --header-h: 84px; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent;}
-        body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; padding-top: 100px;}
-        .container { max-width: 1200px; width: 95%; margin: 0 auto; padding: 20px; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; padding-top: var(--header-h);}
+        .container { max-width: 1200px; width: 94%; margin: 0 auto; padding: 16px 0 20px; }
 
-        /* HEADER BRANDED NAVY */
+        /* HEADER BRANDED NAVY — dibuat fluid dengan clamp() supaya proporsional di semua lebar layar */
         .brand-header {
             position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
             background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-            color: white; padding: 15px 5%; box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
-            display: flex; justify-content: space-between; align-items: center; gap: 15px; border-bottom: 4px solid var(--accent);
+            color: white; padding: 10px 4%; box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
+            display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 4px solid var(--accent);
+            min-height: var(--header-h);
         }
-        .header-content-wrapper { display: flex; align-items: center; gap: 15px; }
-        .header-logo-circle { width: 55px; height: 55px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; padding: 8px; box-sizing: border-box; }
+        .header-content-wrapper { display: flex; align-items: center; gap: clamp(8px, 2vw, 15px); min-width: 0; }
+        .header-logo-circle { width: clamp(38px, 8vw, 55px); height: clamp(38px, 8vw, 55px); background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; padding: 6px; box-sizing: border-box; }
         .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
-        .header-brand-name { font-family: 'Aleo', serif; font-size: 1.5rem; margin: 0; color: white; font-weight: 700; }
+        .header-info { min-width: 0; }
+        .header-brand-name { font-family: 'Aleo', serif; font-size: clamp(0.95rem, 3.6vw, 1.5rem); margin: 0; color: white; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-greeting { font-size: clamp(0.62rem, 2.4vw, 0.85rem); margin: 0; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.3); display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 8px 14px; border-radius: 50px; font-weight: 600; font-size: clamp(0.72rem, 2.6vw, 0.9rem); border: 1px solid rgba(255,255,255,0.3); display: inline-flex; align-items: center; gap: 6px; transition: 0.3s; flex-shrink: 0; white-space: nowrap; }
         .btn-back:hover { background: white; color: var(--primary); }
 
-        /* TABS */
-        .nav-tabs { display: flex; gap: 10px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;}
-        .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 12px 20px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins', sans-serif; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;}
+        /* TABS — scrollable horizontal di mobile, tanpa terpotong */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        .nav-tabs::-webkit-scrollbar { height: 5px; }
+        .nav-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins', sans-serif; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; font-size: 0.85rem; flex-shrink: 0; }
         .tab-btn:hover { background: #f1f5f9; }
         .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
 
         /* CALENDAR STYLES */
-        .admin-card { background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px;}
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .calendar-header h2 { font-family: 'Playfair Display', serif; color: var(--primary); font-size: 1.5rem; margin: 0; }
-        .calendar-nav { display: flex; gap: 10px; }
-        .calendar-nav button { background: #f1f5f9; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; color: var(--primary); transition: 0.2s; }
+        .admin-card { background: white; border-radius: 16px; padding: clamp(14px, 4vw, 30px); box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px;}
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+        .calendar-header h2 { font-family: 'Playfair Display', serif; color: var(--primary); font-size: clamp(1.05rem, 4vw, 1.5rem); margin: 0; }
+        .calendar-nav { display: flex; gap: 8px; }
+        .calendar-nav button { background: #f1f5f9; border: none; width: 38px; height: 38px; border-radius: 8px; cursor: pointer; font-weight: bold; color: var(--primary); transition: 0.2s; }
         .calendar-nav button:hover { background: #e2e8f0; }
         
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-        .calendar-day-header { text-align: center; font-weight: 700; color: #64748b; padding: 10px 0; font-size: 0.9rem; border-bottom: 2px solid #e2e8f0; }
-        .calendar-day { min-height: 100px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; background: #fff; position: relative; }
-        .calendar-day:hover { border-color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.05); transform: translateY(-2px); z-index: 10; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day-header { text-align: center; font-weight: 700; color: #64748b; padding: 8px 0; font-size: clamp(0.65rem, 2.6vw, 0.9rem); border-bottom: 2px solid #e2e8f0; }
+        .calendar-day { min-height: clamp(52px, 15vw, 100px); border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px; display: flex; flex-direction: column; cursor: pointer; transition: 0.2s; background: #fff; position: relative; overflow: hidden; }
+        .calendar-day:hover { border-color: var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.05); transform: translateY(-1px); z-index: 10; }
         .calendar-day.empty { background: #f8fafc; cursor: default; }
         .calendar-day.empty:hover { border-color: #e2e8f0; box-shadow: none; transform: none; }
         .calendar-day.today { background: #f0f9ff; border-color: #bae6fd; }
-        .date-num { font-weight: 700; font-size: 1.1rem; color: #1e293b; margin-bottom: 5px; }
+        .date-num { font-weight: 700; font-size: clamp(0.78rem, 2.8vw, 1.1rem); color: #1e293b; margin-bottom: 3px; }
         
-        .event-chip { font-size: 0.7rem; padding: 4px 6px; border-radius: 4px; font-weight: 600; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .event-chip { font-size: clamp(0.55rem, 2vw, 0.7rem); padding: 3px 5px; border-radius: 4px; font-weight: 600; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .chip-active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .chip-scheduled { background: #fef08a; color: #9a3412; border: 1px solid #fde047; }
         .chip-closed { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
@@ -76,57 +82,59 @@
         .btn-submit:hover { transform: translateY(-2px); background: #00122e; }
 
         /* LIST & KARYA STYLES */
-        .section-title { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.3rem; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 2px dashed #f1f5f9; padding-bottom: 15px; }
-        .event-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .ev-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; position: relative; display: flex; flex-direction: column; transition: 0.3s;}
+        .section-title { font-family: 'Aleo', serif; color: var(--primary); font-size: clamp(1.05rem, 4vw, 1.3rem); margin-bottom: 18px; display: flex; align-items: center; gap: 10px; border-bottom: 2px dashed #f1f5f9; padding-bottom: 14px; }
+        .event-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .ev-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; position: relative; display: flex; flex-direction: column; transition: 0.3s;}
         .ev-card:hover { border-color: #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transform: translateY(-3px);}
-        .ev-badge { position: absolute; top: 15px; right: 15px; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .ev-badge { position: absolute; top: 14px; right: 14px; padding: 4px 10px; border-radius: 50px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;}
         
-        .ev-title { font-family: 'Aleo', serif; font-size: 1.2rem; color: var(--primary); margin: 0 0 5px 0; padding-right: 80px;}
-        .ev-type { font-size: 0.8rem; color: #d4af37; font-weight: 700; margin-bottom: 10px;}
-        .ev-desc { font-size: 0.85rem; color: var(--text-gray); line-height: 1.5; margin-bottom: 15px; flex: 1;}
-        .ev-actions { display: flex; gap: 8px; border-top: 1px dashed #e2e8f0; padding-top: 15px; margin-top: auto; flex-wrap: wrap; }
+        .ev-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: var(--primary); margin: 0 0 5px 0; padding-right: 78px;}
+        .ev-type { font-size: 0.78rem; color: #d4af37; font-weight: 700; margin-bottom: 10px;}
+        .ev-desc { font-size: 0.83rem; color: var(--text-gray); line-height: 1.5; margin-bottom: 14px; flex: 1;}
+        .ev-actions { display: flex; gap: 6px; border-top: 1px dashed #e2e8f0; padding-top: 14px; margin-top: auto; flex-wrap: wrap; }
         
-        .btn-sm { flex: 1; min-width: 80px; padding: 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: 0.3s; }
+        .btn-sm { flex: 1; min-width: 74px; padding: 8px 6px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: 0.3s; }
         .btn-sm.blue { background: #e0f2fe; color: #0284c7; } .btn-sm.blue:hover { background: #bae6fd; }
         .btn-sm.gray { background: #f1f5f9; color: #475569; } .btn-sm.gray:hover { background: #e2e8f0; }
         .btn-sm.ig { background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); color: white; } .btn-sm.ig:hover { filter: brightness(1.1); }
         .btn-sm.red { background: #fee2e2; color: #991b1b; } .btn-sm.red:hover { background: #fecaca; }
 
         /* KARYA TERKUMPUL GRID */
-        .filter-area { display: flex; gap: 15px; margin-bottom: 25px; align-items: center; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
-        .form-select { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Poppins', sans-serif; font-size: 0.95rem; background: #fff; transition: 0.3s; }
+        .filter-area { display: flex; gap: 14px; margin-bottom: 22px; align-items: flex-end; background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
+        .form-select { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; background: #fff; transition: 0.3s; }
         
-        .btn-word { background: #2563eb; color: white; padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .btn-word, .btn-pdf, .btn-ai { padding: 11px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-family: 'Poppins', sans-serif; transition: 0.3s; font-size: 0.82rem; white-space: nowrap; }
+        .btn-word { background: #2563eb; color: white; }
         .btn-word:hover { background: #1d4ed8; }
-        .btn-pdf { background: #b91c1c; color: white; padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .btn-pdf { background: #b91c1c; color: white; }
         .btn-pdf:hover { background: #991b1b; }
         .btn-word:disabled, .btn-pdf:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; }
         .btn-ai:hover { box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transform: translateY(-2px); }
         .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; transform: none; }
 
-        .karya-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .karya-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; transition: 0.3s;}
+        .karya-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+        .karya-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; transition: 0.3s;}
         .karya-card:hover { border-color: var(--primary); box-shadow: 0 5px 15px rgba(0,34,68,0.08); }
-        .kc-author { font-weight: 700; color: var(--primary); font-size: 1.05rem; margin-bottom: 2px;}
-        .kc-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;}
-        .kc-content { font-size: 0.85rem; color: #475569; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; }
+        .kc-author { font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 2px;}
+        .kc-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;}
+        .kc-content { font-size: 0.83rem; color: #475569; line-height: 1.6; background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 14px; max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; }
+        .kc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
         /* MODAL CALENDAR FORM & SHARE */
-        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.7); backdrop-filter:blur(5px); z-index:2000; display:none; justify-content:center; align-items:center; }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.7); backdrop-filter:blur(5px); z-index:2000; display:none; justify-content:center; align-items:center; padding: 16px; }
         .modal-overlay.active { display: flex; }
-        .modal-box { background:white; width:90%; max-width:500px; padding:30px; border-radius:20px; text-align:left; transform: scale(0.9); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
+        .modal-box { background:white; width:100%; max-width:500px; padding: clamp(18px, 5vw, 30px); border-radius:20px; text-align:left; transform: scale(0.9); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
         .modal-overlay.active .modal-box { transform: scale(1); }
         
         .form-group-modal { margin-bottom: 15px; }
         .form-group-modal label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: var(--text-dark);}
-        .form-group-modal input, .form-group-modal select, .form-group-modal textarea { width: 100%; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins'; font-size: 0.9rem; background: #f8fafc; }
+        .form-group-modal input, .form-group-modal select, .form-group-modal textarea { width: 100%; padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins'; font-size: 16px; background: #f8fafc; } /* font-size 16px cegah auto-zoom iOS */
         .btn-submit-modal { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; margin-top: 10px;}
         .btn-cancel-modal { background: transparent; color: #64748b; border: none; padding: 10px; font-weight: 600; width: 100%; cursor: pointer; margin-top: 5px; text-decoration: underline;}
 
-        /* POSTER TEMPLATES (HIDDEN) */
+        /* POSTER TEMPLATES (HIDDEN — dirender di luar layar untuk html2canvas, ukuran asli tetap 1080x1350 agar kualitas ekspor tidak turun) */
         .poster-wrapper { position: fixed; top: 0; left: -9999px; z-index: -9999; width: 1080px; height: 1350px; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; background: white;}
         .theme-navy { background: linear-gradient(135deg, #001f3f 0%, #003366 100%); color: white; }
         .theme-mustard { background: linear-gradient(135deg, #facc15 0%, #d97706 100%); color: #001f3f; }
@@ -193,16 +201,49 @@
         .pk-brand { font-family: 'Aleo', serif; font-size: 24px;}
         .pk-page { font-size: 24px; font-weight: 600;}
         
-        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
         #loading-screen.active { display: flex; }
+        #loading-screen h2 { font-size: clamp(1.1rem, 4.5vw, 1.4rem); }
+        #loading-screen p { font-size: clamp(0.8rem, 3vw, 0.95rem); }
 
+        /* ===================== RESPONSIVE — proporsi disamakan dengan nubar.html ===================== */
         @media (max-width: 768px) {
-            .calendar-grid { grid-template-columns: repeat(7, 1fr); gap: 2px; }
-            .calendar-day { min-height: 70px; padding: 4px; }
-            .date-num { font-size: 0.9rem; }
-            .event-chip { font-size: 0.6rem; padding: 2px; }
-            .filter-area { flex-direction: column; align-items: stretch; }
+            :root { --header-h: 68px; }
+            .container { width: 100%; padding: 12px 4vw 16px; }
+
+            .brand-header { padding: 8px 3.5%; }
+            .header-greeting { display: none; } /* subjudul disembunyikan di HP kecil biar header tidak sesak, sama seperti pola nubar.html yang ringkas */
+            .btn-back span { display: none; }
+            .btn-back { padding: 9px 11px; }
+
+            .nav-tabs { gap: 6px; margin-bottom: 16px; }
+            .tab-btn { padding: 9px 13px; font-size: 0.78rem; }
+
+            .admin-card { border-radius: 14px; padding: 14px; margin-bottom: 20px; }
+
+            .calendar-day { min-height: 48px; padding: 3px; border-radius: 5px; }
+            .date-num { font-size: 0.75rem; margin-bottom: 2px; }
+            .event-chip { font-size: 0.52rem; padding: 2px 3px; }
+            .calendar-grid { gap: 3px; }
+            .calendar-nav button { width: 34px; height: 34px; }
+
+            .filter-area { flex-direction: column; align-items: stretch; padding: 12px; gap: 10px; }
+            .filter-area > div:last-child { display: flex; flex-direction: column; gap: 8px; }
             .btn-word, .btn-pdf, .btn-ai { width: 100%; justify-content: center; }
+
+            .event-list-grid, .karya-grid { grid-template-columns: 1fr; gap: 12px; }
+            .ev-card, .karya-card { padding: 15px; }
+            .ev-title { padding-right: 70px; font-size: 1rem; }
+            .ev-badge { font-size: 0.6rem; padding: 3px 8px; top: 12px; right: 12px; }
+
+            .modal-box { border-radius: 16px; padding: 18px; }
+        }
+
+        @media (max-width: 400px) {
+            :root { --header-h: 62px; }
+            .header-brand-name { font-size: 0.88rem; }
+            .tab-btn { padding: 8px 11px; font-size: 0.72rem; }
+            .btn-back { font-size: 0.7rem; }
         }
     </style>
 </head>
@@ -230,10 +271,10 @@
         </header>
 
         <div class="nav-tabs">
-            <button class="tab-btn active" onclick="switchTab('kalender')"><i class="fa-solid fa-calendar-alt"></i> Kalender Jadwal</button>
-            <button class="tab-btn" onclick="switchTab('daftar')"><i class="fa-solid fa-list-check"></i> Daftar Event Aktif</button>
-            <button class="tab-btn" onclick="switchTab('karya')"><i class="fa-solid fa-book-open"></i> Semua Karya Masuk</button>
-            <a href="arsip-kegiatan.html" class="tab-btn" style="background:#e2e8f0; color:#1e293b; border:none;"><i class="fa-solid fa-box-archive"></i> Arsip Promosi Story</a>
+            <button class="tab-btn active" onclick="switchTab('kalender')"><i class="fa-solid fa-calendar-alt"></i> Kalender</button>
+            <button class="tab-btn" onclick="switchTab('daftar')"><i class="fa-solid fa-list-check"></i> Event Aktif</button>
+            <button class="tab-btn" onclick="switchTab('karya')"><i class="fa-solid fa-book-open"></i> Karya Masuk</button>
+            <a href="arsip-kegiatan.html" class="tab-btn" style="background:#e2e8f0; color:#1e293b; border:none;"><i class="fa-solid fa-box-archive"></i> Arsip Story</a>
         </div>
 
         <!-- TAB 1: KALENDER PENJADWALAN -->
@@ -334,13 +375,13 @@
         </div>
     </div>
 
-    <!-- MODAL SHARE QR (PROMO EVENT) - KEMBALI DIMASUKKAN -->
+    <!-- MODAL SHARE QR (PROMO EVENT) -->
     <div class="modal-overlay" id="share-modal">
         <div class="modal-box" style="text-align: center;">
             <h2 style="color:var(--primary); margin:0 0 5px 0; font-family:'Aleo', serif;">Event Dibagikan!</h2>
             <p style="font-size:0.85rem; color:var(--text-gray); margin-bottom: 15px;">Pilih format poster untuk promosi di media sosial.</p>
             
-            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px; flex-wrap: wrap;">
                 <button onclick="downloadPromoPoster('navy')" style="background:#003366; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;"><i class="fa-solid fa-moon"></i> Tema Navy</button>
                 <button onclick="downloadPromoPoster('mustard')" style="background:#facc15; color:#003366; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;"><i class="fa-solid fa-sun"></i> Tema Mustard</button>
             </div>
@@ -349,7 +390,7 @@
         </div>
     </div>
 
-    <!-- POSTER PROMO TEMPLATE (KEMBALI DIMASUKKAN) -->
+    <!-- POSTER PROMO TEMPLATE -->
     <div id="poster-promo" class="poster-wrapper theme-navy">
         <div class="pp-header">
             <div style="flex:1;">
@@ -400,7 +441,7 @@
 
         let allEvents = [];
         let allSubmissions = [];
-        let currentEventPromo = null; // Tambahan untuk menyimpan data promo
+        let currentEventPromo = null;
         window.submissionsMap = {};
 
         // Variabel Kalender
@@ -411,49 +452,24 @@
         document.getElementById('header-logo').src = LOGO_URL;
 
         // ====================================================================
-        // FIX UTAMA: PEMUAT GAMBAR YANG BENAR-BENAR DITUNGGU (BUKAN SEKADAR DELAY)
+        // Pemuat gambar yang benar-benar ditunggu (bukan sekadar delay tetap)
         // ====================================================================
-        // Masalah sebelumnya: html2canvas kadang merender logo (gambar dari URL
-        // eksternal imgur) SEBELUM gambar itu selesai dimuat oleh browser,
-        // karena kode hanya menunggu waktu tetap (setTimeout 400ms) yang tidak
-        // selalu cukup tergantung kecepatan koneksi. Solusinya: tunggu event
-        // 'load' (atau 'error') dari setiap elemen <img> di dalam wrapper poster
-        // secara eksplisit, dengan cache-busting supaya gambar selalu fresh
-        // dan tidak nyangkut di status "broken" dari percobaan sebelumnya.
-
         function waitForImage(imgEl, timeoutMs = 8000) {
             return new Promise((resolve) => {
-                // Jika sudah berhasil dimuat & punya ukuran asli, anggap selesai
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
                     resolve(true);
                     return;
                 }
-
                 let settled = false;
                 const cleanup = () => {
                     imgEl.removeEventListener('load', onLoad);
                     imgEl.removeEventListener('error', onError);
                     clearTimeout(timer);
                 };
-                const onLoad = () => {
-                    if (settled) return;
-                    settled = true;
-                    cleanup();
-                    resolve(true);
-                };
-                const onError = () => {
-                    if (settled) return;
-                    settled = true;
-                    cleanup();
-                    console.warn('Gagal memuat gambar logo:', imgEl.src);
-                    resolve(false);
-                };
-
+                const onLoad = () => { if (settled) return; settled = true; cleanup(); resolve(true); };
+                const onError = () => { if (settled) return; settled = true; cleanup(); console.warn('Gagal memuat gambar logo:', imgEl.src); resolve(false); };
                 imgEl.addEventListener('load', onLoad);
                 imgEl.addEventListener('error', onError);
-
-                // Timeout pengaman: jangan sampai proses macet selamanya
-                // kalau koneksi sangat lambat/gambar tidak pernah merespons.
                 const timer = setTimeout(() => {
                     if (settled) return;
                     settled = true;
@@ -464,16 +480,12 @@
             });
         }
 
-        // Memuat ulang src gambar logo dengan cache-busting agar status
-        // 'complete'/'naturalWidth' selalu terhitung ulang dengan benar,
-        // lalu menunggu sampai benar-benar termuat sebelum lanjut.
         async function ensureLogoReady(imgEl) {
             const fresh = LOGO_URL + (LOGO_URL.includes('?') ? '&' : '?') + 'cb=' + Date.now();
             imgEl.src = fresh;
             return waitForImage(imgEl);
         }
 
-        // Menunggu semua <img> di dalam sebuah container (poster) selesai dimuat
         async function waitForAllImagesIn(containerEl) {
             const imgs = Array.from(containerEl.querySelectorAll('img'));
             await Promise.all(imgs.map(img => waitForImage(img)));
@@ -675,7 +687,6 @@
                         <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;"><i class="fa-regular fa-clock"></i> DL: ${data.deadline}</div>
                         
                         <div class="ev-actions">
-                            <!-- TOMBOL POSTER PROMO KEMBALI DIMASUKKAN -->
                             <button class="btn-sm ig" onclick="setPromoDanBukaModal('${data.id}')"><i class="fa-solid fa-share-nodes"></i> Poster</button>
                             ${btnToggle}
                             <button class="btn-sm red" onclick="deleteEvent('${data.id}')"><i class="fa-solid fa-trash"></i> Hapus</button>
@@ -704,7 +715,7 @@
             }
         }
 
-        // --- SISTEM POSTER PROMO (KEMBALI DIMASUKKAN) ---
+        // --- SISTEM POSTER PROMO ---
         window.setPromoDanBukaModal = (id) => {
             currentEventPromo = allEvents.find(e => e.id === id);
             document.getElementById('share-modal').classList.add('active');
@@ -733,13 +744,10 @@
 
                 await document.fonts.ready;
 
-                // FIX: tunggu logo benar-benar selesai dimuat (bukan delay tetap)
                 const logoImg = document.getElementById('pp-logo-img');
                 await ensureLogoReady(logoImg);
-                // Jaga-jaga jika ada <img> lain di dalam template (misal QR berbentuk <img>)
                 await waitForAllImagesIn(template);
 
-                // Sedikit jeda render layout setelah font & gambar siap
                 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
                 const canvas = await html2canvas(template, { scale: 2, backgroundColor: null, useCORS: true });
@@ -750,10 +758,8 @@
                 a.href = imageURI;
                 a.click();
 
-                // Caption Bebas dari Kata Siluman/AI
                 const captionText = `Halo Sobat Aksara! ✨\n\nAda tantangan baru di Event ${currentEventPromo.tipe} dengan tema "${currentEventPromo.judul}".\n\nYuk, tuangkan ide kreatifmu! Tenggat waktu pengumpulan: ${currentEventPromo.deadline}.\n\nKumpulkan karyamu melalui link berikut:\n🔗 ${linkFull}\n\n#CendekiaAksara #SastraIndonesia #Menulis`;
 
-                // SIMPAN KE ARSIP FIRESTORE
                 await addDoc(collection(db, 'arsip_promosi'), {
                     tipe: 'Poster Event',
                     judul: currentEventPromo.judul,
@@ -833,7 +839,6 @@
                             <div class="kc-content">${(sub.content || '').replace(/\n/g, '<br>')}</div>
                             <div class="kc-actions">
                                 <button class="btn-sm gray" onclick="navigator.clipboard.writeText(submissionsMap['${sub.id}'].content); Swal.fire({title:'Tersalin!', timer:1000, showConfirmButton:false})"><i class="fa-regular fa-copy"></i> Salin</button>
-                                <!-- TOMBOL POSTER KARYA APRESIASI -->
                                 <button class="btn-sm ig" onclick="handlePromptPoster('${sub.id}', '${evType}')"><i class="fa-brands fa-instagram"></i> IG Post Karya</button>
                             </div>
                         </div>
@@ -851,7 +856,7 @@
             
             Swal.fire({
                 title: 'Pilih Tema Poster',
-                html: '<div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">' +
+                html: '<div style="display:flex; gap:10px; justify-content:center; margin-top:15px; flex-wrap: wrap;">' +
                       '<button id="btn-theme-navy" style="background:#003366; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer;">Tema Navy</button>' +
                       '<button id="btn-theme-mustard" style="background:#facc15; color:#003366; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">Tema Mustard</button>' +
                       '</div>',
@@ -915,9 +920,6 @@
                 template.className = 'poster-wrapper'; 
                 template.classList.add(`theme-${themeType}`);
 
-                // FIX: pastikan logo poster karya benar-benar termuat sebelum
-                // proses chunking/render dimulai, supaya slide pertama maupun
-                // slide berikutnya konsisten menampilkan logo.
                 const logoImg = document.getElementById('pk-logo-img');
                 await ensureLogoReady(logoImg);
 
@@ -955,10 +957,6 @@
                         document.getElementById('pk-page').innerText = `Slide ${i + 1}/${totalPages} 👉`;
                     }
 
-                    // FIX: cek ulang logo masih termuat (untuk slide ke-2 dst),
-                    // lalu tunggu 2 frame render supaya layout stabil sebelum
-                    // html2canvas memotret elemen — menggantikan delay tetap
-                    // 200ms yang sebelumnya kadang tidak cukup.
                     await waitForAllImagesIn(template);
                     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -976,7 +974,6 @@
                     await new Promise(r => setTimeout(r, 600));
                 }
 
-                // Munculkan Caption Karya Setelah Unduh
                 Swal.fire({
                     title: 'Berhasil!',
                     text: `Total ${totalPages} gambar (slide) telah diunduh berurutan.`,
@@ -1030,58 +1027,143 @@
             a.click();
         }
 
-        // EKSPOR PDF BUKU A5 (FITUR BARU BERDASARKAN PERMINTAAN)
+        // =====================================================================================
+        // EKSPOR PDF BUKU A5 — DIROMBAK TOTAL agar hasilnya terasa seperti buku cetak sungguhan:
+        // sampul depan, halaman daftar isi, running header nama event, nomor halaman & footer
+        // brand, drop-style judul karya, serta halaman penutup. Sebelumnya hanya berupa
+        // tumpukan halaman polos tanpa navigasi maupun identitas visual.
+        // =====================================================================================
         window.exportToPDFA5 = () => {
             if(allSubmissions.length === 0) return;
-            showLoading("Merakit Lembar Buku PDF A5...");
-            
-            const ev = allEvents.find(e => e.id === document.getElementById('filter-event').value);
-            
-            let pdfContent = [
-                // HALAMAN SAMPUL (COVER)
-                { text: 'KUMPULAN KARYA TERPILIH', fontSize: 24, bold: true, alignment: 'center', margin: [0, 120, 0, 10] },
-                { text: ev.judul.toUpperCase(), fontSize: 18, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 30] },
-                { text: `Kategori: ${ev.tipe}`, fontSize: 12, alignment: 'center', italics: true, margin: [0, 0, 0, 10] },
-                { text: ev.deskripsi, fontSize: 10, alignment: 'center', margin: [40, 0, 40, 0], color: '#444' },
-                { text: '', pageBreak: 'after' }
-            ];
+            showLoading("Merakit Buku PDF A5...");
 
-            // ISI BUKU (1 KARYA = 1 HALAMAN MINIMAL)
-            allSubmissions.forEach((sub) => {
-                // Judul Bold Capslock rata kiri
-                pdfContent.push({ text: (sub.title || 'TANPA JUDUL').toUpperCase(), fontSize: 16, bold: true, alignment: 'left' });
-                // Nama Penulis Italic dibawah judul
-                pdfContent.push({ text: `Oleh: ${sub.studentName || 'Anonim'}`, fontSize: 11, italics: true, alignment: 'left', margin: [0, 2, 0, 20], color: '#555' });
+            try {
+                const ev = allEvents.find(e => e.id === document.getElementById('filter-event').value);
+                const generatedDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-                // Proses paragraf: Spasi paragraf otomatis dan menjorok
-                const paragraphs = (sub.content || '').split('\n').filter(p => p.trim() !== '');
-                paragraphs.forEach(p => {
-                    pdfContent.push({
-                        text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), // Indentasi (Menjorok)
-                        alignment: 'justify', // Rata Kanan Kiri
-                        margin: [0, 0, 0, 8], // Spasi antar paragraf
-                        fontSize: 11,
-                        lineHeight: 1.4
-                    });
+                let pdfContent = [];
+
+                // ================= SAMPUL DEPAN =================
+                pdfContent.push(
+                    { text: 'CENDEKIA AKSARA', style: 'coverBrand', alignment: 'center', margin: [0, 70, 0, 4] },
+                    { canvas: [{ type: 'line', x1: 90, y1: 0, x2: 210, y2: 0, lineWidth: 1.2, lineColor: '#d4af37' }], alignment: 'center', margin: [0, 0, 0, 40] },
+                    { text: 'KUMPULAN KARYA TERPILIH', style: 'coverKicker', alignment: 'center', margin: [0, 0, 0, 10] },
+                    { text: ev.judul.toUpperCase(), style: 'coverTitle', alignment: 'center', margin: [0, 0, 0, 14] },
+                    { text: `Kategori: ${ev.tipe}`, style: 'coverMeta', alignment: 'center', margin: [0, 0, 0, 24] },
+                    {
+                        table: { widths: ['*'], body: [[{ text: ev.deskripsi || '-', alignment: 'center', color: '#475569', fontSize: 9, margin: [16, 14, 16, 14] }]] },
+                        layout: { hLineWidth: () => 0.8, vLineWidth: () => 0.8, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                        margin: [10, 0, 10, 0]
+                    },
+                    { text: `${allSubmissions.length} Karya Terhimpun`, alignment: 'center', color: '#94a3b8', fontSize: 8.5, italics: true, margin: [0, 20, 0, 0] },
+                    { text: `Diterbitkan ${generatedDate}`, alignment: 'center', color: '#94a3b8', fontSize: 8.5, margin: [0, 2, 0, 0] },
+                    { text: '', pageBreak: 'after' }
+                );
+
+                // ================= DAFTAR ISI =================
+                pdfContent.push({ text: 'DAFTAR ISI', style: 'h1', margin: [0, 10, 0, 20] });
+                const tocRows = allSubmissions.map((sub, idx) => ([
+                    { text: String(idx + 1).padStart(2, '0'), fontSize: 9.5, color: '#d4af37', bold: true },
+                    { text: sub.title || 'Tanpa Judul', fontSize: 9.5, color: '#1e293b' },
+                    { text: sub.studentName || 'Anonim', fontSize: 9.5, color: '#64748b', italics: true, alignment: 'right' }
+                ]));
+                pdfContent.push({
+                    table: { widths: [22, '*', 100], body: tocRows },
+                    layout: {
+                        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0 : 0.5,
+                        vLineWidth: () => 0,
+                        hLineColor: () => '#e2e8f0',
+                        paddingTop: () => 6, paddingBottom: () => 6
+                    },
+                    margin: [0, 0, 0, 20]
                 });
-                
-                // Pisah halaman untuk karya berikutnya
                 pdfContent.push({ text: '', pageBreak: 'after' });
-            });
 
-            // Hapus pageBreak di elemen terakhir agar tidak ada halaman kosong di akhir
-            pdfContent[pdfContent.length - 1] = { text: '- TAMAT -', alignment: 'center', italics: true, margin: [0, 50, 0, 0] };
+                // ================= ISI BUKU (satu karya per bagian, halaman baru tiap karya) =================
+                allSubmissions.forEach((sub, idx) => {
+                    // Nomor karya kecil di atas judul, gaya "bab buku"
+                    pdfContent.push({ text: `KARYA ${String(idx + 1).padStart(2, '0')}`, style: 'workNumber', margin: [0, 0, 0, 4] });
+                    pdfContent.push({ text: (sub.title || 'TANPA JUDUL').toUpperCase(), style: 'workTitle' });
+                    pdfContent.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 2, lineColor: '#d4af37' }], margin: [0, 8, 0, 8] });
+                    pdfContent.push({ text: `Oleh: ${sub.studentName || 'Anonim'}`, style: 'workAuthor', margin: [0, 0, 0, 24] });
 
-            const docDefinition = {
-                pageSize: 'A5', // Ukuran Buku Standar
-                pageMargins: [40, 50, 40, 50],
-                content: pdfContent,
-                defaultStyle: { font: 'Roboto' }
-            };
+                    const paragraphs = (sub.content || '').split('\n').filter(p => p.trim() !== '');
+                    paragraphs.forEach(p => {
+                        pdfContent.push({
+                            text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(),
+                            alignment: 'justify',
+                            margin: [0, 0, 0, 9],
+                            fontSize: 10.5,
+                            lineHeight: 1.5,
+                            color: '#1e293b'
+                        });
+                    });
 
-            pdfMake.createPdf(docDefinition).download(`Buku_A5_${ev.judul.replace(/\s/g,'_')}.pdf`, () => {
+                    // Tidak menambahkan pageBreak setelah karya terakhir (dipindah ke penutup)
+                    if (idx < allSubmissions.length - 1) {
+                        pdfContent.push({ text: '', pageBreak: 'after' });
+                    }
+                });
+
+                // ================= PENUTUP =================
+                pdfContent.push(
+                    { text: '', pageBreak: 'before' },
+                    { text: '✦', alignment: 'center', color: '#d4af37', fontSize: 20, margin: [0, 150, 0, 20] },
+                    { text: 'TERIMA KASIH', style: 'h1', alignment: 'center', margin: [0, 0, 0, 10] },
+                    { text: `Kepada seluruh penulis yang telah menyalakan lentera literasi\nmelalui event "${ev.judul}".`, alignment: 'center', color: '#64748b', fontSize: 10, lineHeight: 1.6, margin: [40, 0, 40, 30] },
+                    { text: 'CENDEKIA ASKARA'.replace('ASKARA', 'AKSARA'), alignment: 'center', bold: true, color: '#003366', fontSize: 12, characterSpacing: 2 }
+                );
+
+                const docDefinition = {
+                    pageSize: 'A5',
+                    pageMargins: [42, 55, 42, 46],
+
+                    // Running header muncul mulai halaman ke-3 (setelah sampul & daftar isi)
+                    header: function (currentPage) {
+                        if (currentPage <= 2) return null;
+                        return {
+                            margin: [42, 20, 42, 0],
+                            columns: [
+                                { text: ev.judul.toUpperCase(), fontSize: 7, color: '#94a3b8', characterSpacing: 0.5 },
+                                { text: 'CENDEKIA AKSARA', fontSize: 7, color: '#d4af37', bold: true, alignment: 'right' }
+                            ]
+                        };
+                    },
+                    footer: function (currentPage, pageCount) {
+                        if (currentPage === 1) return null;
+                        return {
+                            margin: [42, 8, 42, 0],
+                            columns: [
+                                { text: '', width: '*' },
+                                { text: `${currentPage} / ${pageCount}`, fontSize: 8, color: '#94a3b8', alignment: 'center', width: 60 },
+                                { text: '', width: '*' }
+                            ]
+                        };
+                    },
+
+                    content: pdfContent,
+
+                    styles: {
+                        coverBrand: { fontSize: 13, bold: true, color: '#003366', characterSpacing: 3 },
+                        coverKicker: { fontSize: 10, color: '#94a3b8', characterSpacing: 2, bold: true },
+                        coverTitle: { fontSize: 20, bold: true, color: '#003366' },
+                        coverMeta: { fontSize: 10.5, italics: true, color: '#d4af37', bold: true },
+                        h1: { fontSize: 15, bold: true, color: '#003366', alignment: 'left' },
+                        workNumber: { fontSize: 8.5, bold: true, color: '#d4af37', characterSpacing: 2 },
+                        workTitle: { fontSize: 17, bold: true, color: '#003366', lineHeight: 1.2 },
+                        workAuthor: { fontSize: 9.5, italics: true, color: '#64748b' }
+                    },
+                    defaultStyle: { font: 'Roboto', fontSize: 10.5, lineHeight: 1.4, color: '#333' }
+                };
+
+                pdfMake.createPdf(docDefinition).download(`Buku_A5_${ev.judul.replace(/\s/g,'_')}.pdf`, () => {
+                    hideLoading();
+                });
+            } catch (err) {
+                console.error(err);
                 hideLoading();
-            });
+                Swal.fire('Gagal', 'Terjadi kesalahan saat menyusun PDF buku: ' + err.message, 'error');
+            }
         }
 
         // --- SISTEM PENILAIAN (PENGGANTI KATA AI) ---
@@ -1100,12 +1182,10 @@
                 const resData = await response.json();
                 if(!response.ok) throw new Error(resData.error || 'Sistem Penilaian gagal.');
 
-                // --- SIMPAN HASIL ANALISIS KE DATABASE AGAR BISA DIAKSES SISWA NANTI ---
                 await updateDoc(doc(db, 'weekly_events', eventId), {
                     hasil_analisis: resData.analisis_data
                 });
 
-                // Render PDF Make Table
                 const tableBody = [[{text: 'Peringkat', style: 'th'}, {text: 'Penulis', style: 'th'}, {text: 'Judul', style: 'th'}, {text: 'Ulasan Evaluasi', style: 'th'}]];
                 resData.analisis_data.forEach(item => {
                     tableBody.push([{text: item.peringkat, alignment:'center', bold:true}, {text: item.nama_penulis, bold:true}, {text: item.judul_karya, italics:true}, {text: item.analisis, alignment:'justify'}]);
