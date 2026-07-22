@@ -54,6 +54,38 @@
         .btn-submit { background: var(--primary); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.3s; font-family: 'Poppins', sans-serif; }
         .btn-submit:hover { transform: translateY(-2px); background: #00122e; }
 
+        /* LIST CHECKBOX SISWA MULTIPLE */
+        .student-checkbox-list {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px;
+            background: #f8fafc;
+        }
+        .student-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: 0.2s;
+            border-radius: 6px;
+        }
+        .student-checkbox-item:hover { background: #e0f2fe; }
+        .student-checkbox-item:last-child { border-bottom: none; }
+        .student-checkbox-item input[type="checkbox"] { 
+            margin-right: 12px; 
+            transform: scale(1.3); 
+            cursor: pointer; 
+        }
+        .student-checkbox-item span { 
+            flex: 1; 
+            font-size: 0.95rem; 
+            font-weight: 500; 
+            color: var(--text-dark);
+        }
+
         /* CLASS GRID */
         .class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .class-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; transition: 0.3s; }
@@ -90,12 +122,13 @@
         .percentage-low { color: #991b1b; font-weight: 700; }
 
         /* MODAL */
-        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.7); backdrop-filter:blur(5px); z-index:2000; display:none; justify-content:center; align-items:center; }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,31,63,0.7); backdrop-filter:blur(5px); z-index:2000; display:none; justify-content:center; align-items:center; padding: 20px; }
         .modal-overlay.active { display: flex; }
-        .modal-box { background:white; width:90%; max-width:500px; padding:30px; border-radius:20px; transform: scale(0.9); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal-box { background:white; width:100%; max-width:500px; padding:30px; border-radius:20px; transform: scale(0.9); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-overlay.active .modal-box { transform: scale(1); }
         .modal-header { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.3rem; margin-bottom: 20px; font-weight: 700; }
-        .modal-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; transition: 0.2s; }
+        .modal-close:hover { color: #ef4444; }
 
         /* LOADING */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
@@ -230,19 +263,23 @@
 
     </div>
 
+    <!-- MODAL BARU: KELOLA SISWA KELAS MULTIPLE SELECT -->
     <div class="modal-overlay" id="modal-add-student">
         <div class="modal-box">
             <button onclick="closeModal('modal-add-student')" class="modal-close">&times;</button>
-            <h3 class="modal-header"><i class="fa-solid fa-user-plus"></i> Tambah Siswa ke Kelas</h3>
+            <h3 class="modal-header"><i class="fa-solid fa-users"></i> Kelola Siswa Kelas</h3>
             <form id="form-add-student">
                 <div class="form-group">
-                    <label class="form-label">Pilih Siswa</label>
-                    <select id="modal-student-select" class="form-select" required>
-                        <option value="">-- Pilih Siswa --</option>
-                    </select>
+                    <label class="form-label">Daftar Siswa (Sesuai Semester Kelas)</label>
+                    <p style="font-size: 0.8rem; color: #64748b; margin-top: -5px; margin-bottom: 10px;">
+                        Centang nama siswa untuk menambahkan ke kelas. Hilangkan centang untuk menghapusnya dari kelas.
+                    </p>
+                    <div id="modal-student-list" class="student-checkbox-list">
+                        <!-- Daftar checkbox akan dimuat di sini lewat JS -->
+                    </div>
                 </div>
                 <div style="text-align: right; margin-top: 20px;">
-                    <button type="submit" class="btn-submit"><i class="fa-solid fa-check"></i> Tambahkan</button>
+                    <button type="submit" class="btn-submit" id="btn-save-students"><i class="fa-solid fa-save"></i> Simpan Perubahan</button>
                 </div>
             </form>
         </div>
@@ -370,7 +407,7 @@
                             <div><strong>Status:</strong> ${cls.status === 'active' ? '✅ Aktif' : '❌ Non-Aktif'}</div>
                         </div>
                         <div class="class-actions">
-                            <button class="btn-sm blue" onclick="openAddStudentModal('${cls.id}')"><i class="fa-solid fa-user-plus"></i> Siswa</button>
+                            <button class="btn-sm blue" onclick="openAddStudentModal('${cls.id}')"><i class="fa-solid fa-users-cog"></i> Kelola Siswa</button>
                             <button class="btn-sm blue" onclick="openEditClassModal('${cls.id}')"><i class="fa-solid fa-edit"></i> Edit</button>
                             <button class="btn-sm red" onclick="deleteClass('${cls.id}')"><i class="fa-solid fa-trash"></i> Hapus</button>
                         </div>
@@ -410,43 +447,63 @@
             }
         };
 
-        // --- MODAL FUNCTIONS ---
+        // --- MODAL KELOLA SISWA (CHECKBOX) ---
         window.openAddStudentModal = (classId) => {
             currentClassId = classId;
-            const select = document.getElementById('modal-student-select');
-            select.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+            const container = document.getElementById('modal-student-list');
+            container.innerHTML = '';
             
             const cls = allClasses.find(c => c.id === classId);
             const existingStudents = cls.students || [];
             
-            allStudents
-                .filter(s => !existingStudents.includes(s.id) && parseInt(s.semester || 1) === cls.semester)
-                .forEach(s => {
-                    select.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            // Filter siswa berdasarkan semester yang sama dengan kelas
+            const availableStudents = allStudents.filter(s => parseInt(s.semester || 1) === parseInt(cls.semester));
+            
+            if (availableStudents.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">Belum ada siswa terdaftar di semester ini.</div>';
+            } else {
+                availableStudents.forEach(s => {
+                    // Cek apakah siswa sudah ada di dalam kelas
+                    const isChecked = existingStudents.includes(s.id) ? 'checked' : '';
+                    container.innerHTML += `
+                        <label class="student-checkbox-item">
+                            <input type="checkbox" name="student_ids" value="${s.id}" ${isChecked}>
+                            <span>${s.name}</span>
+                        </label>
+                    `;
                 });
+            }
             
             document.getElementById('modal-add-student').classList.add('active');
         };
 
         document.getElementById('form-add-student').onsubmit = async (e) => {
             e.preventDefault();
-            const studentId = document.getElementById('modal-student-select').value;
+            
+            const btn = document.getElementById('btn-save-students');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
             try {
-                const cls = allClasses.find(c => c.id === currentClassId);
-                const students = cls.students || [];
-                if(!students.includes(studentId)) {
-                    students.push(studentId);
-                    await updateDoc(doc(db, 'classes', currentClassId), { students });
-                    await loadClasses();
-                    window.closeModal('modal-add-student');
-                    Swal.fire('Berhasil!', 'Siswa ditambahkan ke kelas.', 'success');
-                }
-            } catch(e) {
-                Swal.fire('Error', e.message, 'error');
+                // Ambil semua checkbox yang dicentang
+                const checkboxes = document.querySelectorAll('input[name="student_ids"]:checked');
+                const selectedStudentIds = Array.from(checkboxes).map(cb => cb.value);
+
+                // Perbarui (tumpuk) array 'students' di Firestore
+                await updateDoc(doc(db, 'classes', currentClassId), { students: selectedStudentIds });
+                
+                await loadClasses();
+                window.closeModal('modal-add-student');
+                Swal.fire('Berhasil!', 'Daftar siswa di kelas ini telah diperbarui.', 'success');
+            } catch(error) {
+                Swal.fire('Error', error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-save"></i> Simpan Perubahan';
             }
         };
 
+        // --- MODAL EDIT & HAPUS KELAS ---
         window.openEditClassModal = (classId) => {
             const cls = allClasses.find(c => c.id === classId);
             currentClassId = classId;
