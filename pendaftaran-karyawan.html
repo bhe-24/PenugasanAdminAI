@@ -6,6 +6,11 @@
     <title>Karir - Cendekia Aksara</title>
     <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- PDFMake Library (Untuk PDF Dokumen Asli) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Poppins', sans-serif; background: #f4f6f9; margin: 0; padding: 40px 20px; color: #1e293b; }
@@ -22,6 +27,12 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity:1; transform: translateY(0);} }
+
+        /* Banner Penutupan */
+        .banner-tutup { display: none; text-align: center; padding: 40px 25px; background: #fef2f2; border-radius: 16px; border: 2px dashed #ef4444; color: #991b1b; }
+        .banner-tutup i { font-size: 3rem; margin-bottom: 15px; color: #ef4444; }
+        .banner-tutup h3 { font-family: 'Aleo', serif; margin: 0 0 10px; font-size: 1.3rem; }
+        .banner-tutup p { margin: 0; font-size: 0.9rem; color: #b91c1c; }
 
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; color: #334155; }
@@ -59,7 +70,6 @@
         .step.active .step-label { color: #003366; }
 
         .rejected-banner { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 16px 18px; border-radius: 12px; font-size: 0.9rem; display: flex; gap: 10px; align-items: flex-start; }
-
         .info-note { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 14px 16px; border-radius: 12px; font-size: 0.83rem; margin-top: 18px; display: flex; gap: 10px; align-items: flex-start; }
         .success-note { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
 
@@ -74,9 +84,7 @@
         .modal.active { display: flex; }
         .modal-card { background: white; border-radius: 18px; max-width: 460px; width: 100%; padding: 0; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
         .modal-card-head { background: linear-gradient(135deg, #005a9c, #003366); color: white; padding: 25px 30px; text-align: center; }
-        .modal-card-head i { font-size: 2rem; margin-bottom: 8px; }
         .modal-card-head h2 { margin: 0; font-family: 'Aleo', serif; font-size: 1.3rem; }
-        .modal-card-head p { margin: 4px 0 0; font-size: 0.82rem; opacity: 0.85; }
         .modal-card-body { padding: 25px 30px; }
         .mc-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.88rem; }
         .mc-row span:first-child { color: #64748b; }
@@ -112,7 +120,15 @@
 
         <!-- PANEL: FORMULIR -->
         <div class="tab-panel active" id="panel-daftar">
-            <form id="form-rekrutmen">
+
+            <!-- Banner Penutupan (Tampil otomatis jika form ditutup oleh sistem/admin) -->
+            <div id="banner-tutup" class="banner-tutup">
+                <i class="fa-solid fa-lock"></i>
+                <h3>Mohon Maaf, Pendaftaran Ditutup</h3>
+                <p>Kuota pelamar telah terpenuhi atau rekrutmen gelombang ini telah resmi diakhiri oleh pihak Cendekia Aksara.</p>
+            </div>
+
+            <form id="form-rekrutmen" style="display: none;">
                 <div class="form-group">
                     <label>Nama Lengkap (Sesuai Identitas)</label>
                     <input type="text" id="nama" placeholder="Masukkan nama lengkap" required>
@@ -131,10 +147,7 @@
                 <div class="form-group">
                     <label>Bidang Peminatan</label>
                     <select id="bidang" required>
-                        <option value="">-- Pilih Posisi --</option>
-                        <option value="pengajar">Pengajar / Mentor</option>
-                        <option value="kurator">Kurator Naskah</option>
-                        <option value="staf_admin">Staf Administrasi</option>
+                        <option value="">-- Sedang memuat posisi... --</option>
                     </select>
                 </div>
 
@@ -172,14 +185,13 @@
             </div>
 
             <div id="status-multi" style="display:none; margin-top: 15px;"></div>
-
             <div class="status-result" id="status-result"></div>
         </div>
     </div>
 
     <!-- Modal Surat Pegangan -->
     <div class="modal" id="modal-pegangan">
-        <div class="modal-card" id="area-cetak">
+        <div class="modal-card">
             <div class="modal-card-head">
                 <i class="fa-solid fa-file-circle-check"></i>
                 <h2>Bukti Pendaftaran</h2>
@@ -196,24 +208,21 @@
                     <div class="val" id="sp-kode"></div>
                 </div>
 
-                <div class="info-note" id="info-note-pdf">
+                <div class="info-note">
                     <i class="fa-solid fa-circle-info"></i>
                     <span>Gunakan kode ini pada menu "Cek Status Lamaran" untuk memantau perkembangan seleksi Anda secara langsung. Simpan baik-baik, kode ini bersifat rahasia.</span>
                 </div>
 
-                <div class="modal-actions" id="aksi-modal">
+                <div class="modal-actions">
                     <button class="btn-copy" onclick="salinKode()"><i class="fa-regular fa-copy"></i> Salin</button>
-                    <!-- Tombol Unduh PDF -->
-                    <button class="btn-download" id="btn-unduh-pdf" onclick="unduhPDF()"><i class="fa-solid fa-download"></i> Unduh PDF</button>
+                    <!-- Menggunakan Fungsi PDF Murni (pdfMake) -->
+                    <button class="btn-download" onclick="unduhPDF()"><i class="fa-solid fa-file-pdf"></i> Unduh PDF</button>
                     <button class="btn-close-modal" onclick="tutupPegangan()">Tutup</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Library untuk HTML to PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script type="module">
@@ -232,8 +241,32 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // ================== KONFIGURASI STATUS ==================
+        // ================== KONFIGURASI PENGATURAN REKRUTMEN (OTOMATIS TUTUP) ==================
         const BIDANG_LABEL = { pengajar: 'Pengajar / Mentor', kurator: 'Kurator Naskah', staf_admin: 'Staf Administrasi' };
+        let rekrutmenSettings = { is_open: true, target: 0, posisi: [] };
+
+        // Listener Setelan Rekrutmen (Dari Halaman Admin)
+        onSnapshot(doc(db, 'settings', 'rekrutmen'), (snap) => {
+            if (snap.exists()) {
+                rekrutmenSettings = snap.data();
+                if (!rekrutmenSettings.is_open) {
+                    // Pendaftaran Ditutup
+                    document.getElementById('form-rekrutmen').style.display = 'none';
+                    document.getElementById('banner-tutup').style.display = 'block';
+                } else {
+                    // Pendaftaran Dibuka
+                    document.getElementById('form-rekrutmen').style.display = 'block';
+                    document.getElementById('banner-tutup').style.display = 'none';
+                    
+                    // Render Opsi Dropdown Sesuai Centang Admin
+                    const select = document.getElementById('bidang');
+                    select.innerHTML = '<option value="">-- Pilih Posisi --</option>';
+                    (rekrutmenSettings.posisi || []).forEach(p => {
+                        select.innerHTML += `<option value="${p}">${BIDANG_LABEL[p]}</option>`;
+                    });
+                }
+            }
+        });
 
         const STEP_ORDER = ['pending', 'verifikasi', 'diterima', 'akses_terkirim'];
         const STATUS_LABEL = {
@@ -259,7 +292,6 @@
             return 'CA-' + rand;
         }
 
-        // ================== TAB SWITCH ==================
         window.switchTab = (tab) => {
             document.getElementById('panel-daftar').classList.toggle('active', tab === 'daftar');
             document.getElementById('panel-status').classList.toggle('active', tab === 'status');
@@ -267,54 +299,43 @@
             document.getElementById('tab-btn-status').classList.toggle('active', tab === 'status');
         };
 
-        // ================== UNDUH PDF LOGIC ==================
-        window.unduhPDF = async () => {
-            const { jsPDF } = window.jspdf;
-            const areaCetak = document.getElementById('area-cetak');
-            const aksiModal = document.getElementById('aksi-modal');
-            const btnUnduh = document.getElementById('btn-unduh-pdf');
-            const kodePelamar = document.getElementById('sp-kode').innerText;
+        // ================== UNDUH PDF MURNI (PDFMAKE) ==================
+        window.unduhPDF = () => {
+            const nama = document.getElementById('sp-nama').innerText;
+            const bidang = document.getElementById('sp-bidang').innerText;
+            const tanggal = document.getElementById('sp-tanggal').innerText;
+            const kode = document.getElementById('sp-kode').innerText;
 
-            // Simpan teks tombol asli
-            const teksAsli = btnUnduh.innerHTML;
-            btnUnduh.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
-            btnUnduh.style.pointerEvents = 'none';
+            const docDefinition = {
+                content: [
+                    { text: 'CENDEKIA AKSARA', style: 'header', alignment: 'center' },
+                    { text: 'SURAT BUKTI PENDAFTARAN RESMI', style: 'subheader', alignment: 'center' },
+                    { text: '\n\n' },
+                    { text: 'Detail Pendaftaran Kandidat:', fontSize: 12, margin: [0, 0, 0, 10] },
+                    {
+                        table: {
+                            widths: [150, '*'],
+                            body: [
+                                [{ text: 'Nama Lengkap', bold: true }, nama],
+                                [{ text: 'Posisi Dilamar', bold: true }, bidang],
+                                [{ text: 'Waktu Pendaftaran', bold: true }, tanggal],
+                                [{ text: 'Status Saat Ini', bold: true }, 'Lamaran Diterima']
+                            ]
+                        }
+                    },
+                    { text: '\n\nKODE LAMARAN ANDA', alignment: 'center', fontSize: 12, color: '#64748b' },
+                    { text: kode, alignment: 'center', fontSize: 32, bold: true, color: '#003366', margin: [0, 5, 0, 15] },
+                    { text: 'Penting: Kode di atas bersifat rahasia. Gunakan kode tersebut pada menu "Cek Status Lamaran" di website rekrutmen kami untuk memantau perkembangan seleksi Anda secara langsung.', alignment: 'justify', fontSize: 10, italics: true, color: '#64748b' }
+                ],
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#003366', margin: [0, 0, 0, 5] },
+                    subheader: { fontSize: 14, bold: true, color: '#d4af37' }
+                },
+                defaultStyle: { font: 'Roboto' }
+            };
 
-            // Sembunyikan tombol saat proses tangkapan layar agar tidak masuk ke PDF
-            aksiModal.style.display = 'none';
-
-            try {
-                // Menangkap elemen HTML menjadi Canvas (Gambar)
-                const canvas = await html2canvas(areaCetak, {
-                    scale: 2, // Agar resolusi PDF jernih dan tidak pecah
-                    useCORS: true, 
-                    backgroundColor: '#ffffff'
-                });
-                
-                const imgData = canvas.toDataURL('image/png');
-                
-                // Konfigurasi Kertas PDF (A4 Portrait)
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfLebar = pdf.internal.pageSize.getWidth();
-                
-                // Kalkulasi rasio tinggi agar proporsional
-                const pdfTinggi = (canvas.height * pdfLebar) / canvas.width;
-
-                // Masukkan gambar ke PDF
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfLebar, pdfTinggi);
-                
-                // Simpan dan unduh file otomatis
-                pdf.save(`Bukti_Pendaftaran_${kodePelamar}.pdf`);
-
-            } catch (error) {
-                console.error("Gagal membuat PDF", error);
-                Swal.fire('Error', 'Gagal mengunduh file PDF. Silakan coba lagi.', 'error');
-            } finally {
-                // Tampilkan kembali tombol setelah unduhan selesai
-                aksiModal.style.display = 'flex';
-                btnUnduh.innerHTML = teksAsli;
-                btnUnduh.style.pointerEvents = 'auto';
-            }
+            // Download PDF Document
+            pdfMake.createPdf(docDefinition).download(`Bukti_Pendaftaran_CA_${kode}.pdf`);
         };
 
         // ================== SUBMIT FORM ==================
@@ -323,7 +344,7 @@
         document.getElementById('form-rekrutmen').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Pengiriman...';
             btn.disabled = true;
 
             let waRaw = document.getElementById('wa').value.trim();
@@ -344,13 +365,12 @@
 
             try {
                 const ref = await addDoc(collection(db, 'rekrutmen'), dataLamaran);
-
                 localStorage.setItem('ca_last_kode', kodeLamaran);
 
                 tampilkanPegangan(ref.id, dataLamaran, kodeLamaran);
                 document.getElementById('form-rekrutmen').reset();
             } catch (error) {
-                Swal.fire('Error', 'Gagal mengirim data. Coba lagi nanti.', 'error');
+                Swal.fire('Error', 'Gagal mengirim data. Silakan periksa koneksi internet Anda.', 'error');
             } finally {
                 btn.innerHTML = 'Kirim Pendaftaran';
                 btn.disabled = false;
@@ -486,7 +506,6 @@
                     <span>Berkas Anda sedang ditinjau oleh Tim HRD. Proses ini umumnya memakan waktu beberapa hari kerja.</span></div>`;
             }
 
-            // Timeline
             const timelineData = [
                 { key: 'tanggal_daftar', label: 'Lamaran diterima sistem' },
                 { key: 'verifikasi_at', label: 'Mulai proses verifikasi' },
