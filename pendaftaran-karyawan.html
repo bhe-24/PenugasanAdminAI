@@ -83,17 +83,15 @@
         .mc-row span:last-child { font-weight: 600; color: #0f172a; text-align: right; }
         .kode-box { background: #f0f9ff; border: 2px dashed #003366; border-radius: 12px; padding: 16px; text-align: center; margin: 18px 0; }
         .kode-box .val { font-size: 1.4rem; font-weight: 700; letter-spacing: 2px; color: #003366; font-family: monospace; }
+        
         .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-actions button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-family: 'Poppins'; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+        .modal-actions button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-family: 'Poppins'; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: 0.2s;}
         .btn-copy { background: #eff6ff; color: #003366; }
+        .btn-copy:hover { background: #dbeafe; }
+        .btn-download { background: #10b981; color: white; }
+        .btn-download:hover { background: #059669; }
         .btn-close-modal { background: #003366; color: white; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #modal-pegangan, #modal-pegangan * { visibility: visible; }
-            #modal-pegangan { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0); }
-            .modal-actions { display: none !important; }
-        }
+        .btn-close-modal:hover { background: #001f3f; }
 
         @media (max-width: 600px) { .container { padding: 25px 20px; } .stepper { flex-wrap: nowrap; } .step-label { font-size: 0.62rem; } }
     </style>
@@ -102,7 +100,7 @@
 
     <div class="container">
         <div class="header">
-            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
             <h1>Bergabung Bersama Kami</h1>
             <p>Pendaftaran Tim & Pengajar Cendekia Aksara</p>
         </div>
@@ -181,7 +179,7 @@
 
     <!-- Modal Surat Pegangan -->
     <div class="modal" id="modal-pegangan">
-        <div class="modal-card">
+        <div class="modal-card" id="area-cetak">
             <div class="modal-card-head">
                 <i class="fa-solid fa-file-circle-check"></i>
                 <h2>Bukti Pendaftaran</h2>
@@ -198,21 +196,26 @@
                     <div class="val" id="sp-kode"></div>
                 </div>
 
-                <div class="info-note">
+                <div class="info-note" id="info-note-pdf">
                     <i class="fa-solid fa-circle-info"></i>
                     <span>Gunakan kode ini pada menu "Cek Status Lamaran" untuk memantau perkembangan seleksi Anda secara langsung. Simpan baik-baik, kode ini bersifat rahasia.</span>
                 </div>
 
-                <div class="modal-actions">
-                    <button class="btn-copy" onclick="salinKode()"><i class="fa-regular fa-copy"></i> Salin Kode</button>
-                    <button class="btn-copy" onclick="window.print()"><i class="fa-solid fa-print"></i> Cetak</button>
+                <div class="modal-actions" id="aksi-modal">
+                    <button class="btn-copy" onclick="salinKode()"><i class="fa-regular fa-copy"></i> Salin</button>
+                    <!-- Tombol Unduh PDF -->
+                    <button class="btn-download" id="btn-unduh-pdf" onclick="unduhPDF()"><i class="fa-solid fa-download"></i> Unduh PDF</button>
                     <button class="btn-close-modal" onclick="tutupPegangan()">Tutup</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Library untuk HTML to PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -264,6 +267,56 @@
             document.getElementById('tab-btn-status').classList.toggle('active', tab === 'status');
         };
 
+        // ================== UNDUH PDF LOGIC ==================
+        window.unduhPDF = async () => {
+            const { jsPDF } = window.jspdf;
+            const areaCetak = document.getElementById('area-cetak');
+            const aksiModal = document.getElementById('aksi-modal');
+            const btnUnduh = document.getElementById('btn-unduh-pdf');
+            const kodePelamar = document.getElementById('sp-kode').innerText;
+
+            // Simpan teks tombol asli
+            const teksAsli = btnUnduh.innerHTML;
+            btnUnduh.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+            btnUnduh.style.pointerEvents = 'none';
+
+            // Sembunyikan tombol saat proses tangkapan layar agar tidak masuk ke PDF
+            aksiModal.style.display = 'none';
+
+            try {
+                // Menangkap elemen HTML menjadi Canvas (Gambar)
+                const canvas = await html2canvas(areaCetak, {
+                    scale: 2, // Agar resolusi PDF jernih dan tidak pecah
+                    useCORS: true, 
+                    backgroundColor: '#ffffff'
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                // Konfigurasi Kertas PDF (A4 Portrait)
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfLebar = pdf.internal.pageSize.getWidth();
+                
+                // Kalkulasi rasio tinggi agar proporsional
+                const pdfTinggi = (canvas.height * pdfLebar) / canvas.width;
+
+                // Masukkan gambar ke PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfLebar, pdfTinggi);
+                
+                // Simpan dan unduh file otomatis
+                pdf.save(`Bukti_Pendaftaran_${kodePelamar}.pdf`);
+
+            } catch (error) {
+                console.error("Gagal membuat PDF", error);
+                Swal.fire('Error', 'Gagal mengunduh file PDF. Silakan coba lagi.', 'error');
+            } finally {
+                // Tampilkan kembali tombol setelah unduhan selesai
+                aksiModal.style.display = 'flex';
+                btnUnduh.innerHTML = teksAsli;
+                btnUnduh.style.pointerEvents = 'auto';
+            }
+        };
+
         // ================== SUBMIT FORM ==================
         let currentPeganganUnsub = null;
 
@@ -312,7 +365,6 @@
             document.getElementById('sp-kode').innerText = kode;
             document.getElementById('modal-pegangan').classList.add('active');
 
-            // Pantau real-time bila status berubah selagi modal terbuka
             if (currentPeganganUnsub) currentPeganganUnsub();
             currentPeganganUnsub = onSnapshot(doc(db, 'rekrutmen', docId), (snap) => {
                 if (!snap.exists()) return;
@@ -365,7 +417,6 @@
                     return;
                 }
 
-                // Urutkan client-side (menghindari kebutuhan composite index)
                 hasil.sort((a, b) => {
                     const ta = a.tanggal_daftar?.toMillis ? a.tanggal_daftar.toMillis() : 0;
                     const tb = b.tanggal_daftar?.toMillis ? b.tanggal_daftar.toMillis() : 0;
@@ -462,7 +513,6 @@
             `;
         }
 
-        // Auto-isi kode terakhir jika ada di localStorage
         const lastKode = localStorage.getItem('ca_last_kode');
         if (lastKode) document.getElementById('input-cek').value = lastKode;
     </script>
