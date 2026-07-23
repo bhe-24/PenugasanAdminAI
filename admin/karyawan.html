@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Karyawan - Admin Cendekia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: #f4f7f9; margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 5px solid #003366;}
+        .page-header h1 { margin: 0; font-family: 'Aleo', serif; color: #003366; }
+        
+        .candidate-card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border: 1px solid #e2e8f0; }
+        .cand-info h3 { margin: 0 0 5px 0; color: #0f172a; }
+        .cand-meta { font-size: 0.85rem; color: #64748b; display: flex; gap: 15px; flex-wrap: wrap; }
+        .cand-meta span { display: flex; align-items: center; gap: 5px; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .b-pending { background: #fef3c7; color: #b45309; }
+        .b-accepted { background: #dcfce7; color: #166534; }
+        
+        .actions { display: flex; gap: 10px; }
+        .btn { padding: 8px 15px; border-radius: 8px; border: none; font-family: 'Poppins'; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; text-decoration: none;}
+        .btn-view { background: #f1f5f9; color: #475569; }
+        .btn-view:hover { background: #e2e8f0; }
+        .btn-acc { background: #10b981; color: white; }
+        .btn-acc:hover { background: #059669; }
+        .btn-wa { background: #25D366; color: white; }
+        .btn-wa:hover { background: #128C7E; }
+
+        /* Modal Detail */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;}
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;}
+        .modal-title { font-family: 'Aleo'; color: #003366; margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;}
+        .detail-row { margin-bottom: 15px; }
+        .detail-label { font-size: 0.8rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 3px;}
+        .detail-val { font-size: 0.95rem; color: #1e293b; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;}
+        .close-btn { background: #ef4444; color: white; width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="page-header">
+            <div>
+                <h1>Kelola Rekrutmen Karyawan</h1>
+                <p style="margin: 5px 0 0; color: #64748b; font-size: 0.9rem;">Verifikasi dan buatkan akses portal untuk tim baru.</p>
+            </div>
+            <a href="index.html" class="btn btn-view"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+        </div>
+
+        <div id="kandidat-list">
+            <div style="text-align:center; padding: 40px; color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data lamaran...</div>
+        </div>
+    </div>
+
+    <!-- Modal Detail Kandidat -->
+    <div class="modal" id="modal-detail">
+        <div class="modal-content">
+            <h2 class="modal-title">Detail Pendaftar</h2>
+            <div class="detail-row"><span class="detail-label">Nama Lengkap</span><div class="detail-val" id="md-nama"></div></div>
+            <div class="detail-row"><span class="detail-label">Bidang</span><div class="detail-val" id="md-bidang" style="text-transform: capitalize;"></div></div>
+            <div class="detail-row"><span class="detail-label">Email Pribadi</span><div class="detail-val" id="md-email"></div></div>
+            <div class="detail-row"><span class="detail-label">WhatsApp</span><div class="detail-val" id="md-wa"></div></div>
+            <div class="detail-row"><span class="detail-label">Tautan CV</span><div class="detail-val"><a href="#" id="md-cv" target="_blank" style="color: #0ea5e9;">Lihat CV</a></div></div>
+            <div class="detail-row"><span class="detail-label">Pengalaman</span><div class="detail-val" id="md-pengalaman" style="white-space: pre-wrap;"></div></div>
+            <button class="btn close-btn" onclick="document.getElementById('modal-detail').classList.remove('active')">Tutup</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        // App Utama (Untuk Firestore)
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // App Sekunder (KHUSUS UNTUK BUAT USER AUTH, AGAR ADMIN TIDAK LOGOUT)
+        const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+        const secondaryAuth = getAuth(secondaryApp);
+
+        let candidates = [];
+
+        async function loadCandidates() {
+            const listEl = document.getElementById('kandidat-list');
+            try {
+                const snap = await getDocs(collection(db, 'rekrutmen'));
+                candidates = [];
+                snap.forEach(d => candidates.push({ id: d.id, ...d.data() }));
+
+                if(candidates.length === 0) {
+                    listEl.innerHTML = '<div style="text-align:center; padding: 40px; color:#64748b;">Belum ada pendaftar.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                // Urutkan: Pending di atas, lalu yang Accepted
+                candidates.sort((a, b) => (a.status === 'pending' ? -1 : 1)).forEach(c => {
+                    let actionHtml = '';
+                    
+                    if (c.status === 'pending') {
+                        actionHtml = `
+                            <button class="btn btn-view" onclick="viewDetail('${c.id}')"><i class="fa-solid fa-eye"></i> Detail</button>
+                            <button class="btn btn-acc" onclick="terimaKaryawan('${c.id}')"><i class="fa-solid fa-check"></i> Terima & Buat Akun</button>
+                        `;
+                    } else if (c.status === 'accepted') {
+                        // Buat Pesan WA Otomatis
+                        const waText = encodeURIComponent(`Halo ${c.nama},\n\nSelamat! Anda diterima di Cendekia Aksara sebagai ${c.bidang.toUpperCase()}.\n\nBerikut adalah akses portal resmi Anda:\nEmail: ${c.email_kantor}\nPassword: ${c.password_sementara}\n\nSilakan login ke portal dan segera ubah kata sandi Anda demi keamanan.\n\nSalam,\nHRD Cendekia Aksara`);
+                        
+                        actionHtml = `
+                            <a href="https://wa.me/${c.wa}?text=${waText}" target="_blank" class="btn btn-wa"><i class="fa-brands fa-whatsapp"></i> Kirim Akses ke WA</a>
+                        `;
+                    }
+
+                    listEl.innerHTML += `
+                        <div class="candidate-card">
+                            <div class="cand-info">
+                                <h3>${c.nama}</h3>
+                                <div class="cand-meta">
+                                    <span><i class="fa-solid fa-briefcase"></i> ${c.bidang}</span>
+                                    <span><i class="fa-solid fa-envelope"></i> ${c.email_pribadi}</span>
+                                    <span class="badge ${c.status === 'pending' ? 'b-pending' : 'b-accepted'}">${c.status}</span>
+                                </div>
+                            </div>
+                            <div class="actions">
+                                ${actionHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                listEl.innerHTML = '<div style="text-align:center; color:red;">Gagal memuat data.</div>';
+            }
+        }
+
+        window.viewDetail = (id) => {
+            const c = candidates.find(x => x.id === id);
+            document.getElementById('md-nama').innerText = c.nama;
+            document.getElementById('md-bidang').innerText = c.bidang;
+            document.getElementById('md-email').innerText = c.email_pribadi;
+            document.getElementById('md-wa').innerText = c.wa;
+            document.getElementById('md-pengalaman').innerText = c.pengalaman || 'Tidak diisi';
+            
+            const cvLink = document.getElementById('md-cv');
+            if (c.cv) { cvLink.href = c.cv; cvLink.innerText = 'Buka Tautan CV'; cvLink.style.display = 'block'; }
+            else { cvLink.style.display = 'none'; }
+
+            document.getElementById('modal-detail').classList.add('active');
+        };
+
+        window.terimaKaryawan = async (docId) => {
+            const c = candidates.find(x => x.id === docId);
+            
+            // 1. Generate Email & Password Korporat
+            const firstName = c.nama.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+            const randomNum = Math.floor(100 + Math.random() * 900);
+            const corporateEmail = `${firstName}${randomNum}@ac.id`;
+            const generatedPassword = `Cendekia${randomNum}!`; // Password Sementara
+
+            const konfirmasi = await Swal.fire({
+                title: 'Setujui Kandidat?',
+                html: `Sistem akan membuatkan akun:<br><br><b>Email:</b> ${corporateEmail}<br><b>Sandi:</b> ${generatedPassword}<br><br>Apakah Anda yakin?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                confirmButtonText: 'Ya, Buat Akun!'
+            });
+
+            if(konfirmasi.isConfirmed) {
+                Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+                try {
+                    // 2. Buat Akun Auth Pakai Secondary App (Agar admin tidak ter-logout)
+                    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, corporateEmail, generatedPassword);
+                    const newUid = userCredential.user.uid;
+
+                    // 3. Simpan Profil ke koleksi 'users'
+                    await setDoc(doc(db, 'users', newUid), {
+                        name: c.nama,
+                        email: corporateEmail,
+                        email_pribadi: c.email_pribadi,
+                        wa: c.wa,
+                        role: c.bidang === 'pengajar' ? 'pengajar' : 'karyawan',
+                        status: 'active',
+                        createdAt: new Date().toISOString()
+                    });
+
+                    // 4. Update status pendaftaran
+                    await updateDoc(doc(db, 'rekrutmen', docId), {
+                        status: 'accepted',
+                        email_kantor: corporateEmail,
+                        password_sementara: generatedPassword,
+                        uid_karyawan: newUid
+                    });
+
+                    // Sign out dari secondary app sebagai pembersihan memori
+                    secondaryAuth.signOut();
+
+                    await loadCandidates();
+                    Swal.fire('Berhasil!', 'Akun karyawan berhasil dibuat. Silakan klik tombol WhatsApp untuk mengirimkan akses ke kandidat.', 'success');
+
+                } catch (error) {
+                    Swal.fire('Gagal', error.message, 'error');
+                }
+            }
+        };
+
+        // Inisialisasi awal
+        loadCandidates();
+    </script>
+</body>
+</html>
