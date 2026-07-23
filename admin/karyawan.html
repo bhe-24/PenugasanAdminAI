@@ -42,7 +42,15 @@
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* FILTER BAR */
+        /* PENGATURAN & FILTER BAR */
+        .settings-panel { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 16px; padding: 20px 25px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;}
+        .settings-panel h3 { margin: 0 0 5px 0; color: #003366; font-size: 1.15rem;}
+        .settings-panel p { margin: 0; font-size: 0.85rem; color: #64748b;}
+        .settings-controls { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;}
+        .settings-controls label { font-size: 0.8rem; font-weight: 600; color: #475569; display: block; margin-bottom: 5px;}
+        .settings-controls select, .settings-controls input[type="number"] { padding: 10px 14px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: 'Poppins'; outline: none;}
+        .checkbox-group { display: flex; gap: 12px; font-size: 0.85rem; color: #334155; padding-top: 5px;}
+        
         .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
         .filter-bar select, .filter-bar input { padding: 12px 18px; border-radius: 12px; border: 1px solid #cbd5e1; font-family: 'Poppins', sans-serif; background: white; font-size: 0.9rem; transition: border-color 0.3s; outline: none; }
         .filter-bar select:focus, .filter-bar input:focus { border-color: #003366; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
@@ -118,6 +126,8 @@
             .main-tab-btn { padding: 10px; text-align: center; }
             .actions { width: 100%; display: grid; grid-template-columns: 1fr; }
             .actions .btn { justify-content: center; }
+            .settings-panel { flex-direction: column; align-items: stretch; }
+            .settings-controls { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
@@ -153,6 +163,37 @@
 
         <!-- TAB REKRUTMEN -->
         <div class="tab-content active" id="tab-rekrutmen">
+            
+            <!-- PANEL PENGATURAN REKRUTMEN BARU -->
+            <div class="settings-panel">
+                <div>
+                    <h3><i class="fa-solid fa-gear" style="color: #0ea5e9;"></i> Kontrol Pendaftaran</h3>
+                    <p>Sistem akan otomatis menutup form publik bila pendaftar mencapai target.</p>
+                </div>
+                <div class="settings-controls">
+                    <div>
+                        <label>Status Form</label>
+                        <select id="set-status">
+                            <option value="buka">🟢 DIBUKA</option>
+                            <option value="tutup">🔴 DITUTUP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Target Pelamar</label>
+                        <input type="number" id="set-target" placeholder="Cth: 50" min="1" style="width: 100px;">
+                    </div>
+                    <div>
+                        <label>Posisi Tersedia</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" value="pengajar" class="set-posisi"> Pengajar</label>
+                            <label><input type="checkbox" value="kurator" class="set-posisi"> Kurator</label>
+                            <label><input type="checkbox" value="staf_admin" class="set-posisi"> Admin</label>
+                        </div>
+                    </div>
+                    <button class="btn btn-acc" onclick="simpanPengaturan()" style="margin-top: 20px;"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+                </div>
+            </div>
+
             <div class="filter-bar">
                 <input type="text" id="filter-cari-rekrutmen" placeholder="Pencarian nama kandidat..." oninput="renderCandidates()">
                 <select id="filter-status" onchange="renderCandidates()">
@@ -237,19 +278,15 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        // App sekunder khusus pembuatan akun Auth (agar sesi admin tidak ter-logout)
         const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
         const secondaryAuth = getAuth(secondaryApp);
 
         // ================== KONFIGURASI EMAILJS ==================
-        // Masukkan Public Key EmailJS Anda di bawah ini
         const EMAILJS_PUBLIC_KEY = "2a9O5Q-7Uk0b7RpmG"; 
         const EMAILJS_SERVICE_ID = "service_dnsc5fe"; 
         const EMAILJS_TEMPLATE_ID = "template_rpwxf07"; 
-        const PORTAL_URL = "https://cendekia-aksara.vercel.app/index.html"; // URL Login Portal Anda
+        const PORTAL_URL = "https://cendekia-aksara.vercel.app/index.html"; 
 
-        // Inisialisasi EmailJS
         emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
         // ================== VARIABEL GLOBAL ==================
@@ -264,22 +301,51 @@
             document.querySelectorAll('.main-tab-btn')[1].classList.toggle('active', tab === 'karyawan');
         };
 
-        window.closeModal = (id) => {
-            document.getElementById(id).classList.remove('active');
+        window.closeModal = (id) => { document.getElementById(id).classList.remove('active'); };
+
+        // ================== PENGATURAN REKRUTMEN (ON/OFF & TARGET) ==================
+        let rekrutmenSettings = { is_open: false, target: 0, posisi: [] };
+
+        onSnapshot(doc(db, 'settings', 'rekrutmen'), (snap) => {
+            if (snap.exists()) {
+                rekrutmenSettings = snap.data();
+                document.getElementById('set-status').value = rekrutmenSettings.is_open ? 'buka' : 'tutup';
+                document.getElementById('set-target').value = rekrutmenSettings.target || 0;
+                document.querySelectorAll('.set-posisi').forEach(cb => {
+                    cb.checked = (rekrutmenSettings.posisi || []).includes(cb.value);
+                });
+            }
+        });
+
+        window.simpanPengaturan = async () => {
+            const is_open = document.getElementById('set-status').value === 'buka';
+            const target = parseInt(document.getElementById('set-target').value) || 0;
+            const posisi = Array.from(document.querySelectorAll('.set-posisi:checked')).map(cb => cb.value);
+
+            try {
+                await setDoc(doc(db, 'settings', 'rekrutmen'), { is_open, target, posisi }, { merge: true });
+                Swal.fire('Tersimpan', 'Pengaturan form pendaftaran berhasil diperbarui. Halaman publik akan langsung menyesuaikan.', 'success');
+            } catch (error) {
+                Swal.fire('Error', 'Gagal menyimpan pengaturan.', 'error');
+            }
         };
 
         // ================== REALTIME PANGKALAN DATA ==================
         let candidates = [];
         let karyawanList = [];
 
-        // Listener: Rekrutmen
+        // Listener: Rekrutmen & Auto Close Check
         onSnapshot(collection(db, 'rekrutmen'), (snap) => {
             candidates = [];
             snap.forEach(d => candidates.push({ id: d.id, ...d.data() }));
             updateDashboard();
             renderCandidates();
-        }, (err) => {
-            document.getElementById('kandidat-list').innerHTML = '<div class="empty-state" style="color:red;"><i class="fa-solid fa-triangle-exclamation"></i> Gagal memuat data lamaran. Periksa koneksi internet Anda.</div>';
+
+            // Pengecekan otomatis jika pelamar sudah mencapai target
+            if (rekrutmenSettings.is_open && rekrutmenSettings.target > 0 && candidates.length >= rekrutmenSettings.target) {
+                updateDoc(doc(db, 'settings', 'rekrutmen'), { is_open: false });
+                Swal.fire('Pemberitahuan Sistem', 'Form pendaftaran telah otomatis DITUTUP karena jumlah pelamar telah mencapai target yang ditentukan.', 'info');
+            }
         });
 
         // Listener: Karyawan Aktif
@@ -287,15 +353,12 @@
             karyawanList = [];
             snap.forEach(d => {
                 const data = d.data();
-                // Hanya ambil yang rolenya bukan siswa/admin utama
                 if(data.role === 'pengajar' || data.role === 'karyawan' || data.role === 'kurator' || data.role === 'staf_admin') {
                     karyawanList.push({ id: d.id, ...data });
                 }
             });
             updateDashboardKaryawan();
             renderKaryawan();
-        }, (err) => {
-            document.getElementById('karyawan-list').innerHTML = '<div class="empty-state" style="color:red;"><i class="fa-solid fa-triangle-exclamation"></i> Gagal memuat data karyawan.</div>';
         });
 
         // ================== RENDER UI ==================
@@ -484,7 +547,6 @@
             const c = candidates.find(x => x.id === docId);
             if (!c) return;
 
-            // Generate kredensial korporat
             const firstName = c.nama.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
             const randomNum = Math.floor(100 + Math.random() * 900);
             const corporateEmail = `${firstName}${randomNum}@ac.id`;
@@ -504,11 +566,9 @@
             Swal.fire({ title: 'Mendaftarkan Identitas...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // Pembuatan akun via Secondary Auth agar Admin tidak tertendang dari sesi login saat ini
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, corporateEmail, generatedPassword);
                 const newUid = userCredential.user.uid;
 
-                // Input data ke Database Users
                 await setDoc(doc(db, 'users', newUid), {
                     name: c.nama,
                     email: corporateEmail,
@@ -521,7 +581,6 @@
                     riwayat: [{ aksi: 'Akun Otorisasi Dibuat', keterangan: 'Digenerate otomatis oleh sistem HRD', waktu: new Date().toISOString() }]
                 });
 
-                // Update Laporan Rekrutmen
                 await updateDoc(doc(db, 'rekrutmen', docId), {
                     status: 'diterima',
                     diterima_at: serverTimestamp(),
@@ -530,7 +589,6 @@
                     uid_karyawan: newUid
                 });
 
-                // Matikan koneksi instance sekunder untuk keamanan
                 await secondaryAuth.signOut();
 
                 Swal.fire('Berhasil Terdaftar!', 'Akun sudah tercatat di sistem otentikasi. Silakan lanjutkan ke tahap pengiriman akses via Email.', 'success');
@@ -559,7 +617,6 @@
             Swal.fire({ title: 'Proses Transmisi SMTP...', text: 'Menghubungkan ke server EmailJS', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                // Eksekusi pengiriman menggunakan API EmailJS
                 await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
                     to_name: c.nama,
                     to_email: c.email_pribadi,
