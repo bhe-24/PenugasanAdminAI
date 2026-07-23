@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karir - Cendekia Aksara</title>
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: #f4f6f9; margin: 0; padding: 40px 20px; color: #1e293b; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; padding: 40px; box-shadow: 0 10px 30px rgba(0, 51, 102, 0.1); border-top: 6px solid #003366; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header img { width: 80px; margin-bottom: 10px; }
+        .header h1 { font-family: 'Aleo', serif; color: #003366; margin: 0 0 5px; }
+        .header p { color: #64748b; font-size: 0.95rem; margin: 0; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; color: #334155; }
+        .optional { color: #94a3b8; font-weight: 400; font-size: 0.8rem; }
+        input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Poppins', sans-serif; background: #f8fafc; transition: 0.3s; box-sizing: border-box;}
+        input:focus, select:focus, textarea:focus { border-color: #003366; outline: none; background: white; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        
+        .btn-submit { width: 100%; background: linear-gradient(135deg, #005a9c, #003366); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 51, 102, 0.3); }
+        
+        @media (max-width: 600px) { .container { padding: 25px 20px; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+            <h1>Bergabung Bersama Kami</h1>
+            <p>Pendaftaran Tim & Pengajar Cendekia Aksara</p>
+        </div>
+
+        <form id="form-rekrutmen">
+            <div class="form-group">
+                <label>Nama Lengkap (Sesuai Identitas)</label>
+                <input type="text" id="nama" placeholder="Masukkan nama lengkap" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Email Pribadi Aktif</label>
+                <input type="email" id="email" placeholder="contoh: emailanda@gmail.com" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nomor WhatsApp Aktif</label>
+                <input type="number" id="wa" placeholder="08xxxxxxxxxx" required>
+            </div>
+
+            <div class="form-group">
+                <label>Bidang Peminatan</label>
+                <select id="bidang" required>
+                    <option value="">-- Pilih Posisi --</option>
+                    <option value="pengajar">Pengajar / Mentor</option>
+                    <option value="kurator">Kurator Naskah</option>
+                    <option value="staf_admin">Staf Administrasi</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tautan CV / Portofolio <span class="optional">(Opsional)</span></label>
+                <input type="url" id="cv" placeholder="Link Google Drive / LinkedIn">
+            </div>
+
+            <div class="form-group">
+                <label>Pengalaman Relevan <span class="optional">(Opsional)</span></label>
+                <textarea id="pengalaman" rows="4" placeholder="Ceritakan singkat pengalaman Anda di bidang ini..."></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btn-submit">Kirim Pendaftaran</button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Ganti dengan Config Firebase Anda
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
+            authDomain: "mading-cf676.firebaseapp.com", 
+            projectId: "mading-cf676", 
+            storageBucket: "mading-cf676.firebasestorage.app", 
+            messagingSenderId: "72175203671", 
+            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.getElementById('form-rekrutmen').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+            btn.disabled = true;
+
+            // Format nomor WA (Ubah 08 jadi 628)
+            let waRaw = document.getElementById('wa').value.trim();
+            if(waRaw.startsWith('0')) waRaw = '62' + waRaw.substring(1);
+
+            try {
+                await addDoc(collection(db, 'rekrutmen'), {
+                    nama: document.getElementById('nama').value,
+                    email_pribadi: document.getElementById('email').value,
+                    wa: waRaw,
+                    bidang: document.getElementById('bidang').value,
+                    cv: document.getElementById('cv').value,
+                    pengalaman: document.getElementById('pengalaman').value,
+                    status: 'pending',
+                    tanggal_daftar: serverTimestamp()
+                });
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pendaftaran Berhasil!',
+                    text: 'Data Anda telah kami terima. Tim HR akan menghubungi Anda jika lolos seleksi berkas.',
+                    confirmButtonColor: '#003366'
+                }).then(() => {
+                    document.getElementById('form-rekrutmen').reset();
+                });
+            } catch (error) {
+                Swal.fire('Error', 'Gagal mengirim data. Coba lagi nanti.', 'error');
+            } finally {
+                btn.innerHTML = 'Kirim Pendaftaran';
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
