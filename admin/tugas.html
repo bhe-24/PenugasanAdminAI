@@ -154,9 +154,10 @@
         .icon-success { color: #10b981; }
         .icon-error { color: #ef4444; }
         .icon-confirm { color: #0284c7; }
+        .icon-warning { color: #f59e0b; }
 
         .modal-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; color: var(--primary); font-family: 'Aleo', serif;}
-        .modal-text { color: var(--text-gray); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px; }
+        .modal-text { color: var(--text-gray); font-size: 0.95rem; line-height: 1.6; margin-bottom: 25px; white-space: pre-line; }
 
         .modal-actions { display: flex; gap: 10px; justify-content: center; }
         .btn-modal { padding: 12px 20px; border-radius: 50px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: 0.2s; width: 100%; font-family: 'Poppins', sans-serif;}
@@ -309,18 +310,36 @@
 
         // =====================================================================
         // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
+        // DIPERBAIKI: sekarang benar-benar membaca response dari /api/notif,
+        // bukan cuma asumsi "sukses" begitu fetch() tidak melempar exception.
         // =====================================================================
         async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
             try {
-                // Memanggil API Vercel buatan kita secara aman
-                await fetch("/api/notif", {
+                const res = await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ judul, pesan, urlTujuan })
                 });
-                console.log("Perintah notifikasi aman terkirim ke Vercel.");
+
+                let result = null;
+                try { result = await res.json(); } catch (_) { /* body bukan JSON valid */ }
+
+                if (!res.ok || result?.success === false) {
+                    console.error("❌ Notifikasi GAGAL dikirim OneSignal:", res.status, result);
+                    return { ok: false, status: res.status, detail: result };
+                }
+
+                const recipients = result?.data?.recipients;
+                if (recipients === 0) {
+                    console.warn("⚠️ OneSignal menerima permintaan, tapi 0 penerima (tidak ada yang subscribe notifikasi).");
+                    return { ok: true, recipients: 0, detail: result };
+                }
+
+                console.log("✅ Notifikasi terkirim ke OneSignal. Penerima:", recipients, result);
+                return { ok: true, recipients, detail: result };
             } catch (error) {
-                console.error("Gagal mengirim perintah notifikasi:", error);
+                console.error("❌ Gagal menghubungi endpoint /api/notif:", error);
+                return { ok: false, status: null, detail: error.message };
             }
         }
         // =====================================================================
@@ -359,6 +378,9 @@
             } else if(type === 'error') {
                 iconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
                 iconContainer.classList.add('icon-error');
+            } else if(type === 'warning') {
+                iconContainer.innerHTML = '<i class="fa-solid fa-bell-slash"></i>';
+                iconContainer.classList.add('icon-warning');
             } else {
                 iconContainer.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
                 iconContainer.classList.add('icon-confirm');
@@ -539,14 +561,24 @@
 
                     // =======================================================
                     // TEMBAK NOTIFIKASI TUGAS BARU (AMAN VIA VERCEL API)
+                    // Sekarang hasilnya benar-benar dicek sebelum
+                    // menampilkan modal "berhasil".
                     // =======================================================
-                    await kirimNotifikasiOneSignal(
+                    const notifResult = await kirimNotifikasiOneSignal(
                         "📝 Tugas Baru Diterbitkan!",
                         `Ada tugas baru: ${judulTugasVal}. Segera cek portal untuk mengerjakannya.`,
                         "https://cendekia-aksara.vercel.app/tugas"
                     );
-                    
-                    showModal('success', 'Diterbitkan', 'Tugas baru berhasil diterbitkan untuk siswa.');
+
+                    if (!notifResult.ok) {
+                        showModal('warning', 'Tugas Tersimpan, Notifikasi Gagal',
+                            `Tugas berhasil diterbitkan, tapi notifikasi push GAGAL dikirim.\n\nDetail: ${JSON.stringify(notifResult.detail)}\n\nCek Console (F12) dan konfigurasi OneSignal / env var di Vercel.`);
+                    } else if (notifResult.recipients === 0) {
+                        showModal('warning', 'Tugas Tersimpan, Tapi 0 Penerima',
+                            'Tugas berhasil diterbitkan dan notifikasi terkirim ke OneSignal, tapi belum ada satupun siswa yang subscribe notifikasi (klik izinkan lonceng notifikasi).');
+                    } else {
+                        showModal('success', 'Diterbitkan', 'Tugas baru berhasil diterbitkan untuk siswa.');
+                    }
                 }
                 
                 window.resetForm();
