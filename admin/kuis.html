@@ -291,7 +291,7 @@ D. Ditulis dalam paragraf"></textarea>
         <div class="modal-box">
             <div id="modal-icon" class="modal-icon"></div>
             <h3 id="modal-title" style="margin:0 0 10px 0; font-family:'Aleo', serif; color: var(--primary);"></h3>
-            <p id="modal-text" style="color:#64748b; font-size:0.95rem; margin-bottom:20px; line-height: 1.6;"></p>
+            <p id="modal-text" style="color:#64748b; font-size:0.95rem; margin-bottom:20px; line-height: 1.6; white-space: pre-line;"></p>
             <div id="modal-actions" class="modal-btns"></div>
         </div>
     </div>
@@ -306,18 +306,36 @@ D. Ditulis dalam paragraf"></textarea>
 
         // =====================================================================
         // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
+        // DIPERBAIKI: sekarang benar-benar membaca response dari /api/notif,
+        // bukan cuma asumsi "sukses" begitu fetch() tidak melempar exception.
         // =====================================================================
         async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
             try {
-                // Memanggil API Vercel buatan kita secara aman
-                await fetch("/api/notif", {
+                const res = await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ judul, pesan, urlTujuan })
                 });
-                console.log("Perintah notifikasi aman terkirim ke Vercel.");
+
+                let result = null;
+                try { result = await res.json(); } catch (_) { /* body bukan JSON valid */ }
+
+                if (!res.ok || result?.success === false) {
+                    console.error("❌ Notifikasi GAGAL dikirim OneSignal:", res.status, result);
+                    return { ok: false, status: res.status, detail: result };
+                }
+
+                const recipients = result?.data?.recipients;
+                if (recipients === 0) {
+                    console.warn("⚠️ OneSignal menerima permintaan, tapi 0 penerima (tidak ada yang subscribe notifikasi).");
+                    return { ok: true, recipients: 0, detail: result };
+                }
+
+                console.log("✅ Notifikasi terkirim ke OneSignal. Penerima:", recipients, result);
+                return { ok: true, recipients, detail: result };
             } catch (error) {
-                console.error("Gagal mengirim perintah notifikasi:", error);
+                console.error("❌ Gagal menghubungi endpoint /api/notif:", error);
+                return { ok: false, status: null, detail: error.message };
             }
         }
         // =====================================================================
@@ -381,6 +399,7 @@ D. Ditulis dalam paragraf"></textarea>
             
             if(type === 'success') { icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i>'; }
             else if(type === 'error') { icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i>'; }
+            else if(type === 'warning') { icon.innerHTML = '<i class="fa-solid fa-bell-slash" style="color:#f59e0b;"></i>'; }
             else { icon.innerHTML = '<i class="fa-solid fa-circle-question" style="color:#0284c7;"></i>'; }
             
             actions.innerHTML = '';
@@ -550,22 +569,36 @@ D. Ditulis dalam paragraf"></textarea>
                 if(id) {
                     await updateDoc(doc(db, 'quizzes', id), payload);
                     showModal('success', 'Diperbarui', 'Data kuis berhasil diperbarui!', loadQuizzes);
+                    closeForm();
                 } else {
                     payload.createdAt = serverTimestamp();
                     await addDoc(collection(db, 'quizzes'), payload);
                     
                     // =======================================================
                     // TEMBAK NOTIFIKASI KUIS BARU (AMAN VIA VERCEL API)
+                    // Sekarang hasilnya benar-benar dicek sebelum
+                    // menampilkan modal "berhasil".
                     // =======================================================
-                    await kirimNotifikasiOneSignal(
+                    const notifResult = await kirimNotifikasiOneSignal(
                         "⏰ Kuis Baru Tersedia!",
                         `Kuis baru telah ditambahkan: ${judulVal}. Ayo kerjakan sekarang!`,
                         "https://cendekia-aksara.vercel.app/kuis"
                     );
 
-                    showModal('success', 'Berhasil Diterbitkan', `Kuis baru dengan total ${questions.length} soal telah diterbitkan.`, loadQuizzes);
+                    closeForm();
+
+                    if (!notifResult.ok) {
+                        showModal('warning', 'Kuis Tersimpan, Notifikasi Gagal',
+                            `Kuis berhasil diterbitkan (${questions.length} soal), tapi notifikasi push GAGAL dikirim.\n\nDetail: ${JSON.stringify(notifResult.detail)}\n\nCek Console (F12) dan konfigurasi OneSignal / env var di Vercel.`,
+                            loadQuizzes);
+                    } else if (notifResult.recipients === 0) {
+                        showModal('warning', 'Kuis Tersimpan, Tapi 0 Penerima',
+                            'Kuis berhasil diterbitkan dan notifikasi terkirim ke OneSignal, tapi belum ada satupun siswa yang subscribe notifikasi (klik izinkan lonceng notifikasi).',
+                            loadQuizzes);
+                    } else {
+                        showModal('success', 'Berhasil Diterbitkan', `Kuis baru dengan total ${questions.length} soal telah diterbitkan.`, loadQuizzes);
+                    }
                 }
-                closeForm();
             } catch(e) { 
                 showModal('error', 'Error Menyimpan', e.message); 
             } finally {
