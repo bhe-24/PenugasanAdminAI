@@ -6,12 +6,12 @@ export default async function handler(req, res) {
     }
 
     const { judul, pesan, urlTujuan } = req.body;
-    
+
     // APP ID OneSignal Anda (Aman diekspos di sini)
     const ONESIGNAL_APP_ID = "a64fbdf1-dc29-48a3-a3a9-09e61157bca9";
-    
+
     // REST API KEY diambil dari Vercel Environment Variables (Sangat Aman)
-    const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_API_KEY; 
+    const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_API_KEY;
 
     if (!ONESIGNAL_REST_API_KEY) {
         return res.status(500).json({ error: "REST API KEY OneSignal belum dikonfigurasi di Vercel." });
@@ -34,9 +34,19 @@ export default async function handler(req, res) {
         });
 
         const data = await response.json();
-        res.status(200).json({ success: true, data });
+
+        if (!response.ok) {
+            const errorMessage = data?.errors?.[0] || data?.errors || data?.message || "Gagal mengirim notifikasi ke OneSignal";
+            return res.status(response.status).json({
+                success: false,
+                error: errorMessage,
+                data
+            });
+        }
+
+        return res.status(200).json({ success: true, data });
     } catch (error) {
         console.error("Gagal menembak OneSignal:", error);
-        res.status(500).json({ error: "Gagal mengirim notifikasi" });
+        return res.status(500).json({ success: false, error: "Gagal mengirim notifikasi" });
     }
 }
