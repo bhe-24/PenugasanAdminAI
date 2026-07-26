@@ -307,6 +307,24 @@
 
         let currentUser = null;
 
+        // =====================================================================
+        // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
+        // =====================================================================
+        async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
+            try {
+                // Memanggil API Vercel buatan kita secara aman
+                await fetch("/api/notif", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ judul, pesan, urlTujuan })
+                });
+                console.log("Perintah notifikasi aman terkirim ke Vercel.");
+            } catch (error) {
+                console.error("Gagal mengirim perintah notifikasi:", error);
+            }
+        }
+        // =====================================================================
+
         // --- 1. RICH TEXT EDITOR FUNCTIONS ---
         window.formatText = (command) => {
             document.execCommand(command, false, null);
@@ -319,7 +337,6 @@
             document.getElementById('instruksi-editor').focus();
         };
 
-        // Fallback untuk placeholder contenteditable
         const editor = document.getElementById('instruksi-editor');
         editor.addEventListener('focus', function() {
             if(this.innerHTML.trim() === '<p><br></p>' || this.innerHTML.trim() === '<br>') this.innerHTML = '';
@@ -463,7 +480,7 @@
                 document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Tugas';
                 document.getElementById('btn-cancel').classList.remove('hidden');
                 document.getElementById('btn-text').innerText = 'Update Tugas';
-                document.getElementById('btn-submit').style.background = '#f59e0b'; // Ubah warna tombol jadi kuning saat edit
+                document.getElementById('btn-submit').style.background = '#f59e0b';
                 document.getElementById('form-section').scrollIntoView({behavior: 'smooth'});
             } catch(e) {
                 showModal('error', 'Error', 'Gagal memuat detail tugas untuk diedit.');
@@ -479,13 +496,12 @@
             document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Buat Tugas Baru';
             document.getElementById('btn-cancel').classList.add('hidden');
             document.getElementById('btn-text').innerText = 'Simpan & Terbitkan';
-            document.getElementById('btn-submit').style.background = '#10b981'; // Kembalikan ke warna hijau
+            document.getElementById('btn-submit').style.background = '#10b981';
         };
 
         document.getElementById('form-tugas').onsubmit = async (e) => {
             e.preventDefault();
             
-            // Ambil konten HTML dari Rich Text Editor
             const instruksiHTML = document.getElementById('instruksi-editor').innerHTML.trim();
             if(!instruksiHTML || instruksiHTML === '<br>' || instruksiHTML === '<p><br></p>') {
                 return showModal('error', 'Instruksi Kosong', 'Harap isi instruksi tugas terlebih dahulu.');
@@ -500,8 +516,10 @@
             spinner.classList.remove('hidden');
 
             const editId = document.getElementById('edit-id').value;
+            const judulTugasVal = document.getElementById('judul').value;
+            
             const payload = {
-                judul: document.getElementById('judul').value,
+                judul: judulTugasVal,
                 mapel: document.getElementById('mapel').value,
                 semester: parseInt(document.getElementById('semester').value),
                 tipe: document.getElementById('tipe').value,
@@ -518,6 +536,16 @@
                     payload.createdAt = serverTimestamp();
                     payload.namaPengajar = currentUser.name;
                     await addDoc(collection(db, 'assignments'), payload);
+
+                    // =======================================================
+                    // TEMBAK NOTIFIKASI TUGAS BARU (AMAN VIA VERCEL API)
+                    // =======================================================
+                    await kirimNotifikasiOneSignal(
+                        "📝 Tugas Baru Diterbitkan!",
+                        `Ada tugas baru: ${judulTugasVal}. Segera cek portal untuk mengerjakannya.`,
+                        "https://cendekia-aksara.vercel.app/tugas"
+                    );
+                    
                     showModal('success', 'Diterbitkan', 'Tugas baru berhasil diterbitkan untuk siswa.');
                 }
                 
