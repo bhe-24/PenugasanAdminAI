@@ -26,7 +26,8 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 app_id: ONESIGNAL_APP_ID,
-                included_segments: ["Subscribed Users"], // Kirim ke semua yang sudah mengizinkan notif
+                included_segments: ["Subscribed Users"], 
+                target_channel: "push", // <-- INI KUNCI UTAMANYA
                 headings: { "en": judul },
                 contents: { "en": pesan },
                 url: urlTujuan
