@@ -102,6 +102,36 @@
         .content-below-header { margin-top: 22px; }
 
         /* ============================================================
+           PWA INSTALL CTA
+           ============================================================ */
+        .pwa-install-cta {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--blue-accent) 0%, #4338ca 100%);
+            color: white;
+            border: none;
+            padding: 11px 20px;
+            border-radius: 50px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(67, 56, 202, 0.4);
+            margin-bottom: 20px;
+            animation: pwaPulse 2.2s ease-in-out infinite;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .pwa-install-cta:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(67, 56, 202, 0.55); }
+        .pwa-install-cta:active { transform: translateY(0) scale(0.97); }
+        .pwa-install-cta i { font-size: 1rem; }
+        .pwa-install-cta.installing { opacity: 0.7; cursor: wait; animation: none; }
+        @keyframes pwaPulse {
+            0%, 100% { box-shadow: 0 4px 14px rgba(67, 56, 202, 0.4); }
+            50% { box-shadow: 0 4px 22px rgba(67, 56, 202, 0.7); }
+        }
+
+        /* ============================================================
            TRACKER WIDGET
            ============================================================ */
         .tracker-widget {
@@ -281,6 +311,12 @@
 
     <div class="container content-below-header">
 
+        <!-- CTA INSTAL PWA -->
+        <button id="pwa-install-cta" class="pwa-install-cta" type="button">
+            <i class="fa-solid fa-download"></i>
+            <span>Instal Aplikasi Cendekia Aksara di HP Anda</span>
+        </button>
+
         <!-- TRACKER PROGRES KATA DINAMIS (SEKARANG BISA DIKLIK) -->
         <div class="tracker-widget tw-belum clickable-widget" id="tracker-widget" title="Klik untuk membuka logbook">
             <div class="tracker-header">
@@ -354,13 +390,51 @@
         </div>
     </div>
 
-    <!-- PWA REGISTRATION SCRIPT -->
+    <!-- PWA REGISTRATION & INSTALL CTA SCRIPT -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(err => {
             console.log('ServiceWorker PWA gagal didaftarkan: ', err);
           });
+        });
+      }
+
+      // --- LOGIKA CTA INSTAL PWA ---
+      let deferredInstallPrompt = null;
+      const pwaInstallBtn = document.getElementById('pwa-install-cta');
+
+      function isRunningAsInstalledApp() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      }
+
+      if (pwaInstallBtn && !isRunningAsInstalledApp()) {
+        window.addEventListener('beforeinstallprompt', (event) => {
+          event.preventDefault();
+          deferredInstallPrompt = event;
+          pwaInstallBtn.style.display = 'inline-flex';
+        });
+
+        pwaInstallBtn.addEventListener('click', async () => {
+          if (!deferredInstallPrompt) return;
+          pwaInstallBtn.classList.add('installing');
+          pwaInstallBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyiapkan instalasi...</span>';
+
+          deferredInstallPrompt.prompt();
+          const { outcome } = await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+
+          if (outcome === 'accepted') {
+            pwaInstallBtn.style.display = 'none';
+          } else {
+            pwaInstallBtn.classList.remove('installing');
+            pwaInstallBtn.innerHTML = '<i class="fa-solid fa-download"></i> <span>Instal Aplikasi Cendekia Aksara di HP Anda</span>';
+          }
+        });
+
+        window.addEventListener('appinstalled', () => {
+          pwaInstallBtn.style.display = 'none';
+          deferredInstallPrompt = null;
         });
       }
     </script>
