@@ -304,6 +304,24 @@ D. Ditulis dalam paragraf"></textarea>
         // URL UNTUK API KUIS VERCEL
         const VERCEL_API_URL = "/api/kuis"; 
 
+        // =====================================================================
+        // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
+        // =====================================================================
+        async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
+            try {
+                // Memanggil API Vercel buatan kita secara aman
+                await fetch("/api/notif", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ judul, pesan, urlTujuan })
+                });
+                console.log("Perintah notifikasi aman terkirim ke Vercel.");
+            } catch (error) {
+                console.error("Gagal mengirim perintah notifikasi:", error);
+            }
+        }
+        // =====================================================================
+
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
         const hideLoading = () => document.getElementById('loading-overlay').classList.add('hidden');
 
@@ -451,7 +469,7 @@ D. Ditulis dalam paragraf"></textarea>
                 let bulkString = "";
                 if(data.questions) {
                     data.questions.forEach((q, i) => {
-                        bulkString += `${q.text}\n`; // Tanpa nomor soal karena pas simpan akan dihapus juga
+                        bulkString += `${q.text}\n`; 
                         q.options.forEach((opt, optIdx) => {
                             const prefix = optIdx === q.correctIndex ? "*" : "";
                             const letter = String.fromCharCode(65 + optIdx); 
@@ -476,12 +494,12 @@ D. Ditulis dalam paragraf"></textarea>
 
         window.saveQuiz = async () => {
             const id = document.getElementById('edit-id').value;
-            const judul = document.getElementById('judul').value;
+            const judulVal = document.getElementById('judul').value;
             const mapel = document.getElementById('mapel').value;
             const durasi = document.getElementById('durasi').value;
             const rawText = document.getElementById('bulk-text').value;
 
-            if(!judul || !mapel || !durasi || !rawText) return showModal('error', 'Peringatan', 'Harap lengkapi Judul, Mapel, Durasi, dan Daftar Soal sebelum menyimpan.');
+            if(!judulVal || !mapel || !durasi || !rawText) return showModal('error', 'Peringatan', 'Harap lengkapi Judul, Mapel, Durasi, dan Daftar Soal sebelum menyimpan.');
 
             // PARSE TEXT AREA (BULK IMPORT LOGIC)
             const questions = [];
@@ -491,7 +509,7 @@ D. Ditulis dalam paragraf"></textarea>
                 const lines = block.trim().split('\n');
                 if(lines.length < 2) return;
 
-                // Membuang nomor soal (jika user tidak sengaja mengetiknya misal "1. Soal")
+                // Membuang nomor soal
                 const qText = lines[0].replace(/^\d+[\.\)]\s*/, '').trim(); 
                 const options = [];
                 let correctIdx = -1;
@@ -525,7 +543,7 @@ D. Ditulis dalam paragraf"></textarea>
 
             try {
                 const payload = {
-                    judul, mapel, durasi: parseInt(durasi),
+                    judul: judulVal, mapel, durasi: parseInt(durasi),
                     questions, status: 'active', updatedAt: serverTimestamp()
                 };
 
@@ -535,6 +553,16 @@ D. Ditulis dalam paragraf"></textarea>
                 } else {
                     payload.createdAt = serverTimestamp();
                     await addDoc(collection(db, 'quizzes'), payload);
+                    
+                    // =======================================================
+                    // TEMBAK NOTIFIKASI KUIS BARU (AMAN VIA VERCEL API)
+                    // =======================================================
+                    await kirimNotifikasiOneSignal(
+                        "⏰ Kuis Baru Tersedia!",
+                        `Kuis baru telah ditambahkan: ${judulVal}. Ayo kerjakan sekarang!`,
+                        "https://cendekia-aksara.vercel.app/kuis"
+                    );
+
                     showModal('success', 'Berhasil Diterbitkan', `Kuis baru dengan total ${questions.length} soal telah diterbitkan.`, loadQuizzes);
                 }
                 closeForm();
