@@ -306,19 +306,18 @@ D. Ditulis dalam paragraf"></textarea>
 
         // =====================================================================
         // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
-        // DIPERBAIKI: sekarang benar-benar membaca response dari /api/notif,
-        // bukan cuma asumsi "sukses" begitu fetch() tidak melempar exception.
         // =====================================================================
         async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
             try {
                 const res = await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ judul, pesan, urlTujuan })
+                    // Menambahkan penanda 'jenis: "kuis"' agar API tahu asal notifikasi
+                    body: JSON.stringify({ judul, pesan, urlTujuan, jenis: "kuis" })
                 });
 
                 let result = null;
-                try { result = await res.json(); } catch (_) { /* body bukan JSON valid */ }
+                try { result = await res.json(); } catch (_) { }
 
                 if (!res.ok || result?.success === false) {
                     console.error("❌ Notifikasi GAGAL dikirim OneSignal:", res.status, result);
@@ -574,11 +573,6 @@ D. Ditulis dalam paragraf"></textarea>
                     payload.createdAt = serverTimestamp();
                     await addDoc(collection(db, 'quizzes'), payload);
                     
-                    // =======================================================
-                    // TEMBAK NOTIFIKASI KUIS BARU (AMAN VIA VERCEL API)
-                    // Sekarang hasilnya benar-benar dicek sebelum
-                    // menampilkan modal "berhasil".
-                    // =======================================================
                     const notifResult = await kirimNotifikasiOneSignal(
                         "⏰ Kuis Baru Tersedia!",
                         `Kuis baru telah ditambahkan: ${judulVal}. Ayo kerjakan sekarang!`,
