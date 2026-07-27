@@ -37,7 +37,6 @@
             background-color: #f4f6f9; 
             margin: 0; 
             padding-bottom: 50px; 
-            /* Memberikan ruang di atas agar konten tidak tertutup oleh header yang fixed */
             padding-top: 110px; 
             overflow-x: hidden;
         }
@@ -46,21 +45,20 @@
 
         /* --- HEADER BRANDED NAVY (FULL WIDTH & FIXED) --- */
         .brand-header {
-            position: fixed; /* Mengunci posisi di layar */
+            position: fixed; 
             top: 0; 
             left: 0; 
-            width: 100%; /* Membentang penuh dari ujung ke ujung */
-            z-index: 1000; /* Memastikan header selalu di atas kartu saat di-scroll */
+            width: 100%; 
+            z-index: 1000; 
             background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
             color: white; 
-            padding: 15px 5%; /* Padding proporsional */
+            padding: 15px 5%; 
             box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
             display: flex; justify-content: space-between; align-items: center; gap: 15px;
             box-sizing: border-box;
             overflow: hidden;
         }
         
-        /* Ornamen Cahaya */
         .brand-header::after {
             content: ''; position: absolute; top: -50%; right: 0;
             width: 250px; height: 250px; background: rgba(255, 255, 255, 0.05);
@@ -88,7 +86,6 @@
             font-size: 0.95rem; opacity: 0.9; margin-top: 2px; font-weight: 400; color: #bae6fd;
         }
 
-        /* TOMBOL KELUAR DI HEADER */
         .btn-logout-header {
             background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3);
             padding: 10px 20px; border-radius: 50px; font-weight: 600; cursor: pointer;
@@ -256,7 +253,7 @@
 
     <div class="container">
 
-        <!-- LENCANA STATUS DINAMIS (DIPOSISIKAN RATA KIRI) -->
+        <!-- LENCANA STATUS DINAMIS -->
         <div class="status-ticker-wrapper">
             <div id="dynamic-badge" class="dynamic-badge badge-aktif">
                 <i class="fa-solid fa-circle-notch fa-spin"></i> Menyiapkan...
@@ -283,21 +280,18 @@
                 <i class="fa-solid fa-wallet"></i> 
                 <h3>Pembayaran / SPP</h3>
             </a>
-
             <a href="/kuis/index.html" class="dashboard-card kuis"> 
                 <i class="fa-solid fa-list-check"></i> <h3>Portal Kuis</h3> 
             </a>
             <a href="/kartu-studi/index.html" class="dashboard-card kartu-studi"> 
                 <i class="fa-solid fa-file-contract"></i> <h3>Kartu Studi</h3> 
             </a>
-
             <a href="event.html" class="dashboard-card event-mingguan"> 
                 <i class="fa-solid fa-calendar-check"></i> <h3>Event Mingguan</h3> 
             </a>
             <a href="/artikel.html" class="dashboard-card artikel-karya always-on-cuti"> 
                 <i class="fa-solid fa-newspaper"></i> <h3>Artikel Sastra</h3> 
             </a>
-
             <a href="/pustaka-materi/index.html" class="dashboard-card pustaka always-on-cuti"> 
                 <i class="fa-solid fa-book-open"></i> <h3>Pustaka Materi</h3> 
             </a>
@@ -305,7 +299,6 @@
                 <i class="fa-solid fa-calendar-xmark"></i> 
                 <h3>Ajukan Izin / Cuti</h3>
             </a>
-
             <a href="/siswa/aspirasi.html" class="dashboard-card aspirasi always-on-cuti"> 
                 <i class="fa-solid fa-box-open"></i> <h3>Kotak Saran</h3> 
             </a>
@@ -315,7 +308,6 @@
             <a href="https://generator-ide.vercel.app/" target="_blank" class="dashboard-card generator-ide always-on-cuti"> 
                 <i class="fa-solid fa-brain"></i> <h3>Generator Ide</h3> 
             </a>
-
             <a href="/osis/index.html" id="card-osis" class="dashboard-card card-osis" style="display:none;"> 
                 <i class="fa-solid fa-users-viewfinder"></i> <h3>Ruang OSIS</h3> 
             </a>
@@ -335,7 +327,6 @@
         </div>
     </div>
 
-    <!-- PWA REGISTRATION & INSTALL CTA SCRIPT -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -345,7 +336,6 @@
         });
       }
 
-      // --- LOGIKA CTA INSTAL PWA ---
       let deferredInstallPrompt = null;
       const pwaInstallBtn = document.getElementById('pwa-install-cta');
 
@@ -387,7 +377,7 @@
     <script type="module">
         import { db, auth, checkAuth } from "/js/firebase-config.js";
         import { signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FUNGSI CUSTOM MODAL ---
         window.showModal = (title, message, isConfirm = false, type = 'normal') => {
@@ -439,7 +429,20 @@
             const userData = await checkAuth('siswa');
             
             if(userData) {
-                // 1. Setup Sapaan
+                // =======================================================
+                // ONESIGNAL REGISTRATION (UID & SEMESTER TAG)
+                // =======================================================
+                window.OneSignalDeferred = window.OneSignalDeferred || [];
+                OneSignalDeferred.push(function(OneSignal) {
+                    if (auth.currentUser && auth.currentUser.uid) {
+                        OneSignal.login(auth.currentUser.uid);
+                    }
+                    if (userData.semester) {
+                        OneSignal.User.addTag("semester", userData.semester.toString());
+                    }
+                });
+                // =======================================================
+
                 const jam = new Date().getHours();
                 let sapaan = "Selamat Pagi"; let icon = "⛅";
                 if (jam >= 10 && jam < 15) { sapaan = "Selamat Siang"; icon = "☀️"; }
@@ -449,7 +452,6 @@
                 const nickName = userData.name.split(' ')[0];
                 document.getElementById('user-greeting').innerHTML = `${sapaan}, ${nickName} 😊 ${icon}`;
 
-                // 2. Kumpulkan Badge Aktif (OSIS & Status)
                 const badgeEl = document.getElementById('dynamic-badge');
                 const activeBadges = [];
 
@@ -458,15 +460,11 @@
                     activeBadges.push({ class: 'badge-osis', html: '<i class="fa-solid fa-shield-halved"></i> Pengurus OSIS' });
                 }
 
-                let currentStatus = userData.status || 'active'; // Gunakan standarisasi kata kunci 'active'
+                let currentStatus = userData.status || 'active'; 
 
-                // ==========================================
-                // PERBAIKAN KRUSIAL: CEK INAKTIVITAS (AUTO-SUSPEND)
-                // ==========================================
                 if (currentStatus === 'active' || currentStatus === 'aktif') {
                     let lastActiveDate = new Date(); 
                     
-                    // Baca semua probabilitas lokasi format tanggal dari database
                     if (userData.lastActive) {
                         lastActiveDate = new Date(userData.lastActive);
                     } else if (userData.lastLogin) {
@@ -477,7 +475,6 @@
                         lastActiveDate = new Date(userData.createdAt);
                     }
 
-                    // Pencegahan gagal parsing tanggal
                     if (isNaN(lastActiveDate.getTime())) {
                         lastActiveDate = new Date();
                     }
@@ -485,7 +482,6 @@
                     const diffTime = Math.abs(new Date() - lastActiveDate);
                     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-                    // Eksekusi Pemblokiran Otomatis Jika Melewati 75 Hari
                     if (diffDays >= 75) {
                         currentStatus = 'nonaktif';
                         updateDoc(doc(db, 'users', userData.uid), { status: 'nonaktif' });
@@ -494,11 +490,9 @@
 
                 const allCards = document.querySelectorAll('.dashboard-card');
 
-                // Terapkan Logika Tampilan Dasbor Berdasarkan Status
                 if (currentStatus === 'active' || currentStatus === 'aktif') {
                     activeBadges.push({ class: 'badge-aktif', html: '<i class="fa-solid fa-user-check"></i> Status: Aktif' });
                     
-                    // PENTING: Update waktu login/aktivitas saat ini agar tidak terkena auto-suspend keesokan harinya
                     updateDoc(doc(db, 'users', userData.uid), { 
                         lastActive: new Date().toISOString(),
                         lastLogin: new Date().toISOString()
@@ -538,7 +532,6 @@
                     }, 500);
                 }
 
-                // 3. Jalankan Animasi Lencana Ticker
                 if (activeBadges.length > 0) {
                     let badgeIdx = 0;
                     badgeEl.className = `dynamic-badge ${activeBadges[0].class}`;
@@ -554,7 +547,7 @@
                                 badgeEl.innerHTML = activeBadges[badgeIdx].html;
                                 badgeEl.style.opacity = '1';
                             }, 300);
-                        }, 4000); // Ganti tiap 4 detik
+                        }, 4000); 
                     }
                 } else {
                     badgeEl.style.display = 'none';
@@ -562,7 +555,6 @@
             }
         })();
 
-        // --- LOGOUT LOGIC ---
         document.getElementById('logout-btn').onclick = async () => {
             const yakin = await window.showModal(
                 'Konfirmasi Keluar', 
