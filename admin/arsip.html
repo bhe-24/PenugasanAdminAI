@@ -7,6 +7,8 @@
     
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Tambahkan SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     
     <style>
         .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
@@ -15,8 +17,10 @@
         .page-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 25px; border-bottom: 3px solid #003366; padding-bottom: 15px;
+            flex-wrap: wrap; gap: 15px;
         }
         .page-header h2 { margin: 0; color: #003366; font-size: 1.6rem; }
+        .header-actions { display: flex; gap: 10px; }
 
         /* SEARCH & FILTER BAR */
         .toolbar {
@@ -31,6 +35,14 @@
             border-radius: 8px; cursor: pointer; font-weight: bold;
         }
         .btn-refresh:hover { background: #002244; }
+
+        /* TOMBOL HAPUS ANONIM */
+        .btn-danger-action {
+            background: #ef4444; color: white; border: none; padding: 10px 20px;
+            border-radius: 50px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 8px; font-family: 'Segoe UI', sans-serif;
+        }
+        .btn-danger-action:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 
         /* --- TABEL LOG CANGGIH --- */
         .log-container {
@@ -97,9 +109,17 @@
     <div class="container">
         <div class="page-header">
             <h2><i class="fa-solid fa-clock-rotate-left"></i> Arsip Aktivitas Universal</h2>
-            <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px; background: #e2e8f0; color: #333; text-decoration: none; padding: 10px 20px; font-weight: 600;">
-                <i class="fa-solid fa-arrow-left"></i> Kembali
-            </a>
+            
+            <div class="header-actions">
+                <!-- Tombol Hapus Akun Anonim -->
+                <button id="btn-hapus-anonim" class="btn-danger-action">
+                    <i class="fa-solid fa-user-ninja"></i> Bersihkan Akun Tamu
+                </button>
+
+                <a href="index.html" class="btn btn-secondary" style="width: auto; border-radius: 50px; background: #e2e8f0; color: #333; text-decoration: none; padding: 10px 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-left"></i> Kembali
+                </a>
+            </div>
         </div>
 
         <div class="toolbar">
@@ -136,9 +156,17 @@
         </p>
     </div>
 
+    <!-- Script SweetAlert2 untuk Dialog Box -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, orderBy, getDocs, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, orderBy, getDocs, limit, where, deleteDoc, doc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Catatan: getAuth ditambahkan jika Anda juga ingin menghapus currentUser jika admin kebetulan memakai akun anonim.
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const auth = getAuth();
 
         (async () => {
             if(await checkAuth('pengajar')) {
@@ -148,6 +176,80 @@
             }
         })();
 
+        // =========================================================
+        // FITUR BERSIHKAN AKUN ANONIM/TAMU
+        // =========================================================
+        const btnHapusAnonim = document.getElementById('btn-hapus-anonim');
+        
+        btnHapusAnonim.addEventListener('click', () => {
+            Swal.fire({
+                title: 'Bersihkan Akun Tamu?',
+                html: "Tindakan ini akan <b>MENGHAPUS PERMANEN</b> semua data pengguna dari database (koleksi users) yang berstatus <i>guest/anonim</i>.<br><br>Data tidak dapat dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Hapus Semua!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const originalText = btnHapusAnonim.innerHTML;
+                    btnHapusAnonim.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghapus...';
+                    btnHapusAnonim.disabled = true;
+
+                    try {
+                        let deletedCount = 0;
+
+                        // 1. Cari user yang field isAnonymous nya true atau role-nya 'guest'
+                        const usersRef = collection(db, 'users');
+                        
+                        // Anda bisa menyesuaikan kondisi ini berdasarkan struktur database Anda
+                        // Di sini kita coba mencari berdasarkan role 'guest' atau 'anonim'
+                        const qGuest = query(usersRef, where('role', 'in', ['guest', 'tamu', 'anonim']));
+                        const snapGuest = await getDocs(qGuest);
+                        
+                        // Eksekusi penghapusan dari Firestore
+                        const deletePromises = [];
+                        snapGuest.forEach((userDoc) => {
+                            deletePromises.push(deleteDoc(doc(db, 'users', userDoc.id)));
+                            deletedCount++;
+                        });
+
+                        await Promise.all(deletePromises);
+
+                        // 2. Simpan jejak penghapusan ke Activity Log
+                        if (deletedCount > 0) {
+                            await addDoc(collection(db, 'activity_logs'), {
+                                action: 'DELETE_GUEST',
+                                context: `Sistem membersihkan ${deletedCount} akun tamu/anonim secara massal.`,
+                                userName: 'System Admin',
+                                timestamp: serverTimestamp()
+                            });
+                        }
+
+                        Swal.fire({
+                            title: 'Selesai!',
+                            text: `${deletedCount} data akun tamu berhasil dibersihkan dari database.`,
+                            icon: 'success'
+                        }).then(() => {
+                            location.reload(); // Muat ulang agar log terbaru muncul
+                        });
+
+                    } catch (error) {
+                        console.error(error);
+                        Swal.fire('Gagal!', 'Terjadi kesalahan sistem: ' + error.message, 'error');
+                    } finally {
+                        btnHapusAnonim.innerHTML = originalText;
+                        btnHapusAnonim.disabled = false;
+                    }
+                }
+            });
+        });
+
+
+        // =========================================================
+        // FITUR LOAD ACTIVITY LOGS (TIDAK BERUBAH)
+        // =========================================================
         async function loadLogs() {
             const tbody = document.getElementById('tbody-logs');
             
@@ -156,25 +258,20 @@
                 const qKHS = query(collection(db, 'khs_access_logs'), orderBy('timestamp', 'desc'), limit(50));
                 const qActivity = query(collection(db, 'activity_logs'), orderBy('timestamp', 'desc'), limit(50));
 
-                // Eksekusi bersamaan agar loading lebih cepat
                 const [snapKHS, snapActivity] = await Promise.all([getDocs(qKHS), getDocs(qActivity)]);
 
                 let allLogs = [];
 
-                // Masukkan log KHS
                 snapKHS.forEach(doc => allLogs.push({ id: doc.id, _source: 'KHS', ...doc.data() }));
-                
-                // Masukkan log Aktivitas Umum (Cuti, Hapus Akun, Tugas, Login)
                 snapActivity.forEach(doc => allLogs.push({ id: doc.id, _source: 'General', ...doc.data() }));
 
                 // Urutkan ulang semuanya secara akurat berdasarkan Waktu terbaru
                 allLogs.sort((a, b) => {
                     const timeA = a.timestamp ? (a.timestamp.toMillis ? a.timestamp.toMillis() : a.timestamp.seconds * 1000) : 0;
                     const timeB = b.timestamp ? (b.timestamp.toMillis ? b.timestamp.toMillis() : b.timestamp.seconds * 1000) : 0;
-                    return timeB - timeA; // Descending (Terbaru di atas)
+                    return timeB - timeA; 
                 });
 
-                // Ambil maksimal 100 data
                 allLogs = allLogs.slice(0, 100);
 
                 if(allLogs.length === 0) {
@@ -182,7 +279,7 @@
                     return;
                 }
 
-                tbody.innerHTML = ''; // Bersihkan baris loading
+                tbody.innerHTML = ''; 
 
                 allLogs.forEach(l => {
                     // 1. Format Tanggal
@@ -267,9 +364,7 @@
             const rows = document.querySelectorAll('#tbody-logs tr');
             
             rows.forEach(row => {
-                // Lewati baris jika itu pesan error/kosong
                 if(row.children.length === 1) return; 
-                
                 const text = row.innerText.toLowerCase();
                 row.style.display = text.includes(val) ? '' : 'none';
             });
