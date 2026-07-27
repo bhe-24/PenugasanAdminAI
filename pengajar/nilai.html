@@ -176,12 +176,12 @@
         let currentAssignmentData = null;
 
         // FUNGSI NOTIFIKASI
-        async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
+        async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan, targetUid) {
             try {
                 await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ judul, pesan, urlTujuan, jenis: "nilai" })
+                    body: JSON.stringify({ judul, pesan, urlTujuan, jenis: "nilai", targetUid: targetUid })
                 });
             } catch (error) {
                 console.error("Gagal menembak notifikasi nilai:", error);
@@ -409,6 +409,7 @@ Ketentuan Feedback (Wajib diikuti):
                 const form = e.target;
                 const submissionId = form.dataset.id;
                 const studentUid = form.dataset.studentUid; 
+                const studentName = form.closest('.grading-card').querySelector('.card-header h3').innerText.replace('Siswa', '').trim();
                 
                 const btn = form.querySelector('.btn-save');
                 const nilaiVal = parseFloat(form.querySelector('.score-input').value) || 0;
@@ -456,11 +457,12 @@ Ketentuan Feedback (Wajib diikuti):
                         }
                     }
 
-                    // Tembak Notifikasi ke Siswa
+                    // Tembak Notifikasi ke Siswa (Target Spesifik Menggunakan UID Siswa)
                     await kirimNotifikasiOneSignal(
-                        "📝 Tugas Sudah Dinilai!",
-                        `Tugas "${judulTugas}" sudah dinilai oleh pengajar. Cek nilainya sekarang!`,
-                        "https://cendekia-aksara.vercel.app/dashboard/index.html"
+                        "✅ Tugas Kamu Sudah Dinilai!",
+                        `Halo ${studentName}, Tugas "${judulTugas}" kamu sudah dinilai oleh pengajar lho. Cek nilaimu sekarang!`,
+                        "https://cendekia-aksara.vercel.app/dashboard/index.html",
+                        studentUid
                     );
 
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersimpan & Sinkron!';
