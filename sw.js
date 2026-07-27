@@ -1,48 +1,50 @@
-// 1. Impor Library Firebase untuk Background (Gunakan versi compat)
-importScripts('https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging-compat.js');
-
-// 2. Inisialisasi Firebase di dalam Service Worker
-firebase.initializeApp({
-    apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
-    authDomain: "mading-cf676.firebaseapp.com",
-    projectId: "mading-cf676",
-    storageBucket: "mading-cf676.firebasestorage.app",
-    messagingSenderId: "72175203671",
-    appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
-});
-
-// 3. Penangkap Notifikasi saat Aplikasi Ditutup (Background)
-const messaging = firebase.messaging();
-messaging.onBackgroundMessage(function(payload) {
-    const notificationTitle = payload.notification.title;
-    const notificationOptions = {
-        body: payload.notification.body,
-        icon: '/img/icon-192x192.png',
-        badge: '/img/icon-192x192.png' // Ikon kecil di status bar Android
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions);
-});
+// ========================================================
+// 1. IMPOR ANTENA ONESIGNAL (Wajib untuk Push Notification)
+// ========================================================
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 // ========================================================
-// 4. KODE CACHING PWA (Kode Anda yang sebelumnya)
+// 2. KODE CACHING PWA (Sistem Memori Pintar Versi 2)
 // ========================================================
-const CACHE_NAME = 'cendekia-cache-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/style.css'
-];
+const CACHE_NAME = 'cendekia-cache-v2';
 
+// Install PWA dan paksa langsung menggunakan versi terbaru
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-  );
+    event.waitUntil(self.skipWaiting());
 });
 
+// Aktifkan PWA dan bersihkan sampah memori versi lama (V1)
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cache => {
+                    if (cache !== CACHE_NAME) {
+                        return caches.delete(cache);
+                    }
+                })
+            );
+        })
+    );
+    return self.clients.claim();
+});
+
+// Logika Pintar untuk menangani Error 404 Kuis
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+    // JIKA URL MENGANDUNG "?id=" (Seperti URL Kuis) ATAU "/api/":
+    // Jangan cari di memori, paksa browser untuk mengambil langsung dari internet
+    if (event.request.url.includes('?id=') || event.request.url.includes('/api/')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
+    // UNTUK FILE LAINNYA (HTML, CSS, Gambar):
+    // Cari di memori dengan mode { ignoreSearch: true } agar kebal terhadap error parameter link
+    event.respondWith(
+        caches.match(event.request, { ignoreSearch: true }).then(response => {
+            return response || fetch(event.request);
+        }).catch(() => {
+            return fetch(event.request);
+        })
+    );
 });
