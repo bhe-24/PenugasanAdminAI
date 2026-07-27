@@ -310,19 +310,18 @@
 
         // =====================================================================
         // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
-        // DIPERBAIKI: sekarang benar-benar membaca response dari /api/notif,
-        // bukan cuma asumsi "sukses" begitu fetch() tidak melempar exception.
         // =====================================================================
         async function kirimNotifikasiOneSignal(judul, pesan, urlTujuan) {
             try {
                 const res = await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ judul, pesan, urlTujuan })
+                    // Menambahkan penanda 'jenis: "tugas"' agar API tahu asal notifikasi
+                    body: JSON.stringify({ judul, pesan, urlTujuan, jenis: "tugas" })
                 });
 
                 let result = null;
-                try { result = await res.json(); } catch (_) { /* body bukan JSON valid */ }
+                try { result = await res.json(); } catch (_) { }
 
                 if (!res.ok || result?.success === false) {
                     console.error("❌ Notifikasi GAGAL dikirim OneSignal:", res.status, result);
@@ -370,8 +369,7 @@
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-text').innerText = text;
             
-            // Icon Setup
-            iconContainer.className = 'modal-icon'; // reset
+            iconContainer.className = 'modal-icon'; 
             if(type === 'success') {
                 iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
                 iconContainer.classList.add('icon-success');
@@ -386,7 +384,6 @@
                 iconContainer.classList.add('icon-confirm');
             }
 
-            // Buttons Setup
             actionsContainer.innerHTML = '';
             if (onConfirm) {
                 const btnCancel = document.createElement('button');
@@ -498,7 +495,6 @@
                 document.getElementById('instruksi-editor').innerHTML = data.instruksi; 
                 document.getElementById('deadline').value = data.deadline;
 
-                // UI Edit Mode
                 document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Tugas';
                 document.getElementById('btn-cancel').classList.remove('hidden');
                 document.getElementById('btn-text').innerText = 'Update Tugas';
@@ -559,11 +555,6 @@
                     payload.namaPengajar = currentUser.name;
                     await addDoc(collection(db, 'assignments'), payload);
 
-                    // =======================================================
-                    // TEMBAK NOTIFIKASI TUGAS BARU (AMAN VIA VERCEL API)
-                    // Sekarang hasilnya benar-benar dicek sebelum
-                    // menampilkan modal "berhasil".
-                    // =======================================================
                     const notifResult = await kirimNotifikasiOneSignal(
                         "📝 Tugas Baru Diterbitkan!",
                         `Ada tugas baru: ${judulTugasVal}. Segera cek portal untuk mengerjakannya.`,
