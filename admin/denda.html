@@ -125,6 +125,13 @@
         .btn-lunas:hover { background: #146c43; }
         .btn-lunas:disabled { background: #94a3b8; cursor: not-allowed; }
 
+        .btn-hapus-permanen {
+            width: 100%; padding: 10px; background: white; color: var(--danger); border: 1.5px solid var(--danger);
+            border-radius: 8px; font-weight: 600; font-family: 'Poppins'; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; margin-top: 8px;
+        }
+        .btn-hapus-permanen:hover { background: var(--danger); color: white; }
+
         .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; background: white; border-radius: 16px; border: 2px dashed var(--border-light); grid-column: 1/-1; }
         .empty-state i { font-size: 3rem; margin-bottom: 15px; color: #cbd5e1; }
 
@@ -320,7 +327,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, where, orderBy, getDocs, doc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, orderBy, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Fungsi Tab
         window.switchTab = (tabId, btnElement) => {
@@ -403,12 +410,15 @@
                             </div>
 
                             ${!isLunas ? `
-                                <button class="btn-lunas" onclick="tandaiLunas('${reqId}', '${data.studentId}', '${data.studentName}')">
+                                <button class="btn-lunas" onclick="tandaiLunas('${reqId}', '${data.studentId}', '${(data.studentName || '').replace(/'/g, "\\'")}')">
                                     <i class="fa-solid fa-money-bill-transfer"></i> Konfirmasi Pembayaran Lunas
                                 </button>
                             ` : `
                                 <button class="btn-lunas" disabled style="background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1;">
                                     <i class="fa-solid fa-lock"></i> Selesai & Akun Dibekukan
+                                </button>
+                                <button class="btn-hapus-permanen" onclick="hapusPermanen('${reqId}', '${data.studentId}', '${(data.studentName || '').replace(/'/g, "\\'")}')">
+                                    <i class="fa-solid fa-trash-can"></i> Hapus Data Permanen
                                 </button>
                             `}
                         </div>
@@ -421,11 +431,11 @@
             }
         }
 
-        // ================= TANDAI LUNAS =================
+        // ================= TANDAI LUNAS (INI YANG MENGHUBUNGKAN KE HALAMAN SISWA) =================
         window.tandaiLunas = async (reqId, studentUid, studentName) => {
             Swal.fire({
                 title: 'Konfirmasi Pembayaran',
-                html: `Anda akan menandai denda milik <b>${studentName}</b> sebagai lunas.<br><br><span style="color:#dc3545; font-size:0.9rem;"><b>Peringatan:</b> Tindakan ini otomatis akan menonaktifkan akun siswa tersebut secara permanen.</span>`,
+                html: `Anda akan menandai denda milik <b>${studentName}</b> sebagai lunas.<br><br><span style="color:#dc3545; font-size:0.9rem;"><b>Peringatan:</b> Tindakan ini otomatis akan menonaktifkan (membekukan) akun siswa tersebut. Data belum dihapus permanen — hanya dibekukan agar masih bisa diaudit.</span>`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#198754',
@@ -436,21 +446,67 @@
                 if (result.isConfirmed) {
                     showLoading("Memproses Pembayaran & Membekukan Akun...");
                     try {
+                        // 1. Catat di riwayat withdrawal_requests (arsip)
                         await updateDoc(doc(db, 'withdrawal_requests', reqId), {
                             paymentStatus: 'lunas', status: 'approved', approvedAt: new Date()
                         });
 
+                        // 2. Update dokumen siswa:
+                        //    - status/isActive => bekukan akses (soft-delete, BUKAN hapus data)
+                        //    - wd_paymentStatus: 'verified' => INI YANG DITUNGGU oleh pembayaran.html
+                        //      (listener onSnapshot di halaman siswa baru akan jalan kalau field ini berubah)
                         if (studentUid) {
                             await updateDoc(doc(db, 'users', studentUid), {
-                                status: 'nonaktif', isActive: false, withdrawalDate: new Date()
+                                status: 'nonaktif',
+                                isActive: false,
+                                withdrawalDate: new Date(),
+                                wd_paymentStatus: 'verified'
                             });
                         }
 
-                        Swal.fire('Berhasil!', 'Denda telah lunas dan akun siswa berhasil dibekukan.', 'success');
+                        Swal.fire('Berhasil!', 'Denda telah lunas dan akun siswa berhasil dibekukan. Siswa akan melihat konfirmasi ini otomatis di halaman pembayaran mereka.', 'success');
                         loadDaftarDenda();
                         loadPerkiraanDenda(); // Refresh tabel juga
                     } catch (error) {
                         Swal.fire('Error', 'Gagal memproses pembayaran: ' + error.message, 'error');
+                    } finally { hideLoading(); }
+                }
+            });
+        };
+
+        // ================= HAPUS PERMANEN (LANGKAH TERPISAH, SENGAJA, SETELAH LUNAS) =================
+        window.hapusPermanen = async (reqId, studentUid, studentName) => {
+            Swal.fire({
+                title: 'Hapus Data Permanen?',
+                html: `Anda akan MENGHAPUS PERMANEN seluruh data siswa <b>${studentName}</b> dari database (dokumen di koleksi <code>users</code> dan <code>withdrawal_requests</code>).<br><br>
+                       <span style="color:#dc3545; font-size:0.9rem;"><b>Tindakan ini tidak dapat dibatalkan.</b> Catatan: akun login (Firebase Authentication) siswa TIDAK ikut terhapus dari sini — itu perlu dihapus terpisah lewat Firebase Console atau Cloud Function, karena alasan keamanan client-side tidak diizinkan menghapus akun Auth orang lain.</span>`,
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Hapus Permanen',
+                cancelButtonText: 'Batal',
+                input: 'text',
+                inputPlaceholder: 'Ketik "HAPUS" untuk konfirmasi',
+                preConfirm: (value) => {
+                    if (value !== 'HAPUS') {
+                        Swal.showValidationMessage('Ketik persis "HAPUS" (huruf besar) untuk melanjutkan');
+                    }
+                    return value;
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    showLoading("Menghapus data permanen...");
+                    try {
+                        await deleteDoc(doc(db, 'withdrawal_requests', reqId));
+                        if (studentUid) {
+                            await deleteDoc(doc(db, 'users', studentUid));
+                        }
+                        Swal.fire('Terhapus', 'Data siswa berhasil dihapus permanen dari Firestore.', 'success');
+                        loadDaftarDenda();
+                        loadPerkiraanDenda();
+                    } catch (error) {
+                        Swal.fire('Error', 'Gagal menghapus data: ' + error.message, 'error');
                     } finally { hideLoading(); }
                 }
             });
