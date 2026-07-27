@@ -365,8 +365,9 @@
 
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, addDoc, query, where, getDocs, serverTimestamp, orderBy, getDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ⚠️ GANTI DENGAN URL APPS SCRIPT JIKA ADA
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyRgMFFs57KCRCP0l7XWYfbAkwKy_vG9KpnWvlcaZng8KRLeQfUsJPJb3FWxrrqf2QxOA/exec"; 
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -471,9 +472,12 @@
             if (['consent-understand', 'consent-penalty', 'consent-final'].includes(e.target.id)) updateWithdrawalButtonState();
         });
 
-        // Redirect ke halaman Pembayaran (pembayaran.html)
+        // ============================================================
+        // REDIRECT KE FOLDER SISWA (siswa/pembayaran.html)
+        // ============================================================
         window.submitWithdrawal = async () => {
             const btn = document.getElementById('btn-confirm-withdrawal');
+            const originalContent = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengalihkan...';
             btn.disabled = true;
 
@@ -493,11 +497,16 @@
                     timestamp: serverTimestamp()
                 });
 
-                // Alihkan ke Payment.html dengan parameter
-                window.location.href = `/siswa/pembayaran.html?type=withdrawal&penalty=${penalty.amount}&days=${penalty.days}`;
+                window.showToast("Pengajuan withdrawal berhasil dikirim. Anda akan dialihkan ke halaman pembayaran...", 'success');
+                
+                // --- PERBAIKAN URL REDIRECT KE FOLDER SISWA ---
+                setTimeout(() => {
+                    window.location.href = `/siswa/pembayaran.html?type=withdrawal&penalty=${penalty.amount}&days=${penalty.days}`;
+                }, 2000);
+
             } catch(err) {
-                showToast("Gagal mengirim pengajuan: " + err.message, 'error');
-                btn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Ke Pembayaran Denda';
+                window.showToast("Gagal mengirim pengajuan: " + err.message, 'error');
+                btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
         };
