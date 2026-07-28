@@ -343,6 +343,7 @@
 
         const ADMIN_EMAIL = 'admin@ac.id';
         let isLoggingIn = false; 
+        let isRegistering = false; // FIX: flag baru supaya onAuthStateChanged tidak ikut campur saat proses daftar berlangsung
 
         // ==========================================
         // GENERATOR CAPTCHA GAMBAR
@@ -441,7 +442,10 @@
         // ==========================================
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                if (isLoggingIn) return; 
+                // FIX: jangan ikut campur kalau lagi proses login ATAU proses daftar
+                // (createUserWithEmailAndPassword otomatis sign-in dan memicu listener ini,
+                // yang tadinya rebutan dengan alur register: setDoc -> sendEmailVerification -> signOut -> popup)
+                if (isLoggingIn || isRegistering) return; 
 
                 // Jika email belum terverifikasi & bukan email korporat (@ac.id)
                 if (!user.emailVerified && !user.email.endsWith('@ac.id')) {
@@ -582,6 +586,7 @@
             }
 
             showLoading('Mendaftarkan Identitas...');
+            isRegistering = true; // FIX: kunci onAuthStateChanged supaya tidak ikut sign-out di tengah proses
             const role  = resolveInitialRole(email);
 
             try {
@@ -601,6 +606,7 @@
                 // 4. Paksa Logout agar tidak bisa masuk sebelum klik link
                 await signOut(auth);
 
+                isRegistering = false; // FIX: lepas kunci setelah seluruh alur register selesai
                 hideLoading();
                 
                 // Alert peringatan cek SPAM yang sangat jelas
@@ -619,6 +625,7 @@
                 });
 
             } catch (err) {
+                isRegistering = false; // FIX: pastikan flag dilepas juga kalau gagal
                 hideLoading();
                 let errorMsg = err.message;
                 if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan masuk (login).';
