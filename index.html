@@ -284,6 +284,21 @@
                  <p class="toggle-auth" id="to-login">Sudah memiliki akun? <b>Masuk Sistem</b></p>
             </div>
 
+            <!-- FORM VERIFIKASI KODE (via EmailJS) -->
+            <div id="verify-form-container" class="hidden">
+                <h3>Verifikasi Email</h3>
+                <p class="subtitle">Masukkan kode 6 digit yang telah kami kirim ke email<br><b id="verify-email-display" style="color:var(--primary);"></b></p>
+                <form id="verify-form">
+                    <div class="form-group">
+                        <label>Kode Verifikasi</label>
+                        <input type="text" id="verify-code" placeholder="123456" required maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" style="letter-spacing:8px; text-align:center; font-weight:700; font-size:1.2rem;">
+                    </div>
+                    <button type="submit" class="btn btn-register">Verifikasi Sekarang</button>
+                </form>
+                <p class="toggle-auth" id="resend-code" style="margin-top:14px;">Tidak menerima kode? <b>Kirim Ulang</b></p>
+                <p class="toggle-auth" id="back-to-login-from-verify"><i class="fa-solid fa-arrow-left"></i> Kembali ke Halaman Masuk</p>
+            </div>
+
             <!-- FORM FORGOT PASSWORD -->
             <div id="forgot-form-container" class="hidden">
                 <h3>Reset Sandi</h3>
@@ -311,6 +326,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- EMAILJS SDK (pengganti template verifikasi email bawaan Firebase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
     <!-- PWA REGISTRATION SCRIPT -->
     <script>
       if ('serviceWorker' in navigator) {
@@ -324,8 +342,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import ActivityLogger from "./js/activity-logger.js";
 
         const firebaseConfig = { 
@@ -342,8 +360,35 @@
         const db = getFirestore(app);
 
         const ADMIN_EMAIL = 'admin@ac.id';
-        let isLoggingIn = false; 
-        let isRegistering = false; // FIX: flag baru supaya onAuthStateChanged tidak ikut campur saat proses daftar berlangsung
+        let isLoggingIn = false;
+        let isRegistering = false; // true selama proses daftar / menunggu verifikasi kode, supaya onAuthStateChanged tidak ikut campur
+
+        // ==========================================
+        // EMAILJS - KIRIM KODE VERIFIKASI
+        // ==========================================
+        const EMAILJS_SERVICE_ID  = "service_r3z10ye";
+        const EMAILJS_TEMPLATE_ID = "template_jjeu22b";
+        const EMAILJS_PUBLIC_KEY  = "2a9O5Q-7Uk0b7RpmG";
+        emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+        function generateVerificationCode() {
+            return String(Math.floor(100000 + Math.random() * 900000)); // kode 6 digit
+        }
+
+        function getCodeExpiry(minutes = 15) {
+            return new Date(Date.now() + minutes * 60000).toISOString();
+        }
+
+        // CATATAN: sesuaikan nama variabel (to_email, to_name, verification_code) ini
+        // dengan nama variabel yang dipakai di template EmailJS "template_jjeu22b".
+        // Buka EmailJS Dashboard > Email Templates > template_jjeu22b untuk mengecek {{nama_variabel}} yang dipakai.
+        async function sendVerificationEmail(toEmail, toName, code) {
+            return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                to_email: toEmail,
+                to_name: toName || 'Pengguna',
+                verification_code: code
+            });
+        }
 
         // ==========================================
         // GENERATOR CAPTCHA GAMBAR
@@ -438,26 +483,59 @@
         }
 
         // ==========================================
+        // NAVIGASI ANTAR FORM (UI)
+        // ==========================================
+        const loginForm   = document.getElementById('login-form-container');
+        const regForm     = document.getElementById('register-form-container');
+        const verifyForm  = document.getElementById('verify-form-container');
+        const forgotForm  = document.getElementById('forgot-form-container');
+
+        function goToVerify(email) {
+            loginForm.classList.add('hidden');
+            regForm.classList.add('hidden');
+            forgotForm.classList.add('hidden');
+            verifyForm.classList.remove('hidden');
+            document.getElementById('verify-code').value = '';
+            document.getElementById('verify-email-display').textContent = email || '';
+        }
+
+        document.getElementById('to-register').onclick = () => { loginForm.classList.add('hidden'); verifyForm.classList.add('hidden'); regForm.classList.remove('hidden'); generateCaptcha(); };
+        document.getElementById('to-login').onclick    = () => { regForm.classList.add('hidden'); verifyForm.classList.add('hidden'); loginForm.classList.remove('hidden'); generateCaptcha(); };
+        document.getElementById('to-forgot').onclick   = () => { loginForm.classList.add('hidden'); verifyForm.classList.add('hidden'); forgotForm.classList.remove('hidden'); };
+        document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
+
+        document.getElementById('back-to-login-from-verify').onclick = async () => {
+            isRegistering = false;
+            try { await signOut(auth); } catch (e) { /* abaikan */ }
+            verifyForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            generateCaptcha();
+        };
+
+
+        // ==========================================
         // LISTENER AUTENTIKASI (Pengecekan Otomatis)
         // ==========================================
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // FIX: jangan ikut campur kalau lagi proses login ATAU proses daftar
-                // (createUserWithEmailAndPassword otomatis sign-in dan memicu listener ini,
-                // yang tadinya rebutan dengan alur register: setDoc -> sendEmailVerification -> signOut -> popup)
+                // Jangan ikut campur kalau sedang proses login manual ATAU sedang di alur daftar/verifikasi
                 if (isLoggingIn || isRegistering) return; 
-
-                // Jika email belum terverifikasi & bukan email korporat (@ac.id)
-                if (!user.emailVerified && !user.email.endsWith('@ac.id')) {
-                    await signOut(auth);
-                    return; 
-                }
 
                 showLoading('Memverifikasi Sesi...');
                 try {
                     const snap = await getDoc(doc(db, 'users', user.uid));
                     if (snap.exists()) {
                         const data = snap.data();
+
+                        // Kalau akun ini belum verifikasi kode (dan bukan email korporat @ac.id),
+                        // arahkan ke halaman verifikasi, jangan sign-out diam-diam.
+                        const needsVerification = !user.email.endsWith('@ac.id') && data.emailVerified === false;
+                        if (needsVerification) {
+                            hideLoading();
+                            isRegistering = true;
+                            goToVerify(user.email);
+                            return;
+                        }
                         
                         // Validasi update role otomatis untuk admin/guru
                         if (user.email === ADMIN_EMAIL && data.role !== 'admin') {
@@ -471,7 +549,7 @@
                         window.location.href = routeUser(data, user.email);
                     } else {
                         const role = resolveInitialRole(user.email);
-                        const newData = { name: user.displayName || 'Pengguna', email: user.email, role, semester: 1, ips: 0, status: 'active', createdAt: new Date().toISOString() };
+                        const newData = { name: user.displayName || 'Pengguna', email: user.email, role, semester: 1, ips: 0, status: 'active', emailVerified: true, createdAt: new Date().toISOString() };
                         await setDoc(doc(db, 'users', user.uid), newData);
                         window.location.href = routeUser(newData, user.email);
                     }
@@ -483,21 +561,9 @@
             }
         });
 
-        // ==========================================
-        // NAVIGASI ANTAR FORM (UI)
-        // ==========================================
-        const loginForm   = document.getElementById('login-form-container');
-        const regForm     = document.getElementById('register-form-container');
-        const forgotForm  = document.getElementById('forgot-form-container');
-
-        document.getElementById('to-register').onclick = () => { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); generateCaptcha(); };
-        document.getElementById('to-login').onclick    = () => { regForm.classList.add('hidden'); loginForm.classList.remove('hidden'); generateCaptcha(); };
-        document.getElementById('to-forgot').onclick   = () => { loginForm.classList.add('hidden'); forgotForm.classList.remove('hidden'); };
-        document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
-
 
         // ==========================================
-        // 1. LOGIN (CEK CAPTCHA & VERIFIKASI EMAIL)
+        // 1. LOGIN (CEK CAPTCHA & STATUS VERIFIKASI)
         // ==========================================
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -520,17 +586,31 @@
                 const userCredential = await signInWithEmailAndPassword(auth, email, pass);
                 const user = userCredential.user;
 
-                // 2. WAJIB VERIFIKASI EMAIL (KECUALI EMAIL KORPORAT @ac.id)
-                if (!user.emailVerified && !email.endsWith('@ac.id')) {
-                    await signOut(auth);
+                showLoading('Memeriksa Status Akun...');
+                const snap = await getDoc(doc(db, 'users', user.uid));
+                let data = snap.exists() ? snap.data() : null;
+
+                if (!data) {
+                    const role = resolveInitialRole(user.email);
+                    data = { name: user.email, email: user.email, role, semester: 1, ips: 0, status: 'active', emailVerified: true, createdAt: new Date().toISOString() };
+                    await setDoc(doc(db, 'users', user.uid), data);
+                }
+
+                // 2. WAJIB VERIFIKASI KODE (KECUALI EMAIL KORPORAT @ac.id)
+                const needsVerification = !email.endsWith('@ac.id') && data.emailVerified === false;
+
+                if (needsVerification) {
                     isLoggingIn = false;
+                    isRegistering = true; // tahan onAuthStateChanged selama user mengisi kode verifikasi
                     hideLoading();
                     Swal.fire({
                         icon: 'warning',
                         title: 'Email Belum Diverifikasi',
-                        html: 'Anda belum mengeklik tautan verifikasi yang kami kirim ke email Anda.<br><br><span style="color:#dc3545; font-weight:bold;">TIPS:</span> Silakan periksa folder <b>Kotak Masuk (Inbox)</b> atau folder <b>SPAM / JUNK</b> email Anda.',
+                        html: `Akun Anda belum diverifikasi.<br><br>Silakan masukkan kode verifikasi yang telah kami kirim ke email <b>${email}</b> saat mendaftar.`,
                         confirmButtonColor: '#003366',
-                        confirmButtonText: 'Saya Mengerti'
+                        confirmButtonText: 'Masukkan Kode'
+                    }).then(() => {
+                        goToVerify(email);
                     });
                     generateCaptcha();
                     return;
@@ -538,15 +618,6 @@
 
                 // 3. Lolos semua? Masuk ke sistem
                 showLoading('Memasuki Sistem...');
-                const snap = await getDoc(doc(db, 'users', user.uid));
-                let data = snap.exists() ? snap.data() : null;
-                
-                if (!data) {
-                    const role = resolveInitialRole(user.email);
-                    data = { name: user.email, email: user.email, role, semester: 1, ips: 0, status: 'active', createdAt: new Date().toISOString() };
-                    await setDoc(doc(db, 'users', user.uid), data);
-                }
-
                 await ActivityLogger.logLogin(user.uid, data.name || 'User', user.email);
                 isLoggingIn = false;
                 window.location.href = routeUser(data, user.email);
@@ -565,7 +636,7 @@
         };
 
         // ==========================================
-        // 2. REGISTER (KIRIM LINK VERIFIKASI)
+        // 2. REGISTER (KIRIM KODE VERIFIKASI VIA EMAILJS)
         // ==========================================
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
@@ -586,46 +657,50 @@
             }
 
             showLoading('Mendaftarkan Identitas...');
-            isRegistering = true; // FIX: kunci onAuthStateChanged supaya tidak ikut sign-out di tengah proses
-            const role  = resolveInitialRole(email);
+            isRegistering = true; // kunci onAuthStateChanged selama proses daftar + verifikasi
+            const role = resolveInitialRole(email);
 
             try {
                 // 1. Buat Akun Firebase
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
-                
-                // 2. Simpan Data ke Firestore
+
+                // 2. Buat kode verifikasi 6 digit + masa berlaku 15 menit
+                const code = generateVerificationCode();
+                const expiry = getCodeExpiry(15);
+
+                // 3. Simpan Data + kode verifikasi ke Firestore
                 await setDoc(doc(db, 'users', cred.user.uid), {
                     name, email, role,
                     semester: 1, ips: 0, status: 'active',
+                    emailVerified: false,
+                    verificationCode: code,
+                    codeExpiry: expiry,
                     createdAt: new Date().toISOString()
                 });
 
-                // 3. KIRIM LINK VERIFIKASI EMAIL (GRATIS DARI FIREBASE)
-                await sendEmailVerification(cred.user);
-                
-                // 4. Paksa Logout agar tidak bisa masuk sebelum klik link
-                await signOut(auth);
+                // 4. KIRIM KODE VERIFIKASI VIA EMAILJS
+                try {
+                    await sendVerificationEmail(email, name, code);
+                } catch (mailErr) {
+                    console.error('Gagal mengirim email verifikasi:', mailErr);
+                    // Tetap lanjut ke halaman verifikasi; user bisa pakai tombol "Kirim Ulang"
+                }
 
-                isRegistering = false; // FIX: lepas kunci setelah seluruh alur register selesai
                 hideLoading();
-                
-                // Alert peringatan cek SPAM yang sangat jelas
+
                 Swal.fire({
                     icon: 'info',
-                    title: 'Langkah Terakhir!',
-                    html: `Pendaftaran hampir selesai. Kami telah mengirimkan tautan verifikasi ke email <b>${email}</b>.<br><br><span style="color:#dc3545; font-weight:bold;">PENTING:</span> Pastikan Anda mengecek folder <b>SPAM</b> atau <b>JUNK</b> jika email tidak ada di Kotak Masuk. Anda wajib memverifikasi email sebelum dapat masuk.`,
+                    title: 'Satu Langkah Lagi!',
+                    html: `Kami telah mengirimkan kode verifikasi 6 digit ke email <b>${email}</b>.<br><br>Silakan masukkan kode tersebut di halaman berikutnya untuk mengaktifkan akun Anda.<br><br><span style="color:#dc3545; font-weight:bold;">TIPS:</span> Periksa folder <b>SPAM/JUNK</b> jika kode belum muncul di Kotak Masuk.`,
                     confirmButtonColor: '#0f766e',
-                    confirmButtonText: 'Baik, Saya Mengerti'
+                    confirmButtonText: 'Masukkan Kode'
                 }).then(() => {
-                    // Pindah ke form login
-                    regForm.classList.add('hidden');  
-                    loginForm.classList.remove('hidden');
                     document.getElementById('register-form').reset();
-                    generateCaptcha();
+                    goToVerify(email);
                 });
 
             } catch (err) {
-                isRegistering = false; // FIX: pastikan flag dilepas juga kalau gagal
+                isRegistering = false;
                 hideLoading();
                 let errorMsg = err.message;
                 if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan masuk (login).';
@@ -634,7 +709,127 @@
         };
 
         // ==========================================
-        // 3. FORGOT PASSWORD
+        // 3. VERIFIKASI KODE
+        // ==========================================
+        document.getElementById('verify-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const codeInput = document.getElementById('verify-code').value.trim();
+            const user = auth.currentUser;
+
+            if (!user) {
+                isRegistering = false;
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Sesi Berakhir',
+                    text: 'Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan verifikasi.',
+                    confirmButtonColor: '#003366'
+                }).then(() => {
+                    verifyForm.classList.add('hidden');
+                    loginForm.classList.remove('hidden');
+                    generateCaptcha();
+                });
+                return;
+            }
+
+            showLoading('Memeriksa Kode...');
+            try {
+                const uref = doc(db, 'users', user.uid);
+                const snap = await getDoc(uref);
+
+                if (!snap.exists()) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Data Tidak Ditemukan', text: 'Data akun Anda tidak ditemukan di sistem.', confirmButtonColor: '#dc3545' });
+                    return;
+                }
+
+                const data = snap.data();
+
+                if (data.emailVerified) {
+                    isRegistering = false;
+                    hideLoading();
+                    window.location.href = routeUser(data, user.email);
+                    return;
+                }
+
+                if (!data.verificationCode || data.verificationCode !== codeInput) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Kode Salah', text: 'Kode verifikasi yang Anda masukkan tidak sesuai.', confirmButtonColor: '#dc3545' });
+                    return;
+                }
+
+                if (data.codeExpiry && new Date(data.codeExpiry).getTime() < Date.now()) {
+                    hideLoading();
+                    Swal.fire({ icon: 'warning', title: 'Kode Kedaluwarsa', text: 'Kode verifikasi sudah kedaluwarsa. Silakan minta kode baru.', confirmButtonColor: '#d4af37' });
+                    return;
+                }
+
+                // Kode benar -> tandai akun sebagai terverifikasi
+                await updateDoc(uref, { emailVerified: true, verificationCode: null, codeExpiry: null });
+                data.emailVerified = true;
+
+                await ActivityLogger.logLogin(user.uid, data.name || 'User', user.email);
+
+                isRegistering = false;
+                hideLoading();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Verifikasi Berhasil!',
+                    text: 'Akun Anda sudah aktif. Mengalihkan...',
+                    confirmButtonColor: '#0f766e',
+                    timer: 1800,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = routeUser(data, user.email);
+                });
+
+            } catch (err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: err.message, confirmButtonColor: '#dc3545' });
+            }
+        };
+
+        // KIRIM ULANG KODE
+        let resendCooldown = false;
+        document.getElementById('resend-code').onclick = async () => {
+            if (resendCooldown) return;
+            const user = auth.currentUser;
+
+            if (!user) {
+                Swal.fire({ icon: 'warning', title: 'Sesi Berakhir', text: 'Silakan masuk kembali untuk mengirim ulang kode.', confirmButtonColor: '#003366' });
+                return;
+            }
+
+            showLoading('Mengirim Ulang Kode...');
+            try {
+                const uref = doc(db, 'users', user.uid);
+                const snap = await getDoc(uref);
+                const data = snap.exists() ? snap.data() : null;
+
+                if (data && data.emailVerified) {
+                    hideLoading();
+                    Swal.fire({ icon: 'info', title: 'Sudah Terverifikasi', text: 'Akun ini sudah terverifikasi. Silakan masuk.', confirmButtonColor: '#003366' });
+                    return;
+                }
+
+                const code = generateVerificationCode();
+                const expiry = getCodeExpiry(15);
+                await updateDoc(uref, { verificationCode: code, codeExpiry: expiry });
+                await sendVerificationEmail(user.email, (data && data.name) || 'Pengguna', code);
+
+                hideLoading();
+                Swal.fire({ icon: 'success', title: 'Kode Terkirim', text: 'Kode verifikasi baru telah dikirim ke email Anda.', confirmButtonColor: '#0f766e' });
+
+                resendCooldown = true;
+                setTimeout(() => { resendCooldown = false; }, 60000); // jeda 60 detik sebelum bisa kirim ulang lagi
+
+            } catch (err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: err.message, confirmButtonColor: '#dc3545' });
+            }
+        };
+
+        // ==========================================
+        // 4. FORGOT PASSWORD (tetap pakai Firebase, tidak diubah)
         // ==========================================
         document.getElementById('forgot-form').onsubmit = async (e) => {
             e.preventDefault();
