@@ -342,7 +342,7 @@
         const db = getFirestore(app);
 
         const ADMIN_EMAIL = 'admin@ac.id';
-        let isLoggingIn = false; // Mencegah bentrok proses login
+        let isLoggingIn = false; 
 
         // ==========================================
         // GENERATOR CAPTCHA GAMBAR
@@ -382,7 +382,7 @@
                 ctx.save();
                 ctx.translate(x, y);
                 ctx.rotate(angle);
-                ctx.fillStyle = i % 2 === 0 ? '#003366' : '#d4af37'; // Warna selang-seling Navy & Emas
+                ctx.fillStyle = i % 2 === 0 ? '#003366' : '#d4af37'; 
                 ctx.fillText(currentCaptchaText[i], 0, 0);
                 ctx.restore();
             }
@@ -397,11 +397,9 @@
                 ctx.stroke();
             }
 
-            // Kosongkan inputan
             document.getElementById('captcha-input').value = "";
         }
 
-        // Panggil pertama kali dan buat fungsi klik tombol refresh
         generateCaptcha();
         document.getElementById('btn-refresh-captcha').addEventListener('click', generateCaptcha);
 
@@ -445,8 +443,8 @@
             if (user) {
                 if (isLoggingIn) return; 
 
-                // Jika email belum terverifikasi, larang masuk otomatis
-                if (!user.emailVerified) {
+                // Jika email belum terverifikasi & bukan email korporat (@ac.id)
+                if (!user.emailVerified && !user.email.endsWith('@ac.id')) {
                     await signOut(auth);
                     return; 
                 }
@@ -468,7 +466,6 @@
                         }
                         window.location.href = routeUser(data, user.email);
                     } else {
-                        // Restore akun jika dokumen di Firestore hilang
                         const role = resolveInitialRole(user.email);
                         const newData = { name: user.displayName || 'Pengguna', email: user.email, role, semester: 1, ips: 0, status: 'active', createdAt: new Date().toISOString() };
                         await setDoc(doc(db, 'users', user.uid), newData);
@@ -501,35 +498,35 @@
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             
-            // 1. Validasi CAPTCHA Terlebih Dahulu
+            // 1. Validasi CAPTCHA (case-insensitive)
             const inputCaptcha = document.getElementById('captcha-input').value;
-            // Pengecekan case-insensitive (huruf besar/kecil dianggap sama demi kenyamanan pengguna)
             if (inputCaptcha.toLowerCase() !== currentCaptchaText.toLowerCase()) {
                 Swal.fire({ icon: 'error', title: 'Kode Salah', text: 'Karakter keamanan yang Anda masukkan tidak sesuai gambar.', confirmButtonColor: '#dc3545' });
-                generateCaptcha(); // Refresh CAPTCHA
+                generateCaptcha(); 
                 return;
             }
 
             showLoading('Memeriksa Kredensial...');
             isLoggingIn = true;
             
-            const email = document.getElementById('username').value;
+            const email = document.getElementById('username').value.trim();
             const pass  = document.getElementById('password').value;
             
             try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, pass);
                 const user = userCredential.user;
 
-                // 2. Wajib sudah verifikasi link email pendaftaran (Bawaan Firebase)
-                if (!user.emailVerified) {
+                // 2. WAJIB VERIFIKASI EMAIL (KECUALI EMAIL KORPORAT @ac.id)
+                if (!user.emailVerified && !email.endsWith('@ac.id')) {
                     await signOut(auth);
                     isLoggingIn = false;
                     hideLoading();
                     Swal.fire({
                         icon: 'warning',
                         title: 'Email Belum Diverifikasi',
-                        text: 'Silakan cek kotak masuk email Anda dan klik tautan verifikasi yang telah kami kirimkan untuk mengaktifkan akun.',
-                        confirmButtonColor: '#003366'
+                        html: 'Anda belum mengeklik tautan verifikasi yang kami kirim ke email Anda.<br><br><span style="color:#dc3545; font-weight:bold;">TIPS:</span> Silakan periksa folder <b>Kotak Masuk (Inbox)</b> atau folder <b>SPAM / JUNK</b> email Anda.',
+                        confirmButtonColor: '#003366',
+                        confirmButtonText: 'Saya Mengerti'
                     });
                     generateCaptcha();
                     return;
@@ -559,7 +556,7 @@
                     text: 'Kredensial yang Anda masukkan salah atau akun tidak ditemukan.',
                     confirmButtonColor: '#003366'
                 });
-                generateCaptcha(); // Wajib ganti captcha setiap kali gagal login
+                generateCaptcha(); 
             }
         };
 
@@ -568,35 +565,51 @@
         // ==========================================
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
-            showLoading('Mendaftarkan Identitas...');
-            const name  = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
+            
+            const name  = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
             const pass  = document.getElementById('reg-pass').value;
+            
+            // BLOKIR PENDAFTARAN PUBLIK UNTUK EMAIL @AC.ID
+            if (email.endsWith('@ac.id')) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Akses Ditolak',
+                    text: 'Email dengan domain korporat (@ac.id) tidak dapat didaftarkan secara publik. Silakan hubungi Administrator.',
+                    confirmButtonColor: '#dc3545'
+                });
+                return;
+            }
+
+            showLoading('Mendaftarkan Identitas...');
             const role  = resolveInitialRole(email);
 
             try {
-                // Buat Akun Firebase
+                // 1. Buat Akun Firebase
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
                 
-                // Simpan Data
+                // 2. Simpan Data ke Firestore
                 await setDoc(doc(db, 'users', cred.user.uid), {
                     name, email, role,
                     semester: 1, ips: 0, status: 'active',
                     createdAt: new Date().toISOString()
                 });
 
-                // KIRIM LINK VERIFIKASI EMAIL (GRATIS DARI FIREBASE)
+                // 3. KIRIM LINK VERIFIKASI EMAIL (GRATIS DARI FIREBASE)
                 await sendEmailVerification(cred.user);
                 
-                // Paksa Logout agar tidak bisa masuk sebelum klik link
+                // 4. Paksa Logout agar tidak bisa masuk sebelum klik link
                 await signOut(auth);
 
                 hideLoading();
+                
+                // Alert peringatan cek SPAM yang sangat jelas
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Pendaftaran Berhasil!',
-                    text: 'Tautan verifikasi telah dikirim ke email Anda. Silakan klik tautan tersebut sebelum mencoba masuk ke sistem.',
-                    confirmButtonColor: '#0f766e'
+                    icon: 'info',
+                    title: 'Langkah Terakhir!',
+                    html: `Pendaftaran hampir selesai. Kami telah mengirimkan tautan verifikasi ke email <b>${email}</b>.<br><br><span style="color:#dc3545; font-weight:bold;">PENTING:</span> Pastikan Anda mengecek folder <b>SPAM</b> atau <b>JUNK</b> jika email tidak ada di Kotak Masuk. Anda wajib memverifikasi email sebelum dapat masuk.`,
+                    confirmButtonColor: '#0f766e',
+                    confirmButtonText: 'Baik, Saya Mengerti'
                 }).then(() => {
                     // Pindah ke form login
                     regForm.classList.add('hidden');  
@@ -608,7 +621,7 @@
             } catch (err) {
                 hideLoading();
                 let errorMsg = err.message;
-                if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan login.';
+                if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan masuk (login).';
                 Swal.fire({ icon: 'error', title: 'Gagal Mendaftar', text: errorMsg, confirmButtonColor: '#dc3545' });
             }
         };
