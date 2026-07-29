@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
+    <!-- Tambahkan SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
@@ -82,11 +85,6 @@
         /* LOADING */
         #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--gold); transition: 0.4s; }
 
-        /* TOAST */
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; transform: translateX(120%); opacity: 0; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); font-weight: 600; font-size: 0.9rem; border-left: 4px solid var(--gold); }
-        .toast.show { transform: translateX(0); opacity: 1; }
-
         @media (max-width: 600px) {
             .room-header { flex-direction: column; text-align: center; gap: 15px; }
             .doc-form-card { padding: 20px; }
@@ -95,8 +93,6 @@
     </style>
 </head>
 <body>
-
-    <div id="toast-container"></div>
 
     <div id="loading-screen">
         <i class="fa-solid fa-crown fa-bounce" style="font-size: 3rem; margin-bottom: 15px;"></i>
@@ -154,7 +150,7 @@
                 </div>
 
                 <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 25px; font-size: 0.85rem; color: #b45309; line-height: 1.5;">
-                    <i class="fa-solid fa-circle-info"></i> <b>Catatan Birokrasi:</b> Dokumen ini akan diunduh sebagai PDF dan <b>otomatis terkirim ke meja Pembina/Admin</b> untuk diperiksa. Pantau status persetujuannya (ACC) di riwayat bawah.
+                    <i class="fa-solid fa-circle-info"></i> <b>Catatan Birokrasi:</b> Dokumen ini akan diunduh sebagai PDF dan <b>otomatis terkirim ke meja Pembina/Admin</b> untuk diperiksa. Pantau status persetujuannya di riwayat bawah.
                 </div>
 
                 <button type="submit" id="btn-submit" class="btn-print">
@@ -163,7 +159,8 @@
             </form>
         </div>
 
-        <div class="history-card">
+        <!-- Tambahkan ID ke history-card untuk autoscroll -->
+        <div class="history-card" id="history-section">
             <div class="form-title" style="margin-bottom: 15px; border:none; padding:0;"><i class="fa-solid fa-clock-rotate-left"></i> Status Pengajuan Dokumen BPH</div>
             <div id="arsip-list" class="article-list">
                 <div style="text-align:center; padding:20px; color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat riwayat dokumen...</div>
@@ -172,26 +169,15 @@
 
     </div>
 
+    <!-- Script SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { collection, addDoc, query, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, addDoc, query, getDocs, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
         let pengurusName = "";
-
-        // Fungsi Notifikasi Toast
-        window.showToast = (message) => {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--gold);"></i> <span>${message}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.add('show'), 10);
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3500);
-        };
 
         // Format Uang Rupiah
         const formatRupiah = (angka) => {
@@ -236,10 +222,11 @@
             e.preventDefault();
             const btn = document.getElementById('btn-submit');
             const oriText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun & Mengirim...';
+            
+            // FEEDBACK 1: Sedang menyimpan ke server
+            btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up fa-bounce"></i> Mengirim Data ke Admin...';
             btn.disabled = true;
 
-            // Ambil Data Form
             const docType = document.getElementById('doc-type').value;
             const rawDate = document.getElementById('doc-date').value;
             const docDate = formatTanggal(rawDate);
@@ -248,9 +235,8 @@
             const rawBudget = document.getElementById('doc-budget').value;
             const docBudget = formatRupiah(rawBudget);
 
-            // 1. SIMPAN KE DATABASE FIRESTORE AGAR BISA DIBACA ADMIN
+            // 1. SIMPAN KE DATABASE FIRESTORE
             try {
-                // Rangkai isi konten agar rapi dibaca Admin di modal preview
                 const adminContent = `TANGGAL PELAKSANAAN: ${docDate}\nESTIMASI ANGGARAN: ${docBudget}\n\nLATAR BELAKANG & TUJUAN:\n${docBg}`;
 
                 await addDoc(collection(db, 'arsip_bph'), {
@@ -261,20 +247,19 @@
                     date: docDate,
                     addedBy: pengurusName,
                     authorId: currentUser.uid,
-                    status: 'pending', // Wajib di-ACC admin
+                    status: 'pending', 
                     timestamp: serverTimestamp()
                 });
 
-                loadMyArsip(); // Refresh daftar riwayat
-                window.showToast("Dokumen berhasil diajukan ke Pembina!");
-
             } catch (error) {
-                alert("Gagal mengirim dokumen ke database Admin.");
-                console.error(error);
+                Swal.fire('Gagal!', 'Gagal mengirim dokumen ke database Admin. Periksa koneksi Anda.', 'error');
                 btn.innerHTML = oriText;
                 btn.disabled = false;
-                return; // Stop jika database gagal
+                return;
             }
+
+            // FEEDBACK 2: Mulai mengunduh PDF (Karena butuh waktu ambil logo)
+            btn.innerHTML = '<i class="fa-solid fa-file-pdf fa-bounce"></i> Sedang Mengunduh PDF...';
 
             // 2. LANJUTKAN MENCETAK PDF UNTUK SISWA
             async function getBase64Logo() {
@@ -301,7 +286,6 @@
                     pageSize: 'A4',
                     pageMargins: [60, 60, 60, 60],
                     content: [
-                        // KOP SURAT OSIS
                         {
                             columns: [
                                 logoBase64 ? { image: logoBase64, width: 70, margin: [0, 0, 20, 0] } : { text: '' },
@@ -318,15 +302,12 @@
                         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 3, lineColor: '#003366' }], margin: [0, 10, 0, 2] },
                         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 475, y2: 0, lineWidth: 1, lineColor: '#003366' }], margin: [0, 0, 0, 30] },
 
-                        // JUDUL DOKUMEN
                         { text: docType.toUpperCase(), fontSize: 14, bold: true, alignment: 'center', decoration: 'underline' },
                         { text: `"${docTitle.toUpperCase()}"`, fontSize: 12, bold: true, alignment: 'center', margin: [0, 5, 0, 30] },
 
-                        // ISI PENDAHULUAN
                         { text: 'A. Latar Belakang & Tujuan', bold: true, margin: [0, 0, 0, 8] },
                         { text: docBg, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 20] },
 
-                        // RINCIAN KEGIATAN
                         { text: 'B. Rincian Pelaksanaan', bold: true, margin: [0, 0, 0, 8] },
                         {
                             table: {
@@ -341,10 +322,8 @@
                             margin: [15, 0, 0, 30]
                         },
 
-                        // PENUTUP
                         { text: 'Demikian rancangan dokumen ini kami susun dengan sebenar-benarnya untuk dapat diperiksa, dipertimbangkan, dan disahkan oleh pihak Pembina/Administrator Cendekia Aksara. Atas perhatian dan dukungannya, kami ucapkan terima kasih.', alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 40] },
 
-                        // KOLOM TANDA TANGAN
                         {
                             columns: [
                                 {
@@ -371,11 +350,24 @@
                 const fileName = `${docType.split(' ')[0]}_${docTitle.replace(/\s+/g, '_')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName);
                 
+                // Reset form setelah sukses
                 document.getElementById('doc-form').reset();
                 document.getElementById('doc-author').value = pengurusName; 
 
+                // FEEDBACK 3: Pop-up Sukses Besar & Auto Scroll ke Riwayat
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terkirim & Diunduh!',
+                    text: 'Dokumen berhasil dikirim ke ruang Pembina dan salinan PDF telah diunduh ke perangkat Anda.',
+                    confirmButtonColor: '#d4af37'
+                }).then(() => {
+                    loadMyArsip(); // Refresh daftar secara manual
+                    // Animasi gulir halus ke arah daftar riwayat di bawah
+                    document.getElementById('history-section').scrollIntoView({ behavior: 'smooth' });
+                });
+
             } catch (error) {
-                alert("Gagal menyusun PDF.");
+                Swal.fire('Gagal!', 'Terjadi kesalahan saat menyusun file PDF.', 'error');
             } finally {
                 btn.innerHTML = oriText;
                 btn.disabled = false;
@@ -383,13 +375,11 @@
         };
 
         // ==============================================
-        // MEMUAT RIWAYAT DOKUMEN BPH (Semua Anggota BPH bisa lihat)
+        // MEMUAT RIWAYAT DOKUMEN BPH 
         // ==============================================
         async function loadMyArsip() {
             const container = document.getElementById('arsip-list');
             try {
-                // Tarik semua arsip_bph tanpa `where` authorId, 
-                // agar sesama BPH (Ketua, Wakil, Sekretaris) bisa saling melihat dokumen satu sama lain.
                 const q = query(collection(db, 'arsip_bph'));
                 const snap = await getDocs(q);
 
@@ -402,7 +392,7 @@
                 let arsipData = [];
                 snap.forEach(doc => arsipData.push({id: doc.id, ...doc.data()}));
 
-                // Urutkan Javascript
+                // Urutkan Terbaru di atas
                 arsipData.sort((a, b) => {
                     const timeA = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
                     const timeB = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
@@ -431,7 +421,6 @@
                     `;
                 });
             } catch (e) {
-                console.error(e);
                 container.innerHTML = `<div style="text-align:center; color:#ef4444;">Gagal memuat riwayat dokumen.</div>`;
             }
         }
