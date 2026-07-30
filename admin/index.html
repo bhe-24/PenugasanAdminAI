@@ -315,14 +315,6 @@
                         </div>
                         <i class="fa-solid fa-chevron-right card-arrow"></i>
                     </a>
-                    <a href="/admin/buku-teks.html" class="dashboard-card" style="--card-color:#10b981;" data-search="buku teks ai">
-                        <div class="card-icon-circle"><i class="fa-solid fa-book-journal-whills"></i></div>
-                        <div class="ca-card-info">
-                            <h3 class="ca-card-title">Buku Teks AI</h3>
-                            <p class="ca-card-desc">Susun materi ajar berbantuan AI untuk kebutuhan kelas dan modul belajar.</p>
-                        </div>
-                        <i class="fa-solid fa-chevron-right card-arrow"></i>
-                    </a>
                     <a href="/admin/pustaka-materi.html" class="dashboard-card" style="--card-color:#ec4899;" data-search="pustaka materi">
                         <div class="card-icon-circle"><i class="fa-solid fa-book-atlas"></i></div>
                         <div class="ca-card-info">
@@ -417,18 +409,9 @@
             <div class="category-block" data-category>
                 <div class="category-label"><span class="cat-dot"></span> SDM & Kepegawaian <span class="cat-line"></span></div>
                 <div class="dashboard-grid">
-                    <a href="/admin/pengajar.html" class="dashboard-card" style="--card-color:#8b5cf6;" data-search="sistem pengajar guru">
-                        <div class="card-icon-circle"><i class="fa-solid fa-chalkboard-user"></i></div>
-                        <div class="ca-card-info">
-                            <h3 class="ca-card-title">Sistem Pengajar</h3>
-                            <p class="ca-card-desc">Kelola data pengajar, penugasan kelas, dan akses akun mereka.</p>
-                        </div>
-                        <i class="fa-solid fa-chevron-right card-arrow"></i>
-                    </a>
-                    
                     <!-- KARTU DATA KARYAWAN -->
                     <a href="/admin/karyawan.html" class="dashboard-card" style="--card-color:#a855f7;" data-search="data karyawan staf pegawai hr">
-                        <div class="card-icon-circle"><i class="fa-solid fa-users-tie"></i></div>
+                        <div class="card-icon-circle"><i class="fa-solid fa-user-tie"></i></div>
                         <div class="ca-card-info">
                             <h3 class="ca-card-title">Data Karyawan</h3>
                             <p class="ca-card-desc">Kelola profil, jabatan, dan status seluruh staf & karyawan non-pengajar.</p>
@@ -568,7 +551,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
@@ -583,6 +566,49 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // ============================================================
+        // FUNGSI CEK ULANG TAHUN OTOMATIS SAAT ADMIN LOGIN
+        // ============================================================
+        async function checkAndSendBirthdayNotifications() {
+            try {
+                const today = new Date();
+                const currentMonthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                // Ambil data siswa
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+
+                snap.forEach(async (docSnap) => {
+                    const data = docSnap.data();
+                    if (data.tanggalLahir) {
+                        const dobParts = data.tanggalLahir.split('-');
+                        if (dobParts.length === 3) {
+                            const studentMonthDay = `${dobParts[1]}-${dobParts[2]}`;
+                            
+                            // JIKA SISWA ULANG TAHUN HARI INI
+                            if (studentMonthDay === currentMonthDay) {
+                                console.log(`🎉 Notifikasi Ulang Tahun sedang disiapkan untuk: ${data.name}`);
+                                
+                                // Kirim Notifikasi via OneSignal Vercel API
+                                await fetch("/api/notif", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        judul: "Selamat Ulang Tahun! 🎉",
+                                        pesan: `Barakallah Fii Umrik, ${data.name}! Buka kejutan spesial dari Cendekia Aksara sekarang.`,
+                                        urlTujuan: "/siswa/ultah.html",
+                                        jenis: "ultah"
+                                    })
+                                });
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Gagal memeriksa ulang tahun siswa:", e);
+            }
+        }
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 try {
@@ -590,6 +616,9 @@
                     if (docSnap.exists()) {
                         const data = docSnap.data();
                         document.getElementById('admin-greeting').innerText = "Selamat Datang, " + (data.name || "Admin");
+                        
+                        // JALANKAN PENGECEKAN ULANG TAHUN SAAT ADMIN BERHASIL MASUK
+                        checkAndSendBirthdayNotifications();
                     } else {
                         document.getElementById('admin-greeting').innerText = "Admin Panel";
                     }
