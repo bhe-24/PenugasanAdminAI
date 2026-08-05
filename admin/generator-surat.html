@@ -11,6 +11,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <!-- Library untuk Tanda Tangan -->
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
 
     <style>
@@ -31,6 +32,7 @@
             color: var(--text-dark); margin: 0; padding: 0; padding-top: 60px; min-height: 100vh;
         }
 
+        /* --- MOBILE FIRST WRAPPER --- */
         .app-wrapper {
             width: 100%; max-width: 800px; margin: 0 auto;
             background-color: var(--bg-color); min-height: 100vh;
@@ -55,6 +57,7 @@
         .btn-icon:hover { color: var(--gold); }
         .nav-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: white; margin: 0; letter-spacing: 0.5px;}
 
+        /* TOMBOL ARSIP */
         .btn-arsip { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 12px; border-radius: 5px; font-size: 0.8rem; font-family: 'Poppins'; cursor: pointer; transition: 0.3s; text-decoration: none;}
         .btn-arsip:hover { background: white; color: var(--primary); }
 
@@ -123,7 +126,7 @@
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;}
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR (Perbaikan agar lebih aman dari BUG Browser) */
+        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR */
         #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
     </style>
 </head>
@@ -188,7 +191,7 @@
             </div>
 
             <div class="form-group">
-                <label>Perihal (Maksimal 3-4 kata)</label>
+                <label>Perihal (Maksimal 3-5 kata)</label>
                 <input type="text" id="s_perihal" class="form-control" placeholder="Contoh: Permohonan Media Partner" required>
             </div>
 
@@ -201,7 +204,7 @@
             <!-- ISI SURAT -->
             <div class="form-group">
                 <label>Paragraf Pembuka & Latar Belakang</label>
-                <textarea id="s_pembuka" class="form-control" style="min-height: 80px;" placeholder="Contoh: sehubungan dengan akan diadakannya kegiatan Lomba Menulis..." required></textarea>
+                <textarea id="s_pembuka" class="form-control" style="min-height: 120px;" placeholder="Contoh: sehubungan dengan akan diadakannya kegiatan Lomba Menulis..." required></textarea>
                 <div class="helper-text">Sistem sudah otomatis menambahkan sapaan "Dengan hormat," dan membuat awal paragraf menjorok.</div>
             </div>
 
@@ -238,7 +241,7 @@
                     <canvas id="signature-pad"></canvas>
                     <button type="button" class="btn-clear-sig" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> Hapus & Ulangi Coretan</button>
                 </div>
-                <div class="helper-text">Coretkan tanda tangan Anda di kotak atas. Sistem akan merendernya bersama stempel transparan ke PDF.</div>
+                <div class="helper-text">Coretkan tanda tangan Anda di kotak atas. Sistem akan menggabungkannya bersama stempel CA ke PDF.</div>
             </div>
 
             <div class="form-row">
@@ -275,11 +278,10 @@
         // Setup Signature Pad
         const canvas = document.getElementById('signature-pad');
         const signaturePad = new SignaturePad(canvas, {
-            penColor: "rgb(15, 23, 42)", // Warna tinta navy gelap
-            backgroundColor: "rgba(0,0,0,0)" // Transparan
+            penColor: "rgb(15, 23, 42)", 
+            backgroundColor: "rgba(0,0,0,0)" 
         });
 
-        // Responsive Canvas
         function resizeCanvas() {
             const ratio =  Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
@@ -354,15 +356,17 @@
                 document.getElementById('s_nomor').value = data.no_surat || document.getElementById('s_nomor').value;
                 document.getElementById('s_perihal').value = data.perihal || '';
                 
-                // Mencegah Double "Kepada Yth" dan "Dengan Hormat" jika AI terlanjur mengeluarkannya
+                // Mencegah Double Kepada Yth
                 let cleanTujuan = (data.tujuan || '').replace(/kepada\s+yth\.?,?\s*/gi, '').trim();
                 document.getElementById('s_tujuan').value = cleanTujuan;
 
+                // Mencegah Double Dengan Hormat
                 let cleanPembuka = (data.pembuka || '').replace(/dengan\s+hormat,?/gi, '').trim();
                 document.getElementById('s_pembuka').value = cleanPembuka.replace(/^\s+/,'');
 
                 document.getElementById('s_penutup').value = data.penutup || '';
                 
+                // Set Lampiran AI
                 if(data.lampiran_teks) {
                     document.getElementById('s_lampiran').value = "1 Bendel";
                     document.getElementById('s_lampiran_teks').value = data.lampiran_teks;
@@ -408,9 +412,9 @@
             }
         };
 
-        // --- SOLUSI PASTI MUNCUL GAMBAR: BYPASS CORS VIA CANVAS ---
+        // --- SOLUSI GAMBAR CORS VIA CANVAS ---
         function getBase64Image(url) {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const img = new Image();
                 img.crossOrigin = 'Anonymous'; 
                 img.onload = () => {
@@ -422,7 +426,6 @@
                     resolve(canvas.toDataURL('image/png'));
                 };
                 img.onerror = () => {
-                    console.warn('Gagal load gambar asli, mencoba proxy...', url);
                     const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
                     const imgProxy = new Image();
                     imgProxy.crossOrigin = 'Anonymous';
@@ -462,14 +465,12 @@
             btn.disabled = true;
 
             try {
-                // TUNGGU GAMBAR
                 const base64Logo = await getBase64Image(LOGO_CA);
                 const base64Cap = await getBase64Image(CAP_CA);
-                
-                // Ambil TTD dari Kanvas
                 const base64TTD = signaturePad.toDataURL('image/png');
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
+                
                 let tujuanSurat = document.getElementById('s_tujuan').value.trim().replace(/kepada\s+yth\.?,?\s*/gi, '');
                 let pembuka = document.getElementById('s_pembuka').value.trim().replace(/dengan\s+hormat,?/gi, '').trim();
                 pembuka = pembuka.charAt(0).toLowerCase() + pembuka.slice(1); 
@@ -526,7 +527,7 @@
                     ]
                 };
 
-                // 3. ISI SURAT
+                // 3. ISI SURAT (MENJOROK)
                 let isiSuratArray = [
                     { 
                         text: [
@@ -556,37 +557,34 @@
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
 
-                // 4. LAYER TANDA TANGAN (PERBAIKAN BUG OVERLAY STEMPEL)
+                // 4. KOTAK TANDA TANGAN (UNBREAKABLE DENGAN MARGIN NEGATIF CAP)
                 let signatureArea = {
-                    unbreakable: true, // Mencegah terpotong saat beda halaman
+                    unbreakable: true, // Tidak akan terpisah di beda halaman
                     columns: [
                         { width: '*', text: '' }, 
                         {
-                            width: 250, // Sedikit diperlebar agar cap tidak terpotong tepi layar
+                            width: 250, 
                             stack: [
                                 { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
                                 { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
                                 {
                                     margin: [0, 5, 0, 5],
                                     stack: [
-                                        // 1. CAP Ditempatkan duluan dengan margin negatif untuk ditumpuk oleh TTD
+                                        // CAP (Stempel) dengan margin negatif agar ditumpuk oleh TTD
                                         base64Cap ? { 
                                             image: base64Cap, 
                                             width: 95, 
                                             alignment: 'center',
-                                            // Format margin [kiri, atas, kanan, bawah]
-                                            // Tarik sedikit ke kiri, dan tarik elemen di bawahnya (TTD) ke atas untuk OVERLAP
                                             margin: [-65, 0, 0, -75], 
                                             opacity: 0.85 
                                         } : null,
-                                        
-                                        // 2. TANDA TANGAN LIVE
+                                        // TANDA TANGAN LIVE
                                         { 
                                             image: base64TTD, 
                                             width: 140, 
                                             alignment: 'center' 
                                         }
-                                    ].filter(Boolean) // .filter(Boolean) membuang stempel jika gagal termuat, sehingga posisi TTD tetap aman
+                                    ].filter(Boolean)
                                 },
                                 { text: adminName, alignment: 'center', bold: true, decoration: 'underline' }
                             ]
@@ -625,7 +623,7 @@
                         atributSurat,
                         sasaranSurat,
                         ...isiSuratArray,
-                        signatureArea, // Area TTD dan Cap digabung ke sini
+                        signatureArea, 
                         ...halamanLampiran
                     ].filter(Boolean), 
                     defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
@@ -636,14 +634,23 @@
                 const fileName = `Surat_Keluar_${valPerihal.replace(/\s+/g,'_')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName, async () => {
                     
-                    // Simpan History ke Firebase
+                    // PERSIAPAN ARSIP: Simpan juga data inti teks ke database agar bisa didownload ulang nanti
                     await addDoc(collection(db, 'arsip_surat_keluar'), {
                         nomor: noSurat,
                         perihal: valPerihal,
                         tujuan: tujuanSurat,
+                        pembuka: pembuka,
+                        penutup: penutup,
+                        lampiran_teks: lampiranTeksAI || '',
                         jabatan: jabatan,
                         admin: adminName,
-                        tanggalGenerate: serverTimestamp()
+                        tanggalGenerate: serverTimestamp(),
+                        // Data tabel opsional
+                        hasTable: useTable,
+                        tglAcara: useTable ? document.getElementById('t_tanggal').value : '',
+                        waktuAcara: useTable ? document.getElementById('t_waktu').value : '',
+                        tempatAcara: useTable ? document.getElementById('t_tempat').value : '',
+                        namaAcara: useTable ? document.getElementById('t_acara').value : ''
                     });
 
                     Swal.fire('Berhasil!', 'Surat resmi telah dibuat, diunduh, dan diarsipkan di database.', 'success');
