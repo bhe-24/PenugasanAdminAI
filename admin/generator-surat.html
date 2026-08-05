@@ -55,6 +55,10 @@
         .btn-icon:hover { color: var(--gold); }
         .nav-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: white; margin: 0; letter-spacing: 0.5px;}
 
+        /* TOMBOL ARSIP (BARU) */
+        .btn-arsip { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 12px; border-radius: 5px; font-size: 0.8rem; font-family: 'Poppins'; cursor: pointer; transition: 0.3s; text-decoration: none;}
+        .btn-arsip:hover { background: white; color: var(--primary); }
+
         /* --- HEADER ACTION --- */
         .action-header { background: white; padding: 25px 20px 20px 20px; border-bottom: 1px solid #e2e8f0; }
         .action-header h2 { font-size: 1.2rem; margin: 0 0 5px 0; color: var(--primary); font-family: 'Playfair Display', serif;}
@@ -113,9 +117,15 @@
         }
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;}
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR */
+        #hidden-canvas { display: none; }
     </style>
 </head>
 <body>
+
+    <!-- KANVAS TERSEMBUNYI UNTUK BYPASS CORS IMAGE -->
+    <canvas id="hidden-canvas"></canvas>
 
     <div id="loading-overlay">
         <div class="spinner"></div>
@@ -125,14 +135,14 @@
     <div class="app-wrapper">
         
         <header class="top-navbar">
-            <button class="btn-icon" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i></button>
+            <button class="btn-icon" onclick="window.location.href='index.html'"><i class="fa-solid fa-arrow-left"></i></button>
             <h1 class="nav-title">Generator Surat</h1>
-            <div style="width: 24px;"></div>
+            <a href="generator-surat/arsip.html" class="btn-arsip"><i class="fa-solid fa-folder-open"></i> Arsip</a>
         </header>
 
         <div class="action-header">
             <h2>Pembuatan Surat Resmi</h2>
-            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di atas tanda tangan.</p>
+            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di area tanda tangan digital.</p>
         </div>
 
         <!-- AI ASSISTANT BOX -->
@@ -178,15 +188,16 @@
             </div>
 
             <div class="form-group">
-                <label>Tujuan Surat (Kepada Yth.)</label>
+                <label>Tujuan Surat (Tanpa Kata Kepada Yth)</label>
                 <textarea id="s_tujuan" class="form-control" style="min-height: 80px;" placeholder="Contoh:&#10;Kepala Sekolah SMAN 1 Magelang&#10;di Tempat" required></textarea>
+                <div class="helper-text">Sistem sudah otomatis menambahkan kata "Kepada Yth." di atasnya.</div>
             </div>
 
             <!-- ISI SURAT -->
             <div class="form-group">
-                <label>Paragraf Pembuka & Sapaan</label>
-                <textarea id="s_pembuka" class="form-control" style="min-height: 80px;" placeholder="Contoh: Dengan hormat, sehubungan dengan akan diadakannya kegiatan Lomba Menulis Nasional..." required></textarea>
-                <div class="helper-text">Paragraf akan otomatis menjorok ke dalam saat dicetak.</div>
+                <label>Paragraf Pembuka & Latar Belakang</label>
+                <textarea id="s_pembuka" class="form-control" style="min-height: 80px;" placeholder="Contoh: sehubungan dengan akan diadakannya kegiatan Lomba Menulis..." required></textarea>
+                <div class="helper-text">Sistem sudah otomatis menambahkan sapaan "Dengan hormat," dan indentasi.</div>
             </div>
 
             <!-- TABEL OPSIONAL (JADWAL DLL) -->
@@ -246,19 +257,18 @@
         let useTable = false;
         let nomorTerakhirArsip = "";
 
-        // Base64 Images
+        // URL ASLI Gambar
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
 
         // Cek Auth & Load Nomor Terakhir
         (async () => {
-            const user = await checkAuth(); // Bebas Admin / OSIS
+            const user = await checkAuth(); 
             if(!user) { window.location.href = '../index.html'; return; }
             
             adminName = user.name;
             document.getElementById('s_ttd_nama').value = adminName;
             
-            // Ambil nomor surat terakhir dari database untuk diteruskan ke AI Server
             try {
                 const q = query(collection(db, 'arsip_surat_keluar'), orderBy('tanggalGenerate', 'desc'), limit(1));
                 const snap = await getDocs(q);
@@ -267,7 +277,6 @@
                 }
             } catch(e) { console.warn("Gagal get nomor terakhir"); }
 
-            // Set default Nomor Surat (Akan ditimpa AI jika pakai AI)
             const d = new Date();
             const romawi = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
             document.getElementById('s_nomor').value = `.../.../CA/${romawi[d.getMonth()]}/${d.getFullYear()}`;
@@ -290,7 +299,7 @@
             btnAi.disabled = true;
 
             try {
-                const response = await fetch('/api/surat', { // Pastikan endpoint ini sesuai nama file Vercel Anda
+                const response = await fetch('/api/surat', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -305,14 +314,19 @@
 
                 if (!response.ok) throw new Error(data.error || 'Terjadi kesalahan pada server AI.');
 
-                // Mengisi Form dari hasil JSON AI
                 document.getElementById('s_nomor').value = data.no_surat || document.getElementById('s_nomor').value;
                 document.getElementById('s_perihal').value = data.perihal || '';
-                document.getElementById('s_tujuan').value = data.tujuan || '';
-                document.getElementById('s_pembuka').value = data.pembuka || '';
+                
+                // Mencegah Double "Kepada Yth" dan "Dengan Hormat" jika AI terlanjur mengeluarkannya
+                let cleanTujuan = (data.tujuan || '').replace(/kepada\s+yth\.?,?\s*/gi, '').trim();
+                document.getElementById('s_tujuan').value = cleanTujuan;
+
+                let cleanPembuka = (data.pembuka || '').replace(/dengan\s+hormat,?/gi, '').trim();
+                // Jika masih ada sisa enter atau spasi kosong di awal, buang.
+                document.getElementById('s_pembuka').value = cleanPembuka.replace(/^\s+/,'');
+
                 document.getElementById('s_penutup').value = data.penutup || '';
                 
-                // Cek apakah AI memberikan konten lampiran
                 if(data.lampiran_teks) {
                     document.getElementById('s_lampiran').value = "1 Bendel";
                     document.getElementById('s_lampiran_teks').value = data.lampiran_teks;
@@ -321,7 +335,6 @@
                     document.getElementById('s_lampiran_teks').value = "";
                 }
 
-                // Smooth Scroll ke Form
                 document.getElementById('suratForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
                 Swal.fire({
@@ -352,7 +365,6 @@
                 builder.classList.remove('active');
                 btn.innerHTML = '<i class="fa-solid fa-table"></i> Tambah Tabel Rincian (Opsional)';
                 btn.style.color = '#475569'; btn.style.borderColor = '#cbd5e1'; btn.style.background = '#f1f5f9';
-                // Reset value
                 document.getElementById('t_tanggal').value = '';
                 document.getElementById('t_waktu').value = '';
                 document.getElementById('t_tempat').value = '';
@@ -360,17 +372,39 @@
             }
         };
 
-        async function getBase64ImageFromUrl(imageUrl) {
-            try {
-                const response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(imageUrl));
-                if (!response.ok) return null;
-                const blob = await response.blob();
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (e) { return null; }
+        // --- SOLUSI PASTI MUNCUL GAMBAR: BYPASS CORS VIA CANVAS ---
+        function getBase64Image(url) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous'; // Mencegah blokir CORS
+                img.onload = () => {
+                    const canvas = document.getElementById('hidden-canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const dataURL = canvas.toDataURL('image/png');
+                    resolve(dataURL);
+                };
+                img.onerror = () => {
+                    console.warn('Gagal load gambar asli, mencoba proxy...', url);
+                    // Jika gagal, baru gunakan proxy
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+                    const imgProxy = new Image();
+                    imgProxy.crossOrigin = 'Anonymous';
+                    imgProxy.onload = () => {
+                        const canvas = document.getElementById('hidden-canvas');
+                        canvas.width = imgProxy.width;
+                        canvas.height = imgProxy.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgProxy, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    imgProxy.onerror = () => { resolve(null); }; // Nyerah jika proxy juga gagal
+                    imgProxy.src = proxyUrl;
+                };
+                img.src = url;
+            });
         }
 
         // --- SUBMIT & GENERATE PDF ---
@@ -388,12 +422,17 @@
             btn.disabled = true;
 
             try {
-                const base64Logo = await getBase64ImageFromUrl(LOGO_CA);
-                const base64Cap = await getBase64ImageFromUrl(CAP_CA);
+                // TUNGGU GAMBAR 100% SELESAI DIUBAH KE BASE64
+                const base64Logo = await getBase64Image(LOGO_CA);
+                const base64Cap = await getBase64Image(CAP_CA);
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
-                const tujuanSurat = document.getElementById('s_tujuan').value.trim();
-                const pembuka = document.getElementById('s_pembuka').value.trim();
+                
+                // Anti Double Kepada Yth & Dengan Hormat
+                let tujuanSurat = document.getElementById('s_tujuan').value.trim().replace(/kepada\s+yth\.?,?\s*/gi, '');
+                let pembuka = document.getElementById('s_pembuka').value.trim().replace(/dengan\s+hormat,?/gi, '').trim();
+                pembuka = pembuka.charAt(0).toLowerCase() + pembuka.slice(1); // jadikan huruf kecil di awal agar nyambung dengan kalimat "Dengan hormat, sehubungan..."
+
                 const penutup = document.getElementById('s_penutup').value.trim();
                 const jabatan = document.getElementById('s_ttd_jabatan').value;
                 const lampiranTeksAI = document.getElementById('s_lampiran_teks').value.trim();
@@ -439,19 +478,25 @@
                     margin: [0, 0, 0, 30]
                 };
 
+                // Tujuan (Auto KEPADA YTH)
                 let sasaranSurat = {
                     stack: [
                         { text: 'Kepada Yth.', margin: [0,0,0,2] },
-                        { text: tujuanSurat.replace(/\n/g, '\n'), bold: true, margin: [0,0,0,30] } 
+                        { text: tujuanSurat, bold: true, margin: [0,0,0,30] } 
                     ]
                 };
 
-                // 3. ISI SURAT
-                let isiSuratArray = [ { text: 'Dengan hormat,', margin: [0,0,0,10] } ];
-
-                pembuka.split('\n').forEach(p => {
-                    if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
-                });
+                // 3. ISI SURAT (MENJOROK & AUTO DENGAN HORMAT)
+                let isiSuratArray = [
+                    { 
+                        text: [
+                            { text: 'Dengan hormat,\n' }, // Pembuka utama
+                            // Paragraf pertama menjorok
+                            { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + pembuka } 
+                        ], 
+                        alignment: 'justify', margin: [0,0,0,10] 
+                    }
+                ];
 
                 if(useTable) {
                     isiSuratArray.push({
@@ -468,6 +513,7 @@
                     });
                 }
 
+                // Paragraf penutup (Juga Menjorok)
                 penutup.split('\n').forEach(p => {
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
@@ -482,18 +528,35 @@
                                 { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
                                 { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
                                 {
-                                    margin: [0, 10, 0, 10],
-                                    stack: [
-                                        { text: '\n\n\n\n' },
-                                        base64Cap ? { image: base64Cap, width: 85, absolutePosition: { x: 380, y: -20 }, opacity: 0.85 } : null
-                                    ]
+                                    // Membuat area kosong berupa tabel tanpa garis untuk menyisipkan tanda tangan digital nantinya
+                                    table: {
+                                        widths: ['*'],
+                                        body: [
+                                            [ { text: '\n\n\n\n\n', border: [false, false, false, false] } ]
+                                        ]
+                                    },
+                                    layout: 'noBorders',
+                                    margin: [0, 0, 0, 5]
                                 },
                                 { text: adminName, alignment: 'center', bold: true, decoration: 'underline' }
                             ]
                         }
                     ],
-                    margin: [0, 30, 0, 0]
+                    margin: [0, 30, 0, 0],
+                    // Relative positioning untuk cap stempel agar overlap di atas kolom TTD
+                    relativePosition: { x: 0, y: 0 }
                 };
+
+                // Array terpisah untuk melempar cap absolut jika gambar cap tersedia
+                let stampImage = null;
+                if(base64Cap) {
+                    stampImage = {
+                        image: base64Cap,
+                        width: 90,
+                        absolutePosition: { x: 375, y: 640 }, // Koordinat statis mendekati pojok kanan bawah kertas A4
+                        opacity: 0.85
+                    };
+                }
 
                 // 5. HALAMAN LAMPIRAN (JIKA ADA DARI AI/MANUAL)
                 let halamanLampiran = [];
@@ -526,8 +589,9 @@
                         sasaranSurat,
                         ...isiSuratArray,
                         signatureArea,
+                        stampImage, // Memasukkan cap stempel sebagai objek absolut
                         ...halamanLampiran
-                    ],
+                    ].filter(Boolean), // Hilangkan objek null/undefined
                     defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
                     styles: { header: { fontSize: 14, bold: true } }
                 };
@@ -563,7 +627,7 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. Pastikan koneksi internet stabil untuk meload gambar Logo.', 'error');
             } finally {
                 btn.innerHTML = oriHtml;
                 btn.disabled = false;
