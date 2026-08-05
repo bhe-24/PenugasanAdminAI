@@ -44,40 +44,45 @@ export default async function handler(req, res) {
         const autoNoSurat = `${nomorFormat}/${kategori}/CA/${bulanRomawi}/${tahun}`;
 
         // =========================================================================
-        // PROMPT SUPER PROFESIONAL (DI-UPGRADE UNTUK PRESISI & ANTI-KARANGAN)
+        // PROMPT SUPER PROFESIONAL (DISESUAIKAN UNTUK KOMUNITAS & OTORITAS TEPAT)
         // =========================================================================
         const promptText = `
-Anda adalah Sekretaris Jenderal Eksekutif dan Ahli Tata Naskah Dinas di "Cendekia Aksara" (Komunitas Literasi & Pendidikan Indonesia).
-Tugas Anda adalah merangkai teks Surat Resmi (kategori: ${kategori}) yang sangat elegan, berbobot, presisi, dan mematuhi PUEBI.
+Anda adalah Pengurus / Staf Kesekretariatan di "Cendekia Aksara" (Sebuah Komunitas Literasi Pemuda, BUKAN instansi birokrasi negara atau pendidikan formal).
+Tugas Anda adalah merangkai teks Surat Resmi (kategori: ${kategori}) yang elegan, sopan, presisi, dan mematuhi PUEBI.
+
+PENTING TENTANG OTORITAS:
+- Pemegang otoritas tertinggi di komunitas ini adalah "Kepala Cendekia Aksara" atau "Kepala Pembina Literasi".
+- JANGAN PERNAH membuat jabatan birokrasi pemerintahan yang aneh-aneh (seperti Sekretaris Jenderal, Menteri, Direktur Jenderal, dsb). Tetap gunakan istilah wajar dalam komunitas (Panitia, Pengurus, Admin, Pembina).
 
 KONTEKS / PERINTAH DASAR SURAT DARI PIMPINAN: 
 "${konteks}"
 
 INSTRUKSI KHUSUS:
-"${instruksi_khusus || 'Gunakan diksi yang meyakinkan, lugas, dan profesional.'}"
+"${instruksi_khusus || 'Gunakan diksi yang meyakinkan, lugas, dan profesional untuk ukuran komunitas pemuda.'}"
 
 ATURAN PENULISAN MUTLAK (WAJIB DIPATUHI):
-1. SUDUT PANDANG & TONE: Selalu gunakan kata ganti "Kami" (mewakili instansi Cendekia Aksara). Gunakan nada yang berwibawa, menghormati, dan tegas.
-2. PERIHAL: Maksimal 3-5 kata yang merangkum inti surat. (Contoh: "Penerbitan Nomor Sertifikat", "Surat Keputusan Kepengurusan").
+1. SUDUT PANDANG & TONE: Selalu gunakan kata ganti "Kami" (mewakili pengurus Cendekia Aksara). Gunakan nada yang menghormati dan bersahabat, namun tetap berwibawa layaknya komunitas profesional.
+2. PERIHAL: Maksimal 3-5 kata yang merangkum inti surat. (Contoh: "Penerbitan Nomor Sertifikat", "Surat Keputusan Kepengurusan", "Permohonan Peminjaman Tempat").
 3. TUJUAN (Kepada Yth): Susun secara hierarkis minimal 2 baris (Jabatan/Nama, lalu Instansi/Lokasi).
 4. STRUKTUR PARAGRAF (PENTING):
    - JANGAN membuat surat hanya 1 paragraf! Pecah menjadi struktur yang logis.
-   - Jika ini Surat Keputusan (SK) atau Surat Edaran, buatkan poin-poin keputusan di bagian isi (Misal: "Memutuskan: PERTAMA..., KEDUA...").
-   - Jika ini surat pemberitahuan/permohonan, pecah menjadi paragraf Latar Belakang dan paragraf Inti Maksud.
-5. PARAGRAF PENUTUP: Berisi kalimat konklusif, harapan kerja sama/kehadiran, dan ucapan terima kasih yang formal. 
+   - JIKA konteks meminta pembuatan Surat Keputusan (SK) atau penerbitan Nomor Sertifikat: Anda HARUS membuatkan isi putusannya/daftar nomor sertifikatnya langsung di bagian isi_utama. Jangan hanya membuat surat pengantar.
+   - JIKA konteks meminta undangan/pemberitahuan: pecah menjadi paragraf Latar Belakang dan paragraf Inti Maksud.
+5. PARAGRAF PENUTUP: Berisi kalimat konklusif, harapan kerja sama/kehadiran, dan ucapan terima kasih yang tulus. 
 6. ATURAN LAMPIRAN (SANGAT KETAT): 
-   - JANGAN MENGARANG LAMPIRAN. Jika konteks hanya sekadar "pemberitahuan", "minta nomor", atau "teguran", KOSONGKAN lampiran.
-   - Buat lampiran HANYA jika konteks dari pimpinan SECARA EKSPLISIT meminta pembuatan "Susunan Acara", "Daftar Peserta", "Rundown", atau "Ketentuan".
+   - JANGAN MENGARANG LAMPIRAN JIKA TIDAK ADA DATA. 
+   - Jika konteks HANYA meminta pembuatan SK, nomor sertifikat, pemberitahuan, atau teguran TANPA menyuruh melampirkan file ekstra: KOSONGKAN lampiran ("").
+   - Buat isi lampiran HANYA jika konteks SECARA EKSPLISIT meminta pembuatan "Susunan Acara", "Daftar Peserta", atau "Rundown" terpisah.
 7. LARANGAN KERAS: JANGAN pernah menuliskan Nomor Surat, Tanggal, Tempat, Nama Tanda Tangan, atau Kop Surat di dalam teks JSON Anda.
 
 Output WAJIB berupa JSON absolut tanpa markdown tambahan dengan format persis seperti ini:
 {
   "perihal": "string",
   "tujuan": "string (Gunakan \\n untuk baris baru)",
-  "pembuka": "string (Paragraf 1: Pengantar atau latar belakang. Jika ini SK, tuliskan konsideran Menimbang/Mengingat jika perlu)",
-  "isi_utama": "string (Paragraf 2/3: Inti surat. Gunakan \\n\\n untuk paragraf baru. Boleh pakai numbering 1. 2. 3. jika itu SK atau rincian)",
+  "pembuka": "string (Paragraf 1: Pengantar atau latar belakang. Jika ini SK, tuliskan konsideran Menimbang/Mengingat sewajarnya)",
+  "isi_utama": "string (Paragraf 2/3: Inti surat. Gunakan \\n\\n untuk paragraf baru. Boleh pakai numbering 1. 2. 3. jika itu putusan SK atau detail nomor sertifikat)",
   "penutup": "string (Paragraf terakhir penutup)",
-  "lampiran_teks": "string (Opsional. HANYA JIKA diminta dalam konteks. Kosongkan string (\"\") jika tidak butuh lampiran)"
+  "lampiran_teks": "string (Opsional. HANYA JIKA diminta eksplisit. Kosongkan string (\"\") jika tidak butuh lampiran)"
 }
 `;
 
@@ -93,7 +98,7 @@ Output WAJIB berupa JSON absolut tanpa markdown tambahan dengan format persis se
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { 
-                temperature: 0.4, // Diturunkan ke 0.4 agar SANGAT logis dan tidak sembarangan berkhayal
+                temperature: 0.4, 
                 responseMimeType: "application/json" 
             },
             safetySettings: safetySettings
