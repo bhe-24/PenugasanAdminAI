@@ -86,8 +86,15 @@
         .filter-card {
             background: white; border-radius: 16px; padding: 20px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 25px;
-            display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;
+            position: relative;
         }
+        .lock-warning {
+            background: #fffbeb; border: 1px solid #fde68a; color: #b45309;
+            padding: 10px 15px; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+            margin-bottom: 15px; display: none; align-items: center; gap: 8px;
+        }
+        .filter-grid { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        
         .form-group { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
         .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
         .form-control {
@@ -100,6 +107,7 @@
             border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s;
         }
         .btn-filter:hover { background: #001f3f; }
+        .btn-filter.locked { background: #64748b; } .btn-filter.locked:hover { background: #475569; }
 
         /* --- EXPORT ACTIONS --- */
         .action-row { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;}
@@ -116,6 +124,7 @@
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
         th { background: #f8fafc; font-weight: 600; color: var(--primary); white-space: nowrap; }
         tr:hover td { background: #f1f5f9; }
+        
         .rank-badge { display: inline-block; width: 25px; height: 25px; line-height: 25px; text-align: center; border-radius: 50%; font-weight: bold; color: white; font-size: 0.8rem; }
         .rank-1 { background: #fbbf24; } /* Gold */
         .rank-2 { background: #94a3b8; } /* Silver */
@@ -123,6 +132,7 @@
         .rank-other { background: #e2e8f0; color: #64748b; }
 
         .pts-badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 0.8rem; }
+        .pts-alltime { font-size: 0.75rem; color: #64748b; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 600; display: inline-block; margin-top: 4px; }
 
         /* --- POSTER HIDDEN TEMPLATE --- */
         .poster-wrapper { position: fixed; top: 0; left: -9999px; z-index: -9999; width: 1080px; height: 1080px; background: linear-gradient(135deg, #001f3f 0%, #003366 100%); color: white; display: flex; flex-direction: column; box-sizing: border-box; padding: 60px; text-align: center; overflow: hidden; }
@@ -156,7 +166,7 @@
 
     <div id="loading-screen">
         <i class="fa-solid fa-chart-line fa-spin" style="font-size: 3rem; margin-bottom: 15px; color: #d4af37;"></i>
-        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1rem; color: #cbd5e1; font-weight: 400;">Mengalkulasi Poin...</h3>
+        <h3 style="font-family: 'Poppins', sans-serif; font-size: 1rem; color: #cbd5e1; font-weight: 400;">Mengalkulasi Data Keaktifan...</h3>
     </div>
 
     <!-- NAVBAR FIXED -->
@@ -175,20 +185,30 @@
         <!-- HERO BANNER -->
         <div class="hero-banner">
             <h2 class="hero-title"><i class="fa-solid fa-star"></i> Klasemen Keaktifan Siswa</h2>
-            <p class="hero-subtitle">Pemantauan akumulasi poin dari program menulis mingguan Cendekia Aksara. Data ditarik otomatis dari hasil evaluasi AI.</p>
+            <p class="hero-subtitle">Pemantauan akumulasi poin dari program menulis mingguan Cendekia Aksara. Data ganda merekam Poin Periode (Timeline) sekaligus Poin Karir (All-Time).</p>
         </div>
 
-        <!-- FILTER TANGGAL -->
+        <!-- FILTER TANGGAL DENGAN LOCK SYSTEM -->
         <div class="filter-card">
-            <div class="form-group">
-                <label>Tanggal Mulai (Periode Awal)</label>
-                <input type="date" id="filter-start" class="form-control">
+            <!-- Peringatan Kunci jika Event Berjalan -->
+            <div class="lock-warning" id="lock-warning">
+                <i class="fa-solid fa-lock"></i> 
+                <span>Sistem Terkunci: Saat ini masih ada Event Mingguan yang berstatus AKTIF.</span>
             </div>
-            <div class="form-group">
-                <label>Tanggal Selesai (Periode Akhir)</label>
-                <input type="date" id="filter-end" class="form-control">
+
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label>Tanggal Mulai (Periode Awal)</label>
+                    <input type="date" id="filter-start" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal Selesai (Periode Akhir)</label>
+                    <input type="date" id="filter-end" class="form-control">
+                </div>
+                <button class="btn-filter" id="btn-apply-filter" onclick="applyFilterWithCheck()">
+                    <i class="fa-solid fa-filter"></i> Terapkan Timeline
+                </button>
             </div>
-            <button class="btn-filter" onclick="processPoints()"><i class="fa-solid fa-filter"></i> Terapkan Timeline</button>
         </div>
 
         <!-- TOMBOL EKSPOR -->
@@ -199,20 +219,20 @@
 
         <!-- GRAFIK -->
         <div class="content-card">
-            <h2 class="section-title"><i class="fa-solid fa-chart-bar"></i> Grafik Top 10 Siswa</h2>
+            <h2 class="section-title"><i class="fa-solid fa-chart-bar"></i> Grafik Top 10 Siswa (Periode Ini)</h2>
             <canvas id="pointsChart" style="width: 100%; max-height: 350px;"></canvas>
         </div>
 
         <!-- TABEL KLASEMEN PEMENANG -->
         <div class="content-card">
-            <h2 class="section-title"><i class="fa-solid fa-trophy"></i> Klasemen Atas (Pernah Juara)</h2>
+            <h2 class="section-title"><i class="fa-solid fa-trophy"></i> Klasemen Papan Atas (Pernah Juara)</h2>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
                             <th>Rank</th>
                             <th>Nama Siswa</th>
-                            <th>Total Poin</th>
+                            <th>Total Poin (Periode)</th>
                             <th>Rincian Kemenangan</th>
                         </tr>
                     </thead>
@@ -232,8 +252,8 @@
                         <tr>
                             <th>No</th>
                             <th>Nama Siswa</th>
-                            <th>Total Poin</th>
-                            <th>Jumlah Ikut Event</th>
+                            <th>Total Poin (Periode)</th>
+                            <th>Jumlah Ikut (Periode)</th>
                         </tr>
                     </thead>
                     <tbody id="table-participants">
@@ -289,8 +309,9 @@
         import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let allEvents = [];
-        let studentData = {}; // Kunci: Nama Siswa
+        let studentData = {}; // Menyimpan Poin Keseluruhan & Periode
         let chartInstance = null;
+        let hasActiveEvent = false;
 
         // Aturan Poin
         const POIN_PESERTA = 5;
@@ -325,20 +346,57 @@
             try {
                 const q = query(collection(db, 'weekly_events'), orderBy('createdAt', 'desc'));
                 const snap = await getDocs(q);
+                
                 allEvents = [];
+                hasActiveEvent = false;
+
                 snap.forEach(d => {
                     const data = d.data();
-                    // Hanya ambil event yang sudah memiliki hasil_analisis (sudah dinilai)
+                    
+                    // Deteksi jika ada event yang masih berjalan (Lock System)
+                    if(data.status === 'active') hasActiveEvent = true;
+
+                    // Ambil SEMUA event yang sudah dinilai
                     if(data.hasil_analisis && Array.isArray(data.hasil_analisis)) {
                         allEvents.push({ id: d.id, ...data });
                     }
                 });
+
+                // Nyalakan peringatan kunci jika ada event aktif
+                if(hasActiveEvent) {
+                    document.getElementById('lock-warning').style.display = 'flex';
+                    const btn = document.getElementById('btn-apply-filter');
+                    btn.classList.add('locked');
+                    btn.innerHTML = '<i class="fa-solid fa-lock"></i> Terkunci Sementara';
+                }
+
             } catch(e) {
                 console.error("Gagal menarik data:", e);
                 Swal.fire('Error', 'Gagal memuat data server.', 'error');
             }
         }
 
+        // FUNGSI PERLINDUNGAN FILTER TIMELINE
+        window.applyFilterWithCheck = async () => {
+            if (hasActiveEvent) {
+                const confirm = await Swal.fire({
+                    title: 'Peringatan Sistem!',
+                    html: 'Saat ini masih ada <b>Event Mingguan yang AKTIF</b>.<br><br>Mengubah kalkulasi timeline sekarang berisiko menyebabkan selisih data atau *chaos* antara data peserta event berjalan dengan klasemen.<br><br>Tetap paksakan perubahan timeline?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Tetap Ubah',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#dc2626',
+                    cancelButtonColor: '#64748b'
+                });
+                
+                if (!confirm.isConfirmed) return; // Batalkan jika user tidak yakin
+            }
+            
+            processPoints();
+        };
+
+        // FUNGSI KALKULASI GANDA (KEBAL AI & ALL-TIME)
         window.processPoints = () => {
             const startDateStr = document.getElementById('filter-start').value;
             const endDateStr = document.getElementById('filter-end').value;
@@ -346,34 +404,57 @@
             const start = startDateStr ? new Date(startDateStr).getTime() : 0;
             const end = endDateStr ? new Date(endDateStr).setHours(23,59,59,999) : Infinity;
 
-            studentData = {}; // Reset
+            studentData = {}; // Reset Data Kosong
 
-            // Filter Event berdasarkan tanggal dibuat/dipublish
-            const filteredEvents = allEvents.filter(ev => {
+            // Loop SEMUA Event tanpa terkecuali untuk menghitung Poin ALL-TIME
+            allEvents.forEach(ev => {
                 const evTime = ev.createdAt ? ev.createdAt.toMillis() : 0;
-                return evTime >= start && evTime <= end;
-            });
+                const isDalamPeriode = (evTime >= start && evTime <= end);
 
-            // Kalkulasi Poin
-            filteredEvents.forEach(ev => {
-                ev.hasil_analisis.forEach(hasil => {
-                    const nama = hasil.nama_penulis || 'Anonim';
-                    const peringkatStr = String(hasil.peringkat);
-                    
-                    if(!studentData[nama]) {
-                        studentData[nama] = { totalPoints: 0, count: 0, wins: { "1": 0, "2": 0, "3": 0 } };
-                    }
+                if(ev.hasil_analisis && Array.isArray(ev.hasil_analisis)) {
+                    ev.hasil_analisis.forEach(hasil => {
+                        
+                        // 1. SISTEM KEBAL AI UNTUK NAMA: 
+                        // Cek field nama_penulis, nama, penulis, atau fallback ke Anonim
+                        const nama = hasil.nama_penulis || hasil.nama || hasil.penulis || 'Anonim';
+                        
+                        // 2. SISTEM KEBAL AI UNTUK PERINGKAT:
+                        // Jika AI membalas "Juara 1", "Peringkat 1", "Satu", filter dan ambil angkanya
+                        let peringkatRaw = String(hasil.peringkat || hasil.rank || hasil.juara || "0").toLowerCase();
+                        if(peringkatRaw.includes('satu')) peringkatRaw = "1";
+                        if(peringkatRaw.includes('dua')) peringkatRaw = "2";
+                        if(peringkatRaw.includes('tiga')) peringkatRaw = "3";
+                        
+                        let angkaPeringkat = peringkatRaw.replace(/[^0-9]/g, ''); // Buang semua huruf, sisakan angka
 
-                    // Tambah participation dasar
-                    studentData[nama].count += 1;
-                    studentData[nama].totalPoints += POIN_PESERTA;
+                        // Siapkan Rumah Data Siswa jika belum ada
+                        if(!studentData[nama]) {
+                            studentData[nama] = { 
+                                allTimePoints: 0, 
+                                periodPoints: 0, 
+                                periodCount: 0, 
+                                periodWins: { "1": 0, "2": 0, "3": 0 } 
+                            };
+                        }
 
-                    // Tambah bonus juara jika ada
-                    if(POIN_JUARA[peringkatStr]) {
-                        studentData[nama].totalPoints += POIN_JUARA[peringkatStr];
-                        studentData[nama].wins[peringkatStr] += 1;
-                    }
-                });
+                        // --- HITUNG POIN ALL-TIME (KESELURUHAN) ---
+                        studentData[nama].allTimePoints += POIN_PESERTA; // Dasar 5 poin
+                        if(POIN_JUARA[angkaPeringkat]) {
+                            studentData[nama].allTimePoints += POIN_JUARA[angkaPeringkat]; // Bonus Juara
+                        }
+
+                        // --- HITUNG POIN PERIODE (Berdasarkan Filter Tanggal) ---
+                        if(isDalamPeriode) {
+                            studentData[nama].periodCount += 1;
+                            studentData[nama].periodPoints += POIN_PESERTA;
+
+                            if(POIN_JUARA[angkaPeringkat]) {
+                                studentData[nama].periodPoints += POIN_JUARA[angkaPeringkat];
+                                studentData[nama].periodWins[angkaPeringkat] += 1;
+                            }
+                        }
+                    });
+                }
             });
 
             renderUI();
@@ -385,17 +466,19 @@
                 return { nama: nama, ...studentData[nama] };
             });
 
-            // Urutkan berdasarkan poin tertinggi
-            arrStudents.sort((a, b) => b.totalPoints - a.totalPoints);
+            // Urutkan selalu berdasarkan Poin PERIODE, bukan All-Time
+            arrStudents.sort((a, b) => b.periodPoints - a.periodPoints);
 
-            // Pisahkan Pemenang (pernah juara 1/2/3 minimal 1x) dan Peserta Biasa
-            const winners = arrStudents.filter(s => s.wins["1"] > 0 || s.wins["2"] > 0 || s.wins["3"] > 0);
-            const participants = arrStudents.filter(s => s.wins["1"] === 0 && s.wins["2"] === 0 && s.wins["3"] === 0);
+            // Pisahkan Pemenang dan Peserta HANYA dari aktivitas Periode Ini
+            // (Jika di periode ini dia tidak ikut apa-apa, jangan tampilkan di tabel)
+            const activeInPeriod = arrStudents.filter(s => s.periodCount > 0);
+            const winners = activeInPeriod.filter(s => s.periodWins["1"] > 0 || s.periodWins["2"] > 0 || s.periodWins["3"] > 0);
+            const participants = activeInPeriod.filter(s => s.periodWins["1"] === 0 && s.periodWins["2"] === 0 && s.periodWins["3"] === 0);
 
             // Render Tabel Pemenang
             const tbodyWinners = document.getElementById('table-winners');
             tbodyWinners.innerHTML = '';
-            if(winners.length === 0) tbodyWinners.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada data juara di periode ini.</td></tr>`;
+            if(winners.length === 0) tbodyWinners.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada data juara di rentang tanggal ini.</td></tr>`;
             
             winners.forEach((s, idx) => {
                 let rankClass = 'rank-other';
@@ -403,13 +486,16 @@
                 else if(idx === 1) rankClass = 'rank-2';
                 else if(idx === 2) rankClass = 'rank-3';
 
-                const rincian = `Juara 1 (${s.wins["1"]}x), Juara 2 (${s.wins["2"]}x), Juara 3 (${s.wins["3"]}x)`;
+                const rincian = `Juara 1 (${s.periodWins["1"]}x), Juara 2 (${s.periodWins["2"]}x), Juara 3 (${s.periodWins["3"]}x)`;
                 
                 tbodyWinners.innerHTML += `
                     <tr>
                         <td><span class="rank-badge ${rankClass}">${idx+1}</span></td>
                         <td style="font-weight:600; color:var(--primary);">${s.nama}</td>
-                        <td><span class="pts-badge">${s.totalPoints} Pts</span></td>
+                        <td>
+                            <span class="pts-badge">${s.periodPoints} Pts</span><br>
+                            <span class="pts-alltime">Karir: ${s.allTimePoints} Pts</span>
+                        </td>
                         <td style="font-size:0.8rem; color:var(--text-gray);">${rincian}</td>
                     </tr>
                 `;
@@ -418,21 +504,24 @@
             // Render Tabel Peserta
             const tbodyPart = document.getElementById('table-participants');
             tbodyPart.innerHTML = '';
-            if(participants.length === 0) tbodyPart.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Tidak ada data partisipan tambahan.</td></tr>`;
+            if(participants.length === 0) tbodyPart.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Tidak ada data partisipan di rentang tanggal ini.</td></tr>`;
             
             participants.forEach((s, idx) => {
                 tbodyPart.innerHTML += `
                     <tr>
                         <td>${idx + 1}</td>
                         <td style="font-weight:500;">${s.nama}</td>
-                        <td><span class="pts-badge" style="background:#f1f5f9; color:#475569;">${s.totalPoints} Pts</span></td>
-                        <td style="font-size:0.8rem; color:var(--text-gray);">Ikut ${s.count} Event</td>
+                        <td>
+                            <span class="pts-badge" style="background:#f1f5f9; color:#475569;">${s.periodPoints} Pts</span><br>
+                            <span class="pts-alltime">Karir: ${s.allTimePoints} Pts</span>
+                        </td>
+                        <td style="font-size:0.8rem; color:var(--text-gray);">Ikut ${s.periodCount} Event</td>
                     </tr>
                 `;
             });
 
-            // Render Chart Top 10
-            const top10 = arrStudents.slice(0, 10);
+            // Render Chart Top 10 (Berdasarkan Periode)
+            const top10 = activeInPeriod.slice(0, 10);
             renderChart(top10);
         }
 
@@ -440,7 +529,7 @@
             const ctx = document.getElementById('pointsChart').getContext('2d');
             
             const labels = top10.map(s => s.nama);
-            const dataPts = top10.map(s => s.totalPoints);
+            const dataPts = top10.map(s => s.periodPoints);
 
             if(chartInstance) chartInstance.destroy();
 
@@ -449,7 +538,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Total Poin',
+                        label: 'Poin Periode Ini',
                         data: dataPts,
                         backgroundColor: '#d4af37',
                         borderRadius: 6
@@ -469,23 +558,26 @@
 
         // --- EXPORT PDF ---
         window.exportToPDF = () => {
-            const arrStudents = Object.keys(studentData).map(nama => ({ nama, ...studentData[nama] })).sort((a, b) => b.totalPoints - a.totalPoints);
-            if(arrStudents.length === 0) { Swal.fire('Kosong', 'Tidak ada data untuk dicetak.', 'warning'); return; }
+            const arrStudents = Object.keys(studentData).map(nama => ({ nama, ...studentData[nama] }))
+                                  .filter(s => s.periodCount > 0) // Hanya yg aktif di periode ini
+                                  .sort((a, b) => b.periodPoints - a.periodPoints);
+            
+            if(arrStudents.length === 0) { Swal.fire('Kosong', 'Tidak ada data di periode ini untuk dicetak.', 'warning'); return; }
 
             const start = document.getElementById('filter-start').value || '-';
             const end = document.getElementById('filter-end').value || '-';
 
             const tableBody = [[
-                {text: 'Peringkat', style: 'th'}, {text: 'Nama Siswa', style: 'th'}, 
-                {text: 'Total Poin', style: 'th'}, {text: 'Jml Event', style: 'th'}
+                {text: 'Rank', style: 'th'}, {text: 'Nama Siswa', style: 'th'}, 
+                {text: 'Poin Periode', style: 'th'}, {text: 'Total Karir', style: 'th'}
             ]];
 
             arrStudents.forEach((s, idx) => {
                 tableBody.push([
                     {text: idx+1, alignment:'center'}, 
                     {text: s.nama, bold:true}, 
-                    {text: `${s.totalPoints} Pts`, alignment:'center', color:'#003366', bold:true}, 
-                    {text: `${s.count}x`, alignment:'center'}
+                    {text: `${s.periodPoints} Pts`, alignment:'center', color:'#003366', bold:true}, 
+                    {text: `${s.allTimePoints} Pts`, alignment:'center', color:'#64748b'}
                 ]);
             });
 
@@ -493,8 +585,8 @@
                 pageSize: 'A4', pageMargins: [40, 50, 40, 50], 
                 content: [ 
                     { text: 'LAPORAN KLASEMEN POIN KEAKTIFAN', style: 'header' }, 
-                    { text: `Periode: ${start} s/d ${end}`, style: 'subheader', margin:[0,0,0,20] }, 
-                    { table: { headerRows: 1, widths: ['15%', '*', '20%', '15%'], body: tableBody } } 
+                    { text: `Periode Rekapitulasi: ${start} s/d ${end}`, style: 'subheader', margin:[0,0,0,20] }, 
+                    { table: { headerRows: 1, widths: ['12%', '*', '25%', '25%'], body: tableBody } } 
                 ], 
                 styles: { 
                     header: { fontSize: 16, bold: true, alignment: 'center', color:'#003366' }, 
@@ -507,8 +599,11 @@
 
         // --- POSTER GENERATOR ---
         window.generatePoster = async () => {
-            const arrStudents = Object.keys(studentData).map(nama => ({ nama, ...studentData[nama] })).sort((a, b) => b.totalPoints - a.totalPoints);
-            if(arrStudents.length < 3) { Swal.fire('Kurang Data', 'Minimal harus ada 3 siswa dalam klasemen untuk membuat podium.', 'warning'); return; }
+            const arrStudents = Object.keys(studentData).map(nama => ({ nama, ...studentData[nama] }))
+                                  .filter(s => s.periodCount > 0)
+                                  .sort((a, b) => b.periodPoints - a.periodPoints);
+            
+            if(arrStudents.length < 3) { Swal.fire('Kurang Data', 'Minimal harus ada 3 siswa dalam klasemen periode ini untuk membuat podium.', 'warning'); return; }
 
             const start = document.getElementById('filter-start').value || '';
             const end = document.getElementById('filter-end').value || '';
@@ -516,13 +611,13 @@
 
             // Isi Podium
             document.getElementById('pw-name-1').innerText = arrStudents[0].nama;
-            document.getElementById('pw-pts-1').innerText = `${arrStudents[0].totalPoints} Pts`;
+            document.getElementById('pw-pts-1').innerText = `${arrStudents[0].periodPoints} Pts`;
 
             document.getElementById('pw-name-2').innerText = arrStudents[1].nama;
-            document.getElementById('pw-pts-2').innerText = `${arrStudents[1].totalPoints} Pts`;
+            document.getElementById('pw-pts-2').innerText = `${arrStudents[1].periodPoints} Pts`;
 
             document.getElementById('pw-name-3').innerText = arrStudents[2].nama;
-            document.getElementById('pw-pts-3').innerText = `${arrStudents[2].totalPoints} Pts`;
+            document.getElementById('pw-pts-3').innerText = `${arrStudents[2].periodPoints} Pts`;
 
             Swal.fire({title: 'Merender Poster...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
 
