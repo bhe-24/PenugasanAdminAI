@@ -10,6 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
+    <!-- PDFMake Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; color: #1e293b; }
         .admin-header { width: 100%; background: white; padding: 15px 5%; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #003366; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 10px; }
@@ -18,9 +22,15 @@
         .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: #003366; font-weight: 700; margin: 0;}
         .btn-back { background: #e2e8f0; color: #475569; padding: 8px 15px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: 0.3s; }
         .btn-back:hover { background: #cbd5e1; color: #003366; }
+
+        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR */
+        #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
+
+    <!-- KANVAS TERSEMBUNYI UNTUK BYPASS CORS IMAGE SAAT REGENERATE PDF -->
+    <canvas id="hidden-canvas"></canvas>
 
     <header class="admin-header">
         <a href="#" class="header-brand">
@@ -35,7 +45,7 @@
         <div class="mb-6 flex justify-between items-end">
             <div>
                 <h2 class="text-2xl font-serif font-bold text-[#003366]">Arsip Surat Keluar</h2>
-                <p class="text-sm text-gray-500">Log historis seluruh dokumen resmi yang di-generate AI dan tersimpan di Google Drive.</p>
+                <p class="text-sm text-gray-500">Log historis seluruh dokumen resmi yang pernah di-generate.</p>
             </div>
         </div>
 
@@ -45,7 +55,7 @@
                     <tr>
                         <th class="p-4 rounded-tl-lg">Nomor Surat</th>
                         <th class="p-4">Hal / Kepada</th>
-                        <th class="p-4">Tanggal Rilis</th>
+                        <th class="p-4">Pembuat & Tanggal</th>
                         <th class="p-4 text-center rounded-tr-lg">Aksi Berkas</th>
                     </tr>
                 </thead>
@@ -58,60 +68,30 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // TAMBAHAN: Modul Auth untuk mendeteksi login admin
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Konfigurasi Firebase Anda
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
-            authDomain: "mading-cf676.firebaseapp.com", 
-            projectId: "mading-cf676", 
-            storageBucket: "mading-cf676.firebasestorage.app", 
-            messagingSenderId: "72175203671", 
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12" 
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app); // Inisialisasi Auth
-        const db = getFirestore(app);
-
-        // MASUKKAN URL WEB APP SCRIPT ANDA DI SINI
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBQSzyne0QrMjKuhpuU0KjqQkm1ZK6fCdosEdX0q8uHCGWmTQwlSvBjc1a-X0xKIh4/exec"; 
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const tbody = document.getElementById('table-arsip');
-        let arsipList = [];
+        window.arsipMaster = {}; // Simpan data utuh untuk di-render ulang ke PDF
 
-        // 1. Cek Autentikasi (Agar Firestore mengizinkan pengambilan data)
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if (userDoc.exists() && (userDoc.data().role === 'admin' || userDoc.data().role === 'pengajar')) {
-                        // Jika Admin valid, baru muat data arsip
-                        loadArsipData();
-                    } else {
-                        Swal.fire('Akses Ditolak', 'Anda tidak memiliki izin mengakses halaman ini.', 'error')
-                        .then(() => window.location.href = '../index.html');
-                    }
-                } catch(e) { 
-                    console.error("Error", e); 
-                    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-red-500">Terjadi kesalahan pada koneksi sistem.</td></tr>`;
-                }
-            } else {
-                // Jika belum login, tendang ke luar
+        // Base64 Images Konstan
+        const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
+        const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
+
+        (async () => {
+            const user = await checkAuth(); 
+            if (!user) {
                 window.location.href = '../../index.html';
+                return;
             }
-        });
+            loadArsipData();
+        })();
 
-        // 2. Fungsi Utama Pemanggil Arsip
         function loadArsipData() {
-            const q = query(collection(db, "surat_keluar"), orderBy("createdAt", "desc"));
+            const q = query(collection(db, "arsip_surat_keluar"), orderBy("tanggalGenerate", "desc"));
             
-            // Tambahan error handling pada onSnapshot jika gagal (terblokir)
             onSnapshot(q, (snap) => {
-                arsipList = [];
+                window.arsipMaster = {};
                 tbody.innerHTML = '';
                 
                 if(snap.empty) {
@@ -121,21 +101,31 @@
 
                 snap.forEach(d => {
                     const data = { id: d.id, ...d.data() };
-                    arsipList.push(data);
+                    window.arsipMaster[d.id] = data; // Simpan ke memory global
+                    
+                    // Format Tanggal
+                    let tglStr = "Menunggu...";
+                    if(data.tanggalGenerate) {
+                        const date = data.tanggalGenerate.toDate();
+                        tglStr = `${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+                    }
                     
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="p-4 font-bold text-[#003366]">${data.no_surat}</td>
+                            <td class="p-4 font-bold text-[#003366]">${data.nomor || '-'}</td>
                             <td class="p-4">
-                                <div class="font-semibold text-gray-800">${data.perihal}</div>
-                                <div class="text-xs text-gray-500">Yth. ${data.tujuan}</div>
+                                <div class="font-semibold text-gray-800">${data.perihal || '-'}</div>
+                                <div class="text-xs text-gray-500">Yth. ${data.tujuan ? data.tujuan.substring(0, 30) + '...' : '-'}</div>
                             </td>
-                            <td class="p-4 text-gray-600">${data.tanggal}</td>
+                            <td class="p-4">
+                                <div class="text-gray-800">${data.admin || 'Sistem'}</div>
+                                <div class="text-xs text-gray-500">${tglStr}</div>
+                            </td>
                             <td class="p-4 text-center">
-                                <a href="${data.drive_url}" target="_blank" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition mr-1" title="Buka PDF">
-                                    <i class="fa-solid fa-folder-open"></i>
-                                </a>
-                                <button onclick="cabutSurat('${data.id}', '${data.drive_file_id}', '${data.no_surat}')" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-lg transition" title="Cabut & Hapus Surat">
+                                <button onclick="unduhUlangPDF('${d.id}')" class="bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white p-2 rounded-lg transition mr-1" title="Unduh Ulang PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </button>
+                                <button onclick="cabutSurat('${d.id}', '${data.nomor}')" class="bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-lg transition" title="Hapus Permanen">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </td>
@@ -144,43 +134,251 @@
                 });
             }, (error) => {
                 console.error("Gagal mengambil arsip:", error);
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-red-500">Gagal mengambil data dari server. Pastikan aturan Firebase mengizinkan Admin.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-10 text-red-500">Gagal mengambil data dari server.</td></tr>`;
             });
         }
 
-        // Hapus Surat dari Firebase & Google Drive
-        window.cabutSurat = (docId, fileId, noSurat) => {
+        // FUNGSI CABUT SURAT
+        window.cabutSurat = (docId, noSurat) => {
             Swal.fire({
-                title: 'Cabut Surat Terbit?',
-                text: `Anda akan menghapus arsip surat nomor ${noSurat}. Surat juga akan dipindahkan ke folder Trash di Google Drive.`,
+                title: 'Hapus Surat Terbit?',
+                text: `Anda akan menghapus arsip surat nomor ${noSurat} secara permanen.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Cabut Dokumen'
+                confirmButtonText: 'Ya, Hapus'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    Swal.fire({title: 'Sedang Mencabut...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-                    
+                    Swal.fire({title: 'Sedang Menghapus...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                     try {
-                        // 1. Eksekusi Penghapusan di Google Drive via Apps Script
-                        if (APPS_SCRIPT_URL !== "URL_GOOGLE_APPS_SCRIPT_ANDA_DISINI" && fileId) {
-                            await fetch(APPS_SCRIPT_URL, {
-                                method: 'POST',
-                                body: JSON.stringify({ action: 'delete', fileId: fileId })
-                            });
-                        }
-
-                        // 2. Eksekusi Penghapusan Database Firebase
-                        await deleteDoc(doc(db, "surat_keluar", docId));
-                        
-                        Swal.fire('Tercabut', 'Surat berhasil dicabut dari sistem dan drive.', 'success');
+                        await deleteDoc(doc(db, "arsip_surat_keluar", docId));
+                        Swal.fire('Terhapus', 'Arsip surat berhasil dihapus.', 'success');
                     } catch (error) {
                         Swal.fire('Error', error.message, 'error');
                     }
                 }
             });
         };
+
+        // ==========================================
+        // FUNGSI GENERATE ULANG PDF DARI ARSIP
+        // ==========================================
+        function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous'; 
+                img.onload = () => {
+                    const canvas = document.getElementById('hidden-canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = () => {
+                    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+                    const imgProxy = new Image();
+                    imgProxy.crossOrigin = 'Anonymous';
+                    imgProxy.onload = () => {
+                        const canvas = document.getElementById('hidden-canvas');
+                        canvas.width = imgProxy.width;
+                        canvas.height = imgProxy.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(imgProxy, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    imgProxy.onerror = () => { resolve(null); }; 
+                    imgProxy.src = proxyUrl;
+                };
+                img.src = url;
+            });
+        }
+
+        window.unduhUlangPDF = async (docId) => {
+            const data = window.arsipMaster[docId];
+            if(!data) {
+                Swal.fire('Error', 'Data arsip tidak lengkap', 'error');
+                return;
+            }
+
+            Swal.fire({title: 'Merakit PDF...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+            try {
+                // TUNGGU GAMBAR
+                const base64Logo = await getBase64Image(LOGO_CA);
+                const base64Cap = await getBase64Image(CAP_CA);
+
+                // Reconstruct Data
+                const noSurat = data.nomor || '-';
+                const tujuanSurat = data.tujuan || '-';
+                const pembuka = data.pembuka || '';
+                const penutup = data.penutup || '';
+                const jabatan = data.jabatan || 'Administrator Cendekia';
+                const adminName = data.admin || 'Admin';
+                const valPerihal = data.perihal || '-';
+                const lampiranTeksAI = data.lampiran_teks || '';
+                
+                // Set Lampiran (1 Bendel jika ada teks lampiran)
+                let valLampiran = lampiranTeksAI ? '1 Bendel' : '';
+
+                // Tanggal Surat berdasarkan Tanggal Generate Asli (Bukan hari ini)
+                const dateObj = data.tanggalGenerate ? data.tanggalGenerate.toDate() : new Date();
+                const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                const tanggalSurat = `Temanggung, ${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+
+                // 1. KOP SURAT
+                let headerContent = {
+                    margin: [0, 0, 0, 10],
+                    columns: [
+                        base64Logo ? { image: base64Logo, width: 60, margin: [10, 0, 15, 0] } : { text: '', width: 75 },
+                        {
+                            stack: [
+                                { text: 'KOMUNITAS LITERASI INDONESIA', fontSize: 11, alignment: 'center', margin: [0,0,0,2] },
+                                { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, alignment: 'center', margin: [0,0,0,2] },
+                                { text: 'Jl. Dusun Delok, No. 22 Karangtejo, Kedu, Kab. Temanggung', fontSize: 9, alignment: 'center', margin: [0,0,0,2] },
+                                { text: 'Telp/WA: +62 889-561-5630 | +62 859-3918-8592 | Email: cendekia.aksara25@gmail.com', fontSize: 9, alignment: 'center' }
+                            ]
+                        }
+                    ]
+                };
+
+                let garisKop = [
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }] },
+                    { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 515, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] }
+                ];
+
+                // 2. ATRIBUT SURAT
+                let atributSurat = {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                { columns: [{ text: 'Nomor', width: 60 }, { text: `: ${noSurat}` }] },
+                                { columns: [{ text: 'Lampiran', width: 60 }, { text: `: ${valLampiran || '-'}` }], margin: [0,2,0,2] },
+                                { columns: [{ text: 'Perihal', width: 60 }, { text: `: ${valPerihal}` }] }
+                            ]
+                        },
+                        { width: '40%', text: tanggalSurat, alignment: 'right' }
+                    ],
+                    margin: [0, 0, 0, 30]
+                };
+
+                let sasaranSurat = {
+                    stack: [
+                        { text: 'Kepada Yth.', margin: [0,0,0,2] },
+                        { text: tujuanSurat, bold: true, margin: [0,0,0,30] } 
+                    ]
+                };
+
+                // 3. ISI SURAT (MENJOROK)
+                let isiSuratArray = [
+                    { 
+                        text: [
+                            { text: 'Dengan hormat,\n' }, 
+                            { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + pembuka } 
+                        ], 
+                        alignment: 'justify', margin: [0,0,0,10] 
+                    }
+                ];
+
+                if(data.hasTable) {
+                    isiSuratArray.push({
+                        table: {
+                            widths: [120, 10, '*'],
+                            body: [
+                                [ { text: 'Hari, Tanggal', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: data.tglAcara || '-', bold:true, border: [false,false,false,false] } ],
+                                [ { text: 'Waktu', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: data.waktuAcara || '-', border: [false,false,false,false] } ],
+                                [ { text: 'Tempat / Media', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: data.tempatAcara || '-', border: [false,false,false,false] } ],
+                                [ { text: 'Acara', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: data.namaAcara || '-', border: [false,false,false,false] } ]
+                            ]
+                        },
+                        margin: [40, 5, 0, 15] 
+                    });
+                }
+
+                penutup.split('\n').forEach(p => {
+                    if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
+                });
+
+                // 4. LAYER TANDA TANGAN (TANPA CORETAN KANVAS, HANYA CAP)
+                // Karena kita tidak menyimpan coretan TTD ke database, arsip ini hanya akan menampilkan CAP Transparan
+                let signatureArea = {
+                    unbreakable: true, 
+                    columns: [
+                        { width: '*', text: '' }, 
+                        {
+                            width: 250, 
+                            stack: [
+                                { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
+                                { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
+                                {
+                                    margin: [0, 5, 0, 5],
+                                    stack: [
+                                        base64Cap ? { 
+                                            image: base64Cap, 
+                                            width: 95, 
+                                            alignment: 'center',
+                                            margin: [-65, 0, 0, -75], 
+                                            opacity: 0.85 
+                                        } : null,
+                                        // Area kosong untuk Tanda Tangan Fisik/Digital Ulang
+                                        { 
+                                            text: '\n\n\n\n\n\n'
+                                        }
+                                    ].filter(Boolean)
+                                },
+                                { text: adminName, alignment: 'center', bold: true, decoration: 'underline' }
+                            ]
+                        }
+                    ],
+                    margin: [0, 30, 0, 0]
+                };
+
+                // 5. HALAMAN LAMPIRAN 
+                let halamanLampiran = [];
+                if(valLampiran) {
+                    halamanLampiran.push({ text: '', pageBreak: 'before' });
+                    halamanLampiran.push({ text: 'LAMPIRAN SURAT', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] });
+                    halamanLampiran.push({ text: `Nomor  : ${noSurat}`, margin: [0,0,0,5] });
+                    halamanLampiran.push({ text: `Perihal: ${valPerihal}`, margin: [0,0,0,30] });
+
+                    if(lampiranTeksAI) {
+                        lampiranTeksAI.split('\n').forEach(p => {
+                            if(p.trim() !== '') halamanLampiran.push({ text: p.trim(), alignment: 'justify', margin: [0,0,0,10] });
+                        });
+                    }
+                }
+
+                // BUILD PDF DEFINITION
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [40, 40, 40, 50],
+                    content: [
+                        headerContent,
+                        garisKop,
+                        atributSurat,
+                        sasaranSurat,
+                        ...isiSuratArray,
+                        signatureArea, 
+                        ...halamanLampiran
+                    ].filter(Boolean), 
+                    defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
+                    styles: { header: { fontSize: 14, bold: true } }
+                };
+
+                // Create and Download PDF
+                const fileName = `ARSIP_${valPerihal.replace(/\s+/g,'_')}.pdf`;
+                pdfMake.createPdf(docDefinition).download(fileName, () => {
+                    Swal.close();
+                });
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat menyusun ulang PDF.', 'error');
+            }
+        };
+
     </script>
 </body>
 </html>
