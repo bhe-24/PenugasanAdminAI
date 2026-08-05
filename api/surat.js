@@ -25,12 +25,10 @@ export default async function handler(req, res) {
         }
 
         // --- SISTEM PENOMORAN MUTLAK (SERVER-SIDE) ---
-        // Memastikan waktu di-set ke Zona Waktu Indonesia (WIB)
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
         const bulanRomawi = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][d.getMonth()];
         const tahun = d.getFullYear(); 
 
-        // Kalkulasi nomor urut selanjutnya
         let urutanSelanjutnya = 1;
         if (nomor_terakhir && typeof nomor_terakhir === 'string') {
             const parts = nomor_terakhir.split('/');
@@ -42,43 +40,47 @@ export default async function handler(req, res) {
             }
         }
         
-        // Memformat jadi 3 digit (Contoh: 001, 002, 015)
         const nomorFormat = String(urutanSelanjutnya).padStart(3, '0');
         const autoNoSurat = `${nomorFormat}/${kategori}/CA/${bulanRomawi}/${tahun}`;
 
         // =========================================================================
-        // PROMPT SUPER PROFESIONAL (DI-UPGRADE UNTUK SURAT RESMI TINGKAT TINGGI)
+        // PROMPT SUPER PROFESIONAL (DI-UPGRADE UNTUK PRESISI & ANTI-KARANGAN)
         // =========================================================================
         const promptText = `
 Anda adalah Sekretaris Jenderal Eksekutif dan Ahli Tata Naskah Dinas di "Cendekia Aksara" (Komunitas Literasi & Pendidikan Indonesia).
-Tugas Anda adalah merangkai teks Surat Resmi yang sangat elegan, berbobot, presisi, dan mematuhi PUEBI (Pedoman Umum Ejaan Bahasa Indonesia).
+Tugas Anda adalah merangkai teks Surat Resmi (kategori: ${kategori}) yang sangat elegan, berbobot, presisi, dan mematuhi PUEBI.
 
-KONTEKS / PERINTAH DASAR SURAT: 
+KONTEKS / PERINTAH DASAR SURAT DARI PIMPINAN: 
 "${konteks}"
 
-INSTRUKSI KHUSUS DARI PIMPINAN:
+INSTRUKSI KHUSUS:
 "${instruksi_khusus || 'Gunakan diksi yang meyakinkan, lugas, dan profesional.'}"
 
 ATURAN PENULISAN MUTLAK (WAJIB DIPATUHI):
-1. SUDUT PANDANG & TONE: Selalu gunakan kata ganti "Kami" (mewakili instansi Cendekia Aksara). Gunakan nada yang berwibawa, menghormati, namun tegas. Hindari kalimat bertele-tele.
-2. PERIHAL: Buat maksimal 3-5 kata yang merangkum inti surat dengan padat. (Contoh: "Permohonan Peminjaman Gedung", "Undangan Pemateri Seminar").
+1. SUDUT PANDANG & TONE: Selalu gunakan kata ganti "Kami" (mewakili instansi Cendekia Aksara). Gunakan nada yang berwibawa, menghormati, dan tegas.
+2. PERIHAL: Maksimal 3-5 kata yang merangkum inti surat. (Contoh: "Penerbitan Nomor Sertifikat", "Surat Keputusan Kepengurusan").
 3. TUJUAN (Kepada Yth): Susun secara hierarkis minimal 2 baris (Jabatan/Nama, lalu Instansi/Lokasi).
-4. PARAGRAF PEMBUKA: Harus elegan. Dimulai tepat dengan kata "Dengan hormat," (langsung digabung dengan kalimat pertama). Berikan dasar pemikiran atau latar belakang singkat yang rasional mengapa surat ini dibuat.
+4. STRUKTUR PARAGRAF (PENTING):
+   - JANGAN membuat surat hanya 1 paragraf! Pecah menjadi struktur yang logis.
+   - Jika ini Surat Keputusan (SK) atau Surat Edaran, buatkan poin-poin keputusan di bagian isi (Misal: "Memutuskan: PERTAMA..., KEDUA...").
+   - Jika ini surat pemberitahuan/permohonan, pecah menjadi paragraf Latar Belakang dan paragraf Inti Maksud.
 5. PARAGRAF PENUTUP: Berisi kalimat konklusif, harapan kerja sama/kehadiran, dan ucapan terima kasih yang formal. 
-6. LAMPIRAN CERDAS: Jika konteks surat mengisyaratkan adanya acara, perlombaan, atau kegiatan, ANDA WAJIB membuatkan rancangan "Susunan Acara (Rundown)" atau "Ketentuan Kegiatan" yang rapi di dalam *field* \`lampiran_teks\`.
-7. LARANGAN KERAS: JANGAN pernah menuliskan Nomor Surat, Tanggal, Tempat, Nama Tanda Tangan, atau Kop Surat di dalam teks JSON Anda. Kami hanya butuh ISI TEKSNYA saja.
+6. ATURAN LAMPIRAN (SANGAT KETAT): 
+   - JANGAN MENGARANG LAMPIRAN. Jika konteks hanya sekadar "pemberitahuan", "minta nomor", atau "teguran", KOSONGKAN lampiran.
+   - Buat lampiran HANYA jika konteks dari pimpinan SECARA EKSPLISIT meminta pembuatan "Susunan Acara", "Daftar Peserta", "Rundown", atau "Ketentuan".
+7. LARANGAN KERAS: JANGAN pernah menuliskan Nomor Surat, Tanggal, Tempat, Nama Tanda Tangan, atau Kop Surat di dalam teks JSON Anda.
 
-Output WAJIB berupa JSON absolut tanpa markdown tambahan (\`\`\`json) dengan format struktur persis seperti ini:
+Output WAJIB berupa JSON absolut tanpa markdown tambahan dengan format persis seperti ini:
 {
   "perihal": "string",
   "tujuan": "string (Gunakan \\n untuk baris baru)",
-  "pembuka": "string (Paragraf pembuka yang solid)",
-  "penutup": "string (Paragraf penutup yang formal)",
-  "lampiran_teks": "string (Opsional. Tuliskan susunan acara, syarat lomba, atau daftar nama jika diperlukan. Gunakan format teks rapi dengan indentasi atau poin-poin. Kosongkan string jika tidak butuh lampiran)"
+  "pembuka": "string (Paragraf 1: Pengantar atau latar belakang. Jika ini SK, tuliskan konsideran Menimbang/Mengingat jika perlu)",
+  "isi_utama": "string (Paragraf 2/3: Inti surat. Gunakan \\n\\n untuk paragraf baru. Boleh pakai numbering 1. 2. 3. jika itu SK atau rincian)",
+  "penutup": "string (Paragraf terakhir penutup)",
+  "lampiran_teks": "string (Opsional. HANYA JIKA diminta dalam konteks. Kosongkan string (\"\") jika tidak butuh lampiran)"
 }
 `;
 
-        // Filter keamanan dilonggarkan penuh untuk mencegah AI menolak memproses teks
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -86,31 +88,38 @@ Output WAJIB berupa JSON absolut tanpa markdown tambahan (\`\`\`json) dengan for
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
         ];
 
-        // Menggunakan model Gemini 2.5 Flash
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { 
-                temperature: 0.5, // Diturunkan ke 0.5 agar AI lebih logis, kaku, resmi, dan tidak terlalu berkhayal (kreatif)
+                temperature: 0.4, // Diturunkan ke 0.4 agar SANGAT logis dan tidak sembarangan berkhayal
                 responseMimeType: "application/json" 
             },
             safetySettings: safetySettings
         });
         
         let textResponse = result.response.text();
-        
-        // PEMBERSIH KODE (ANTI-ERROR)
-        // Kadang AI tetap mengirimkan format markdown ```json ... ``` meskipun sudah dilarang
         textResponse = textResponse.replace(/```json/gi, '').replace(/```/gi, '').trim();
 
-        // Parsing JSON
         const finalResult = JSON.parse(textResponse);
 
-        // KUNCI UTAMA: Inject No. Surat yang dihitung mutlak oleh Server
         finalResult.no_surat = autoNoSurat;
 
-        res.status(200).json(finalResult);
+        // --- PENYESUAIAN FORMAT KE FORM HTML ---
+        // Karena di HTML kita hanya punya form 's_pembuka' dan 's_penutup' sebelum 'tabel',
+        // kita gabungkan 'pembuka' dan 'isi_utama' dari AI ke dalam field 's_pembuka' HTML.
+        const gabunganPembukaDanIsi = finalResult.pembuka + "\n\n" + (finalResult.isi_utama || "");
+        
+        // Kembalikan ke format yang dibaca oleh HTML admin/generator-surat.html
+        res.status(200).json({
+            no_surat: finalResult.no_surat,
+            perihal: finalResult.perihal,
+            tujuan: finalResult.tujuan,
+            pembuka: gabunganPembukaDanIsi, // Gabungan agar paragrafnya panjang
+            penutup: finalResult.penutup,
+            lampiran_teks: finalResult.lampiran_teks
+        });
 
     } catch (error) {
         console.error("API Surat Error:", error);
