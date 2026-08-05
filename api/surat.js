@@ -4,11 +4,11 @@ import {
     HarmBlockThreshold 
 } from '@google/generative-ai';
 
-// Inisialisasi diletakkan di luar fungsi utama persis seperti grade2.js
+// Inisialisasi diletakkan di luar fungsi utama
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export default async function handler(req, res) {
-    // Pengaturan CORS
+    // Pengaturan CORS untuk keamanan dan aksesibilitas
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
@@ -24,13 +24,13 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Data tidak lengkap. Kategori dan konteks wajib diisi.' });
         }
 
-        // --- SISTEM PENOMORAN MUTLAK (DIKERJAKAN OLEH SERVER, BUKAN AI) ---
+        // --- SISTEM PENOMORAN MUTLAK (SERVER-SIDE) ---
         // Memastikan waktu di-set ke Zona Waktu Indonesia (WIB)
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
         const bulanRomawi = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"][d.getMonth()];
-        const tahun = d.getFullYear(); // Akan selalu mengambil tahun berjalan secara nyata (Misal: 2026)
+        const tahun = d.getFullYear(); 
 
-        // Menghitung nomor urut selanjutnya
+        // Kalkulasi nomor urut selanjutnya
         let urutanSelanjutnya = 1;
         if (nomor_terakhir && typeof nomor_terakhir === 'string') {
             const parts = nomor_terakhir.split('/');
@@ -44,33 +44,41 @@ export default async function handler(req, res) {
         
         // Memformat jadi 3 digit (Contoh: 001, 002, 015)
         const nomorFormat = String(urutanSelanjutnya).padStart(3, '0');
-        const autoNoSurat = `${nomorFormat}/${kategori}/${bulanRomawi}/${tahun}`;
+        const autoNoSurat = `${nomorFormat}/${kategori}/CA/${bulanRomawi}/${tahun}`;
 
-        // Prompt Super untuk Sekretaris AI
+        // =========================================================================
+        // PROMPT SUPER PROFESIONAL (DI-UPGRADE UNTUK SURAT RESMI TINGKAT TINGGI)
+        // =========================================================================
         const promptText = `
-Peran: Anda adalah Sekretaris Jenderal "Cendekia Aksara" (Komunitas Literasi Edukatif).
-Tugas: Menyusun Draf Surat Resmi berdasarkan instruksi admin.
+Anda adalah Sekretaris Jenderal Eksekutif dan Ahli Tata Naskah Dinas di "Cendekia Aksara" (Komunitas Literasi & Pendidikan Indonesia).
+Tugas Anda adalah merangkai teks Surat Resmi yang sangat elegan, berbobot, presisi, dan mematuhi PUEBI (Pedoman Umum Ejaan Bahasa Indonesia).
 
-KONTEKS & INFORMASI SURAT: 
-${konteks}
+KONTEKS / PERINTAH DASAR SURAT: 
+"${konteks}"
 
-INSTRUKSI KHUSUS DARI ADMIN:
-${instruksi_khusus || 'Tidak ada instruksi khusus. Buat senatural mungkin.'}
+INSTRUKSI KHUSUS DARI PIMPINAN:
+"${instruksi_khusus || 'Gunakan diksi yang meyakinkan, lugas, dan profesional.'}"
 
-ATURAN PENULISAN:
-1. Gaya Bahasa: Sopan, kontekstual, luwes, meyakinkan, namun tetap menjaga tata krama formal (tidak kaku seperti robot). Gunakan kata ganti "Kami" untuk pengirim.
-2. Struktur: Buka dengan salam hormat, isi maksud dan tujuan secara jelas (masukkan informasi dari admin), dan tutup dengan harapan serta salam.
-3. FORMAT DAFTAR/TABEL: Jika instruksi admin meminta bentuk "tabel" (seperti daftar nama peserta, susunan acara, dsb), susunlah data tersebut menjadi Daftar Terstruktur yang rapi (misal: menggunakan indentasi, format "1. Waktu | Kegiatan | PIC", atau poin-poin yang terorganisir). JANGAN menggunakan tag HTML <table> karena Google Docs merender teks biasa. Buat serapi mungkin secara visual.
+ATURAN PENULISAN MUTLAK (WAJIB DIPATUHI):
+1. SUDUT PANDANG & TONE: Selalu gunakan kata ganti "Kami" (mewakili instansi Cendekia Aksara). Gunakan nada yang berwibawa, menghormati, namun tegas. Hindari kalimat bertele-tele.
+2. PERIHAL: Buat maksimal 3-5 kata yang merangkum inti surat dengan padat. (Contoh: "Permohonan Peminjaman Gedung", "Undangan Pemateri Seminar").
+3. TUJUAN (Kepada Yth): Susun secara hierarkis minimal 2 baris (Jabatan/Nama, lalu Instansi/Lokasi).
+4. PARAGRAF PEMBUKA: Harus elegan. Dimulai tepat dengan kata "Dengan hormat," (langsung digabung dengan kalimat pertama). Berikan dasar pemikiran atau latar belakang singkat yang rasional mengapa surat ini dibuat.
+5. PARAGRAF PENUTUP: Berisi kalimat konklusif, harapan kerja sama/kehadiran, dan ucapan terima kasih yang formal. 
+6. LAMPIRAN CERDAS: Jika konteks surat mengisyaratkan adanya acara, perlombaan, atau kegiatan, ANDA WAJIB membuatkan rancangan "Susunan Acara (Rundown)" atau "Ketentuan Kegiatan" yang rapi di dalam *field* \`lampiran_teks\`.
+7. LARANGAN KERAS: JANGAN pernah menuliskan Nomor Surat, Tanggal, Tempat, Nama Tanda Tangan, atau Kop Surat di dalam teks JSON Anda. Kami hanya butuh ISI TEKSNYA saja.
 
-Tolong berikan output HANYA dalam format JSON valid berikut:
+Output WAJIB berupa JSON absolut tanpa markdown tambahan (\`\`\`json) dengan format struktur persis seperti ini:
 {
-  "perihal": "(Perihal/Hal surat, singkat & jelas)",
-  "tujuan": "(Nama instansi/orang yang dituju)",
-  "isi_surat": "(Seluruh paragraf isi surat. Gunakan \\n\\n untuk paragraf baru. JANGAN cantumkan tempat/tanggal di atas, dan JANGAN cantumkan tanda tangan di bawah, cukup isi intinya saja karena kop & TTD sudah ada di template kertas)."
+  "perihal": "string",
+  "tujuan": "string (Gunakan \\n untuk baris baru)",
+  "pembuka": "string (Paragraf pembuka yang solid)",
+  "penutup": "string (Paragraf penutup yang formal)",
+  "lampiran_teks": "string (Opsional. Tuliskan susunan acara, syarat lomba, atau daftar nama jika diperlukan. Gunakan format teks rapi dengan indentasi atau poin-poin. Kosongkan string jika tidak butuh lampiran)"
 }
 `;
 
-        // Filter keamanan dilonggarkan agar AI tidak tiba-tiba mogok kerja
+        // Filter keamanan dilonggarkan penuh untuk mencegah AI menolak memproses teks
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -78,30 +86,34 @@ Tolong berikan output HANYA dalam format JSON valid berikut:
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
         ];
 
-        // Menggunakan model standar Gemini Flash
+        // Menggunakan model Gemini 2.5 Flash
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
             generationConfig: { 
-                temperature: 0.7, 
-                responseMimeType: "application/json" // Memaksa format JSON absolut
+                temperature: 0.5, // Diturunkan ke 0.5 agar AI lebih logis, kaku, resmi, dan tidak terlalu berkhayal (kreatif)
+                responseMimeType: "application/json" 
             },
             safetySettings: safetySettings
         });
         
-        const textResponse = result.response.text();
+        let textResponse = result.response.text();
         
-        // Parsing JSON langsung
+        // PEMBERSIH KODE (ANTI-ERROR)
+        // Kadang AI tetap mengirimkan format markdown ```json ... ``` meskipun sudah dilarang
+        textResponse = textResponse.replace(/```json/gi, '').replace(/```/gi, '').trim();
+
+        // Parsing JSON
         const finalResult = JSON.parse(textResponse);
 
-        // KUNCI UTAMA: Memaksa "no_surat" dari hasil perhitungan murni JavaScript agar 100% akurat
+        // KUNCI UTAMA: Inject No. Surat yang dihitung mutlak oleh Server
         finalResult.no_surat = autoNoSurat;
 
         res.status(200).json(finalResult);
 
     } catch (error) {
         console.error("API Surat Error:", error);
-        res.status(500).json({ error: error.message || "AksaBot sedang sibuk, silakan coba lagi." });
+        res.status(500).json({ error: error.message || "Sistem Sekretaris AI sedang sibuk merangkai surat, silakan coba lagi." });
     }
 }
