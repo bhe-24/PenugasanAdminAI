@@ -123,8 +123,8 @@
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;}
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR */
-        #hidden-canvas { display: none; }
+        /* KANVAS TERSEMBUNYI UNTUK PROSES GAMBAR (Perbaikan agar lebih aman dari BUG Browser) */
+        #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
     </style>
 </head>
 <body>
@@ -466,7 +466,7 @@
                 const base64Logo = await getBase64Image(LOGO_CA);
                 const base64Cap = await getBase64Image(CAP_CA);
                 
-                // Ambil TTD dari Kanvas, crop spasi kosong agar pas
+                // Ambil TTD dari Kanvas
                 const base64TTD = signaturePad.toDataURL('image/png');
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
@@ -556,25 +556,37 @@
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
 
-                // 4. LAYER TANDA TANGAN (KOTAK UNBREAKABLE, CAP, & TTD BERSATU)
+                // 4. LAYER TANDA TANGAN (PERBAIKAN BUG OVERLAY STEMPEL)
                 let signatureArea = {
-                    unbreakable: true, // INI KUNCI UTAMA AGAR TTD TIDAK TERPISAH DARI NAMA
+                    unbreakable: true, // Mencegah terpotong saat beda halaman
                     columns: [
                         { width: '*', text: '' }, 
                         {
-                            width: 200,
+                            width: 250, // Sedikit diperlebar agar cap tidak terpotong tepi layar
                             stack: [
                                 { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
                                 { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
                                 {
-                                    // Membuat area yang sama, agar Cap dan TTD selalu berada di tumpukan ini
                                     margin: [0, 5, 0, 5],
                                     stack: [
-                                        // CAP (Stempel) diletakkan absolute TERHADAP KOTAK INI, jadi akan ikut ke mana pun kotaknya pindah halaman
-                                        base64Cap ? { image: base64Cap, width: 85, absolutePosition: { x: 375, y: -20 }, opacity: 0.85 } : null,
-                                        // TANDA TANGAN LIVE
-                                        { image: base64TTD, width: 120, alignment: 'center' }
-                                    ]
+                                        // 1. CAP Ditempatkan duluan dengan margin negatif untuk ditumpuk oleh TTD
+                                        base64Cap ? { 
+                                            image: base64Cap, 
+                                            width: 95, 
+                                            alignment: 'center',
+                                            // Format margin [kiri, atas, kanan, bawah]
+                                            // Tarik sedikit ke kiri, dan tarik elemen di bawahnya (TTD) ke atas untuk OVERLAP
+                                            margin: [-65, 0, 0, -75], 
+                                            opacity: 0.85 
+                                        } : null,
+                                        
+                                        // 2. TANDA TANGAN LIVE
+                                        { 
+                                            image: base64TTD, 
+                                            width: 140, 
+                                            alignment: 'center' 
+                                        }
+                                    ].filter(Boolean) // .filter(Boolean) membuang stempel jika gagal termuat, sehingga posisi TTD tetap aman
                                 },
                                 { text: adminName, alignment: 'center', bold: true, decoration: 'underline' }
                             ]
