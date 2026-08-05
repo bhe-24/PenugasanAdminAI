@@ -11,6 +11,8 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <!-- Library untuk Tanda Tangan -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
 
     <style>
         /* --- GLOBAL & COLORS --- */
@@ -55,7 +57,6 @@
         .btn-icon:hover { color: var(--gold); }
         .nav-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: white; margin: 0; letter-spacing: 0.5px;}
 
-        /* TOMBOL ARSIP (BARU) */
         .btn-arsip { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 5px 12px; border-radius: 5px; font-size: 0.8rem; font-family: 'Poppins'; cursor: pointer; transition: 0.3s; text-decoration: none;}
         .btn-arsip:hover { background: white; color: var(--primary); }
 
@@ -88,6 +89,12 @@
         textarea.form-control { resize: vertical; min-height: 120px; line-height: 1.5; }
 
         .helper-text { font-size: 0.75rem; color: #94a3b8; margin-top: 5px; line-height: 1.3; }
+
+        /* TANDA TANGAN KANVAS */
+        .signature-wrapper { border: 2px dashed #cbd5e1; border-radius: 8px; background: white; padding: 10px; text-align: center; }
+        canvas#signature-pad { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 4px; width: 100%; height: 150px; cursor: crosshair; touch-action: none; }
+        .btn-clear-sig { background: #fee2e2; color: #dc2626; border: none; padding: 6px 12px; border-radius: 5px; font-size: 0.75rem; font-weight: 600; margin-top: 8px; cursor: pointer; transition: 0.2s;}
+        .btn-clear-sig:hover { background: #fecaca; }
 
         /* TABEL DINAMIS INPUT */
         .table-builder { background: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: none; }
@@ -135,14 +142,14 @@
     <div class="app-wrapper">
         
         <header class="top-navbar">
-            <button class="btn-icon" onclick="window.location.href='index.html'"><i class="fa-solid fa-arrow-left"></i></button>
+            <button class="btn-icon" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i></button>
             <h1 class="nav-title">Generator Surat</h1>
-            <a href="generator-surat/arsip.html" class="btn-arsip"><i class="fa-solid fa-folder-open"></i> Arsip</a>
+            <a href="arsip-surat.html" class="btn-arsip"><i class="fa-solid fa-folder-open"></i> Arsip</a>
         </header>
 
         <div class="action-header">
             <h2>Pembuatan Surat Resmi</h2>
-            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di area tanda tangan digital.</p>
+            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di atas tanda tangan Anda.</p>
         </div>
 
         <!-- AI ASSISTANT BOX -->
@@ -197,7 +204,7 @@
             <div class="form-group">
                 <label>Paragraf Pembuka & Latar Belakang</label>
                 <textarea id="s_pembuka" class="form-control" style="min-height: 80px;" placeholder="Contoh: sehubungan dengan akan diadakannya kegiatan Lomba Menulis..." required></textarea>
-                <div class="helper-text">Sistem sudah otomatis menambahkan sapaan "Dengan hormat," dan indentasi.</div>
+                <div class="helper-text">Sistem sudah otomatis menambahkan sapaan "Dengan hormat," dan membuat awal paragraf menjorok.</div>
             </div>
 
             <!-- TABEL OPSIONAL (JADWAL DLL) -->
@@ -220,12 +227,22 @@
             <div class="form-group">
                 <label>Paragraf Penutup</label>
                 <textarea id="s_penutup" class="form-control" style="min-height: 80px;" placeholder="Contoh: Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih." required></textarea>
+                <div class="helper-text">Sistem juga akan membuat awal paragraf ini menjorok secara otomatis.</div>
             </div>
             
             <!-- HIDDEN TEXTAREA UNTUK LAMPIRAN DARI AI -->
             <textarea id="s_lampiran_teks" style="display:none;"></textarea>
 
-            <!-- PENANDA TANGAN -->
+            <!-- PENANDA TANGAN & KANVAS LIVE -->
+            <div class="form-group">
+                <label>Tanda Tangan Langsung (Live Signature)</label>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad"></canvas>
+                    <button type="button" class="btn-clear-sig" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> Hapus & Ulangi Coretan</button>
+                </div>
+                <div class="helper-text">Coretkan tanda tangan Anda di kotak atas. Sistem akan merendernya bersama stempel transparan ke PDF.</div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label>Nama Penandatangan</label>
@@ -256,8 +273,27 @@
         let adminName = "";
         let useTable = false;
         let nomorTerakhirArsip = "";
+        
+        // Setup Signature Pad
+        const canvas = document.getElementById('signature-pad');
+        const signaturePad = new SignaturePad(canvas, {
+            penColor: "rgb(15, 23, 42)", // Warna tinta navy gelap
+            backgroundColor: "rgba(0,0,0,0)" // Transparan
+        });
 
-        // URL ASLI Gambar
+        // Responsive Canvas
+        function resizeCanvas() {
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            signaturePad.clear();
+        }
+        window.addEventListener("resize", resizeCanvas);
+
+        window.clearSignature = () => { signaturePad.clear(); }
+
+        // URL ASLI Gambar (Bebas CORS)
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
 
@@ -281,7 +317,10 @@
             const romawi = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
             document.getElementById('s_nomor').value = `.../.../CA/${romawi[d.getMonth()]}/${d.getFullYear()}`;
 
-            setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 400);
+            setTimeout(() => { 
+                document.getElementById('loading-overlay').style.display = 'none'; 
+                resizeCanvas(); // Resize canvas setelah loading hilang
+            }, 400);
         })();
 
         // --- SISTEM AI GENERATOR ---
@@ -306,7 +345,7 @@
                         kategori: kategori,
                         nomor_terakhir: nomorTerakhirArsip,
                         konteks: konteks,
-                        instruksi_khusus: "Tulis dengan gaya bahasa institusi resmi, rapi, dan meyakinkan."
+                        instruksi_khusus: "Tulis dengan gaya bahasa institusi resmi, logis, rapi, dan meyakinkan."
                     })
                 });
 
@@ -376,19 +415,17 @@
         function getBase64Image(url) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
-                img.crossOrigin = 'Anonymous'; // Mencegah blokir CORS
+                img.crossOrigin = 'Anonymous'; 
                 img.onload = () => {
                     const canvas = document.getElementById('hidden-canvas');
                     canvas.width = img.width;
                     canvas.height = img.height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
-                    const dataURL = canvas.toDataURL('image/png');
-                    resolve(dataURL);
+                    resolve(canvas.toDataURL('image/png'));
                 };
                 img.onerror = () => {
                     console.warn('Gagal load gambar asli, mencoba proxy...', url);
-                    // Jika gagal, baru gunakan proxy
                     const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
                     const imgProxy = new Image();
                     imgProxy.crossOrigin = 'Anonymous';
@@ -400,7 +437,7 @@
                         ctx.drawImage(imgProxy, 0, 0);
                         resolve(canvas.toDataURL('image/png'));
                     };
-                    imgProxy.onerror = () => { resolve(null); }; // Nyerah jika proxy juga gagal
+                    imgProxy.onerror = () => { resolve(null); }; 
                     imgProxy.src = proxyUrl;
                 };
                 img.src = url;
@@ -410,6 +447,13 @@
         // --- SUBMIT & GENERATE PDF ---
         document.getElementById('suratForm').onsubmit = async (e) => {
             e.preventDefault();
+            
+            // Validasi Tanda Tangan
+            if (signaturePad.isEmpty()) {
+                Swal.fire('Tanda Tangan Kosong', 'Harap coretkan tanda tangan Anda di kotak kanvas yang telah disediakan.', 'warning');
+                return;
+            }
+
             const btn = document.getElementById('btn-submit');
             const oriHtml = btn.innerHTML;
 
@@ -425,13 +469,15 @@
                 // TUNGGU GAMBAR 100% SELESAI DIUBAH KE BASE64
                 const base64Logo = await getBase64Image(LOGO_CA);
                 const base64Cap = await getBase64Image(CAP_CA);
+                
+                // Ambil Tanda Tangan Live dari Kanvas
+                const base64TTD = signaturePad.toDataURL('image/png');
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
                 
-                // Anti Double Kepada Yth & Dengan Hormat
                 let tujuanSurat = document.getElementById('s_tujuan').value.trim().replace(/kepada\s+yth\.?,?\s*/gi, '');
                 let pembuka = document.getElementById('s_pembuka').value.trim().replace(/dengan\s+hormat,?/gi, '').trim();
-                pembuka = pembuka.charAt(0).toLowerCase() + pembuka.slice(1); // jadikan huruf kecil di awal agar nyambung dengan kalimat "Dengan hormat, sehubungan..."
+                pembuka = pembuka.charAt(0).toLowerCase() + pembuka.slice(1); 
 
                 const penutup = document.getElementById('s_penutup').value.trim();
                 const jabatan = document.getElementById('s_ttd_jabatan').value;
@@ -490,8 +536,7 @@
                 let isiSuratArray = [
                     { 
                         text: [
-                            { text: 'Dengan hormat,\n' }, // Pembuka utama
-                            // Paragraf pertama menjorok
+                            { text: 'Dengan hormat,\n' }, 
                             { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + pembuka } 
                         ], 
                         alignment: 'justify', margin: [0,0,0,10] 
@@ -518,7 +563,7 @@
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
 
-                // 4. TTD DAN CAP
+                // 4. LAYER TANDA TANGAN (TEXT -> TTD LIVE -> STEMPEL CAP)
                 let signatureArea = {
                     columns: [
                         { width: '*', text: '' }, 
@@ -528,37 +573,31 @@
                                 { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
                                 { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
                                 {
-                                    // Membuat area kosong berupa tabel tanpa garis untuk menyisipkan tanda tangan digital nantinya
-                                    table: {
-                                        widths: ['*'],
-                                        body: [
-                                            [ { text: '\n\n\n\n\n', border: [false, false, false, false] } ]
-                                        ]
-                                    },
-                                    layout: 'noBorders',
-                                    margin: [0, 0, 0, 5]
+                                    margin: [0, 5, 0, 5],
+                                    stack: [
+                                        // TANDA TANGAN LIVE DARI KANVAS WEB
+                                        { image: base64TTD, width: 120, alignment: 'center' }
+                                    ]
                                 },
                                 { text: adminName, alignment: 'center', bold: true, decoration: 'underline' }
                             ]
                         }
                     ],
                     margin: [0, 30, 0, 0],
-                    // Relative positioning untuk cap stempel agar overlap di atas kolom TTD
-                    relativePosition: { x: 0, y: 0 }
                 };
 
-                // Array terpisah untuk melempar cap absolut jika gambar cap tersedia
+                // CAP STEMPEL ABSOLUT (MENIMPA DI ATAS TTD DAN NAMA)
                 let stampImage = null;
                 if(base64Cap) {
                     stampImage = {
                         image: base64Cap,
                         width: 90,
-                        absolutePosition: { x: 375, y: 640 }, // Koordinat statis mendekati pojok kanan bawah kertas A4
+                        absolutePosition: { x: 385, y: 650 }, // Posisi statis menimpa area kanan bawah kertas A4
                         opacity: 0.85
                     };
                 }
 
-                // 5. HALAMAN LAMPIRAN (JIKA ADA DARI AI/MANUAL)
+                // 5. HALAMAN LAMPIRAN 
                 let halamanLampiran = [];
                 if(valLampiran) {
                     halamanLampiran.push({ text: '', pageBreak: 'before' });
@@ -589,9 +628,9 @@
                         sasaranSurat,
                         ...isiSuratArray,
                         signatureArea,
-                        stampImage, // Memasukkan cap stempel sebagai objek absolut
+                        stampImage, // Memasukkan cap stempel (tumpuk teratas)
                         ...halamanLampiran
-                    ].filter(Boolean), // Hilangkan objek null/undefined
+                    ].filter(Boolean), 
                     defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
                     styles: { header: { fontSize: 14, bold: true } }
                 };
@@ -612,13 +651,12 @@
 
                     Swal.fire('Berhasil!', 'Surat resmi telah dibuat, diunduh, dan diarsipkan di database.', 'success');
                     
-                    // Reset Form
                     document.getElementById('suratForm').reset();
                     document.getElementById('ai-context').value = '';
                     document.getElementById('s_lampiran_teks').value = '';
                     document.getElementById('s_ttd_nama').value = adminName;
+                    signaturePad.clear(); // Bersihkan kanvas tanda tangan
                     
-                    // Regenerate Nomor
                     const n_d = new Date();
                     document.getElementById('s_nomor').value = `.../.../CA/${romawi[n_d.getMonth()]}/${n_d.getFullYear()}`;
                     if(useTable) toggleTabel();
