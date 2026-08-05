@@ -11,7 +11,6 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <!-- Library untuk Tanda Tangan -->
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
 
     <style>
@@ -32,7 +31,6 @@
             color: var(--text-dark); margin: 0; padding: 0; padding-top: 60px; min-height: 100vh;
         }
 
-        /* --- MOBILE FIRST WRAPPER --- */
         .app-wrapper {
             width: 100%; max-width: 800px; margin: 0 auto;
             background-color: var(--bg-color); min-height: 100vh;
@@ -144,12 +142,12 @@
         <header class="top-navbar">
             <button class="btn-icon" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i></button>
             <h1 class="nav-title">Generator Surat</h1>
-            <a href="arsip-surat.html" class="btn-arsip"><i class="fa-solid fa-folder-open"></i> Arsip</a>
+            <a href="generator-surat/arsip.html" class="btn-arsip"><i class="fa-solid fa-folder-open"></i> Arsip</a>
         </header>
 
         <div class="action-header">
             <h2>Pembuatan Surat Resmi</h2>
-            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di atas tanda tangan Anda.</p>
+            <p>Sistem ini akan otomatis membuat Kop Surat, menata penomoran, menyusun struktur paragraf menjorok, hingga membubuhkan stempel secara berlapis di area tanda tangan digital.</p>
         </div>
 
         <!-- AI ASSISTANT BOX -->
@@ -319,7 +317,7 @@
 
             setTimeout(() => { 
                 document.getElementById('loading-overlay').style.display = 'none'; 
-                resizeCanvas(); // Resize canvas setelah loading hilang
+                resizeCanvas(); 
             }, 400);
         })();
 
@@ -361,7 +359,6 @@
                 document.getElementById('s_tujuan').value = cleanTujuan;
 
                 let cleanPembuka = (data.pembuka || '').replace(/dengan\s+hormat,?/gi, '').trim();
-                // Jika masih ada sisa enter atau spasi kosong di awal, buang.
                 document.getElementById('s_pembuka').value = cleanPembuka.replace(/^\s+/,'');
 
                 document.getElementById('s_penutup').value = data.penutup || '';
@@ -448,7 +445,6 @@
         document.getElementById('suratForm').onsubmit = async (e) => {
             e.preventDefault();
             
-            // Validasi Tanda Tangan
             if (signaturePad.isEmpty()) {
                 Swal.fire('Tanda Tangan Kosong', 'Harap coretkan tanda tangan Anda di kotak kanvas yang telah disediakan.', 'warning');
                 return;
@@ -466,15 +462,14 @@
             btn.disabled = true;
 
             try {
-                // TUNGGU GAMBAR 100% SELESAI DIUBAH KE BASE64
+                // TUNGGU GAMBAR
                 const base64Logo = await getBase64Image(LOGO_CA);
                 const base64Cap = await getBase64Image(CAP_CA);
                 
-                // Ambil Tanda Tangan Live dari Kanvas
+                // Ambil TTD dari Kanvas, crop spasi kosong agar pas
                 const base64TTD = signaturePad.toDataURL('image/png');
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
-                
                 let tujuanSurat = document.getElementById('s_tujuan').value.trim().replace(/kepada\s+yth\.?,?\s*/gi, '');
                 let pembuka = document.getElementById('s_pembuka').value.trim().replace(/dengan\s+hormat,?/gi, '').trim();
                 pembuka = pembuka.charAt(0).toLowerCase() + pembuka.slice(1); 
@@ -524,7 +519,6 @@
                     margin: [0, 0, 0, 30]
                 };
 
-                // Tujuan (Auto KEPADA YTH)
                 let sasaranSurat = {
                     stack: [
                         { text: 'Kepada Yth.', margin: [0,0,0,2] },
@@ -532,7 +526,7 @@
                     ]
                 };
 
-                // 3. ISI SURAT (MENJOROK & AUTO DENGAN HORMAT)
+                // 3. ISI SURAT
                 let isiSuratArray = [
                     { 
                         text: [
@@ -558,13 +552,13 @@
                     });
                 }
 
-                // Paragraf penutup (Juga Menjorok)
                 penutup.split('\n').forEach(p => {
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
 
-                // 4. LAYER TANDA TANGAN (TEXT -> TTD LIVE -> STEMPEL CAP)
+                // 4. LAYER TANDA TANGAN (KOTAK UNBREAKABLE, CAP, & TTD BERSATU)
                 let signatureArea = {
+                    unbreakable: true, // INI KUNCI UTAMA AGAR TTD TIDAK TERPISAH DARI NAMA
                     columns: [
                         { width: '*', text: '' }, 
                         {
@@ -573,9 +567,12 @@
                                 { text: 'Mengetahui,', alignment: 'center', margin: [0,0,0,2] },
                                 { text: jabatan, alignment: 'center', margin: [0,0,0,5] },
                                 {
+                                    // Membuat area yang sama, agar Cap dan TTD selalu berada di tumpukan ini
                                     margin: [0, 5, 0, 5],
                                     stack: [
-                                        // TANDA TANGAN LIVE DARI KANVAS WEB
+                                        // CAP (Stempel) diletakkan absolute TERHADAP KOTAK INI, jadi akan ikut ke mana pun kotaknya pindah halaman
+                                        base64Cap ? { image: base64Cap, width: 85, absolutePosition: { x: 375, y: -20 }, opacity: 0.85 } : null,
+                                        // TANDA TANGAN LIVE
                                         { image: base64TTD, width: 120, alignment: 'center' }
                                     ]
                                 },
@@ -583,19 +580,8 @@
                             ]
                         }
                     ],
-                    margin: [0, 30, 0, 0],
+                    margin: [0, 30, 0, 0]
                 };
-
-                // CAP STEMPEL ABSOLUT (MENIMPA DI ATAS TTD DAN NAMA)
-                let stampImage = null;
-                if(base64Cap) {
-                    stampImage = {
-                        image: base64Cap,
-                        width: 90,
-                        absolutePosition: { x: 385, y: 650 }, // Posisi statis menimpa area kanan bawah kertas A4
-                        opacity: 0.85
-                    };
-                }
 
                 // 5. HALAMAN LAMPIRAN 
                 let halamanLampiran = [];
@@ -627,8 +613,7 @@
                         atributSurat,
                         sasaranSurat,
                         ...isiSuratArray,
-                        signatureArea,
-                        stampImage, // Memasukkan cap stempel (tumpuk teratas)
+                        signatureArea, // Area TTD dan Cap digabung ke sini
                         ...halamanLampiran
                     ].filter(Boolean), 
                     defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
@@ -655,7 +640,7 @@
                     document.getElementById('ai-context').value = '';
                     document.getElementById('s_lampiran_teks').value = '';
                     document.getElementById('s_ttd_nama').value = adminName;
-                    signaturePad.clear(); // Bersihkan kanvas tanda tangan
+                    signaturePad.clear(); 
                     
                     const n_d = new Date();
                     document.getElementById('s_nomor').value = `.../.../CA/${romawi[n_d.getMonth()]}/${n_d.getFullYear()}`;
@@ -665,7 +650,7 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. Pastikan koneksi internet stabil untuk meload gambar Logo.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. Pastikan koneksi internet stabil untuk meload gambar.', 'error');
             } finally {
                 btn.innerHTML = oriHtml;
                 btn.disabled = false;
