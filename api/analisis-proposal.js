@@ -1,5 +1,3 @@
-// FIX PENTING #1: migrasi dari '@google/generative-ai' (SUDAH DEPRECATED per 30 Nov 2025)
-// ke '@google/genai' (SDK resmi yang aktif dikembangkan Google saat ini).
 import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -15,7 +13,8 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const data = req.body;
+        // Berjaga-jaga jika frontend mengirim string, bukan objek JSON
+        const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
         // Ekstrak outline jadi teks
         let outlineTeks = "Tidak ada outline terlampir.";
@@ -25,7 +24,6 @@ export default async function handler(req, res) {
 
         // --- LOGIKA KECERDASAN MULTI-TURN (KONTEKS REVISI) ---
         let konteksRevisi = "";
-
         if (data.feedback_mentor && data.feedback_mentor.trim() !== "") {
             konteksRevisi = `
 STATUS NASKAH: INI ADALAH NASKAH REVISI.
@@ -77,39 +75,18 @@ Ketentuan Review (SANGAT KETAT):
 `;
 
         const result = await ai.models.generateContent({
-            model: "gemma-4-31b-it",
+            // FIX PENTING 1: Model diganti ke model resmi yang terdaftar
+            model: "gemini-2.5-flash", 
             contents: promptText,
             config: {
                 temperature: 0.7,
                 maxOutputTokens: 2500,
-                // FIX PENTING #2: INI AKAR MASALAH "pikiran AI ikut tertulis".
-                // `includeThoughts: false` TIDAK BERFUNGSI untuk Gemma 4 (bug yang sudah
-                // dikonfirmasi Google -- flag ini diam-diam diabaikan khusus model ini).
-                // Cara yang benar-benar terbukti mematikan mode "thinking" Gemma 4
-                // adalah `thinkingLevel: "MINIMAL"`.
-                thinkingConfig: {
-                    thinkingLevel: "MINIMAL"
-                }
+                // FIX PENTING 2: thinkingConfig dihapus karena tidak valid
             }
         });
 
-        // FIX PENTING #3: lapisan pertahanan tambahan (defensive).
-        // Selain mematikan thinking lewat config di atas, kita juga secara eksplisit
-        // membuang bagian mana pun yang ditandai `thought: true` oleh API sebelum
-        // digabung jadi teks akhir. Jadi walau suatu saat modelnya tetap "bocor"
-        // menyelipkan proses berpikir, itu TIDAK AKAN PERNAH ikut masuk ke kolom
-        // catatan mentor.
-        const candidateParts = result.candidates?.[0]?.content?.parts || [];
-        let textResponse = candidateParts
-            .filter(part => !part.thought && typeof part.text === 'string')
-            .map(part => part.text)
-            .join('\n')
-            .trim();
-
-        // Fallback kalau struktur respons berbeda dari dugaan di atas
-        if (!textResponse) {
-            textResponse = result.text || "";
-        }
+        // FIX PENTING 3: Cara resmi mengambil respon teks tanpa proses filter aneh
+        let textResponse = result.text || "";
 
         // --- PROSES PEMBERSIHAN ---
         // Hapus karakter bintang (*) yang sering dipakai AI untuk bold/italic/list
