@@ -34,10 +34,10 @@ export default async function handler(req, res) {
         let promptText = "";
 
         // -------------------------------------------------------------
-        // LOGIKA PERCABANGAN (KUIS PILGAN VS TUGAS ESAI)
+        // LOGIKA PERCABANGAN (KUIS PILGAN VS TUGAS ESAI PRAKTIK)
         // -------------------------------------------------------------
         if (tipe_soal === 'kuis') {
-            promptText = `Anda adalah guru pembuat soal. Buat ${jumlah} soal Pilihan Ganda (A, B, C, D) dari materi referensi berikut.
+            promptText = `Kamu adalah guru pembuat soal. Buat ${jumlah} soal Pilihan Ganda (A, B, C, D) dari materi referensi berikut.
 MATERI REFERENSI: """${safeMateri}"""
 
 ATURAN SANGAT KETAT:
@@ -48,24 +48,28 @@ ATURAN SANGAT KETAT:
 5. JANGAN berikan teks pengantar, penutup, atau blok kode. Keluarkan HANYA teks soal murni!`;
         } 
         else if (tipe_soal === 'tugas') {
-            promptText = `Anda adalah dosen pembuat soal. Buat ${jumlah} soal TUGAS / ESAI ANALITIS (HOTS) tingkat lanjut berdasarkan materi referensi berikut.
+            promptText = `Kamu adalah Mentor Menulis yang asyik dan kreatif. Buatkan ${jumlah} soal TUGAS PRAKTIK MENULIS untuk anak SMP dan SMA berdasarkan materi referensi berikut.
 MATERI REFERENSI: """${safeMateri}"""
 
 ATURAN SANGAT KETAT:
-1. Soal harus memancing daya nalar, analisis, dan studi kasus dari materi tersebut.
-2. JANGAN berikan kunci jawaban. Hanya intruksi dan soal tugasnya saja.
-3. OUTPUT WAJIB BERFORMAT HTML DASAR! Gunakan tag <p> untuk paragraf, <ol> dan <li> untuk daftar soal, dan <strong> untuk menebalkan kata penting.
-4. JANGAN bungkus respons Anda dengan format blok kode markdown. Keluarkan tag HTML murninya saja secara langsung!`;
+1. Gunakan gaya bahasa yang santai, memotivasi, dan mudah dipahami. Gunakan sapaan "Kamu". DILARANG KERAS menggunakan kata "Anda", "Saya", atau bahasa kaku ala buku diktat.
+2. Soal TIDAK BOLEH sekadar hafalan teori (misal jangan buat soal "Apa pengertian dari plot?").
+3. Soal WAJIB berupa INSTRUKSI PRAKTIK yang merangsang imajinasi sesuai materi. 
+   - Contoh: Jika materi membahas teknik "Bagaimana Jika (What If)", minta siswa membuat 3 ide "Bagaimana Jika" versi mereka sendiri yang paling liar, lalu kembangkan salah satunya menjadi 1 premis cerita utuh.
+   - Contoh lain: Jika materi tentang penokohan, suruh mereka membuat satu profil karakter lengkap dengan kelemahan dan ketakutannya.
+4. JANGAN berikan kunci jawaban. Cukup berikan instruksi/langkah pengerjaan tugas yang seru untuk siswa.
+5. OUTPUT WAJIB BERFORMAT HTML DASAR! Gunakan tag <p> untuk paragraf pengantar/instruksi, <ol> dan <li> untuk memecah langkah-langkah tugas agar mudah dibaca, dan <strong> untuk menebalkan intruksi penting.
+6. JANGAN bungkus respons dengan format blok kode markdown (seperti \`\`\`html). Keluarkan tag HTML murninya saja secara langsung!`;
         } 
         else {
             return res.status(400).json({ error: 'Tipe soal tidak valid.' });
         }
 
-        // Panggil Groq Llama 3.3 70B (Karena bikin soal butuh logika tinggi)
+        // Panggil Groq Llama 3.3 70B
         const completion = await groq.chat.completions.create({
             model: 'llama-3.3-70b-versatile',
             messages: [{ role: "user", content: promptText }],
-            temperature: 0.2, // Sengaja direndahkan agar output konsisten
+            temperature: 0.3, // Dinaikkan sedikit jadi 0.3 agar instruksi tugasnya lebih luwes dan kreatif
         });
         
         let textResponse = completion.choices[0]?.message?.content || "";
