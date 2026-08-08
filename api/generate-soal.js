@@ -37,15 +37,37 @@ export default async function handler(req, res) {
         // LOGIKA PERCABANGAN (KUIS PILGAN VS TUGAS ESAI PRAKTIK)
         // -------------------------------------------------------------
         if (tipe_soal === 'kuis') {
-            promptText = `Kamu adalah guru pembuat soal. Buat ${jumlah} soal Pilihan Ganda (A, B, C, D) dari materi referensi berikut.
-MATERI REFERENSI: """${safeMateri}"""
+            // DIKEMBALIKAN KE PROMPT ASLI YANG SANGAT KETAT UNTUK PARSING SISTEM
+            promptText = `Anda adalah seorang guru ahli pembuat soal ujian tingkat nasional.
+Tugas Anda adalah membuat ${jumlah} soal Pilihan Ganda (A, B, C, D) yang berkualitas berdasarkan materi referensi yang diberikan.
 
-ATURAN SANGAT KETAT:
-1. Tulis pertanyaan di baris pertama.
-2. Baris berikutnya adalah pilihan jawaban (A. B. C. D.).
-3. Berikan tanda bintang (*) TEPAT di depan huruf pilihan jawaban yang BENAR.
-4. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
-5. JANGAN berikan teks pengantar, penutup, atau blok kode. Keluarkan HANYA teks soal murni!`;
+MATERI REFERENSI (Hanya untuk Anda pelajari, siswa TIDAK akan melihat teks ini):
+"""
+${safeMateri}
+"""
+
+ATURAN SANGAT KETAT (WAJIB DIPATUHI - JIKA MELANGGAR SOAL AKAN DITOLAK):
+1. Soal harus bersifat MANDIRI (self-contained).
+2. DILARANG KERAS menggunakan frasa yang merujuk pada teks gaib, seperti "Berdasarkan wacana di atas...", "Menurut teks tersebut...", "Cermati teks di bawah", dll.
+3. JIKA Anda ingin menguji pemahaman membaca/studi kasus, Anda WAJIB MENULISKAN KEMBALI penggalan cerita/kasus tersebut ke dalam teks pertanyaan secara utuh.
+4. Tulis pertanyaan di baris pertama tanpa menggunakan nomor (Jangan tulis "1.", "2.", dll).
+5. Baris berikutnya adalah pilihan jawaban persis dengan huruf (A. B. C. D.).
+6. Berikan tanda bintang (*) TEPAT di depan huruf pilihan jawaban yang BENAR.
+7. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
+8. DILARANG memberikan kata pengantar, basa-basi, penjelasan jawaban, atau teks penutup apa pun. Keluarkan HANYA teks soal murni!
+
+CONTOH OUTPUT YANG DIHARAPKAN:
+Ibu kota negara Republik Indonesia adalah?
+A. Bandung
+*B. Jakarta
+C. Surabaya
+D. Medan
+
+Andi menemukan sebuah dompet di jalan, lalu ia membawanya ke kantor polisi terdekat untuk dikembalikan. Tindakan yang dilakukan Andi mencerminkan penerapan nilai Pancasila sila ke?
+A. Pertama
+*B. Kedua
+C. Ketiga
+D. Keempat`;
         } 
         else if (tipe_soal === 'tugas') {
             promptText = `Kamu adalah Mentor Menulis yang asyik dan kreatif. Buatkan ${jumlah} soal TUGAS PRAKTIK MENULIS untuk anak SMP dan SMA berdasarkan materi referensi berikut.
@@ -69,7 +91,7 @@ ATURAN SANGAT KETAT:
         const completion = await groq.chat.completions.create({
             model: 'llama-3.3-70b-versatile',
             messages: [{ role: "user", content: promptText }],
-            temperature: 0.3, // Dinaikkan sedikit jadi 0.3 agar instruksi tugasnya lebih luwes dan kreatif
+            temperature: tipe_soal === 'kuis' ? 0.1 : 0.3, // Kuis suhunya rendah biar kaku & akurat, Tugas suhunya lebih tinggi biar kreatif
         });
         
         let textResponse = completion.choices[0]?.message?.content || "";
