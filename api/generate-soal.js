@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const groq = GROQ_API_KEY ? new OpenAI({
     apiKey: GROQ_API_KEY,
-    baseURL: "[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)"
+    baseURL: 'https://api.groq.com/openai/v1'
 }) : null;
 
 export default async function handler(req, res) {
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
         const jumlah = jumlahSoal || 5;
 
-        // SABUK PENGAMAN TOKEN: Potong teks jika PDF-nya terlalu panjang (maksimal ~20.000 karakter)
+        // SABUK PENGAMAN TOKEN: Potong teks jika PDF terlalu panjang
         const safeMateri = materi.length > 20000 ? materi.substring(0, 20000) + "... [DIPOTONG]" : materi;
 
         let promptText = "";
