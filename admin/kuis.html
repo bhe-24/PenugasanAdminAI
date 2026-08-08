@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- LIBRARY UNTUK MEMBACA PDF DI BROWSER -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
     <style>
         /* --- STYLE GLOBAL --- */
         :root { --primary: #003366; --accent: #4361ee; --bg: #f4f6f9; --ai-color: #0284c7; --text-dark: #1e293b; --text-gray: #64748b;}
@@ -100,7 +103,7 @@
         .bg-edit { background: #f59e0b; }
         .bg-del { background: #ef4444; }
 
-        /* --- FORM EDITOR KUIS (FULLSCREEN-LIKE) --- */
+        /* --- FORM EDITOR KUIS --- */
         .form-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(244, 246, 249, 0.95); backdrop-filter: blur(5px);
@@ -123,9 +126,9 @@
         
         /* GENERATOR AI SECTION */
         .ai-generator-box { background: linear-gradient(to right, #f0fdfa, #e0f2fe); border: 1px solid #bae6fd; padding: 25px; border-radius: 16px; margin-bottom: 30px; display: flex; gap: 25px; align-items: stretch; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.05); }
-        .ai-generator-box .left-side { flex: 2; }
+        .ai-generator-box .left-side { flex: 2; display: flex; flex-direction: column; gap: 15px;}
         .ai-generator-box .right-side { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 15px; border-left: 2px dashed #bae6fd; padding-left: 25px;}
-        .ai-textarea { width: 100%; height: 120px; padding: 15px; border: 1px solid #bae6fd; border-radius: 10px; resize: vertical; font-family: 'Poppins', sans-serif; font-size: 0.95rem; background: white; transition: 0.3s;}
+        .ai-textarea { width: 100%; height: 90px; padding: 15px; border: 1px solid #bae6fd; border-radius: 10px; resize: vertical; font-family: 'Poppins', sans-serif; font-size: 0.95rem; background: white; transition: 0.3s;}
         .ai-textarea:focus { border-color: var(--ai-color); outline: none; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
         
         .btn-ai { background: var(--ai-color); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-size: 0.95rem; transition: 0.2s; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.2);}
@@ -239,16 +242,20 @@
             <div class="ai-generator-box">
                 <div class="left-side">
                     <label class="form-label" style="color:var(--ai-color); font-family: 'Aleo', serif; font-size: 1.1rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Asisten Pembuat Soal Otomatis</label>
-                    <p style="font-size:0.85rem; color:#475569; margin-top:0; margin-bottom: 12px;">Tempelkan ringkasan materi pelajaran, teori, atau artikel di bawah ini. AI akan menganalisisnya dan membuatkan soal konseptual beserta studi kasusnya.</p>
-                    <textarea id="ai-materi" class="ai-textarea" placeholder="Paste materi referensi di sini... (Contoh: Sejarah Sastra Indonesia angkatan Pujangga Baru dipelopori oleh...)"></textarea>
+                    <p style="font-size:0.85rem; color:#475569; margin-top:0;">Upload PDF materi atau paste ringkasan di bawah. AI akan menganalisisnya dan membuatkan soal Pilihan Ganda.</p>
+                    
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <input type="file" id="ai-pdf" class="form-input" accept="application/pdf" style="padding: 10px; background: white;">
+                    </div>
+                    <textarea id="ai-materi" class="ai-textarea" placeholder="Atau paste teks materi referensi di sini secara manual..."></textarea>
                 </div>
                 <div class="right-side">
                     <div>
-                        <label class="form-label" style="font-size: 0.9rem;">Jumlah Soal yang Diinginkan:</label>
-                        <input type="number" id="ai-jumlah" class="form-input" value="5" min="1" max="20">
+                        <label class="form-label" style="font-size: 0.9rem;">Jumlah Soal Pilihan Ganda:</label>
+                        <input type="number" id="ai-jumlah" class="form-input" value="5" min="1" max="20" style="background: white;">
                     </div>
                     <button type="button" class="btn-ai" id="btn-generate-ai" onclick="generateSoalAI()">
-                        <i class="fa-solid fa-robot"></i> Buat Soal Sekarang
+                        <i class="fa-solid fa-robot"></i> Baca PDF & Buat Soal
                     </button>
                 </div>
             </div>
@@ -256,7 +263,7 @@
             <div id="tab-massal">
                 <div class="bulk-guide">
                     <strong><i class="fa-solid fa-code"></i> Format Editor Soal (Manual / Hasil AI):</strong><br>
-                    Tulis soal dan jawaban di kotak hitam di bawah. Gunakan tanda bintang <b>(*)</b> untuk menandai jawaban yang benar. Pisahkan antar soal dengan <b>Enter 2x</b> (Baris Kosong). Jika menggunakan AI, kotak ini akan otomatis terisi dan Anda bebas mengedit hasilnya.
+                    Tulis soal dan jawaban di kotak hitam di bawah. Gunakan tanda bintang <b>(*)</b> untuk menandai jawaban yang benar. Pisahkan antar soal dengan <b>Enter 2x</b> (Baris Kosong). Jika menggunakan AI, kotak ini otomatis terisi.
                 </div>
                 <textarea id="bulk-text" placeholder="Contoh:
 Tokoh utama dalam novel Bumi Manusia adalah?
@@ -301,8 +308,25 @@ D. Ditulis dalam paragraf"></textarea>
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // URL UNTUK API KUIS VERCEL
-        const VERCEL_API_URL = "/api/kuis"; 
+        // URL UNTUK API SENTRAL (Groq)
+        const VERCEL_API_URL = "/api/generate-soal"; 
+
+        // Inisialisasi PDF.js Worker (Untuk ekstrak PDF di browser)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // --- FUNGSI EKSTRAK TEKS DARI PDF ---
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let fullText = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(" ");
+                fullText += pageText + "\n";
+            }
+            return fullText;
+        }
 
         // =====================================================================
         // FUNGSI PENEMBAK NOTIFIKASI AMAN (API VERCEL)
@@ -312,7 +336,6 @@ D. Ditulis dalam paragraf"></textarea>
                 const res = await fetch("/api/notif", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    // Menambahkan penanda 'jenis: "kuis"' agar API tahu asal notifikasi
                     body: JSON.stringify({ judul, pesan, urlTujuan, jenis: "kuis" })
                 });
 
@@ -425,6 +448,7 @@ D. Ditulis dalam paragraf"></textarea>
             document.getElementById('mapel').value = '';
             document.getElementById('durasi').value = '';
             document.getElementById('bulk-text').value = '';
+            document.getElementById('ai-pdf').value = '';
             document.getElementById('ai-materi').value = '';
             document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Buat Kuis Baru';
             document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan & Terbitkan Kuis';
@@ -432,22 +456,34 @@ D. Ditulis dalam paragraf"></textarea>
         }
         window.closeForm = () => document.getElementById('form-overlay').classList.remove('active');
 
-        // --- 4. GENERATOR SOAL AI ---
+        // --- 4. GENERATOR SOAL AI DENGAN PDF ---
         window.generateSoalAI = async () => {
-            const materi = document.getElementById('ai-materi').value.trim();
+            const pdfInput = document.getElementById('ai-pdf');
+            let materi = document.getElementById('ai-materi').value.trim();
             const jumlah = document.getElementById('ai-jumlah').value;
 
-            if(!materi) {
-                return showModal('error', 'Materi Referensi Kosong', 'Tolong tempelkan teks materi referensi terlebih dahulu di kotak yang disediakan sebelum meminta bantuan AI.');
+            if (!materi && (!pdfInput.files || pdfInput.files.length === 0)) {
+                return showModal('warning', 'Data Kosong', 'Silakan upload PDF atau paste teks materi referensi terlebih dahulu.');
             }
 
-            showLoading("AI Sedang Membaca & Menyusun Soal...");
+            showLoading("AI Sedang Membaca PDF & Menyusun Soal Pilgan...");
             
             try {
+                // Ekstrak Teks jika ada PDF
+                if (pdfInput.files && pdfInput.files.length > 0) {
+                    const pdfText = await extractTextFromPDF(pdfInput.files[0]);
+                    materi += "\n" + pdfText;
+                }
+
+                // Panggil Vercel API dengan parameter tipe_soal: 'kuis'
                 const response = await fetch(VERCEL_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ materi: materi, jumlahSoal: jumlah })
+                    body: JSON.stringify({ 
+                        materi: materi, 
+                        jumlahSoal: jumlah,
+                        tipe_soal: 'kuis' // PENTING: Meminta output pilihan ganda!
+                    })
                 });
 
                 if(!response.ok) {
@@ -457,11 +493,15 @@ D. Ditulis dalam paragraf"></textarea>
 
                 const data = await response.json();
                 
-                // Menempatkan hasil AI langsung ke dalam textarea editor hitam
+                // Menempatkan hasil AI ke dalam textarea editor hitam
                 document.getElementById('bulk-text').value = data.result;
                 hideLoading();
 
-                showModal('success', 'Soal Berhasil Dibuat!', `AI telah menyusun ${jumlah} soal untuk Anda. Silakan periksa kembali dan edit jika diperlukan di kotak editor hitam.`);
+                // Kosongkan form input
+                document.getElementById('ai-pdf').value = '';
+                document.getElementById('ai-materi').value = '';
+
+                showModal('success', 'Soal Berhasil Dibuat!', `AI telah menyusun ${jumlah} soal pilihan ganda dari PDF Anda. Silakan periksa kembali dan edit jika diperlukan di kotak editor hitam.`);
 
             } catch (error) {
                 console.error(error);
@@ -481,7 +521,8 @@ D. Ditulis dalam paragraf"></textarea>
                 document.getElementById('judul').value = data.judul;
                 document.getElementById('mapel').value = data.mapel;
                 document.getElementById('durasi').value = data.durasi;
-                document.getElementById('ai-materi').value = ''; // Kosongkan AI materi
+                document.getElementById('ai-pdf').value = '';
+                document.getElementById('ai-materi').value = ''; 
                 
                 // REVERSE PARSING: JSON -> TEXT 
                 let bulkString = "";
