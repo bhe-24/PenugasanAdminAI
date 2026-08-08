@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const groq = GROQ_API_KEY ? new OpenAI({
     apiKey: GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1"
+    baseURL: "[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)"
 }) : null;
 
 export default async function handler(req, res) {
@@ -45,7 +45,7 @@ ATURAN SANGAT KETAT:
 2. Baris berikutnya adalah pilihan jawaban (A. B. C. D.).
 3. Berikan tanda bintang (*) TEPAT di depan huruf pilihan jawaban yang BENAR.
 4. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
-5. JANGAN berikan teks pengantar, penutup, atau markdown (```). Keluarkan HANYA teks soal!`;
+5. JANGAN berikan teks pengantar, penutup, atau blok kode. Keluarkan HANYA teks soal murni!`;
         } 
         else if (tipe_soal === 'tugas') {
             promptText = `Anda adalah dosen pembuat soal. Buat ${jumlah} soal TUGAS / ESAI ANALITIS (HOTS) tingkat lanjut berdasarkan materi referensi berikut.
@@ -55,7 +55,7 @@ ATURAN SANGAT KETAT:
 1. Soal harus memancing daya nalar, analisis, dan studi kasus dari materi tersebut.
 2. JANGAN berikan kunci jawaban. Hanya intruksi dan soal tugasnya saja.
 3. OUTPUT WAJIB BERFORMAT HTML DASAR! Gunakan tag <p> untuk paragraf, <ol> dan <li> untuk daftar soal, dan <strong> untuk menebalkan kata penting.
-4. JANGAN bungkus respons Anda dengan \`\`\`html. Keluarkan tag HTML murninya saja secara langsung!`;
+4. JANGAN bungkus respons Anda dengan format blok kode markdown. Keluarkan tag HTML murninya saja secara langsung!`;
         } 
         else {
             return res.status(400).json({ error: 'Tipe soal tidak valid.' });
