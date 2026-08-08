@@ -29,7 +29,7 @@ function ensureAuth() {
     return authReadyPromise;
 }
 
-// INISIALISASI GROQ API MENGGUNAKAN LIBRARY OPENAI
+// INISIALISASI GROQ
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const groq = GROQ_API_KEY ? new OpenAI({
     apiKey: GROQ_API_KEY,
@@ -69,7 +69,6 @@ async function loadKnowledgeBase() {
         lastKnowledgeUpdate = now;
         return Object.values(knowledgeCache).map(kb => kb.content).join('\n\n');
     } catch (err) {
-        console.error('[KB] Error:', err.message);
         return 'Belum ada data spesifik.';
     }
 }
@@ -141,7 +140,6 @@ async function saveQuestion(message, userName, isAnswered = false, answer = null
         });
         return docRef.id;
     } catch (err) {
-        console.error('[SAVE] Error:', err.message);
         return null;
     }
 }
@@ -170,7 +168,6 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: true, reply: 'Pesan tidak boleh kosong.' });
         }
 
-        // 1. Cek Keyword Terlarang (Restrictions)
         const restrictions = await loadRestrictions();
         if (isInputRestricted(message, restrictions)) {
             const restrictedReply = 'Maaf, aku hanya bisa membantu seputar komunitas Cendekia Aksara. Pertanyaan kamu sepertinya di luar kemampuanku saat ini. 🤖';
@@ -178,33 +175,42 @@ export default async function handler(req, res) {
             return res.status(200).json({ restricted: true, reply: restrictedReply, timestamp: new Date().toISOString() });
         }
 
-        // 2. Ambil Pengetahuan dari Database
-        const knowledgeContext = await loadKnowledgeBase();
+        // AMBIL PENGETAHUAN
+        let knowledgeContext = await loadKnowledgeBase();
         const similarAnswer = findSimilarInKnowledge(message);
 
-        // 3. Susun Prompt Sistem (Instruksi Utama Bot)
+        // --- FIX PENTING: SABUK PENGAMAN TOKEN ---
+        // Jika database terlalu besar (lebih dari 7.000 karakter), kita potong agar tidak overlimit!
+        if (knowledgeContext.length > 7000) {
+            knowledgeContext = knowledgeContext.substring(0, 7000) + "... [Data Lainnya Dipotong Karena Batas Memori]";
+        }
+
+        // Kalau ada jawaban yang spesifik mirip dengan pertanyaan (similarAnswer), prioritaskan itu!
+        const finalContext = similarAnswer ? similarAnswer : knowledgeContext;
+
         const systemPrompt = `Kamu adalah AksaBot, asisten virtual resmi komunitas Cendekia Aksara. Sikapmu ramah, antusias, dan helpful layaknya seorang teman belajar.
 
 IDENTITAS PENGGUNA YANG MENYAPA: ${userName || 'Teman'}
 
 ATURAN WAJIB (HARUS DIIKUTI 100%):
-1. Berikan jawaban yang LENGKAP dan DETAIL. Jangan memotong penjelasan.
-2. Gunakan [REFERENSI] di bawah ini sebagai sumber kebenaran utama. Jika ada info relevan di referensi, WAJIB sertakan dalam jawabanmu.
-3. JANGAN memakai markdown bintang ganda (**teks**). Jika ingin menebalkan huruf, tuliskan biasa saja atau sesuaikan dengan gaya chat yang santai.
-4. Gunakan maksimal 2 emoji per pesan agar terlihat ceria.
-5. Jika pengguna hanya menyapa (misal: "hai", "halo"), sapa balik dengan ramah, sebut namanya, dan tawarkan bantuan secara lengkap mengenai Cendekia Aksara.
+1. Berikan jawaban yang LENGKAP dan DETAIL.
+2. Gunakan [REFERENSI] di bawah ini sebagai sumber kebenaran utama. Jika ada info relevan, WAJIB sertakan.
+3. JANGAN memakai markdown bintang ganda (**teks**). 
+4. Gunakan maksimal 2 emoji per pesan.
+5. Jika pengguna hanya menyapa (misal: "hai"), sapa balik dengan ramah, sebut namanya, dan tawarkan bantuan.
 
 [REFERENSI CENDEKIA AKSARA]:
-${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'Jawab berdasarkan pengetahuan umum seputar Cendekia Aksara.'}`;
+${finalContext && finalContext.trim().length > 0 ? finalContext : 'Jawab berdasarkan pengetahuan umum seputar Cendekia Aksara.'}`;
 
-        // 4. Susun Riwayat Chat (Format OpenAI/Groq: system -> user -> assistant -> user)
         const formattedMessages = [
             { role: 'system', content: systemPrompt }
         ];
 
-        // Memasukkan chat history sebelumnya
+        // --- FIX PENTING 2: BATASI MEMORI CHAT ---
+        // Jangan kirim seluruh histori panjang. Ambil 4 chat terakhir saja!
         if (history && Array.isArray(history)) {
-            history.forEach(h => {
+            const recentHistory = history.slice(-4);
+            recentHistory.forEach(h => {
                 formattedMessages.push({
                     role: h.role === 'user' ? 'user' : 'assistant',
                     content: h.content
@@ -212,26 +218,23 @@ ${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'J
             });
         }
 
-        // Memasukkan chat terbaru dari user
         formattedMessages.push({ role: 'user', content: message });
 
-        // 5. Panggil API Groq (Menggunakan Llama 3.1 8B Instant)
+        // PANGGIL GROQ
         const completion = await groq.chat.completions.create({
-            model: 'llama-3.1-8b-instant', // Super cepat, jatah kuota 14.400/hari
+            model: 'llama-3.1-8b-instant',
             messages: formattedMessages,
             temperature: 0.7,
-            max_tokens: 2048 // Token besar agar jawaban tidak terpotong
+            max_tokens: 1024 // Dikecilkan sedikit agar aman di limit TPM
         });
 
-        // 6. Ekstrak Jawaban
         let finalAnswer = completion.choices[0]?.message?.content || "";
         finalAnswer = finalAnswer.replace(/```[\w]*\n?/g, '').trim();
 
         if (!finalAnswer) throw new Error('Groq mengembalikan jawaban kosong');
 
-        // 7. Simpan ke Firestore
         const questionId = await saveQuestion(message, userName, true, finalAnswer);
-        await sleep(randomDelay(500, 1000)); // Delay alami agar bot tidak terasa seperti robot kaku
+        await sleep(randomDelay(500, 1000));
 
         return res.status(200).json({
             reply: finalAnswer,
@@ -244,13 +247,12 @@ ${knowledgeContext && knowledgeContext.trim().length > 0 ? knowledgeContext : 'J
     } catch (error) {
         console.error('[AksaBot] Fatal error:', error?.message || error);
 
-        // Jika error, tetap simpan pertanyaannya agar Admin tahu ada user yang gagal dilayani
         if (req.body?.message) {
             await saveQuestion(req.body.message, req.body.userName || 'Anonymous', false, null);
         }
         return res.status(500).json({
             error: true,
-            reply: 'Waduh, AksaBot lagi pusing nih. Coba sapa aku lagi beberapa saat ya! 🙏'
+            reply: 'Waduh, AksaBot lagi pusing nih (Server Penuh). Coba sapa aku lagi beberapa menit lagi ya! 🙏'
         });
     }
 }
