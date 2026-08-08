@@ -4,7 +4,7 @@ import {
     HarmBlockThreshold 
 } from '@google/generative-ai';
 
-// Menggunakan cara lama (sama persis dengan grade2.js)
+// Inisialisasi library
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export default async function handler(req, res) {
@@ -20,11 +20,8 @@ export default async function handler(req, res) {
     try {
         const data = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-        // DIAGNOSTIK 1: Cek apakah data kosong
         if (!data || !data.judul || !data.studentName) {
-            return res.status(200).json({ 
-                analisis_teks: "⚠ DIAGNOSTIK API: Data naskah tidak terbaca oleh server." 
-            });
+            return res.status(200).json({ analisis_teks: "⚠ DIAGNOSTIK API: Data naskah tidak terbaca oleh server." });
         }
 
         let outlineTeks = "Tidak ada outline terlampir.";
@@ -64,7 +61,6 @@ Ketentuan Review:
 6. WAJIB tulis baris terakhir jawabanmu PERSIS seperti ini: "Skor Kesiapan Naskah: [angka]/100"
 `;
 
-        // 2. KONFIGURASI KEAMANAN (Meniru persis grade2.js)
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -72,7 +68,7 @@ Ketentuan Review:
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         ];
 
-        // PENTING: Memakai model 1.5-flash agar tidak kehabisan limit 429 seperti tadi
+        // MENGGUNAKAN GEMINI 3.1 SESUAI PERMINTAANMU
         const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
 
         const result = await model.generateContent({
@@ -84,10 +80,31 @@ Ketentuan Review:
             safetySettings: safetySettings
         });
         
-        // 3. EKSTRAK RESPON
-        const textResponse = result.response.text();
+        // --- PERBAIKAN PENTING DI SINI ---
+        // Cek dulu apakah prompt diblokir oleh sistem keamanan Google
+        if (result.response.promptFeedback && result.response.promptFeedback.blockReason) {
+            const reason = result.response.promptFeedback.blockReason;
+            
+            if (reason === "PROHIBITED_CONTENT") {
+                return res.status(200).json({ 
+                    analisis_teks: "⚠ EVALUASI DITOLAK OLEH GOOGLE AI:\n\nSistem AI mendeteksi adanya kata-kata yang dianggap sensitif/berbahaya dalam sinopsis siswa ini (biasanya karena salah mendeteksi bahasa gaul seperti 'nembak', atau naskah memang mengandung unsur kekerasan/romansa dewasa yang dilarang AI).\n\nKarena AI diblokir untuk membaca naskah ini, silakan Mentor lakukan evaluasi naskah secara manual." 
+                });
+            } else {
+                return res.status(200).json({ 
+                    analisis_teks: `⚠ SISTEM AI MEMBLOKIR NASKAH INI. Alasan pemblokiran Google: ${reason}` 
+                });
+            }
+        }
 
-        // 4. BERSIHKAN BINTANG & KEMBALIKAN KE FRONTEND
+        // Jika AMAN, baru kita ekstrak teksnya (agar tidak crash)
+        let textResponse = "";
+        try {
+            textResponse = result.response.text();
+        } catch (err) {
+            return res.status(200).json({ analisis_teks: "⚠ Gagal memuat teks. Google AI memblokir respons ini." });
+        }
+
+        // Bersihkan karakter bintang
         let cleanFeedback = textResponse ? textResponse.replace(/\*/g, "").trim() : "⚠ Teks kosong dikembalikan oleh AI.";
 
         res.status(200).json({ analisis_teks: cleanFeedback });
@@ -95,7 +112,7 @@ Ketentuan Review:
     } catch (error) {
         console.error("AI Error (Analisis Proposal):", error);
         
-        // Tetap menggunakan status 200 agar error selalu muncul di layar
+        // Cetak error ke layar mentor
         res.status(200).json({ 
             analisis_teks: `⚠ TERJADI CRASH PADA SERVER GOOGLE GEMINI:\n\nDetail Error: ${error.message}` 
         });
