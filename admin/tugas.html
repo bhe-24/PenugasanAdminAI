@@ -6,11 +6,11 @@
     <title>Kelola Tugas - Admin CA</title>
     
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css)">
-    <link href="[https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap)" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- LIBRARY UNTUK MEMBACA PDF DI BROWSER -->
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js](https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js)"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
     <style>
         /* --- STYLE GLOBAL --- */
@@ -104,6 +104,7 @@
             font-family: 'Poppins', sans-serif; font-size: 0.95rem; transition: 0.3s; background: #f8fafc; color: var(--text-dark);
         }
         .form-input:focus, .form-select:focus { border-color: var(--primary); background: white; outline: none; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
         /* --- AI GENERATOR BOX BARU --- */
@@ -172,9 +173,10 @@
         .modal-actions { display: flex; gap: 10px; justify-content: center; }
         .btn-modal { padding: 12px 20px; border-radius: 50px; border: none; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: 0.2s; width: 100%; font-family: 'Poppins', sans-serif;}
         .btn-modal:hover { transform: translateY(-2px); }
-        .btn-modal-primary { background: var(--primary); color: white; }
-        .btn-modal-danger { background: #ef4444; color: white; }
+        .btn-modal-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+        .btn-modal-danger { background: #ef4444; color: white; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2); }
         .btn-modal-cancel { background: #f1f5f9; color: var(--text-gray); }
+        .btn-modal-cancel:hover { background: #e2e8f0; color: var(--text-dark); transform: none;}
 
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -195,7 +197,7 @@
         <div class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
-                    <img src="[https://i.imgur.com/5Srjyo4.png](https://i.imgur.com/5Srjyo4.png)" alt="Logo Cendekia Aksara">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
                 </div>
                 <div class="header-info">
                     <h1 class="header-brand-name">Kelola Tugas</h1>
@@ -334,12 +336,12 @@
     <!-- JAVASCRIPT -->
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js)";
+        import { collection, query, orderBy, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
 
-        // Inisialisasi PDF.js Worker (Untuk ekstrak PDF di browser)
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '[https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js](https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js)';
+        // Inisialisasi PDF.js Worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         // --- FUNGSI EKSTRAK TEKS DARI PDF ---
         async function extractTextFromPDF(file) {
@@ -369,13 +371,12 @@
             showLoad();
 
             try {
-                // Jika guru mengupload PDF, baca isinya dulu
                 if (pdfInput.files && pdfInput.files.length > 0) {
                     const pdfText = await extractTextFromPDF(pdfInput.files[0]);
-                    materi += "\n" + pdfText; // Gabungkan jika guru mengisi text box juga
+                    materi += "\n" + pdfText; 
                 }
 
-                // Kirim Teks Mentah ke Vercel API
+                // Kirim Teks ke Vercel API
                 const response = await fetch('/api/generate-soal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -392,11 +393,8 @@
                 }
 
                 const data = await response.json();
-                
-                // Masukkan hasil tag HTML dari AI langsung ke editor
                 document.getElementById('instruksi-editor').innerHTML = data.result;
                 
-                // Kosongkan form AI
                 document.getElementById('ai-pdf').value = '';
                 document.getElementById('ai-materi').value = '';
                 
@@ -498,6 +496,10 @@
 
         async function loadTugas() {
             const listDiv = document.getElementById('task-list');
+            
+            // Tambahkan Indikator Loading Saat Awal Buka Halaman
+            listDiv.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px; color:#94a3b8;"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i><br><br>Memuat daftar tugas dari server...</div>';
+            
             try {
                 const q = query(collection(db, 'assignments'), orderBy('createdAt', 'desc'));
                 const snap = await getDocs(q);
@@ -540,7 +542,7 @@
                 });
             } catch(e) {
                 console.error(e);
-                listDiv.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444; background:white; border-radius:12px;">Gagal memuat data.</div>';
+                listDiv.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#ef4444; background:white; border-radius:12px;">Gagal memuat data dari Firebase. Cek koneksi Anda.</div>';
             }
         }
 
@@ -638,7 +640,7 @@
                     const notifResult = await kirimNotifikasiOneSignal(
                         "📝 Tugas Baru Diterbitkan!",
                         `Ada tugas baru: ${judulTugasVal}. Segera cek portal untuk mengerjakannya.`,
-                        "[https://cendekia-aksara.vercel.app/tugas](https://cendekia-aksara.vercel.app/tugas)"
+                        "https://cendekia-aksara.vercel.app/tugas"
                     );
 
                     if (!notifResult.ok) {
