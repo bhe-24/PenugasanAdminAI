@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 
-// Inisialisasi Groq API
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const groq = GROQ_API_KEY ? new OpenAI({
     apiKey: GROQ_API_KEY,
@@ -8,7 +7,6 @@ const groq = GROQ_API_KEY ? new OpenAI({
 }) : null;
 
 export default async function handler(req, res) {
-    // ATUR CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
@@ -16,59 +14,48 @@ export default async function handler(req, res) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-    if (!groq) return res.status(500).json({ error: 'Server belum dikonfigurasi (GROQ API KEY kosong).' });
+    if (!groq) return res.status(500).json({ error: 'Server belum dikonfigurasi.' });
 
     try {
         const { judul_event, info_mentah } = req.body;
+        if (!info_mentah || info_mentah.trim() === '') return res.status(400).json({ error: 'Informasi mentah tidak boleh kosong.' });
 
-        if (!info_mentah || info_mentah.trim() === '') {
-            return res.status(400).json({ error: 'Informasi mentah tidak boleh kosong.' });
-        }
-
-        // PROMPT KHUSUS EVENT MANAGER
-        const promptText = `Kamu adalah Event Manager dan Editor profesional Cendekia Aksara.
-Tugasmu: Kembangkan informasi mentah dari sebuah kegiatan/event menjadi Buku Panduan (Guidebook) yang sangat detail, profesional, dan komprehensif.
+        const promptText = `Kamu adalah Event Manager dan Desainer Buku Panduan profesional Cendekia Aksara.
+Tugasmu: Kembangkan informasi mentah berikut menjadi Buku Panduan (Guidebook) yang sangat detail, terstruktur, dan tidak membosankan.
 
 Nama Event: ${judul_event}
-Informasi Mentah dari Panitia:
+Informasi Mentah:
 """
 ${info_mentah}
 """
 
-ATURAN PENGEMBANGAN:
-1. Jika infonya sangat singkat, KAMU WAJIB MENGEMBANGKANNYA secara logis. Tambahkan narasi Latar Belakang yang bagus, Tujuan Kegiatan, Rincian Persyaratan, dan Tata Tertib yang relevan dengan event literasi/pendidikan.
-2. Pecah informasi tersebut menjadi 4 sampai 6 Bab/Poin Utama.
-3. Tiap Bab harus berisi teks penjelasan yang cukup panjang (1-2 paragraf padat).
-4. OUTPUT WAJIB 100% JSON ARRAY MURNI! Tidak boleh ada teks pengantar atau penutup.
+ATURAN PENGEMBANGAN (WAJIB DIIKUTI 100%):
+1. KAMU WAJIB mengembangkan informasi singkat menjadi narasi yang komprehensif, logis, dan menarik.
+2. WAJIB MENGGUNAKAN TABEL: Jika ada informasi tentang Timeline, Jadwal, atau Waktu Kegiatan, kamu WAJIB membuatnya dalam format Tabel Markdown. Contoh:
+| Tanggal | Kegiatan / Tahapan |
+| --- | --- |
+| 12 Agustus 2026 | Pendaftaran Dibuka |
+3. WAJIB MENGGUNAKAN POIN: Untuk bagian Syarat, Ketentuan, Penilaian, dan Tata Tertib, WAJIB gunakan list (gunakan awalan "a. ", "b. ", "c. " atau "- ").
+4. Pecah buku menjadi 4 atau 5 Bab Utama.
+5. OUTPUT WAJIB 100% JSON ARRAY MURNI! Tanpa basa-basi.
 
 FORMAT JSON YANG DIWAJIBKAN:
 [
-  { "bab": "1. Pendahuluan & Latar Belakang", "isi": "Teks panjang pendahuluan..." },
-  { "bab": "2. Syarat & Ketentuan", "isi": "Teks panjang syarat..." }
+  { "bab": "1. Pendahuluan & Latar Belakang", "isi": "Teks panjang paragraf..." },
+  { "bab": "2. Timeline Kegiatan", "isi": "Teks pengantar.\\n\\n| Tanggal | Kegiatan |\\n|---|---|\\n| 10 Ags | Daftar |" },
+  { "bab": "3. Syarat & Ketentuan", "isi": "Berikut syaratnya:\\na. Syarat pertama\\nb. Syarat kedua" }
 ]`;
 
-        // MENGGUNAKAN LLAMA 3.3 70B (Karena Mixtral sudah pensiun)
-        // Model ini punya memori 128k token, sangat mampu menelan teks panjang
         const completion = await groq.chat.completions.create({
             model: 'llama-3.3-70b-versatile',
             messages: [{ role: "user", content: promptText }],
-            temperature: 0.4, 
+            temperature: 0.3, 
         });
         
         let textResponse = completion.choices[0]?.message?.content || "";
-        
-        // Pembersihan karakter markdown JSON
         textResponse = textResponse.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
 
-        // Validasi JSON
-        let parsedData;
-        try {
-            parsedData = JSON.parse(textResponse);
-        } catch (parseError) {
-            console.error("Gagal parse JSON:", textResponse);
-            return res.status(500).json({ error: "AI gagal menghasilkan format data yang tepat. Coba lagi." });
-        }
-
+        let parsedData = JSON.parse(textResponse);
         res.status(200).json({ hasil: parsedData });
 
     } catch (error) {
