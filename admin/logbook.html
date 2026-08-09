@@ -139,6 +139,7 @@
     <script>
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
 
+        // 1. FUNGSI UNTUK MENGAMBIL GAMBAR
         function getBase64ImageFromUrl(url) {
             return new Promise((resolve) => {
                 const img = new Image();
@@ -164,10 +165,28 @@
             });
         }
 
+        // 2. FUNGSI UNTUK MENGUNDUH FONT DINAMIS (BARU)
+        async function getFontBase64(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Gagal mengunduh font: " + url);
+                const arrayBuffer = await response.arrayBuffer();
+                let binary = '';
+                const bytes = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return window.btoa(binary);
+            } catch (error) {
+                console.error(error);
+                return null;
+            }
+        }
+
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.add('active'); };
         const hideLoading = () => { document.getElementById('loading-overlay').classList.remove('active'); };
 
-        // 1. PANGGIL API AI
+        // 3. PANGGIL API AI
         window.generateBukuWithAI = async () => {
             const judul = document.getElementById('b_judul').value.trim();
             const infoMentah = document.getElementById('b_info_mentah').value.trim();
@@ -214,7 +233,7 @@
             }
         };
 
-        // --- FUNGSI PARSER (UBAH MARKDOWN JADI TABEL/LIST PDFMAKE) ---
+        // 4. FUNGSI PARSER (UBAH MARKDOWN JADI TABEL/LIST PDFMAKE)
         function parseTextToPDFMakeContent(text) {
             const lines = text.split('\n');
             let contentArray = [];
@@ -255,10 +274,9 @@
                 let txt = line.trim();
                 if (!txt) { flushList(); flushTable(); return; }
 
-                // Jika mendeteksi Tabel
                 if (txt.includes('|') && !txt.startsWith('-') && !txt.match(/^[a-zA-Z0-9]\./)) {
                     flushList();
-                    if (txt.replace(/[\| \-]/g, '') === '') return; // Skip pembatas markdown |---|
+                    if (txt.replace(/[\| \-]/g, '') === '') return; 
                     let cols = txt.split('|').filter(c => c.trim() !== '').map(c => c.trim());
                     if (!currentTable) currentTable = [];
                     let isHeader = currentTable.length === 0;
@@ -266,7 +284,6 @@
                     return;
                 }
 
-                // Jika mendeteksi List (Poin)
                 if (txt.startsWith('- ') || txt.startsWith('• ')) {
                     flushTable();
                     if (listType === 'ol') flushList();
@@ -276,7 +293,6 @@
                     return;
                 }
 
-                // Jika mendeteksi List (Angka / Huruf) -> misal: a. b. c. atau 1. 2. 3.
                 let matchOl = txt.match(/^([a-zA-Z0-9]+)[\.\)]\s+(.*)/);
                 if (matchOl && matchOl[1].length <= 2) {
                     flushTable();
@@ -287,7 +303,6 @@
                     return;
                 }
 
-                // Jika Teks Biasa Paragraf
                 flushList(); flushTable();
                 contentArray.push({ text: txt, fontSize: 11, alignment: 'justify', color: '#334155', lineHeight: 1.4, margin: [0, 0, 0, 8] });
             });
@@ -296,18 +311,55 @@
             return contentArray;
         }
 
-        // 2. FUNGSI RENDER PDF A5 YANG ESTETIK
+        // 5. FUNGSI RENDER PDF A5 (DENGAN FETCH FONT DINAMIS)
         window.generatePDFA5 = async () => {
-            showLoading("Menyiapkan Layout Estetik & Rendering PDF...");
+            showLoading("Menyiapkan Aset & Mengunduh Font Estetik...");
 
             try {
                 const judul = document.getElementById('b_judul').value.trim();
                 const pj = document.getElementById('b_pj').value.trim();
                 const kontak = document.getElementById('b_kontak').value.trim();
                 
-                const base64Logo = await getBase64ImageFromUrl(LOGO_CA);
                 const filePoster = document.getElementById('b_poster').files[0];
-                const base64Poster = filePoster ? await getBase64FromFile(filePoster) : null;
+
+                // Fetch paralel agar cepat: Logo, Poster, dan File Font dengan nama VariableFont
+                const [base64Logo, base64Poster, fontGaramondReg, fontGaramondItalic, fontPlayfairReg] = await Promise.all([
+                    getBase64ImageFromUrl(LOGO_CA),
+                    filePoster ? getBase64FromFile(filePoster) : null,
+                    getFontBase64('/fonts/EBGaramond-VariableFont_wght.ttf'),
+                    getFontBase64('/fonts/EBGaramond-Italic-VariableFont_wght.ttf'),
+                    getFontBase64('/fonts/PlayfairDisplay-VariableFont_wght.ttf')
+                ]);
+
+                showLoading("Merender Layout Dokumen PDF...");
+
+                // INJEKSI FONT KE PDFMAKE
+                if(fontGaramondReg) {
+                    pdfMake.vfs = {
+                        ...pdfMake.vfs,
+                        'EBGaramond-VariableFont_wght.ttf': fontGaramondReg,
+                        'EBGaramond-Italic-VariableFont_wght.ttf': fontGaramondItalic,
+                        'PlayfairDisplay-VariableFont_wght.ttf': fontPlayfairReg
+                    };
+
+                    pdfMake.fonts = {
+                        Roboto: {
+                            normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf'
+                        },
+                        Garamond: {
+                            normal: 'EBGaramond-VariableFont_wght.ttf', 
+                            bold: 'EBGaramond-VariableFont_wght.ttf', 
+                            italics: 'EBGaramond-Italic-VariableFont_wght.ttf', 
+                            bolditalics: 'EBGaramond-Italic-VariableFont_wght.ttf'
+                        },
+                        Playfair: {
+                            normal: 'PlayfairDisplay-VariableFont_wght.ttf', 
+                            bold: 'PlayfairDisplay-VariableFont_wght.ttf', 
+                            italics: 'PlayfairDisplay-VariableFont_wght.ttf', 
+                            bolditalics: 'PlayfairDisplay-VariableFont_wght.ttf'
+                        }
+                    };
+                }
 
                 const chapterTitles = document.querySelectorAll('.chapter-input-title');
                 const chapterContents = document.querySelectorAll('.chapter-input-content');
@@ -315,58 +367,53 @@
                 let pdfContent = [];
 
                 // --- HALAMAN 1: COVER ESTETIK ---
-                pdfContent.push({ text: '\n\n', margin: [0, 60, 0, 0] }); // Spacer dari atas
+                pdfContent.push({ text: '\n\n', margin: [0, 60, 0, 0] }); 
                 if (base64Logo) pdfContent.push({ image: base64Logo, width: 85, alignment: 'center', margin: [0, 0, 0, 20] });
                 
-                pdfContent.push({ text: "BUKU PANDUAN RESMI", fontSize: 11, alignment: 'center', color: '#d4af37', bold: true, letterSpacing: 2, margin: [0, 0, 0, 10] });
-                pdfContent.push({ text: judul.toUpperCase(), fontSize: 24, bold: true, alignment: 'center', color: 'white', margin: [0, 0, 0, 80] });
+                pdfContent.push({ text: "BUKU PANDUAN RESMI", font: 'Playfair', fontSize: 13, alignment: 'center', color: '#d4af37', letterSpacing: 2, margin: [0, 0, 0, 10] });
+                pdfContent.push({ text: judul.toUpperCase(), font: 'Playfair', fontSize: 26, bold: true, alignment: 'center', color: 'white', margin: [0, 0, 0, 80] });
                 
                 pdfContent.push({
                     stack: [
                         { text: "Diselenggarakan Oleh:", fontSize: 10, alignment: 'center', color: '#94a3b8', margin: [0,0,0,5] },
-                        { text: pj, fontSize: 14, bold: true, alignment: 'center', color: '#1e293b', margin: [0,0,0,10] },
+                        { text: pj, font: 'Playfair', fontSize: 16, bold: true, alignment: 'center', color: '#1e293b', margin: [0,0,0,10] },
                         { text: `Pusat Informasi: ${kontak}`, fontSize: 10, alignment: 'center', color: '#0ea5e9' }
                     ],
                     margin: [0, 80, 0, 0],
                     pageBreak: 'after' 
                 });
 
-                // --- HALAMAN 2 dst: ISI BUKU (DIPARSE DENGAN TABEL/LIST) ---
+                // --- HALAMAN 2 dst: ISI BUKU ---
                 chapterTitles.forEach((elTitle, idx) => {
                     const titleText = elTitle.value.trim();
                     const contentText = chapterContents[idx].value.trim();
 
-                    // Desain Judul Bab dengan Box Navy
                     pdfContent.push({
                         table: {
                             widths: ['*'],
-                            body: [ [ { text: titleText.toUpperCase(), fontSize: 14, bold: true, color: 'white', fillColor: '#003366', border: [false,false,false,false], margin: [15, 10, 15, 10] } ] ]
+                            body: [ [ { text: titleText.toUpperCase(), font: 'Playfair', fontSize: 16, bold: true, color: 'white', fillColor: '#003366', border: [false,false,false,false], margin: [15, 10, 15, 10] } ] ]
                         },
                         margin: [0, 0, 0, 20]
                     });
                     
-                    // Masukkan isi yang sudah disulap jadi Tabel dan List
                     const parsedContentElements = parseTextToPDFMakeContent(contentText);
                     pdfContent.push(...parsedContentElements);
-
                     pdfContent.push({ text: '', pageBreak: 'after' });
                 });
 
                 // --- HALAMAN TERAKHIR: POSTER ---
                 if (base64Poster) {
-                    pdfContent.push({ text: "POSTER EVENT", fontSize: 16, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 15] });
+                    pdfContent.push({ text: "POSTER EVENT", font: 'Playfair', fontSize: 18, bold: true, alignment: 'center', color: '#003366', margin: [0, 0, 0, 15] });
                     pdfContent.push({ image: base64Poster, width: 300, alignment: 'center' }); 
                 }
 
-                // --- KONFIGURASI PDFMAKE (BACKGROUND & HEADER FOOTER) ---
+                // --- KONFIGURASI PDFMAKE ---
                 const docDefinition = {
                     pageSize: 'A5', 
                     pageMargins: [35, 60, 35, 50],
                     
-                    // BACKGROUND ESTETIK
                     background: function(currentPage, pageSize) {
                         if (currentPage === 1) { 
-                            // Cover: Blok Navy besar di atas, Gold kecil di bawah
                             return {
                                 canvas: [
                                     { type: 'rect', x: 0, y: 0, w: pageSize.width, h: 320, color: '#003366' },
@@ -374,7 +421,6 @@
                                 ]
                             };
                         } else {
-                            // Halaman Dalam: Garis Tipis Navy di atas
                             return {
                                 canvas: [
                                     { type: 'rect', x: 0, y: 0, w: pageSize.width, h: 10, color: '#003366' },
@@ -384,15 +430,14 @@
                         }
                     },
                     
-                    // NOMOR HALAMAN (FOOTER)
                     footer: function(currentPage, pageCount) {
                         if (currentPage > 1) {
-                            return { text: currentPage.toString(), alignment: 'center', fontSize: 10, color: '#64748b', margin: [0, 10, 0, 0] };
+                            return { text: currentPage.toString(), font: 'Playfair', alignment: 'center', fontSize: 10, color: '#64748b', margin: [0, 10, 0, 0] };
                         }
                     },
 
                     content: pdfContent,
-                    defaultStyle: { font: 'Roboto' }
+                    defaultStyle: { font: 'Garamond' } // SET DEFAULT FONT GARAMOND
                 };
 
                 pdfMake.createPdf(docDefinition).download(`Guidebook_${judul.replace(/\s+/g,'_')}.pdf`);
@@ -400,7 +445,7 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Gagal Render PDF', 'Terjadi kesalahan saat menggabungkan data ke PDF.', 'error');
+                Swal.fire('Gagal Render PDF', 'Terjadi kesalahan saat memproses layout. Pastikan file font ada di folder /fonts/.', 'error');
             } finally {
                 hideLoading();
             }
