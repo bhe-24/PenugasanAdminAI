@@ -25,7 +25,7 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: 'Informasi mentah tidak boleh kosong.' });
         }
 
-        // PROMPT KHUSUS MIXTRAL (EVENT MANAGER)
+        // PROMPT KHUSUS EVENT MANAGER
         const promptText = `Kamu adalah Event Manager dan Editor profesional Cendekia Aksara.
 Tugasmu: Kembangkan informasi mentah dari sebuah kegiatan/event menjadi Buku Panduan (Guidebook) yang sangat detail, profesional, dan komprehensif.
 
@@ -47,16 +47,17 @@ FORMAT JSON YANG DIWAJIBKAN:
   { "bab": "2. Syarat & Ketentuan", "isi": "Teks panjang syarat..." }
 ]`;
 
-        // Menggunakan MIXTRAL untuk daya ingat & pemrosesan teks panjang
+        // MENGGUNAKAN LLAMA 3.3 70B (Karena Mixtral sudah pensiun)
+        // Model ini punya memori 128k token, sangat mampu menelan teks panjang
         const completion = await groq.chat.completions.create({
-            model: 'mixtral-8x7b-32768',
+            model: 'llama-3.3-70b-versatile',
             messages: [{ role: "user", content: promptText }],
-            temperature: 0.4, // Cukup kreatif tapi tetap patuh pada format JSON
+            temperature: 0.4, 
         });
         
         let textResponse = completion.choices[0]?.message?.content || "";
         
-        // Pembersihan karakter markdown markdown JSON
+        // Pembersihan karakter markdown JSON
         textResponse = textResponse.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
 
         // Validasi JSON
