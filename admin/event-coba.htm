@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>Kalender Kegiatan Mingguan - Admin Cendekia</title>
+    
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- PUSTAKA PDFMAKE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+    <style>
+        /* Gaya CSS disamakan persis dengan milik Anda */
+        :root { --primary: #002244; --accent: #d4af37; --bg: #f4f7f6; --text-dark: #1e293b; --text-gray: #64748b; --header-h: 84px; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent;}
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; padding-top: var(--header-h);}
+        .container { max-width: 1200px; width: 94%; margin: 0 auto; padding: 16px 0 20px; }
+
+        .brand-header {
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+            color: white; padding: 10px 4%; box-shadow: 0 4px 20px rgba(0, 31, 63, 0.4);
+            display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 4px solid var(--accent);
+            min-height: var(--header-h);
+        }
+        .header-content-wrapper { display: flex; align-items: center; gap: clamp(8px, 2vw, 15px); min-width: 0; }
+        .header-logo-circle { width: clamp(38px, 8vw, 55px); height: clamp(38px, 8vw, 55px); background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; padding: 6px; box-sizing: border-box; }
+        .header-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+        .header-info { min-width: 0; }
+        .header-brand-name { font-family: 'Aleo', serif; font-size: clamp(0.95rem, 3.6vw, 1.5rem); margin: 0; color: white; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-greeting { font-size: clamp(0.62rem, 2.4vw, 0.85rem); margin: 0; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 8px 14px; border-radius: 50px; font-weight: 600; font-size: clamp(0.72rem, 2.6vw, 0.9rem); border: 1px solid rgba(255,255,255,0.3); display: inline-flex; align-items: center; gap: 6px; transition: 0.3s; flex-shrink: 0; white-space: nowrap; }
+        .btn-back:hover { background: white; color: var(--primary); }
+
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        .nav-tabs::-webkit-scrollbar { height: 5px; }
+        .nav-tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .tab-btn { background: white; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 50px; font-weight: 600; color: #64748b; cursor: pointer; transition: 0.3s; white-space: nowrap; font-family: 'Poppins', sans-serif; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; font-size: 0.85rem; flex-shrink: 0; }
+        .tab-btn:hover { background: #f1f5f9; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(0, 51, 102, 0.2); }
+
+        .admin-card { background: white; border-radius: 16px; padding: clamp(14px, 4vw, 30px); box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; margin-bottom: 30px;}
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+        .calendar-header h2 { font-family: 'Playfair Display', serif; color: var(--primary); font-size: clamp(1.05rem, 4vw, 1.5rem); margin: 0; }
+        
+        .filter-area { display: flex; gap: 14px; margin-bottom: 22px; align-items: flex-end; background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
+        .form-select { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-family: 'Poppins', sans-serif; font-size: 0.9rem; background: #fff; transition: 0.3s; }
+        
+        .btn-word, .btn-pdf, .btn-ai { padding: 11px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-family: 'Poppins', sans-serif; transition: 0.3s; font-size: 0.82rem; white-space: nowrap; }
+        .btn-word { background: #2563eb; color: white; }
+        .btn-word:hover { background: #1d4ed8; }
+        .btn-pdf { background: #b91c1c; color: white; }
+        .btn-pdf:hover { background: #991b1b; }
+        .btn-word:disabled, .btn-pdf:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .karya-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+        .karya-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; transition: 0.3s;}
+        .karya-card:hover { border-color: var(--primary); box-shadow: 0 5px 15px rgba(0,34,68,0.08); }
+        .kc-author { font-weight: 700; color: var(--primary); font-size: 1rem; margin-bottom: 2px;}
+        .kc-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;}
+        .kc-content { font-size: 0.83rem; color: #475569; line-height: 1.6; background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 14px; max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; }
+        
+        #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+        #loading-screen.active { display: flex; }
+        #loading-screen h2 { font-size: clamp(1.1rem, 4.5vw, 1.4rem); }
+        #loading-screen p { font-size: clamp(0.8rem, 3vw, 0.95rem); }
+
+        @media (max-width: 768px) {
+            :root { --header-h: 68px; }
+            .container { width: 100%; padding: 12px 4vw 16px; }
+            .brand-header { padding: 8px 3.5%; }
+            .header-greeting { display: none; } 
+            .btn-back span { display: none; }
+            .btn-back { padding: 9px 11px; }
+            .nav-tabs { gap: 6px; margin-bottom: 16px; }
+            .tab-btn { padding: 9px 13px; font-size: 0.78rem; }
+            .admin-card { border-radius: 14px; padding: 14px; margin-bottom: 20px; }
+            .filter-area { flex-direction: column; align-items: stretch; padding: 12px; gap: 10px; }
+            .filter-area > div:last-child { display: flex; flex-direction: column; gap: 8px; }
+            .btn-word, .btn-pdf, .btn-ai { width: 100%; justify-content: center; }
+            .karya-grid { grid-template-columns: 1fr; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size: 4rem; color: #d4af37; margin-bottom: 20px;" id="loading-icon"></i>
+        <h2 style="font-family:'Aleo', serif; margin:0; color:#003366;" id="loading-title">Memproses...</h2>
+        <p style="color:#64748b;" id="loading-msg">Mohon tunggu sebentar.</p>
+    </div>
+
+    <div class="container">
+
+        <header class="brand-header">
+            <div class="header-content-wrapper">
+                <div class="header-logo-circle">
+                    <img id="header-logo" src="https://i.imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
+                </div>
+                <div class="header-info">
+                    <h1 class="header-brand-name">Halaman Ujicoba Buku</h1>
+                    <p class="header-greeting">Layout Engine V2.0 (Fokus PDF)</p>
+                </div>
+            </div>
+            <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span></a>
+        </header>
+
+        <div class="nav-tabs">
+            <button class="tab-btn active"><i class="fa-solid fa-book-open"></i> Karya Masuk (Ujicoba PDF)</button>
+        </div>
+
+        <!-- TAB KARYA -->
+        <div id="tab-karya" class="admin-card" style="display: block;">
+            <h2 class="section-title"><i class="fa-solid fa-box-open"></i> Gudang Karya Siswa & Ekspor PDF Profesional</h2>
+            
+            <div class="filter-area">
+                <div style="flex:1; width: 100%;">
+                    <label style="font-size:0.85rem; font-weight:600; color:var(--text-gray); display:block; margin-bottom:5px;">Pilih Event untuk Ditampilkan:</label>
+                    <select id="filter-event" class="form-select" onchange="loadSubmissions()">
+                        <option value="">Pilih Event...</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-word" id="btn-export-word" disabled>
+                        <i class="fa-solid fa-file-word"></i> Ekspor MS.Word
+                    </button>
+                    <!-- TOMBOL AJAIB KITA -->
+                    <button class="btn-pdf" onclick="exportToPDFA5()" id="btn-export-pdf" disabled title="Format Buku A5 (Print Ready)">
+                        <i class="fa-solid fa-file-pdf"></i> Ekspor Buku PDF
+                    </button>
+                </div>
+            </div>
+
+            <div id="karya-list" class="karya-grid">
+                <div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8; border:2px dashed #e2e8f0; border-radius:12px;">Pilih event di atas untuk melihat karya yang terkumpul.</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // PENTING: Sesuaikan path firebase config ini
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let allEvents = [];
+        let allSubmissions = [];
+
+        const LOGO_URL = "https://i.imgur.com/5Srjyo4.png";
+
+        (async () => {
+            const admin = await checkAuth('admin');
+            if(!admin) { window.location.href = '../index.html'; return; }
+            showLoading("Sinkronisasi Database...");
+            await loadEvents(); 
+            loadDropdownEvents();
+            hideLoading();
+        })();
+
+        function showLoading(msg) {
+            document.getElementById('loading-msg').innerText = msg;
+            document.getElementById('loading-screen').classList.add('active');
+        }
+        function hideLoading() {
+            document.getElementById('loading-screen').classList.remove('active');
+        }
+
+        async function loadEvents() {
+            try {
+                const q = query(collection(db, 'weekly_events'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
+                allEvents = [];
+                snap.forEach(d => {
+                    allEvents.push({id: d.id, ...d.data()});
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function loadDropdownEvents() {
+            const select = document.getElementById('filter-event');
+            select.innerHTML = '<option value="">Pilih Event yang Tersedia...</option>';
+            allEvents.forEach(e => {
+                select.innerHTML += `<option value="${e.id}">${e.judul} (${e.tipe})</option>`;
+            });
+        }
+
+        window.loadSubmissions = async () => {
+            const eventId = document.getElementById('filter-event').value;
+            const container = document.getElementById('karya-list');
+            const btnPdf = document.getElementById('btn-export-pdf');
+            
+            if(!eventId) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#94a3b8; border:2px dashed #e2e8f0; border-radius:12px;">Pilih event di atas.</div>';
+                btnPdf.disabled = true;
+                return;
+            }
+
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Mencari karya...</div>';
+            
+            try {
+                const q = query(collection(db, 'weekly_submissions'), where('eventId', '==', eventId));
+                const snap = await getDocs(q);
+                allSubmissions = [];
+
+                if(snap.empty) {
+                    container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; background:white; border-radius:12px; border:1px solid #e2e8f0;">Belum ada karya untuk event ini.</div>';
+                    btnPdf.disabled = true;
+                    return;
+                }
+
+                snap.forEach(d => {
+                    allSubmissions.push({id: d.id, ...d.data()});
+                });
+                
+                // Urutkan karya berdasarkan abjad nama penulis agar rapi
+                allSubmissions.sort((a,b) => (a.studentName || '').localeCompare(b.studentName || ''));
+
+                container.innerHTML = '';
+                btnPdf.disabled = false;
+
+                allSubmissions.forEach((sub, idx) => {
+                    container.innerHTML += `
+                        <div class="karya-card">
+                            <div class="kc-author"><i class="fa-solid fa-user-pen"></i> ${sub.studentName || 'Anonim'}</div>
+                            <h3 class="kc-title">${sub.title || '-'}</h3>
+                            <div class="kc-content">${(sub.content || '').substring(0, 100)}...</div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#ef4444;">Gagal memuat karya.</div>';
+            }
+        }
+
+        // ==============================================================================================
+        // PDF ENGINE LAYOUT SYSTEM V2.0 (PROFESSIONAL EDITION - STRICT LAYOUT)
+        // ==============================================================================================
+        
+        function getBase64ImageFromUrl(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous'; 
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width; canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
+            });
+        }
+
+        async function getFontBase64(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Gagal: " + url);
+                const arrayBuffer = await response.arrayBuffer();
+                let binary = '';
+                const bytes = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return window.btoa(binary);
+            } catch (error) {
+                console.warn(error);
+                return null;
+            }
+        }
+
+        window.exportToPDFA5 = async () => {
+            if(allSubmissions.length === 0) return;
+            showLoading("Memuat Mesin Layout & Font Custom...");
+
+            try {
+                const ev = allEvents.find(e => e.id === document.getElementById('filter-event').value);
+                const generatedDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                // 1. FETCH ASSET & FONT (NAMA FILE TIMES NEW ROMAN DIPERBARUI)
+                const [
+                    base64Logo, 
+                    fontTnrReg, fontTnrBold, fontTnrItalic, fontTnrBoldItalic,
+                    fontGaramondReg, fontPlayfairReg
+                ] = await Promise.all([
+                    getBase64ImageFromUrl(LOGO_CA),
+                    getFontBase64('/fonts/times.ttf'),       // Regular
+                    getFontBase64('/fonts/timesbd.ttf'),     // Bold
+                    getFontBase64('/fonts/timesi.ttf'),      // Italic
+                    getFontBase64('/fonts/timesbi.ttf'),     // Bold Italic
+                    getFontBase64('/fonts/EBGaramond-VariableFont_wght.ttf'),
+                    getFontBase64('/fonts/PlayfairDisplay-VariableFont_wght.ttf')
+                ]);
+
+                showLoading("Menyusun Anatomi Buku Profesional...");
+
+                // 2. INJEKSI FONT KE PDFMAKE
+                if(fontPlayfairReg) {
+                    pdfMake.vfs = {
+                        ...pdfMake.vfs,
+                        'times.ttf': fontTnrReg,
+                        'timesbd.ttf': fontTnrBold,
+                        'timesi.ttf': fontTnrItalic,
+                        'timesbi.ttf': fontTnrBoldItalic,
+                        'EBGaramond-VariableFont_wght.ttf': fontGaramondReg,
+                        'PlayfairDisplay-VariableFont_wght.ttf': fontPlayfairReg
+                    };
+
+                    pdfMake.fonts = {
+                        Roboto: {
+                            normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf'
+                        },
+                        TimesNewRoman: {
+                            normal: 'times.ttf', 
+                            bold: 'timesbd.ttf', 
+                            italics: 'timesi.ttf', 
+                            bolditalics: 'timesbi.ttf'
+                        },
+                        Garamond: {
+                            normal: 'EBGaramond-VariableFont_wght.ttf', bold: 'EBGaramond-VariableFont_wght.ttf', italics: 'EBGaramond-VariableFont_wght.ttf', bolditalics: 'EBGaramond-VariableFont_wght.ttf'
+                        },
+                        Playfair: {
+                            normal: 'PlayfairDisplay-VariableFont_wght.ttf', bold: 'PlayfairDisplay-VariableFont_wght.ttf', italics: 'PlayfairDisplay-VariableFont_wght.ttf', bolditalics: 'PlayfairDisplay-VariableFont_wght.ttf'
+                        }
+                    };
+                }
+
+                // 3. LOGIKA OTOMATIS PENULIS
+                let namaPenulisCover = "";
+                let namaPenulisKDT = "";
+                if(allSubmissions.length === 1) {
+                    namaPenulisCover = allSubmissions[0].studentName;
+                    namaPenulisKDT = allSubmissions[0].studentName;
+                } else {
+                    const penulisUtama = allSubmissions[0].studentName;
+                    namaPenulisCover = `${penulisUtama} dkk.`;
+                    namaPenulisKDT = `${penulisUtama}, dkk.`;
+                }
+
+                let pdfContent = [];
+
+                // ==============================================================
+                // A. FRONT MATTER (HALAMAN ROMAWI)
+                // ==============================================================
+
+                // --- HALAMAN i: PRANCIS (Half Title) ---
+                pdfContent.push(
+                    { text: '\n\n\n\n\n' }, 
+                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 18, bold: true, alignment: 'center', characterSpacing: 2 },
+                    { text: '', pageBreak: 'after' } 
+                );
+
+                // --- HALAMAN ii: UU HAK CIPTA SINGKAT ---
+                pdfContent.push(
+                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' },
+                    { text: 'Sanksi Pelanggaran Pasal 113\nUndang-Undang Nomor 28 Tahun 2014 tentang Hak Cipta', fontSize: 8, alignment: 'center', italics: true },
+                    { text: '', pageBreak: 'after' }
+                );
+
+                // --- HALAMAN iii: JUDUL UTAMA (Full Title Page) ---
+                pdfContent.push(
+                    { text: '\n\n\n' },
+                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 24, bold: true, alignment: 'center' },
+                    { text: '\n\n' },
+                    { text: `Oleh:\n${namaPenulisCover}`, font: 'TimesNewRoman', fontSize: 12, italics: true, alignment: 'center' },
+                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n' },
+                    base64Logo ? { image: base64Logo, width: 50, alignment: 'center', margin: [0,0,0,10] } : {},
+                    { text: 'CENDEKIA AKSARA', font: 'TimesNewRoman', fontSize: 11, bold: true, alignment: 'center', characterSpacing: 1 },
+                    { text: '', pageBreak: 'after' }
+                );
+
+                // --- HALAMAN iv: IMPRINT / KDT ---
+                pdfContent.push(
+                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' }, 
+                    {
+                        stack: [
+                            { text: ev.judul.toUpperCase(), font: 'TimesNewRoman', fontSize: 11, bold: true },
+                            { text: `© ${new Date().getFullYear()} ${namaPenulisKDT}\n\n`, fontSize: 9 },
+                            
+                            { text: `Penyelaras Aksara: Tim Redaksi Cendekia`, fontSize: 9 },
+                            { text: `Desain Sampul: Tim Kreatif CA`, fontSize: 9 },
+                            { text: `Penata Letak: Bayu Aji (Layout Engine)\n\n`, fontSize: 9 },
+                            
+                            { text: `Diterbitkan oleh:\nCENDEKIA AKSARA`, fontSize: 9, bold: true },
+                            { text: `CV. Ragam Literasi Indonesia\nTemanggung, Jawa Tengah\nWeb: cendekia-aksara.vercel.app\n\n`, fontSize: 9 },
+                            
+                            { text: `Terbitan Pertama: ${generatedDate}\n\n`, fontSize: 9 },
+                            
+                            { text: 'Hak Cipta dilindungi Undang-Undang.\nDilarang mengutip atau memperbanyak sebagian atau seluruh isi buku ini tanpa izin tertulis dari Penerbit.', fontSize: 8, italics: true, alignment: 'justify' }
+                        ],
+                        font: 'TimesNewRoman'
+                    },
+                    { text: '', pageBreak: 'after' }
+                );
+
+                // --- HALAMAN v: DAFTAR ISI ---
+                // Menyusun Daftar Isi: Angka | Stack(Judul, Penulis) | Placeholder Halaman
+                pdfContent.push({ text: 'DAFTAR ISI', font: 'TimesNewRoman', fontSize: 14, bold: true, margin: [0, 10, 0, 20] });
+                
+                const tocRows = allSubmissions.map((sub, idx) => ([
+                    { text: String(idx + 1).padStart(2, '0'), fontSize: 10, font: 'TimesNewRoman', bold: true, margin: [0, 4, 0, 4] },
+                    { 
+                        stack: [
+                            { text: sub.title || 'Tanpa Judul', fontSize: 10, font: 'TimesNewRoman', bold: true },
+                            { text: sub.studentName || 'Anonim', fontSize: 9, font: 'TimesNewRoman', italics: true, color: '#475569' }
+                        ],
+                        margin: [0, 4, 0, 4]
+                    },
+                    { text: '...', fontSize: 10, font: 'TimesNewRoman', alignment: 'right', margin: [0, 4, 0, 4], color: '#94a3b8' } // Simulasi titik-titik nomor halaman
+                ]));
+                
+                pdfContent.push({
+                    table: { widths: [20, '*', 30], body: tocRows },
+                    layout: 'noBorders',
+                    margin: [0, 0, 0, 20]
+                });
+                pdfContent.push({ text: '', pageBreak: 'after' });
+
+                // ==============================================================
+                // B. ISI KARYA SISWA
+                // ==============================================================
+                
+                allSubmissions.forEach((sub, idx) => {
+                    // 1. HALAMAN JEDA HITAM FULL (Judul di Tengah Bawah)
+                    pdfContent.push({
+                        canvas: [
+                            { type: 'rect', x: -56.7, y: -56.7, w: 419.5, h: 595.2, color: '#000000' }
+                        ],
+                        pageBreak: 'before' 
+                    });
+
+                    // Dynamic Font Sizing untuk Judul di Cover Hitam
+                    let titleText = (sub.title || 'TANPA JUDUL').toUpperCase();
+                    let tSize = 22;
+                    if(titleText.length > 50) tSize = 18;
+                    if(titleText.length > 80) tSize = 14;
+
+                    pdfContent.push({
+                        stack: [
+                            { text: titleText, font: 'Playfair', fontSize: tSize, bold: true, color: 'white', alignment: 'center', margin: [0, 0, 0, 10] },
+                            { text: `Karya: ${sub.studentName || 'Anonim'}`, font: 'TimesNewRoman', fontSize: 12, italics: true, color: '#d4af37', alignment: 'center' }
+                        ],
+                        absolutePosition: { x: 0, y: 400 } // Memosisikan Stack ini di TENGAH BAWAH kertas
+                    });
+
+                    pdfContent.push({ text: '', pageBreak: 'after' }); // Pindah ke halaman putih untuk naskah
+
+                    // 2. KONTEN KARYA (HALAMAN PUTIH) - TANPA JUDUL LAGI, LANGSUNG NASKAH
+                    
+                    const paragraphs = (sub.content || '').split('\n').filter(p => p.trim() !== '');
+                    
+                    paragraphs.forEach((p, pIndex) => {
+                        let textObj = [];
+                        let isIndent = false;
+
+                        if (pIndex === 0) {
+                            // PARAGRAF PERTAMA: Drop Cap (Huruf Pertama Besar), Tidak Menjorok
+                            const firstChar = p.charAt(0);
+                            const restOfText = p.substring(1);
+                            
+                            textObj = [
+                                { text: firstChar, font: 'Playfair', fontSize: 28, bold: true, color: '#002244' }, // Huruf besar
+                                { text: restOfText, fontSize: 11 } // Sisa kalimat normal
+                            ];
+                        } else {
+                            // PARAGRAF KEDUA DST: Menjorok (First Line Indent)
+                            isIndent = true;
+                            textObj = [
+                                { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), fontSize: 11 }
+                            ];
+                        }
+
+                        pdfContent.push({
+                            text: textObj,
+                            font: 'TimesNewRoman',
+                            alignment: 'justify',
+                            margin: [0, 0, 0, 10], 
+                            lineHeight: 1.4
+                        });
+                    });
+                });
+
+                // ==============================================================
+                // KONFIGURASI PDF (Margin, Footer Romawi/Arab)
+                // ==============================================================
+                const docDefinition = {
+                    pageSize: 'A5',
+                    pageMargins: [56.7, 56.7, 56.7, 56.7],
+
+                    footer: function (currentPage, pageCount) {
+                        let pageNumText = '';
+                        
+                        // Halaman 1-5 adalah Preliminaries (Romawi)
+                        if (currentPage === 1) {
+                            return null;
+                        } else if (currentPage <= 5) {
+                            const roman = ['i', 'ii', 'iii', 'iv', 'v'];
+                            pageNumText = roman[currentPage - 1];
+                        } else {
+                            // Hitungan Angka Arab dimulai
+                            pageNumText = (currentPage - 5).toString();
+                        }
+
+                        // Menyembunyikan nomor halaman jika itu adalah halaman hitam
+                        // Karena halaman hitam muncul di halaman 6, 8, 10, dst... (jika naskah 1 halaman)
+                        // Trik deteksi: Jika kita mau super rapi, kita tidak taruh nomor halaman di cover cerita.
+                        // Tapi untuk algoritma standar ini, nomor halaman tetap dicetak di bawah agar layouter tahu urutan kertas.
+
+                        return {
+                            text: pageNumText,
+                            font: 'TimesNewRoman',
+                            fontSize: 10,
+                            alignment: 'center',
+                            margin: [0, 10, 0, 0] 
+                        };
+                    },
+
+                    content: pdfContent,
+                    defaultStyle: { font: 'TimesNewRoman' } 
+                };
+
+                pdfMake.createPdf(docDefinition).download(`Buku_Profesional_${ev.judul.replace(/\s/g,'_')}.pdf`, () => {
+                    hideLoading();
+                    Swal.fire('Berhasil!', 'Buku berstandar penerbitan siap dicetak!', 'success');
+                });
+            } catch (err) {
+                console.error(err);
+                hideLoading();
+                Swal.fire('Gagal', 'Terjadi kesalahan saat menyusun PDF buku: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
