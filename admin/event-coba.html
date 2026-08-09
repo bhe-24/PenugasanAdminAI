@@ -158,6 +158,10 @@
 
         const LOGO_URL = "https://i.imgur.com/5Srjyo4.png";
 
+        // Cache di memory: sekali fetch & convert, dipakai ulang selama halaman belum di-reload
+        let cachedLogoBase64 = null;
+        const fontCache = {};
+
         (async () => {
             const admin = await checkAuth('admin');
             if(!admin) { window.location.href = '../index.html'; return; }
@@ -247,6 +251,7 @@
         // ==============================================================================================
         
         function getBase64ImageFromUrl(url) {
+            if (cachedLogoBase64) return Promise.resolve(cachedLogoBase64);
             return new Promise((resolve) => {
                 const img = new Image();
                 img.crossOrigin = 'Anonymous'; 
@@ -255,7 +260,8 @@
                     canvas.width = img.width; canvas.height = img.height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/png'));
+                    cachedLogoBase64 = canvas.toDataURL('image/png');
+                    resolve(cachedLogoBase64);
                 };
                 img.onerror = () => resolve(null);
                 img.src = url;
@@ -263,16 +269,20 @@
         }
 
         async function getFontBase64(url) {
+            if (fontCache[url]) return fontCache[url]; // sudah pernah di-fetch, langsung pakai cache
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error("Gagal: " + url);
-                const arrayBuffer = await response.arrayBuffer();
-                let binary = '';
-                const bytes = new Uint8Array(arrayBuffer);
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                return window.btoa(binary);
+                const blob = await response.blob();
+                // FileReader native jauh lebih cepat daripada loop String.fromCharCode per-byte
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = () => reject(new Error('Gagal baca font: ' + url));
+                    reader.readAsDataURL(blob);
+                });
+                fontCache[url] = base64;
+                return base64;
             } catch (error) {
                 console.warn(error);
                 return null;
@@ -457,8 +467,10 @@
                     const jedaPage = {
                         canvas: [
                             { type: 'rect', x: -56.7, y: -56.7, w: 419.5, h: 595.2, color: '#000000' }
-                        ],
-                        id: `karya_${idx}` // dipakai Daftar Isi untuk nomor halaman otomatis
+                        ]
+                        // Catatan: id TIDAK ditaruh di sini karena node 'canvas' tidak didukung
+                        // pdfMake sebagai anchor pageReference — makanya sebelumnya error
+                        // "Page reference id not found". Id dipindah ke tabel judul di bawah.
                     };
                     // PENTING: karya pertama TIDAK perlu pageBreak lagi karena Daftar Isi
                     // sudah menutup halamannya dengan pageBreak:'after'. Memaksa break lagi
@@ -489,7 +501,8 @@
                                 }
                             ]]
                         },
-                        absolutePosition: { x: 0, y: 400 } // Tengah bawah kertas
+                        absolutePosition: { x: 0, y: 400 }, // Tengah bawah kertas
+                        id: `karya_${idx}` // dipakai Daftar Isi untuk nomor halaman otomatis
                     });
 
                     pdfContent.push({ text: '', pageBreak: 'after' }); // Pindah ke halaman putih untuk naskah
