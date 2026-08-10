@@ -297,6 +297,28 @@
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
 
+        // Fungsi Load Font Base64 (Untuk Inject Times New Roman)
+        const fontCache = {};
+        async function getFontBase64(url) {
+            if (fontCache[url]) return fontCache[url];
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Gagal: " + url);
+                const blob = await response.blob();
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = () => reject(new Error('Gagal baca font: ' + url));
+                    reader.readAsDataURL(blob);
+                });
+                fontCache[url] = base64;
+                return base64;
+            } catch (error) {
+                console.warn("Font warning:", error);
+                return null;
+            }
+        }
+
         // Cek Auth & Load Nomor Terakhir
         (async () => {
             const user = await checkAuth(); 
@@ -444,7 +466,7 @@
             });
         }
 
-        // --- SUBMIT & GENERATE PDF ---
+        // --- SUBMIT & GENERATE PDF (DENGAN TIMES NEW ROMAN) ---
         document.getElementById('suratForm').onsubmit = async (e) => {
             e.preventDefault();
             
@@ -461,12 +483,38 @@
 
             let valPerihal = document.getElementById('s_perihal').value.trim();
             
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun PDF...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun PDF Resmi...';
             btn.disabled = true;
 
             try {
-                const base64Logo = await getBase64Image(LOGO_CA);
-                const base64Cap = await getBase64Image(CAP_CA);
+                // Eksekusi Download Font dan Gambar secara bersamaan
+                const [base64Logo, base64Cap, fontTnrReg, fontTnrBold, fontTnrItalic, fontTnrBoldItalic] = await Promise.all([
+                    getBase64Image(LOGO_CA),
+                    getBase64Image(CAP_CA),
+                    getFontBase64('/fonts/times.ttf'),       
+                    getFontBase64('/fonts/timesbd.ttf'),     
+                    getFontBase64('/fonts/timesi.ttf'),      
+                    getFontBase64('/fonts/timesbi.ttf')      
+                ]);
+
+                // Pasang Font ke PDFMAKE jika berhasil didownload
+                if (fontTnrReg) {
+                    pdfMake.vfs = {
+                        ...pdfMake.vfs,
+                        'times.ttf': fontTnrReg,
+                        'timesbd.ttf': fontTnrBold,
+                        'timesi.ttf': fontTnrItalic,
+                        'timesbi.ttf': fontTnrBoldItalic
+                    };
+                    pdfMake.fonts = {
+                        Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
+                        TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' }
+                    };
+                } else {
+                    Swal.fire('Font Tidak Ditemukan', 'Harap pastikan file times.ttf dkk sudah ada di folder /fonts/ Anda!', 'warning');
+                }
+
+                // Simpan Base64 TTD (Synchronous)
                 const base64TTD = signaturePad.toDataURL('image/png');
 
                 const noSurat = document.getElementById('s_nomor').value.trim();
@@ -557,7 +605,7 @@
                     if(p.trim() !== '') isiSuratArray.push({ text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + p.trim(), alignment: 'justify', margin: [0,0,0,10] });
                 });
 
-                // 4. KOTAK TANDA TANGAN (UNBREAKABLE DENGAN MARGIN NEGATIF CAP)
+                // 4. KOTAK TANDA TANGAN 
                 let signatureArea = {
                     unbreakable: true, // Tidak akan terpisah di beda halaman
                     columns: [
@@ -570,7 +618,7 @@
                                 {
                                     margin: [0, 5, 0, 5],
                                     stack: [
-                                        // CAP (Stempel) dengan margin negatif agar ditumpuk oleh TTD
+                                        // CAP (Stempel) dengan margin negatif
                                         base64Cap ? { 
                                             image: base64Cap, 
                                             width: 95, 
@@ -613,7 +661,7 @@
                     }
                 }
 
-                // BUILD PDF DEFINITION
+                // BUILD PDF DEFINITION (DEFAULT FONT: TIMES NEW ROMAN)
                 const docDefinition = {
                     pageSize: 'A4',
                     pageMargins: [40, 40, 40, 50],
@@ -626,7 +674,8 @@
                         signatureArea, 
                         ...halamanLampiran
                     ].filter(Boolean), 
-                    defaultStyle: { font: 'Roboto', fontSize: 11, color: '#000000', lineHeight: 1.2 },
+                    // BERIKUT ADALAH KUNCI PENGGUNAAN FONT
+                    defaultStyle: { font: fontTnrReg ? 'TimesNewRoman' : 'Roboto', fontSize: 12, color: '#000000', lineHeight: 1.2 },
                     styles: { header: { fontSize: 14, bold: true } }
                 };
 
@@ -634,7 +683,7 @@
                 const fileName = `Surat_Keluar_${valPerihal.replace(/\s+/g,'_')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName, async () => {
                     
-                    // PERSIAPAN ARSIP: Simpan juga data inti teks ke database agar bisa didownload ulang nanti
+                    // PERSIAPAN ARSIP
                     await addDoc(collection(db, 'arsip_surat_keluar'), {
                         nomor: noSurat,
                         perihal: valPerihal,
@@ -645,7 +694,6 @@
                         jabatan: jabatan,
                         admin: adminName,
                         tanggalGenerate: serverTimestamp(),
-                        // Data tabel opsional
                         hasTable: useTable,
                         tglAcara: useTable ? document.getElementById('t_tanggal').value : '',
                         waktuAcara: useTable ? document.getElementById('t_waktu').value : '',
@@ -653,7 +701,7 @@
                         namaAcara: useTable ? document.getElementById('t_acara').value : ''
                     });
 
-                    Swal.fire('Berhasil!', 'Surat resmi telah dibuat, diunduh, dan diarsipkan di database.', 'success');
+                    Swal.fire('Berhasil!', 'Surat resmi (Times New Roman) telah dibuat dan diarsipkan.', 'success');
                     
                     document.getElementById('suratForm').reset();
                     document.getElementById('ai-context').value = '';
@@ -669,7 +717,7 @@
 
             } catch (err) {
                 console.error(err);
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. Pastikan koneksi internet stabil untuk meload gambar.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. Pastikan file font ada di /fonts/ dan internet stabil.', 'error');
             } finally {
                 btn.innerHTML = oriHtml;
                 btn.disabled = false;
