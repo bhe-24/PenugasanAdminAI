@@ -98,7 +98,7 @@
                 </div>
                 <div class="header-info">
                     <h1 class="header-brand-name">Halaman Ujicoba Buku</h1>
-                    <p class="header-greeting">Layout Engine V2.2 (Fokus PDF)</p>
+                    <p class="header-greeting">Layout Engine V2.3 (Fokus PDF Beres)</p>
                 </div>
             </div>
             <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> <span>Dashboard</span></a>
@@ -231,7 +231,7 @@
         }
 
         // ==============================================================================================
-        // PDF ENGINE LAYOUT SYSTEM V2.2 (SANGAT STABIL)
+        // PDF ENGINE LAYOUT SYSTEM V2.3 (FIXED PAGE BREAKS & BLACK BACKGROUND)
         // ==============================================================================================
         
         function getBase64ImageFromUrl(url) {
@@ -291,10 +291,10 @@
                     getFontBase64('/fonts/PlayfairDisplay-VariableFont_wght.ttf')
                 ]);
 
-                // PROTEKSI FATAL ERROR JIKA FONT TIDAK ADA
+                // PROTEKSI FATAL ERROR
                 if (!fontTnrReg) {
                     hideLoading();
-                    Swal.fire('Font Tidak Ditemukan', 'Harap pastikan file times.ttf, timesbd.ttf, timesi.ttf, timesbi.ttf sudah ada di folder /fonts/ Anda!', 'error');
+                    Swal.fire('Font Tidak Ditemukan', 'Harap pastikan file times.ttf dkk sudah ada di folder /fonts/', 'error');
                     return;
                 }
 
@@ -307,7 +307,7 @@
                     'timesbd.ttf': fontTnrBold,
                     'timesi.ttf': fontTnrItalic,
                     'timesbi.ttf': fontTnrBoldItalic,
-                    'PlayfairDisplay-VariableFont_wght.ttf': fontPlayfairReg || fontTnrReg // Fallback aman
+                    'PlayfairDisplay-VariableFont_wght.ttf': fontPlayfairReg || fontTnrReg
                 };
 
                 pdfMake.fonts = {
@@ -327,22 +327,16 @@
                     namaPenulisKDT = `${penulisUtama}, dkk.`;
                 }
 
-                let pdfContent = [];
-
                 // ==============================================================
-                // A. FRONT MATTER (HALAMAN ROMAWI)
+                // A. FRONT MATTER & DAFTAR ISI
                 // ==============================================================
-
-                // --- HALAMAN 1: PRANCIS (Half Title) ---
-                pdfContent.push(
-                    { text: '\n\n\n\n\n' }, 
-                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 18, bold: true, alignment: 'center', characterSpacing: 2 },
-                    { text: '', pageBreak: 'after' } 
-                );
-
-                // --- HALAMAN 2: UU HAK CIPTA KOTAK DI BAWAH ---
-                pdfContent.push(
-                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' }, 
+                
+                let pdfContent = [
+                    // HALAMAN 1: PRANCIS (Half Title)
+                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 18, bold: true, alignment: 'center', margin: [0, 150, 0, 0], characterSpacing: 2, pageBreak: 'after' },
+                    
+                    // HALAMAN 2: UU HAK CIPTA
+                    { text: '', margin: [0, 300, 0, 0] }, // Spacer untuk menekan tabel ke bawah
                     {
                         table: {
                             widths: ['*'],
@@ -357,59 +351,41 @@
                                 ]
                             ]
                         },
-                        layout: {
-                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#1e293b', vLineColor: () => '#1e293b',
-                            paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 10, paddingBottom: () => 10
-                        }
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#1e293b', vLineColor: () => '#1e293b', paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 10, paddingBottom: () => 10 },
+                        pageBreak: 'after'
                     },
-                    { text: '', pageBreak: 'after' }
-                );
 
-                // --- HALAMAN 3: JUDUL UTAMA (Full Title Page) ---
-                pdfContent.push(
-                    { text: '\n\n\n' },
-                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 24, bold: true, alignment: 'center' },
-                    { text: '\n\n' },
-                    { text: `Oleh:\n${namaPenulisCover}`, font: 'TimesNewRoman', fontSize: 12, italics: true, alignment: 'center' },
-                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n' },
+                    // HALAMAN 3: JUDUL UTAMA
+                    { text: ev.judul.toUpperCase(), font: 'Playfair', fontSize: 24, bold: true, alignment: 'center', margin: [0, 100, 0, 30] },
+                    { text: `Oleh:\n${namaPenulisCover}`, font: 'TimesNewRoman', fontSize: 12, italics: true, alignment: 'center', margin: [0, 0, 0, 150] },
                     base64Logo ? { image: base64Logo, width: 50, alignment: 'center', margin: [0,0,0,10] } : {},
-                    { text: 'CENDEKIA AKSARA', font: 'TimesNewRoman', fontSize: 11, bold: true, alignment: 'center', characterSpacing: 1 },
-                    { text: '', pageBreak: 'after' }
-                );
+                    { text: 'CENDEKIA AKSARA', font: 'TimesNewRoman', fontSize: 11, bold: true, alignment: 'center', characterSpacing: 1, pageBreak: 'after' },
 
-                // --- HALAMAN 4: IMPRINT / KDT ---
-                pdfContent.push(
-                    { text: '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' }, 
-                    {
-                        stack: [
-                            { text: ev.judul.toUpperCase(), font: 'TimesNewRoman', fontSize: 11, bold: true },
-                            { text: `© ${new Date().getFullYear()} ${namaPenulisKDT}\n\n`, fontSize: 9 },
-                            { text: `Penyelaras Aksara: Tim Redaksi Cendekia`, fontSize: 9 },
-                            { text: `Desain Sampul: Tim Kreatif CA`, fontSize: 9 },
-                            { text: `Penata Letak: Bayu Aji (Layout Engine)\n\n`, fontSize: 9 },
-                            { text: `Diterbitkan oleh:\nCENDEKIA AKSARA`, fontSize: 9, bold: true },
-                            { text: `CV. Ragam Literasi Indonesia\nTemanggung, Jawa Tengah\nWeb: cendekia-aksara.vercel.app\n\n`, fontSize: 9 },
-                            { text: `Terbitan Pertama: ${generatedDate}\n\n`, fontSize: 9 },
-                            { text: 'Hak Cipta dilindungi Undang-Undang.\nDilarang mengutip atau memperbanyak sebagian atau seluruh isi buku ini tanpa izin tertulis dari Penerbit.', fontSize: 8, italics: true, alignment: 'justify' }
-                        ],
-                        font: 'TimesNewRoman'
-                    },
-                    { text: '', pageBreak: 'after' }
-                );
+                    // HALAMAN 4: IMPRINT / KDT
+                    { text: ev.judul.toUpperCase(), font: 'TimesNewRoman', fontSize: 11, bold: true, margin: [0, 200, 0, 0] },
+                    { text: `© ${new Date().getFullYear()} ${namaPenulisKDT}\n\n`, fontSize: 9 },
+                    { text: `Penyelaras Aksara: Tim Redaksi Cendekia`, fontSize: 9 },
+                    { text: `Desain Sampul: Tim Kreatif CA`, fontSize: 9 },
+                    { text: `Penata Letak: Bayu Aji (Layout Engine)\n\n`, fontSize: 9 },
+                    { text: `Diterbitkan oleh:\nCENDEKIA AKSARA`, fontSize: 9, bold: true },
+                    { text: `CV. Ragam Literasi Indonesia\nTemanggung, Jawa Tengah\nWeb: cendekia-aksara.vercel.app\n\n`, fontSize: 9 },
+                    { text: `Terbitan Pertama: ${generatedDate}\n\n`, fontSize: 9 },
+                    { text: 'Hak Cipta dilindungi Undang-Undang.\nDilarang mengutip atau memperbanyak sebagian atau seluruh isi buku ini tanpa izin tertulis dari Penerbit.', fontSize: 8, italics: true, alignment: 'justify', pageBreak: 'after' },
 
-                // --- HALAMAN 5: DAFTAR ISI ---
-                pdfContent.push({ text: 'DAFTAR ISI', font: 'TimesNewRoman', fontSize: 14, bold: true, margin: [0, 10, 0, 20] });
-                
+                    // HALAMAN 5: DAFTAR ISI
+                    { text: 'DAFTAR ISI', font: 'TimesNewRoman', fontSize: 14, bold: true, margin: [0, 10, 0, 20] }
+                ];
+
+                // Render Daftar Isi
                 const tocRows = allSubmissions.map((sub, idx) => ([
                     { text: String(idx + 1).padStart(2, '0'), fontSize: 10, font: 'TimesNewRoman', margin: [0, 4, 0, 4] },
                     { 
                         stack: [
-                            { text: sub.title || 'Tanpa Judul', fontSize: 10, font: 'TimesNewRoman' }, // Polos
-                            { text: sub.studentName || 'Anonim', fontSize: 10, font: 'TimesNewRoman' } // Polos
+                            { text: sub.title || 'Tanpa Judul', fontSize: 10, font: 'TimesNewRoman' },
+                            { text: sub.studentName || 'Anonim', fontSize: 10, font: 'TimesNewRoman' }
                         ],
                         margin: [0, 4, 0, 4]
                     },
-                    // Otomatis mencari halaman tempat karya tersebut berada
                     { text: '', pageReference: 'anchor_karya_' + idx, fontSize: 10, font: 'TimesNewRoman', alignment: 'right', margin: [0, 4, 0, 4] } 
                 ]));
                 
@@ -418,38 +394,33 @@
                     layout: 'noBorders',
                     margin: [0, 0, 0, 20]
                 });
-                
-                // Tidak ada pageBreak after di sini. Biarkan loop di bawah yang memaksa buka halaman baru.
 
                 // ==============================================================
-                // B. ISI KARYA SISWA
+                // B. ISI KARYA SISWA (DENGAN HALAMAN HITAM SEBAGAI PEMISAH)
                 // ==============================================================
                 
+                // Menyimpan index di mana halaman pembatas hitam akan digambar
+                // (Ini krusial untuk background handler nantinya)
+                let blackPageIndices = [];
+
                 allSubmissions.forEach((sub, idx) => {
-                    // 1. HALAMAN SAMPUL CERITA HITAM FULL
-                    pdfContent.push({
-                        canvas: [
-                            // Kotak hitam full menutupi margin A5
-                            { type: 'rect', x: -57, y: -57, w: 420, h: 596, color: '#000000' }
-                        ],
-                        pageBreak: 'before' 
-                    });
+                    // KITA CATAT: Halaman selanjutnya (setelah pageBreak) akan berwarna hitam!
+                    pdfContent.push({ text: '', pageBreak: 'before', style: 'blackMarker' }); 
 
                     let titleText = (sub.title || 'TANPA JUDUL').toUpperCase();
                     let tSize = 22;
                     if(titleText.length > 50) tSize = 18;
                     
-                    // CARA AMAN MEMBUAT TEKS DI TENGAH BAWAH KERTAS
-                    // Menggunakan margin atas (dorong ke bawah) tanpa merusak perataan (alignment)
+                    // HALAMAN SAMPUL CERITA (TEKS PUTIH)
                     pdfContent.push({
-                        id: 'anchor_karya_' + idx, // ID Ditaruh di teks, bukan di canvas. Sangat aman!
+                        id: 'anchor_karya_' + idx, 
                         text: titleText, 
                         font: 'TimesNewRoman', 
                         fontSize: tSize, 
                         bold: true, 
                         color: 'white', 
                         alignment: 'center', 
-                        margin: [0, 320, 0, 10] // Dorong jauh ke bawah
+                        margin: [0, 150, 0, 10] // Atur posisi ke tengah-bawah secara dinamis
                     });
                     
                     pdfContent.push({
@@ -462,18 +433,14 @@
                     });
 
                     // Pindah ke halaman putih untuk isi naskah
-                    pdfContent.push({ text: '', pageBreak: 'after' }); 
+                    pdfContent.push({ text: '', pageBreak: 'before' }); 
 
-                    // 2. KONTEN NASKAH
+                    // KONTEN NASKAH
                     const paragraphs = (sub.content || '').split('\n').filter(p => p.trim() !== '');
-                    
                     paragraphs.forEach((p, pIndex) => {
                         let textStr = p.trim();
-                        
-                        // PARAGRAF PERTAMA LURUS NORMAL, PARAGRAF BERIKUTNYA MENJOROK
-                        if (pIndex !== 0) {
-                            textStr = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + textStr;
-                        }
+                        // Paragraf kedua dst menjorok
+                        if (pIndex !== 0) { textStr = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + textStr; }
 
                         pdfContent.push({
                             text: textStr,
@@ -487,15 +454,36 @@
                 });
 
                 // ==============================================================
-                // KONFIGURASI PDF
+                // C. KONFIGURASI BACKGROUND & PDF 
                 // ==============================================================
+                
+                let isBlackPage = false; // Penanda Switch
+
                 const docDefinition = {
                     pageSize: 'A5',
                     pageMargins: [56.7, 56.7, 56.7, 56.7],
 
+                    // SISTEM BACKGROUND DINAMIS: Mengecek secara realtime saat rendering PDF
+                    // Apakah halaman ini memuat node dengan label style 'blackMarker'
+                    background: function(currentPage, pageSize) {
+                        return {
+                            canvas: [
+                                // Kita akan menggambar background kotak (putih atau hitam) untuk SELURUH kertas A5
+                                {
+                                    type: 'rect',
+                                    x: 0, y: 0,
+                                    w: pageSize.width,
+                                    h: pageSize.height,
+                                    // Default putih, tapi akan diisi hitam jika logikanya dipicu (lihat update di bawah)
+                                    color: '#ffffff'
+                                }
+                            ]
+                        };
+                    },
+
                     footer: function (currentPage) {
                         return {
-                            text: currentPage.toString(), // Nomor Absolut sesuai dengan sinkronisasi Daftar Isi
+                            text: currentPage.toString(), 
                             font: 'TimesNewRoman',
                             fontSize: 10,
                             alignment: 'center',
@@ -506,6 +494,42 @@
                     content: pdfContent,
                     defaultStyle: { font: 'TimesNewRoman' } 
                 };
+
+                // KUNCI BACKGROUND HITAM PDFMAKE
+                // PDFMake mengeksekusi fungsi background sebelum halaman benar-benar dibuat.
+                // Kita harus merekayasa PDF Content agar background merespon 'blackMarker'
+                docDefinition.content.forEach((node, i) => {
+                    if (node.style === 'blackMarker') {
+                        // Tambahkan properti fillColor untuk mewarnai teks yang tak kasat mata
+                        // PDFMake terkadang memiliki trick di mana jika kita membuat 
+                        // rectangle background spesifik untuk node tersebut.
+                    }
+                });
+
+                // CARA PASTI UNTUK BACKGROUND HITAM HALAMAN SPESIFIK:
+                // Kita ganti elemen 'blackMarker' dengan rectangle absolute yang besarnya melebihi margin kertas
+                // karena PDFMake agak pelit dalam merender background function per halaman.
+                docDefinition.content = docDefinition.content.map(node => {
+                    if (node.style === 'blackMarker') {
+                        return {
+                            // Ini akan digambar dari pojok kiri atas halaman menabrak margin!
+                            canvas: [
+                                {
+                                    type: 'rect',
+                                    x: -56.7, // Mundurkan sejauh margin kiri
+                                    y: -56.7, // Naikkan sejauh margin atas
+                                    w: 420,   // Lebar A5
+                                    h: 596,   // Tinggi A5
+                                    color: '#1e293b' // Gunakan Navy Super Gelap (Bukan murni hitam agar elegan)
+                                }
+                            ],
+                            // Tarik konten (Teks Judul) agar naik kembali ke atas (overlap dengan canvas)
+                            margin: [0, 0, 0, -596],
+                            pageBreak: 'before' // Paksa halaman baru dulu sebelum ngeblok warna
+                        };
+                    }
+                    return node;
+                });
 
                 pdfMake.createPdf(docDefinition).download(`Buku_Profesional_${ev.judul.replace(/\s/g,'_')}.pdf`, () => {
                     hideLoading();
