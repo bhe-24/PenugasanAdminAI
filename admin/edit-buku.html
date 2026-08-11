@@ -123,7 +123,7 @@
         .btn-theme-mustard:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(250,204,21,0.4);}
         .btn-close-modal { background: none; border: none; font-size: 0.9rem; color: var(--text-gray); margin-top: 20px; font-weight: 600; cursor: pointer; text-decoration: underline;}
 
-        /* POSTER INSTAGRAM TEMPLATE (HIDDEN, RENDERED BY HTML2CANVAS) */
+        /* POSTER INSTAGRAM TEMPLATE */
         #pustaka-poster { position: fixed; top: 0; left: -9999px; z-index: -9999; width: 1080px; height: 1350px; display: flex; flex-direction: column; font-family: 'Poppins', sans-serif; overflow: hidden; box-sizing: border-box; }
         .pp-bg-texture { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1; }
         
@@ -652,12 +652,48 @@
             });
         };
 
+        // --- FUNGSI SUNTIK SPASI MURNI UNTUK MEMBUAT PARAGRAF MENJOROK KE DALAM ---
+        const processHtmlNodes = (elements) => {
+            if (Array.isArray(elements)) {
+                elements.forEach(processHtmlNodes);
+            } else if (elements && typeof elements === 'object') {
+                
+                // Menata Sub-judul (Heading 2) agar masuk ke Daftar Isi otomatis
+                if (elements.nodeName === 'H2') {
+                    elements.tocItem = true;
+                    elements.tocStyle = 'tocSub';
+                    elements.margin = [0, 15, 0, 8]; 
+                }
+                
+                // Memaksa paragraf rata kanan-kiri (Justify) dan menjorok 8 spasi ke dalam
+                if (elements.nodeName === 'P') {
+                    elements.alignment = 'justify';
+                    elements.margin = [0, 0, 0, 8];
+                    
+                    const indentSpaces = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'; 
+                    
+                    if (typeof elements.text === 'string') {
+                        elements.text = indentSpaces + elements.text;
+                    } else if (Array.isArray(elements.text) && elements.text.length > 0) {
+                        if (typeof elements.text[0] === 'string') {
+                            elements.text[0] = indentSpaces + elements.text[0];
+                        } else if (typeof elements.text[0] === 'object' && elements.text[0].text) {
+                            elements.text[0].text = indentSpaces + elements.text[0].text;
+                        }
+                    }
+                }
+
+                // Terus melakukan pencarian ke dalam tumpukan tag HTML
+                if (elements.stack) processHtmlNodes(elements.stack);
+                if (elements.text && Array.isArray(elements.text)) processHtmlNodes(elements.text);
+            }
+        };
+
         // --- FUNGSI UNDUH BUKU KE PDF (1:1 DENGAN REACT TAPI PAKAI FONT TIMES) ---
         window.downloadBook = async (id) => {
             const bookContent = materialsData.find(x => x.id === id);
             if(!bookContent) return;
 
-            // Jika buku tidak ada isinya (misalnya cuma link Google Drive aja)
             if ((!bookContent.chapters || bookContent.chapters.length === 0) && (!bookContent.content || bookContent.content.trim() === "")) {
                 if (bookContent.link) {
                     window.open(bookContent.link, '_blank');
@@ -716,7 +752,7 @@
                 docDefinition.content.push({ text: (bookContent.title || bookContent.judul || "").toUpperCase(), fontSize: 20, bold: true, alignment: 'center', margin: [0, 100, 0, 10] });
                 docDefinition.content.push({ text: bookContent.type || bookContent.kategori || "", fontSize: 13, alignment: 'center', pageBreak: 'after' });
 
-                // HALAMAN KREDIT (Di Kembalikan)
+                // HALAMAN KREDIT
                 docDefinition.content.push({ text: 'KREDIT', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20] });
                 docDefinition.content.push({ text: `Judul: ${bookContent.title || bookContent.judul || 'Tanpa Judul'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
                 docDefinition.content.push({ text: `Penulis: ${bookContent.author || 'AI Textbook Architect'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
@@ -733,11 +769,15 @@
                 // 4. PENGANTAR (ABSTRACT)
                 if (bookContent.abstractId) {
                     docDefinition.content.push({ text: 'PENGANTAR BUKU', fontSize: 12, bold: true, margin: [0, 0, 0, 5] });
-                    docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractId), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20 } } }));
+                    const absContent = window.htmlToPdfmake(window.marked.parse(bookContent.abstractId));
+                    processHtmlNodes(absContent); // Bikin menjorok
+                    docDefinition.content.push(absContent);
                 }
                 if (bookContent.abstractEn) {
                     docDefinition.content.push({ text: 'PREFACE', fontSize: 12, bold: true, italics: true, margin: [0, 10, 0, 5] });
-                    docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractEn), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20, italics: true } } }));
+                    const absEnContent = window.htmlToPdfmake(window.marked.parse(bookContent.abstractEn));
+                    processHtmlNodes(absEnContent); // Bikin menjorok
+                    docDefinition.content.push(absEnContent);
                 }
 
                 // 5. TAUTAN RUJUKAN (DENGAN QR CODE)
@@ -753,7 +793,7 @@
                     docDefinition.content.push({ text: '', pageBreak: 'after' });
                 }
 
-                // 6. DAFTAR ISI (OTOMATIS DARI PDFMAKE)
+                // 6. DAFTAR ISI (OTOMATIS)
                 docDefinition.content.push({
                     toc: {
                         title: { text: 'DAFTAR ISI', fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 20] },
@@ -761,20 +801,6 @@
                     },
                     pageBreak: 'after'
                 });
-
-                const injectTocToSubChapters = (elements) => {
-                    if (Array.isArray(elements)) {
-                        elements.forEach(injectTocToSubChapters);
-                    } else if (elements && typeof elements === 'object') {
-                        if (elements.nodeName === 'H2') {
-                            elements.tocItem = true;
-                            elements.tocStyle = 'tocSub';
-                            elements.margin = [0, 15, 0, 8]; 
-                        }
-                        if (elements.stack) injectTocToSubChapters(elements.stack);
-                        if (elements.text && Array.isArray(elements.text)) injectTocToSubChapters(elements.text);
-                    }
-                };
 
                 // 7. ISI BAB BUKU (CHAPTERS) DENGAN BLOK HITAM
                 if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
@@ -786,41 +812,40 @@
                             absolutePosition: { x: 0, y: 0 }
                         });
 
+                        // Teks tumpuk di halaman hitam. Tapi di Daftar Isi digabung dengan "\n"
                         docDefinition.content.push({ 
-                            text: `BAB ${ch.id || i+1}`, 
-                            fontSize: 14, bold: true, color: 'white', alignment: 'center', margin: [0, 180, 0, 5], 
+                            text: [
+                                { text: `BAB ${ch.id || i+1}\n`, fontSize: 14 },
+                                { text: (ch.title || "").toUpperCase(), fontSize: 22 }
+                            ],
+                            bold: true, color: 'white', alignment: 'center', margin: [0, 180, 0, 5], 
+                            pageBreak: 'after',
                             tocItem: true, 
                             tocStyle: 'tocChapter'
-                        });
-
-                        docDefinition.content.push({ 
-                            text: (ch.title || "").toUpperCase(), 
-                            fontSize: 22, bold: true, color: 'white', alignment: 'center', margin: [0, 0, 0, 5], 
-                            pageBreak: 'after' // Lanjut ke kertas putih untuk isinya
                         });
                         
                         const html = window.marked.parse(ch.body || "");
                         const pdfContentParsed = window.htmlToPdfmake(html, {
                             defaultStyles: {
-                                p: { margin: [0, 0, 0, 4], alignment: 'justify', textIndent: 25 },
                                 table: { margin: [0, 10, 0, 15] },
                                 th: { bold: true, fillColor: '#f3f3f3', alignment: 'center' },
                                 td: { alignment: 'justify' },
-                                h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5] },
                                 ol: { margin: [0, 0, 0, 10] },
                                 ul: { margin: [0, 0, 0, 10] }
                             }
                         });
 
-                        injectTocToSubChapters(pdfContentParsed);
+                        // MENYUNTIKKAN INDENTASI KE SELURUH ISI PARAGRAF BAB
+                        processHtmlNodes(pdfContentParsed);
+                        
                         docDefinition.content.push(pdfContentParsed);
                         docDefinition.content.push({ text: '', pageBreak: 'after' });
                     });
                 } else if (bookContent.content || bookContent.isi) {
-                    // Fallback jika buku dimasukkan manual tanpa format chapter (bukan dari React)
                     docDefinition.content.push({ text: 'MATERI BUKU', fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], pageBreak: 'after', tocItem: true, tocStyle: 'tocChapter' });
                     const htmlFallback = window.marked.parse(bookContent.content || bookContent.isi);
-                    const pdfFallback = window.htmlToPdfmake(htmlFallback, { defaultStyles: { p: { margin: [0, 0, 0, 10], alignment: 'justify', textIndent: 25 } } });
+                    const pdfFallback = window.htmlToPdfmake(htmlFallback);
+                    processHtmlNodes(pdfFallback);
                     docDefinition.content.push(pdfFallback);
                     docDefinition.content.push({ text: '', pageBreak: 'after' });
                 }
