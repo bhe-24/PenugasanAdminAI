@@ -371,7 +371,7 @@
 
         // VERIFIKASI ADMIN SAAT HALAMAN DIMUAT
         (async () => {
-            currentUser = await checkAuth('pengajar'); // Mengamankan halaman khusus admin/pengajar
+            currentUser = await checkAuth('pengajar'); 
             if (!currentUser) {
                 window.location.href = '../index.html';
                 return;
@@ -638,83 +638,104 @@
             }
         });
 
-        // --- FUNGSI UNDUH BUKU KE PDF (DENGAN FONT TIMES & PELACAK DATA) ---
-        window.downloadBook = (id) => {
+        // --- FUNGSI UNDUH BUKU KE PDF (FUNGSI SUNTIK FONT TIMES NEW ROMAN) ---
+        window.downloadBook = async (id) => {
             const item = materialsData.find(x => x.id === id);
             if(!item) return;
 
-            // KITA TAMPILKAN DATA ASLINYA DI CONSOLE UNTUK MELACAK
             console.log("🔍 DATA BUKU DARI REACT (FIREBASE):", item);
 
-            // Kita perluas jangkauan pencarian teksnya (Siapa tahu React pakai nama 'body', 'naskah', atau 'bab')
+            // Melacak konten buku
             let bookText = item.content || item.isi || item.text || item.body || item.naskah || item.cerita || "";
             
-            // JIKA TEKSNYA BERUPA ARRAY (Misal React menyimpannya sebagai daftar Bab)
+            // Mengatasi jika React menyimpannya dalam bentuk Array (Bab-bab terpisah)
             if (Array.isArray(item.chapters)) {
                 bookText = item.chapters.map(c => `<h3>${c.title}</h3><p>${c.content}</p>`).join("\n");
             } else if (Array.isArray(item.bab)) {
                 bookText = item.bab.join("\n");
             }
 
-            // Jika konten teks benar-benar kosong tapi ada link Google Drive, alihkan ke link tersebut
+            // Jika konten teks benar-benar kosong tapi ada link Google Drive
             if (!bookText || (typeof bookText === 'string' && bookText.trim() === "")) {
                 if (item.link) {
                     window.open(item.link, '_blank');
                 } else {
-                    Swal.fire({
-                        title: "Data Kosong", 
-                        html: "Buku ini tidak memiliki konten teks untuk diunduh.<br><br><small><b>Coba tekan tombol F12 (Inspect) -> tab Console</b> untuk melihat struktur asli data yang dikirim oleh React.</small>", 
-                        icon: "warning"
-                    });
+                    Swal.fire("Data Kosong", "Buku ini tidak memiliki konten teks untuk diunduh.", "warning");
                 }
                 return;
             }
 
-            Swal.fire({ title: 'Menyusun PDF...', text: 'Mengonversi teks ke format Times New Roman', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-            // Konfigurasi Standar Font Times New Roman untuk PDFMake
-            pdfMake.fonts = {
-                Times: {
-                    normal: 'Times-Roman',
-                    bold: 'Times-Bold',
-                    italics: 'Times-Italic',
-                    bolditalics: 'Times-BoldItalic'
-                }
-            };
-
-            // Memecah teks per paragraf dan membersihkan sisa HTML tag dasar
-            let cleanText = typeof bookText === 'string' ? bookText.replace(/<p>/gi, '').split(/<\/p>|\n+/) : [];
-            
-            let pdfContent = [
-                { text: item.title || item.judul || 'Tanpa Judul', fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-                { text: `Penulis: ${item.author || 'Cendekia Aksara'}`, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 30] }
-            ];
-
-            cleanText.forEach(p => {
-                let txt = p.replace(/<[^>]+>/g, '').trim(); 
-                if(txt) {
-                    pdfContent.push({ text: txt, margin: [0, 0, 0, 12] });
-                }
-            });
-
-            const docDefinition = {
-                pageSize: 'A4',
-                pageMargins: [50, 60, 50, 60],
-                defaultStyle: {
-                    font: 'Times', 
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    alignment: 'justify'
-                },
-                content: pdfContent
-            };
+            Swal.fire({ title: 'Menyusun PDF...', text: 'Memuat font akademik (Times New Roman)...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
             try {
+                // 1. TRIK SUNTIK FONT (Hanya didownload 1x agar cepat)
+                if (!window.timesFontLoaded) {
+                    const fetchBase64 = async (url) => {
+                        const res = await fetch(url);
+                        const buffer = await res.arrayBuffer();
+                        const bytes = new Uint8Array(buffer);
+                        let binary = '';
+                        for (let i = 0; i < bytes.byteLength; i++) {
+                            binary += String.fromCharCode(bytes[i]);
+                        }
+                        return window.btoa(binary);
+                    };
+
+                    // Mengambil Font Tinos (Pengganti sempurna Times New Roman)
+                    pdfMake.vfs['Times-Regular.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Regular.ttf');
+                    pdfMake.vfs['Times-Bold.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Bold.ttf');
+                    window.timesFontLoaded = true;
+                }
+
+                // 2. DAFTARKAN FONT KE PDFMAKE
+                pdfMake.fonts = {
+                    Roboto: { // Bawaan sistem
+                        normal: 'Roboto-Regular.ttf',
+                        bold: 'Roboto-Medium.ttf',
+                        italics: 'Roboto-Italic.ttf',
+                        bolditalics: 'Roboto-MediumItalic.ttf'
+                    },
+                    TimesNewRoman: { // Font suntikan kita
+                        normal: 'Times-Regular.ttf',
+                        bold: 'Times-Bold.ttf',
+                        italics: 'Times-Regular.ttf', 
+                        bolditalics: 'Times-Bold.ttf'
+                    }
+                };
+
+                let cleanText = typeof bookText === 'string' ? bookText.replace(/<p>/gi, '').split(/<\/p>|\n+/) : [];
+                
+                let pdfContent = [
+                    { text: item.title || item.judul || 'Tanpa Judul', fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+                    { text: `Penulis: ${item.author || 'Cendekia Aksara'}`, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 30] }
+                ];
+
+                cleanText.forEach(p => {
+                    let txt = p.replace(/<[^>]+>/g, '').trim(); 
+                    if(txt) {
+                        pdfContent.push({ text: txt, margin: [0, 0, 0, 12] });
+                    }
+                });
+
+                // 3. SETTING PDF MENGGUNAKAN FONT TIMES NEW ROMAN
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [50, 60, 50, 60],
+                    defaultStyle: {
+                        font: 'TimesNewRoman',  // <--- MENGGUNAKAN FONT TIMES NEW ROMAN
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                        alignment: 'justify'
+                    },
+                    content: pdfContent
+                };
+
                 pdfMake.createPdf(docDefinition).download(`Buku_${item.title ? item.title.replace(/\s+/g,'_') : 'Materi'}.pdf`);
                 Swal.fire('Berhasil!', 'Buku berhasil diunduh dalam format PDF (Times New Roman).', 'success');
+
             } catch(e) {
                 console.error(e);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat mencetak PDF.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan saat memuat font atau mencetak PDF.', 'error');
             }
         };
 
