@@ -12,6 +12,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
+    <!-- LIBRARY UNTUK CETAK PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    
     <style>
         /* --- STYLE GLOBAL --- */
         :root { --primary: #003366; --accent: #4361ee; --mustard: #facc15; --bg: #f4f6f9; --text-dark: #1e293b; --text-gray: #64748b;}
@@ -95,6 +99,7 @@
         .text-blue { color: var(--accent); } .text-blue:hover { color: #1d4ed8; background: #eff6ff; }
         .text-red { color: #ef4444; } .text-red:hover { color: #b91c1c; background: #fef2f2; }
         .text-ig { color: #d946ef; } .text-ig:hover { color: white; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); }
+        .text-green { color: #10b981; } .text-green:hover { color: #059669; background: #ecfdf5; }
 
         .hidden { display: none !important; }
         .badge-count { background: #e2e8f0; color: var(--text-dark); font-size: 0.8rem; padding: 4px 12px; border-radius: 50px; font-weight: 700;}
@@ -195,8 +200,7 @@
                     <p class="header-greeting">Kelola Buku AI & Cetak Poster Promosi.</p>
                 </div>
             </div>
-            <!-- Hanya dummy back button, Anda bisa ubah href sesuai environment Anda -->
-            <a href="#" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard Utama</a>
+            <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard Utama</a>
         </div>
 
         <!-- MAIN GRID -->
@@ -279,7 +283,7 @@
                                 <th style="width: 70px;">Cover</th>
                                 <th>Informasi Materi</th>
                                 <th>Kategori</th>
-                                <th style="text-align: center; width: 140px;">Aksi</th>
+                                <th style="text-align: center; width: 170px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody"></tbody>
@@ -356,30 +360,25 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // [PERBAIKAN 1]: Menggunakan Sistem Auth Admin Resmi Cendekia Aksara
+        import { db, checkAuth } from "../js/firebase-config.js";
+        import { collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // MENGGUNAKAN DATABASE YANG SAMA DENGAN APLIKASI TEXTBOOK ARCHITECT
-        const firebaseConfig = {
-            apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
-            authDomain: "mading-cf676.firebaseapp.com",
-            projectId: "mading-cf676",
-            storageBucket: "mading-cf676.firebasestorage.app",
-            messagingSenderId: "72175203671",
-            appId: "1:72175203671:web:7a0676a55beb64bc96ba12",
-            measurementId: "G-590P9LLK7J"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        
-        // Nama Koleksi sesuai dengan yang di-push oleh React App
         const COLLECTION_NAME = 'published_books'; 
         
         let materialsData = [];
         let currentPosterItem = null;
+        let currentUser = null;
+
+        // VERIFIKASI ADMIN SAAT HALAMAN DIMUAT
+        (async () => {
+            currentUser = await checkAuth('pengajar'); // Mengamankan halaman khusus admin/pengajar
+            if (!currentUser) {
+                window.location.href = '../index.html';
+                return;
+            }
+            startDatabaseListener();
+        })();
 
         // --- PLACEHOLDER GENERATOR ---
         function makePlaceholderDataURI(width, height, label, bg = '#e2e8f0', fg = '#64748b') {
@@ -428,13 +427,6 @@
             return trimmed;
         }
 
-        // Login anonim untuk memastikan kita bisa baca/tulis data ke database
-        signInAnonymously(auth).then(() => {
-            startDatabaseListener();
-        }).catch((error) => {
-            Swal.fire("Koneksi Error", "Gagal terhubung ke database. Cek aturan Firebase Anda.", "error");
-        });
-
         function startDatabaseListener() {
             const q = query(collection(db, COLLECTION_NAME));
             
@@ -457,7 +449,6 @@
                     materialsData.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Sort by creation date if available
                 materialsData.sort((a, b) => {
                     const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
                     const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
@@ -471,7 +462,6 @@
                     
                     const displayTitle = item.title || item.judul || 'Tanpa Judul';
                     const displayType = item.type || item.kategori || 'Materi Biasa';
-                    const displayLink = item.link || 'https://google.com'; // Fallback link
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -481,13 +471,15 @@
                         </td>
                         <td>
                             <div style="font-weight: 700; color: var(--primary); margin-bottom: 4px; font-size: 1rem;">${displayTitle}</div>
-                            <span style="font-size: 0.75rem; color: #64748b;">${item.author || 'AI Textbook Architect'}</span>
+                            <span style="font-size: 0.75rem; color: #64748b;">Oleh: ${item.author || 'Pustaka Cendekia Aksara'}</span>
                         </td>
                         <td>
                             <span class="badge bg-materi">${displayType}</span>
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button onclick="window.startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <!-- [PERBAIKAN 2]: Tombol Unduh Buku Font Times New Roman -->
+                            <button onclick="window.downloadBook('${item.id}')" class="btn-icon text-green" title="Unduh Buku PDF (Times New Roman)"><i class="fa-solid fa-file-pdf"></i></button>
                             <button onclick="window.openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster"><i class="fa-brands fa-instagram"></i></button>
                             <button onclick="window.deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
@@ -496,7 +488,7 @@
                 });
             }, (error) => {
                 console.error("Gagal membaca koleksi:", error);
-                Swal.fire("Error Database", "Gagal membaca koleksi. Pastikan Rules Firestore Anda mengizinkan read.", "error");
+                Swal.fire("Error Database", "Gagal membaca koleksi. Pastikan akun Admin Anda memiliki izin.", "error");
             });
         }
 
@@ -619,7 +611,6 @@
 
                 const finalLink = document.getElementById('linkDrive').value.trim();
                 
-                // Menyamakan properti JSON agar sesuai dengan React App (title, type)
                 const dataToSave = { 
                     title: title, 
                     type: type, 
@@ -633,8 +624,8 @@
                     await updateDoc(doc(db, COLLECTION_NAME, editId), dataToSave);
                     Swal.fire("Berhasil", "Data berhasil diperbarui!", "success");
                 } else {
-                    dataToSave.author = "Admin (Manual Upload)";
-                    dataToSave.createdAt = new Date(); // Mock server timestamp
+                    dataToSave.author = currentUser.name || "Admin"; // Author dari login
+                    dataToSave.createdAt = serverTimestamp();
                     await addDoc(collection(db, COLLECTION_NAME), dataToSave);
                     Swal.fire("Berhasil", "Buku baru berhasil ditambahkan!", "success");
                 }
@@ -648,6 +639,79 @@
                 loadingIcon.classList.add('hidden');
             }
         });
+
+        // --- FUNGSI UNDUH BUKU KE PDF (DENGAN FONT TIMES) ---
+        window.downloadBook = (id) => {
+            const item = materialsData.find(x => x.id === id);
+            if(!item) return;
+
+            // Memeriksa apakah buku memiliki teks konten (misal hasil dari AI Textbook)
+            const bookText = item.content || item.isi || item.text || "";
+            
+            // Jika konten teks kosong tapi ada link Google Drive, alihkan ke link tersebut
+            if (!bookText || bookText.trim() === "") {
+                if (item.link) {
+                    window.open(item.link, '_blank');
+                } else {
+                    Swal.fire("Data Kosong", "Buku ini tidak memiliki konten teks untuk diunduh.", "warning");
+                }
+                return;
+            }
+
+            Swal.fire({ title: 'Menyusun PDF...', text: 'Mengonversi teks ke format Times New Roman', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+            // Konfigurasi Standar Font Times New Roman untuk PDFMake
+            pdfMake.fonts = {
+                Times: {
+                    normal: 'Times-Roman',
+                    bold: 'Times-Bold',
+                    italics: 'Times-Italic',
+                    bolditalics: 'Times-BoldItalic'
+                },
+                Roboto: {
+                    normal: 'Roboto-Regular.ttf',
+                    bold: 'Roboto-Medium.ttf',
+                    italics: 'Roboto-Italic.ttf',
+                    bolditalics: 'Roboto-MediumItalic.ttf'
+                }
+            };
+
+            // Memecah teks per paragraf dan membersihkan sisa HTML tag dasar
+            let cleanText = bookText.replace(/<p>/gi, '').split(/<\/p>|\n+/);
+            
+            let pdfContent = [
+                { text: item.title || item.judul || 'Tanpa Judul', fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+                { text: `Penulis: ${item.author || 'Cendekia Aksara'}`, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 30] }
+            ];
+
+            cleanText.forEach(p => {
+                let txt = p.replace(/<[^>]+>/g, '').trim(); 
+                if(txt) {
+                    pdfContent.push({ text: txt, margin: [0, 0, 0, 12] });
+                }
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [50, 60, 50, 60],
+                defaultStyle: {
+                    font: 'Times', // <<-- FONT TIMES SEPERTI YANG DIMINTA
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    alignment: 'justify'
+                },
+                content: pdfContent
+            };
+
+            try {
+                pdfMake.createPdf(docDefinition).download(`Buku_${item.title ? item.title.replace(/\s+/g,'_') : 'Materi'}.pdf`);
+                Swal.fire('Berhasil!', 'Buku berhasil diunduh dalam format PDF (Times New Roman).', 'success');
+            } catch(e) {
+                console.error(e);
+                Swal.fire('Gagal', 'Terjadi kesalahan saat mencetak PDF.', 'error');
+            }
+        };
+
 
         window.openThemeModal = (id) => {
             currentPosterItem = materialsData.find(x => x.id === id);
