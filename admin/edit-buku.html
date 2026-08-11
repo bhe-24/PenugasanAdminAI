@@ -360,7 +360,6 @@
     </div>
 
     <script type="module">
-        // [PERBAIKAN 1]: Menggunakan Sistem Auth Admin Resmi Cendekia Aksara
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -478,7 +477,6 @@
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button onclick="window.startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <!-- [PERBAIKAN 2]: Tombol Unduh Buku Font Times New Roman -->
                             <button onclick="window.downloadBook('${item.id}')" class="btn-icon text-green" title="Unduh Buku PDF (Times New Roman)"><i class="fa-solid fa-file-pdf"></i></button>
                             <button onclick="window.openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster"><i class="fa-brands fa-instagram"></i></button>
                             <button onclick="window.deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
@@ -640,20 +638,34 @@
             }
         });
 
-        // --- FUNGSI UNDUH BUKU KE PDF (DENGAN FONT TIMES) ---
+        // --- FUNGSI UNDUH BUKU KE PDF (DENGAN FONT TIMES & PELACAK DATA) ---
         window.downloadBook = (id) => {
             const item = materialsData.find(x => x.id === id);
             if(!item) return;
 
-            // Memeriksa apakah buku memiliki teks konten (misal hasil dari AI Textbook)
-            const bookText = item.content || item.isi || item.text || "";
+            // KITA TAMPILKAN DATA ASLINYA DI CONSOLE UNTUK MELACAK
+            console.log("🔍 DATA BUKU DARI REACT (FIREBASE):", item);
+
+            // Kita perluas jangkauan pencarian teksnya (Siapa tahu React pakai nama 'body', 'naskah', atau 'bab')
+            let bookText = item.content || item.isi || item.text || item.body || item.naskah || item.cerita || "";
             
-            // Jika konten teks kosong tapi ada link Google Drive, alihkan ke link tersebut
-            if (!bookText || bookText.trim() === "") {
+            // JIKA TEKSNYA BERUPA ARRAY (Misal React menyimpannya sebagai daftar Bab)
+            if (Array.isArray(item.chapters)) {
+                bookText = item.chapters.map(c => `<h3>${c.title}</h3><p>${c.content}</p>`).join("\n");
+            } else if (Array.isArray(item.bab)) {
+                bookText = item.bab.join("\n");
+            }
+
+            // Jika konten teks benar-benar kosong tapi ada link Google Drive, alihkan ke link tersebut
+            if (!bookText || (typeof bookText === 'string' && bookText.trim() === "")) {
                 if (item.link) {
                     window.open(item.link, '_blank');
                 } else {
-                    Swal.fire("Data Kosong", "Buku ini tidak memiliki konten teks untuk diunduh.", "warning");
+                    Swal.fire({
+                        title: "Data Kosong", 
+                        html: "Buku ini tidak memiliki konten teks untuk diunduh.<br><br><small><b>Coba tekan tombol F12 (Inspect) -> tab Console</b> untuk melihat struktur asli data yang dikirim oleh React.</small>", 
+                        icon: "warning"
+                    });
                 }
                 return;
             }
@@ -667,17 +679,11 @@
                     bold: 'Times-Bold',
                     italics: 'Times-Italic',
                     bolditalics: 'Times-BoldItalic'
-                },
-                Roboto: {
-                    normal: 'Roboto-Regular.ttf',
-                    bold: 'Roboto-Medium.ttf',
-                    italics: 'Roboto-Italic.ttf',
-                    bolditalics: 'Roboto-MediumItalic.ttf'
                 }
             };
 
             // Memecah teks per paragraf dan membersihkan sisa HTML tag dasar
-            let cleanText = bookText.replace(/<p>/gi, '').split(/<\/p>|\n+/);
+            let cleanText = typeof bookText === 'string' ? bookText.replace(/<p>/gi, '').split(/<\/p>|\n+/) : [];
             
             let pdfContent = [
                 { text: item.title || item.judul || 'Tanpa Judul', fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
@@ -695,7 +701,7 @@
                 pageSize: 'A4',
                 pageMargins: [50, 60, 50, 60],
                 defaultStyle: {
-                    font: 'Times', // <<-- FONT TIMES SEPERTI YANG DIMINTA
+                    font: 'Times', 
                     fontSize: 12,
                     lineHeight: 1.5,
                     alignment: 'justify'
