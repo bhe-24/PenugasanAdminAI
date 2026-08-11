@@ -716,8 +716,19 @@
                 docDefinition.content.push({ text: (bookContent.title || bookContent.judul || "").toUpperCase(), fontSize: 20, bold: true, alignment: 'center', margin: [0, 100, 0, 10] });
                 docDefinition.content.push({ text: bookContent.type || bookContent.kategori || "", fontSize: 13, alignment: 'center', pageBreak: 'after' });
 
-                docDefinition.content.push({ text: 'HAK CIPTA', fontSize: 10, bold: true, margin: [0, 0, 0, 5] });
-                docDefinition.content.push({ text: `© ${new Date().getFullYear()} ${bookContent.author || 'Cendekia Aksara'}. Seluruh hak cipta dilindungi.`, fontSize: 9, margin: [0, 0, 0, 20] });
+                // HALAMAN KREDIT (Di Kembalikan)
+                docDefinition.content.push({ text: 'KREDIT', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20] });
+                docDefinition.content.push({ text: `Judul: ${bookContent.title || bookContent.judul || 'Tanpa Judul'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
+                docDefinition.content.push({ text: `Penulis: ${bookContent.author || 'AI Textbook Architect'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
+                docDefinition.content.push({ 
+                    text: [
+                        `© ${new Date().getFullYear()}\n`,
+                        `Diterbitkan oleh: Cendekia Aksara\n`,
+                        `Di bawah naungan: Ragam Literasi Indonesia`
+                    ], 
+                    fontSize: 10, alignment: 'center', margin: [0, 200, 0, 0] 
+                });
+                docDefinition.content.push({ text: '', pageBreak: 'after' });
                 
                 // 4. PENGANTAR (ABSTRACT)
                 if (bookContent.abstractId) {
@@ -765,24 +776,39 @@
                     }
                 };
 
-                // 7. ISI BAB BUKU (CHAPTERS)
+                // 7. ISI BAB BUKU (CHAPTERS) DENGAN BLOK HITAM
                 if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
                     bookContent.chapters.forEach((ch, i) => {
+                        
+                        // Halaman Pembuka Bab: Blok Hitam Pekat Menutupi HVS A5 (420x596)
+                        docDefinition.content.push({
+                            canvas: [{ type: 'rect', x: 0, y: 0, w: 420, h: 596, color: 'black' }],
+                            absolutePosition: { x: 0, y: 0 }
+                        });
+
                         docDefinition.content.push({ 
-                            text: `BAB ${ch.id || i+1}: ${(ch.title || "").toUpperCase()}`, 
-                            fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], 
-                            pageBreak: 'after',
+                            text: `BAB ${ch.id || i+1}`, 
+                            fontSize: 14, bold: true, color: 'white', alignment: 'center', margin: [0, 180, 0, 5], 
                             tocItem: true, 
                             tocStyle: 'tocChapter'
+                        });
+
+                        docDefinition.content.push({ 
+                            text: (ch.title || "").toUpperCase(), 
+                            fontSize: 22, bold: true, color: 'white', alignment: 'center', margin: [0, 0, 0, 5], 
+                            pageBreak: 'after' // Lanjut ke kertas putih untuk isinya
                         });
                         
                         const html = window.marked.parse(ch.body || "");
                         const pdfContentParsed = window.htmlToPdfmake(html, {
                             defaultStyles: {
-                                p: { margin: [0, 0, 0, 10], alignment: 'justify', textIndent: 25 },
-                                table: { margin: [0, 5, 0, 10] },
-                                th: { bold: true, fillColor: '#f3f3f3' },
-                                h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5] } 
+                                p: { margin: [0, 0, 0, 4], alignment: 'justify', textIndent: 25 },
+                                table: { margin: [0, 10, 0, 15] },
+                                th: { bold: true, fillColor: '#f3f3f3', alignment: 'center' },
+                                td: { alignment: 'justify' },
+                                h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5] },
+                                ol: { margin: [0, 0, 0, 10] },
+                                ul: { margin: [0, 0, 0, 10] }
                             }
                         });
 
