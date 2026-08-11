@@ -1,0 +1,625 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  BookOpen, Settings, FileText, Download, Plus, Trash2, 
+  ChevronRight, ChevronLeft, Loader2, CheckCircle2, 
+  AlertCircle, Upload, Globe, Link as LinkIcon, QrCode, Edit3, CloudUpload
+} from 'lucide-react';
+
+// Import Firebase (Standar untuk React)
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+
+// Konfigurasi Firebase milik Anda
+const firebaseConfig = {
+  apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+  authDomain: "mading-cf676.firebaseapp.com",
+  projectId: "mading-cf676",
+  storageBucket: "mading-cf676.firebasestorage.app",
+  messagingSenderId: "72175203671",
+  appId: "1:72175203671:web:7a0676a55beb64bc96ba12",
+  measurementId: "G-590P9LLK7J"
+};
+
+// Inisialisasi Firebase
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// Kosongkan agar Canvas otomatis memasukkan API key saat runtime
+const apiKey = ""; 
+
+const App = () => {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [jsPdfLoaded, setJsPdfLoaded] = useState(false);
+  
+  // State untuk Firebase
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishStatus, setPublishStatus] = useState(null); // 'success' | 'error' | null
+
+  const fileInputRef = useRef(null);
+
+  const [config, setConfig] = useState({
+    title: "",
+    type: "Panduan Menulis",
+    topic: "",
+    chapterCount: "3",
+    paragraphsPerPoint: "2",
+  });
+
+  const [chapters, setChapters] = useState([]);
+  const [bookContent, setBookContent] = useState(null);
+
+  useEffect(() => {
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = false;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Gagal memuat: ${src}`));
+      document.head.appendChild(script);
+    });
+
+    const initScripts = async () => {
+      try {
+        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js");
+        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js");
+        await Promise.all([
+          loadScript("https://cdn.jsdelivr.net/npm/marked/marked.min.js"),
+          loadScript("https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"),
+          loadScript("https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"),
+          loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"),
+          loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js")
+        ]);
+        
+        if (window.pdfjsLib) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        }
+        
+        setJsPdfLoaded(true);
+      } catch (err) {
+        console.error("Library Loading Error:", err);
+      }
+    };
+    initScripts();
+  }, []);
+
+  const updateChapter = (id, field, value) => {
+    setChapters(prev => prev.map(ch => ch.id === id ? { ...ch, [field]: value } : ch));
+  };
+
+  const addPoint = (chapterId) => {
+    setChapters(prev => prev.map(ch => ch.id === chapterId ? { ...ch, points: [...ch.points, "Poin Baru"] } : ch));
+  };
+
+  const removePoint = (chapterId, pointIndex) => {
+    setChapters(prev => prev.map(ch => ch.id === chapterId ? { ...ch, points: ch.points.filter((_, i) => i !== pointIndex) } : ch));
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    let extractedText = "";
+
+    try {
+      const fileExt = file.name.split('.').pop().toLowerCase();
+      
+      if (fileExt === 'txt' || fileExt === 'md') {
+        extractedText = await file.text();
+        extractedText = extractedText.substring(0, 5000);
+      } else if (fileExt === 'docx') {
+        if (!window.mammoth) throw new Error("Library Word belum siap.");
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await window.mammoth.extractRawText({ arrayBuffer });
+        extractedText = result.value.substring(0, 5000);
+      } else if (fileExt === 'pdf') {
+        if (!window.pdfjsLib) throw new Error("Library PDF belum siap.");
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        const maxPages = Math.min(pdf.numPages, 3);
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          fullText += textContent.items.map(item => item.str).join(' ') + " ";
+        }
+        extractedText = fullText.substring(0, 5000);
+      } else {
+         throw new Error("Format tidak didukung. Gunakan .txt, .md, .docx, atau .pdf");
+      }
+
+      if (!extractedText.trim()) throw new Error("Teks tidak dapat dibaca, pastikan dokumen bukan hasil scan/foto murni.");
+
+      const prompt = `Analisis teks berikut. Ekstrak dan buatkan "Judul Buku" yang menarik serta "Deskripsi Topik Utama" yang merepresentasikan isi teks tersebut untuk dijadikan buku materi.
+      Teks: ${extractedText}
+      
+      Balas HANYA dengan format JSON murni:
+      {
+        "title": "Judul yang disarankan",
+        "topic": "Deskripsi topik utama sekitar 3-4 kalimat"
+      }`;
+
+      const res = await callGemini(prompt, true);
+      setConfig(prev => ({
+        ...prev,
+        title: res.title || prev.title,
+        topic: res.topic || prev.topic
+      }));
+
+    } catch (err) {
+      setError("Gagal memproses dokumen: " + err.message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const generateOutline = async () => {
+    if (!config.title || !config.topic) {
+      setError("Judul dan Deskripsi Materi harus diisi.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const prompt = `Buatkan outline buku untuk genre/jenis "${config.type}" berjudul "${config.title}" tentang "${config.topic}". 
+      Jumlah bab: ${config.chapterCount}. 
+      Gunakan diksi yang menarik, kontekstual, dan mudah dipahami.
+      Format JSON murni:
+      {
+        "chapters": [
+          { "id": 1, "title": "Judul Bab", "points": ["Poin Pembahasan A", "Poin Pembahasan B"] }
+        ]
+      }`;
+      const res = await callGemini(prompt, true);
+      setChapters(res.chapters);
+      setStep(2);
+    } catch (err) {
+      setError("Gagal menyusun outline. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateFullContent = async () => {
+    setLoading(true);
+    setError(null);
+    setProgress(5);
+    setPublishStatus(null); // Reset status publikasi jika generate ulang
+
+    try {
+      const generatedBook = {
+        title: config.title,
+        type: config.type,
+        abstractId: "",
+        abstractEn: "",
+        chapters: [],
+        references: [],
+        glossary: [],
+        bibliography: []
+      };
+
+      const absPrompt = `Tulis pengantar singkat (Indo & Inggris) dan 3 link rujukan digital/web untuk buku "${config.title}".
+      FILTER DIKSI: Hindari kata 'anomali', 'absolut', 'esensial', 'signifikan', 'paradigma'.
+      Gunakan kalimat yang mengalir, kontekstual, dan mudah dimengerti awam.
+      Output JSON: { "id": "...", "en": "...", "references": ["url1", "url2", "url3"] }`;
+      
+      const absRes = await callGemini(absPrompt, true);
+      generatedBook.abstractId = absRes.id;
+      generatedBook.abstractEn = absRes.en;
+      generatedBook.references = absRes.references || [];
+      setProgress(20);
+
+      for (let i = 0; i < chapters.length; i++) {
+        const ch = chapters[i];
+        const formattedPoints = ch.points.map((pt, idx) => `${String.fromCharCode(65 + idx)}. ${pt}`);
+        
+        const chPrompt = `Tuliskan isi materi untuk topik: ${ch.title}.
+        Poin pembahasan: ${formattedPoints.join(", ")}.
+        
+        ATURAN PENULISAN SANGAT KETAT:
+        1. DILARANG KERAS menggunakan kata: 'anomali', 'absolut', 'paradigma', 'revolusioner', 'esensial', 'transformasi mendalam'.
+        2. DILARANG menulis kalimat pembuka atau penutup bab (langsung ke materi).
+        3. DILARANG menulis ulang Judul Bab di awal teks.
+        4. WAJIB menggunakan Heading 2 Markdown (##) untuk setiap judul poin BESERTA HURUFNYA agar masuk Daftar Isi. Contoh format: "## A. ${ch.points[0] || 'Judul Poin'}".
+        5. Tulisan TIDAK BOLEH kaku. Gunakan diksi yang santai, kontekstual, dan sangat mudah dipahami pembaca awam.
+        6. WAJIB menyertakan contoh yang relevan dan implementasi praktis di setiap poin.
+        7. DILARANG KERAS menyertakan sitasi in-text.
+        8. Setiap poin minimal ${config.paragraphsPerPoint} paragraf utuh.
+        9. HANYA gunakan format Markdown, dilarang HTML.`;
+        
+        const body = await callGemini(chPrompt);
+        generatedBook.chapters.push({ ...ch, body: body || "" });
+        setProgress(20 + ((i + 1) / chapters.length) * 60); 
+      }
+
+      setProgress(85);
+
+      const endPrompt = `Berdasarkan buku "${config.title}" dengan materi "${config.topic}" dan bab: ${chapters.map(c=>c.title).join(", ")}, buatkan:
+      1. Glosarium: 10 istilah penting/menarik beserta definisinya secara singkat.
+      2. Daftar Pustaka: 5-8 referensi (format APA Style) yang relevan.
+      
+      Output JSON murni:
+      {
+        "glossary": [ { "term": "Istilah", "definition": "Definisi" } ],
+        "bibliography": [ "Daftar pustaka 1", "Daftar pustaka 2" ]
+      }`;
+      const endRes = await callGemini(endPrompt, true);
+      generatedBook.glossary = endRes.glossary || [];
+      generatedBook.bibliography = endRes.bibliography || [];
+
+      setProgress(100);
+      setBookContent(generatedBook);
+      setStep(4);
+    } catch (err) {
+      setError("Gagal menulis materi. Periksa koneksi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const callGemini = async (prompt, isJson = false) => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: isJson ? { responseMimeType: "application/json" } : {}
+    };
+
+    let retries = 0;
+    while (retries < 5) {
+      try {
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        return isJson ? JSON.parse(text) : text;
+      } catch (e) {
+        retries++;
+        await new Promise(res => setTimeout(res, Math.pow(2, retries) * 1000));
+      }
+    }
+    throw new Error("Gagal menghubungi AI.");
+  };
+
+  const publishToDatabase = async () => {
+    if (!bookContent) return;
+    
+    setIsPublishing(true);
+    setError(null);
+    setPublishStatus(null);
+    
+    try {
+      // Menyimpan data buku JSON lengkap ke koleksi "published_books"
+      // Di website GitHub Pages nanti, Anda tinggal menarik koleksi ini.
+      const bookData = {
+        title: bookContent.title,
+        type: bookContent.type,
+        abstractId: bookContent.abstractId,
+        abstractEn: bookContent.abstractEn,
+        chapters: bookContent.chapters, // Termasuk isi (body) teks markdown
+        glossary: bookContent.glossary,
+        bibliography: bookContent.bibliography,
+        references: bookContent.references,
+        createdAt: serverTimestamp(),
+        author: "AI Textbook Architect",
+        isPublic: true
+      };
+
+      await addDoc(collection(db, "published_books"), bookData);
+      setPublishStatus('success');
+      
+    } catch (err) {
+      console.error("Gagal publish ke Firebase:", err);
+      setError("Gagal menyimpan ke Database. Pastikan Firestore Rules Anda mengizinkan 'write'. Detail: " + err.message);
+      setPublishStatus('error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    if (!window.pdfMake || !window.marked || !window.htmlToPdfmake || !window.QRCode) {
+      setError("Pustaka belum siap.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const docDefinition = {
+        pageSize: 'A5',
+        pageMargins: [40, 50, 40, 50],
+        styles: {
+          tocChapter: { bold: true, fontSize: 12, margin: [0, 8, 0, 2] },
+          tocSub: { fontSize: 11, margin: [15, 3, 0, 0], italics: true }
+        },
+        defaultStyle: { fontSize: 11, alignment: 'justify', lineHeight: 1.15 },
+        footer: (currentPage) => ({ text: currentPage.toString(), alignment: 'center', fontSize: 9, margin: [0, 10, 0, 0] }),
+        content: []
+      };
+
+      docDefinition.content.push({ text: (bookContent.title || "").toUpperCase(), fontSize: 20, bold: true, alignment: 'center', margin: [0, 100, 0, 10] });
+      docDefinition.content.push({ text: bookContent.type || "", fontSize: 13, alignment: 'center', pageBreak: 'after' });
+
+      docDefinition.content.push({ text: 'HAK CIPTA', fontSize: 10, bold: true, margin: [0, 0, 0, 5] });
+      docDefinition.content.push({ text: `© ${new Date().getFullYear()} Penulis. Seluruh hak cipta dilindungi.`, fontSize: 9, margin: [0, 0, 0, 20] });
+      
+      docDefinition.content.push({ text: 'PENGANTAR BUKU', fontSize: 12, bold: true, margin: [0, 0, 0, 5] });
+      docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractId || ""), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20 } } }));
+      
+      docDefinition.content.push({ text: 'PREFACE', fontSize: 12, bold: true, italics: true, margin: [0, 10, 0, 5] });
+      docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractEn || ""), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20, italics: true } } }));
+
+      if (bookContent.references && bookContent.references.length > 0) {
+        docDefinition.content.push({ text: 'TAUTAN RUJUKAN', fontSize: 11, bold: true, margin: [0, 15, 0, 5] });
+        const qrCols = [];
+        for (const ref of bookContent.references) {
+          const qr = await window.QRCode.toDataURL(ref, { margin: 1, width: 80 });
+          qrCols.push({ stack: [{ image: qr, width: 50, alignment: 'center' }, { text: 'Scan Link', fontSize: 7, alignment: 'center' }] });
+        }
+        docDefinition.content.push({ columns: qrCols, pageBreak: 'after' });
+      } else {
+        docDefinition.content.push({ text: '', pageBreak: 'after' });
+      }
+
+      docDefinition.content.push({
+        toc: {
+          title: { text: 'DAFTAR ISI', fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 20] },
+          numberStyle: { bold: false }
+        },
+        pageBreak: 'after'
+      });
+
+      const injectTocToSubChapters = (elements) => {
+        if (Array.isArray(elements)) {
+          elements.forEach(injectTocToSubChapters);
+        } else if (elements && typeof elements === 'object') {
+          if (elements.nodeName === 'H2') {
+            elements.tocItem = true;
+            elements.tocStyle = 'tocSub';
+            elements.margin = [0, 15, 0, 8]; 
+          }
+          if (elements.stack) injectTocToSubChapters(elements.stack);
+          if (elements.text && Array.isArray(elements.text)) injectTocToSubChapters(elements.text);
+        }
+      };
+
+      bookContent.chapters.forEach((ch, i) => {
+        docDefinition.content.push({ 
+          text: `BAB ${ch.id}: ${(ch.title || "").toUpperCase()}`, 
+          fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], 
+          pageBreak: 'after',
+          tocItem: true, 
+          tocStyle: 'tocChapter'
+        });
+        
+        const html = window.marked.parse(ch.body || "");
+        const pdfContent = window.htmlToPdfmake(html, {
+          defaultStyles: {
+            p: { margin: [0, 0, 0, 10], alignment: 'justify', textIndent: 25 },
+            table: { margin: [0, 5, 0, 10] },
+            th: { bold: true, fillColor: '#f3f3f3' },
+            h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5] } 
+          }
+        });
+
+        injectTocToSubChapters(pdfContent);
+        docDefinition.content.push(pdfContent);
+        docDefinition.content.push({ text: '', pageBreak: 'after' });
+      });
+
+      if (bookContent.glossary && bookContent.glossary.length > 0) {
+        docDefinition.content.push({ 
+          text: 'GLOSARIUM', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], 
+          tocItem: true, tocStyle: 'tocChapter'
+        });
+        bookContent.glossary.forEach(g => {
+          docDefinition.content.push({
+            text: [ { text: g.term, bold: true }, ` : ${g.definition}` ],
+            margin: [0, 0, 0, 8], alignment: 'justify'
+          });
+        });
+        docDefinition.content.push({ text: '', pageBreak: 'after' });
+      }
+
+      if (bookContent.bibliography && bookContent.bibliography.length > 0) {
+        docDefinition.content.push({ 
+          text: 'DAFTAR PUSTAKA', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], 
+          tocItem: true, tocStyle: 'tocChapter'
+        });
+        bookContent.bibliography.forEach(b => {
+          docDefinition.content.push({ 
+            text: b, margin: [0, 0, 0, 10], alignment: 'justify' 
+          });
+        });
+      }
+
+      window.pdfMake.createPdf(docDefinition).download(`${bookContent.title.replace(/\s/g, '_')}.pdf`);
+    } catch (err) {
+      setError("Gagal menyusun PDF.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-xl"><BookOpen size={32} /></div>
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight">Textbook Architect</h1>
+            <p className="text-slate-500 font-medium">Sistem Produksi & Publikasi Materi</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col min-h-[550px]">
+          <div className="p-8 flex-grow">
+            
+            {/* ... Bagian Step 1 ... */}
+            {step === 1 && (
+              <div className="space-y-6 animate-in fade-in">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  accept=".txt,.md,.docx,.pdf"
+                  className="hidden" 
+                />
+
+                <div className="bg-indigo-50/50 rounded-2xl p-6 border-2 border-indigo-100 border-dashed flex flex-col sm:flex-row items-center gap-6 justify-between">
+                  <div className="space-y-1 text-center sm:text-left">
+                    <h3 className="font-bold text-indigo-900 flex items-center justify-center sm:justify-start gap-2">
+                      <FileText size={18} /> Ekstrak Topik Otomatis
+                    </h3>
+                    <p className="text-xs text-indigo-600">Unggah file teks, Word (.docx), atau PDF untuk auto-isi Judul dan Deskripsi.</p>
+                  </div>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()} 
+                    disabled={uploading}
+                    className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-indigo-600 border border-indigo-200 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {uploading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+                    {uploading ? 'Membaca Dokumen...' : 'Upload Dokumen'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Judul Buku</label>
+                    <input type="text" className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none" placeholder="Masukkan atau biarkan AI mengisi..." value={config.title} onChange={e => setConfig({...config, title: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Jenis Materi</label>
+                    <select className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none" value={config.type} onChange={e => setConfig({...config, type: e.target.value})}>
+                      <option>Panduan Menulis</option>
+                      <option>Karya Ilmiah</option>
+                      <option>Analisis Cerpen</option>
+                      <option>Esai Akademik</option>
+                      <option>Kritik Sastra</option>
+                      <option>Linguistik</option>
+                      <option>Swasunting</option>
+                      <option>Jurnalistik Dasar</option>
+                      <option>Materi Sejarah</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Deskripsi Topik Utama</label>
+                  <textarea rows="4" className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none" placeholder="Masukkan konteks materi secara manual atau unggah file untuk otomatisasi..." value={config.topic} onChange={e => setConfig({...config, topic: e.target.value})} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Jumlah Bab</label>
+                    <input type="number" className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none" value={config.chapterCount} onChange={e => setConfig({...config, chapterCount: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase">Paragraf per Poin</label>
+                    <input type="number" className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none" value={config.paragraphsPerPoint} onChange={e => setConfig({...config, paragraphsPerPoint: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ... Bagian Step 2 ... */}
+            {step === 2 && (
+              <div className="space-y-6 animate-in fade-in">
+                <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Konfirmasi Struktur Materi</h3></div>
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {chapters.map(ch => (
+                    <div key={ch.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-200">
+                      <div className="flex gap-3 mb-3">
+                        <div className="bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">{ch.id}</div>
+                        <input type="text" className="flex-grow font-bold bg-transparent border-b border-slate-300 outline-none" value={ch.title} onChange={e => updateChapter(ch.id, 'title', e.target.value)} />
+                      </div>
+                      <div className="pl-10 space-y-2">
+                        {ch.points.map((pt, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input type="text" className="flex-grow text-sm p-2 bg-white rounded-lg border border-slate-200" value={pt} onChange={e => {
+                              const newPts = [...ch.points]; newPts[idx] = e.target.value; updateChapter(ch.id, 'points', newPts);
+                            }} />
+                            <button onClick={() => removePoint(ch.id, idx)} className="text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+                          </div>
+                        ))}
+                        <button onClick={() => addPoint(ch.id)} className="text-xs font-bold text-indigo-600 flex items-center gap-1"><Plus size={14}/> TAMBAH POIN</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ... Bagian Step 3 ... */}
+            {step === 3 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+                <div className="relative">
+                   <div className="w-24 h-24 rounded-full border-8 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                   <div className="absolute inset-0 flex items-center justify-center text-indigo-600 font-bold">{Math.round(progress)}%</div>
+                </div>
+                <div>
+                   <h2 className="text-xl font-bold">Menyusun Tulisan...</h2>
+                   <p className="text-slate-500 text-sm">Mengaitkan dengan contoh nyata & implementasi, tanpa sitasi dalam teks.</p>
+                </div>
+              </div>
+            )}
+
+            {/* ... Bagian Step 4 (Berubah: Tambahan Tombol Firebase) ... */}
+            {step === 4 && bookContent && (
+              <div className="space-y-8 animate-in zoom-in-95 text-center py-6">
+                <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 size={40}/></div>
+                <div>
+                  <h2 className="text-2xl font-bold">Penulisan Selesai!</h2>
+                  <p className="text-slate-500 text-sm mt-2">Buku siap diunduh atau dipublikasikan ke database web.</p>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl mx-auto">
+                  {/* Tombol Download PDF */}
+                  <button onClick={downloadPDF} disabled={loading || !jsPdfLoaded} className="w-full sm:w-auto bg-slate-800 text-white px-6 py-4 rounded-2xl font-bold hover:bg-slate-700 shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 transition-all">
+                    {loading ? <Loader2 className="animate-spin" /> : <Download />} UNDUH PDF (A5)
+                  </button>
+
+                  {/* Tombol Publikasi Firebase */}
+                  <button 
+                    onClick={publishToDatabase} 
+                    disabled={isPublishing || publishStatus === 'success'} 
+                    className={`w-full sm:w-auto px-6 py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all text-white
+                      ${publishStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50'}`}
+                  >
+                    {isPublishing ? (
+                      <><Loader2 className="animate-spin" /> MENGUNGGAH...</>
+                    ) : publishStatus === 'success' ? (
+                      <><CheckCircle2 /> BERHASIL DIPUBLIKASI</>
+                    ) : (
+                      <><CloudUpload /> PUBLIKASI KE WEB</>
+                    )}
+                  </button>
+                </div>
+
+                {publishStatus === 'success' && (
+                  <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg border border-green-200 inline-block">
+                    Data JSON buku berhasil dikirim ke koleksi <b>published_books</b> di Firebase.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm flex items-center gap-2"><AlertCircle size={16}/> {String(error)}</div>}
+          </div>
+
+          <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-between">
+            <button disabled={step === 1 || loading} onClick={() => setStep(s => s - 1)} className={`font-bold text-slate-500 px-4 py-2 ${step === 1 ? 'invisible' : ''}`}>KEMBALI</button>
+            {step === 1 && <button onClick={generateOutline} disabled={loading} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold">LANJUTKAN</button>}
+            {step === 2 && <button onClick={() => {setStep(3); generateFullContent();}} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold">MULAI PENULISAN</button>}
+          </div>
+        </div>
+      </div>
+      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }`}</style>
+    </div>
+  );
+};
+
+export default App;
