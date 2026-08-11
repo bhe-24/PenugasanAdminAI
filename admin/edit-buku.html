@@ -12,9 +12,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- LIBRARY UNTUK CETAK PDF -->
+    <!-- LIBRARY UNTUK CETAK PDF SESUAI REACT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js"></script>
     
     <style>
         /* --- STYLE GLOBAL --- */
@@ -379,7 +381,6 @@
             startDatabaseListener();
         })();
 
-        // --- PLACEHOLDER GENERATOR ---
         function makePlaceholderDataURI(width, height, label, bg = '#e2e8f0', fg = '#64748b') {
             const canvas = document.createElement('canvas');
             canvas.width = width;
@@ -477,7 +478,7 @@
                         </td>
                         <td style="text-align: center; white-space: nowrap;">
                             <button onclick="window.startEdit('${item.id}')" class="btn-icon text-blue" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="window.downloadBook('${item.id}')" class="btn-icon text-green" title="Unduh Buku PDF (Times New Roman)"><i class="fa-solid fa-file-pdf"></i></button>
+                            <button onclick="window.downloadBook('${item.id}')" class="btn-icon text-green" title="Unduh Buku PDF (Format Persis React dengan Font Times)"><i class="fa-solid fa-file-pdf"></i></button>
                             <button onclick="window.openThemeModal('${item.id}')" class="btn-icon text-ig" title="Buat Poster"><i class="fa-brands fa-instagram"></i></button>
                             <button onclick="window.deleteItem('${item.id}')" class="btn-icon text-red" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>
                         </td>
@@ -638,48 +639,37 @@
             }
         });
 
-        // --- FUNGSI UNDUH BUKU KE PDF (PENYEDOT TEKS REACT & CONVERTER MARKDOWN) ---
+        // --- FUNGSI MENGHASILKAN QR CODE BASE64 UNTUK DAFTAR PUSTAKA ---
+        const generateQRCodeBase64 = (text) => {
+            return new Promise((resolve) => {
+                const div = document.createElement('div');
+                new QRCode(div, { text: text, width: 80, height: 80, correctLevel: QRCode.CorrectLevel.M });
+                setTimeout(() => {
+                    const canvas = div.querySelector('canvas');
+                    resolve(canvas.toDataURL('image/png'));
+                }, 100);
+            });
+        };
+
+        // --- FUNGSI UNDUH BUKU KE PDF (1:1 DENGAN REACT TAPI PAKAI FONT TIMES) ---
         window.downloadBook = async (id) => {
-            const item = materialsData.find(x => x.id === id);
-            if(!item) return;
+            const bookContent = materialsData.find(x => x.id === id);
+            if(!bookContent) return;
 
-            // 1. Ekstrak data mentah langsung dari struktur Array 'chapters' buatan React
-            let bookText = "";
-
-            if (item.chapters && Array.isArray(item.chapters)) {
-                bookText = item.chapters.map(ch => {
-                    // Ambil isi bab dari variabel 'body'
-                    let babContent = ch.body || "";
-                    
-                    // Karena teks dari React berformat Markdown, kita harus membuang simbol-simbol markdown
-                    // (Hapus #, *, _, atau [link]) agar PDF-nya bersih dan rapi.
-                    babContent = babContent
-                        .replace(/#{1,6}\s?/g, '') // Hapus heading ##
-                        .replace(/(\*\*|__)(.*?)\1/g, '$2') // Hapus bold ** atau __
-                        .replace(/(\*|_)(.*?)\1/g, '$2') // Hapus italic * atau _
-                        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1'); // Ubah format [Teks](Link) jadi teks biasa
-
-                    return `Bab ${ch.id || ''}: ${ch.title || 'Tanpa Judul Bab'}\n\n${babContent}`;
-                }).join('\n\n--- BATAS HALAMAN ---\n\n');
-            } else if (item.content || item.isi || item.body || item.naskah || item.cerita) {
-                // Fallback kalau ternyata buku itu diupload manual via HTML, bukan dari React
-                bookText = item.content || item.isi || item.body || item.naskah || item.cerita;
-            }
-
-            // Jika benar-benar kosong tapi ada link Google Drive
-            if (!bookText || bookText.trim() === "") {
-                if (item.link) {
-                    window.open(item.link, '_blank');
+            // Jika buku tidak ada isinya (misalnya cuma link Google Drive aja)
+            if ((!bookContent.chapters || bookContent.chapters.length === 0) && (!bookContent.content || bookContent.content.trim() === "")) {
+                if (bookContent.link) {
+                    window.open(bookContent.link, '_blank');
                 } else {
-                    Swal.fire("Data Kosong", "Sistem tidak mendeteksi adanya teks 'body' di dalam buku ini.", "warning");
+                    Swal.fire("Data Kosong", "Buku ini tidak memiliki isi teks untuk didownload.", "warning");
                 }
                 return;
             }
 
-            Swal.fire({ title: 'Menyusun PDF...', text: 'Membaca dan merapikan halaman...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            Swal.fire({ title: 'Menyusun PDF...', text: 'Membentuk layout buku (Ukuran A5) dan memuat font akademik...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
             try {
-                // 2. TRIK SUNTIK FONT TIMES NEW ROMAN
+                // 1. TRIK SUNTIK FONT TIMES NEW ROMAN
                 if (!window.timesFontLoaded) {
                     const fetchBase64 = async (url) => {
                         const res = await fetch(url);
@@ -691,67 +681,149 @@
                         }
                         return window.btoa(binary);
                     };
-
                     pdfMake.vfs['Times-Regular.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Regular.ttf');
                     pdfMake.vfs['Times-Bold.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Bold.ttf');
+                    pdfMake.vfs['Times-Italic.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-Italic.ttf');
+                    pdfMake.vfs['Times-BoldItalic.ttf'] = await fetchBase64('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/tinos/Tinos-BoldItalic.ttf');
                     window.timesFontLoaded = true;
                 }
 
                 pdfMake.fonts = {
                     Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
-                    TimesNewRoman: { normal: 'Times-Regular.ttf', bold: 'Times-Bold.ttf', italics: 'Times-Regular.ttf', bolditalics: 'Times-Bold.ttf' }
+                    TimesNewRoman: { normal: 'Times-Regular.ttf', bold: 'Times-Bold.ttf', italics: 'Times-Italic.ttf', bolditalics: 'Times-BoldItalic.ttf' }
                 };
 
-                // 3. Bersihkan teks dari sisa-sisa Tag HTML (Untuk jaga-jaga)
-                let cleanStr = bookText
-                    .replace(/\\n/g, '\n') 
-                    .replace(/<br\s*\/?>/gi, '\n') 
-                    .replace(/<\/p>/gi, '\n\n') 
-                    .replace(/<[^>]+>/g, '') 
-                    .replace(/&nbsp;/gi, ' ');
+                // 2. SETTING PDF BUKU (UKURAN A5 SEPERTI DI REACT)
+                const docDefinition = {
+                    pageSize: 'A5',
+                    pageMargins: [40, 50, 40, 50],
+                    styles: {
+                        tocChapter: { bold: true, fontSize: 12, margin: [0, 8, 0, 2] },
+                        tocSub: { fontSize: 11, margin: [15, 3, 0, 0], italics: true }
+                    },
+                    defaultStyle: {
+                        font: 'TimesNewRoman', // <--- SUNTIKAN FONT TIMES
+                        fontSize: 11, 
+                        alignment: 'justify', 
+                        lineHeight: 1.15 
+                    },
+                    footer: (currentPage) => ({ text: currentPage.toString(), alignment: 'center', fontSize: 9, margin: [0, 10, 0, 0] }),
+                    content: []
+                };
 
-                let pdfContent = [
-                    { text: item.title || item.judul || 'Tanpa Judul', fontSize: 22, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
-                    { text: `Penulis: ${item.author || 'Cendekia Aksara'}`, fontSize: 12, alignment: 'center', margin: [0, 0, 0, 30] }
-                ];
+                // 3. HALAMAN JUDUL (COVER) & HAK CIPTA
+                docDefinition.content.push({ text: (bookContent.title || bookContent.judul || "").toUpperCase(), fontSize: 20, bold: true, alignment: 'center', margin: [0, 100, 0, 10] });
+                docDefinition.content.push({ text: bookContent.type || bookContent.kategori || "", fontSize: 13, alignment: 'center', pageBreak: 'after' });
 
-                // Memasukkan setiap paragraf ke dalam PDF
-                let paragraphs = cleanStr.split(/\n+/);
-                paragraphs.forEach(p => {
-                    let txt = p.trim(); 
-                    if (txt === "--- BATAS HALAMAN ---") {
-                        // Jika ketemu tulisan batas halaman, paksa PDF pindah ke kertas baru (Page Break)
-                        pdfContent.push({ text: '', pageBreak: 'after' });
-                    } else if (txt.startsWith("Bab ") && txt.includes(":")) {
-                        // Style khusus untuk Judul Bab
-                        pdfContent.push({ text: txt, fontSize: 16, bold: true, margin: [0, 20, 0, 15] });
-                    } else if(txt.length > 0) {
-                        // Teks Paragraf Biasa
-                        pdfContent.push({ text: txt, margin: [0, 0, 0, 12] });
+                docDefinition.content.push({ text: 'HAK CIPTA', fontSize: 10, bold: true, margin: [0, 0, 0, 5] });
+                docDefinition.content.push({ text: `© ${new Date().getFullYear()} ${bookContent.author || 'Cendekia Aksara'}. Seluruh hak cipta dilindungi.`, fontSize: 9, margin: [0, 0, 0, 20] });
+                
+                // 4. PENGANTAR (ABSTRACT)
+                if (bookContent.abstractId) {
+                    docDefinition.content.push({ text: 'PENGANTAR BUKU', fontSize: 12, bold: true, margin: [0, 0, 0, 5] });
+                    docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractId), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20 } } }));
+                }
+                if (bookContent.abstractEn) {
+                    docDefinition.content.push({ text: 'PREFACE', fontSize: 12, bold: true, italics: true, margin: [0, 10, 0, 5] });
+                    docDefinition.content.push(window.htmlToPdfmake(window.marked.parse(bookContent.abstractEn), { defaultStyles: { p: { margin: [0,0,0,8], alignment: 'justify', textIndent: 20, italics: true } } }));
+                }
+
+                // 5. TAUTAN RUJUKAN (DENGAN QR CODE)
+                if (bookContent.references && bookContent.references.length > 0) {
+                    docDefinition.content.push({ text: 'TAUTAN RUJUKAN', fontSize: 11, bold: true, margin: [0, 15, 0, 5] });
+                    const qrCols = [];
+                    for (const ref of bookContent.references) {
+                        const qrDataUrl = await generateQRCodeBase64(ref);
+                        qrCols.push({ stack: [{ image: qrDataUrl, width: 50, alignment: 'center' }, { text: 'Scan Link', fontSize: 7, alignment: 'center' }] });
                     }
+                    docDefinition.content.push({ columns: qrCols, pageBreak: 'after' });
+                } else {
+                    docDefinition.content.push({ text: '', pageBreak: 'after' });
+                }
+
+                // 6. DAFTAR ISI (OTOMATIS DARI PDFMAKE)
+                docDefinition.content.push({
+                    toc: {
+                        title: { text: 'DAFTAR ISI', fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 20] },
+                        numberStyle: { bold: false }
+                    },
+                    pageBreak: 'after'
                 });
 
-                const docDefinition = {
-                    pageSize: 'A4',
-                    pageMargins: [50, 60, 50, 60],
-                    defaultStyle: {
-                        font: 'TimesNewRoman',
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                        alignment: 'justify'
-                    },
-                    content: pdfContent
+                const injectTocToSubChapters = (elements) => {
+                    if (Array.isArray(elements)) {
+                        elements.forEach(injectTocToSubChapters);
+                    } else if (elements && typeof elements === 'object') {
+                        if (elements.nodeName === 'H2') {
+                            elements.tocItem = true;
+                            elements.tocStyle = 'tocSub';
+                            elements.margin = [0, 15, 0, 8]; 
+                        }
+                        if (elements.stack) injectTocToSubChapters(elements.stack);
+                        if (elements.text && Array.isArray(elements.text)) injectTocToSubChapters(elements.text);
+                    }
                 };
 
-                pdfMake.createPdf(docDefinition).download(`Buku_${item.title ? item.title.replace(/\s+/g,'_') : 'Materi'}.pdf`);
-                Swal.fire('Berhasil!', 'Seluruh isi buku telah diunduh (Times New Roman).', 'success');
+                // 7. ISI BAB BUKU (CHAPTERS)
+                if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
+                    bookContent.chapters.forEach((ch, i) => {
+                        docDefinition.content.push({ 
+                            text: `BAB ${ch.id || i+1}: ${(ch.title || "").toUpperCase()}`, 
+                            fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], 
+                            pageBreak: 'after',
+                            tocItem: true, 
+                            tocStyle: 'tocChapter'
+                        });
+                        
+                        const html = window.marked.parse(ch.body || "");
+                        const pdfContentParsed = window.htmlToPdfmake(html, {
+                            defaultStyles: {
+                                p: { margin: [0, 0, 0, 10], alignment: 'justify', textIndent: 25 },
+                                table: { margin: [0, 5, 0, 10] },
+                                th: { bold: true, fillColor: '#f3f3f3' },
+                                h2: { fontSize: 12, bold: true, margin: [0, 15, 0, 5] } 
+                            }
+                        });
+
+                        injectTocToSubChapters(pdfContentParsed);
+                        docDefinition.content.push(pdfContentParsed);
+                        docDefinition.content.push({ text: '', pageBreak: 'after' });
+                    });
+                } else if (bookContent.content || bookContent.isi) {
+                    // Fallback jika buku dimasukkan manual tanpa format chapter (bukan dari React)
+                    docDefinition.content.push({ text: 'MATERI BUKU', fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], pageBreak: 'after', tocItem: true, tocStyle: 'tocChapter' });
+                    const htmlFallback = window.marked.parse(bookContent.content || bookContent.isi);
+                    const pdfFallback = window.htmlToPdfmake(htmlFallback, { defaultStyles: { p: { margin: [0, 0, 0, 10], alignment: 'justify', textIndent: 25 } } });
+                    docDefinition.content.push(pdfFallback);
+                    docDefinition.content.push({ text: '', pageBreak: 'after' });
+                }
+
+                // 8. GLOSARIUM
+                if (bookContent.glossary && bookContent.glossary.length > 0) {
+                    docDefinition.content.push({ text: 'GLOSARIUM', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
+                    bookContent.glossary.forEach(g => {
+                        docDefinition.content.push({ text: [ { text: g.term, bold: true }, ` : ${g.definition}` ], margin: [0, 0, 0, 8], alignment: 'justify' });
+                    });
+                    docDefinition.content.push({ text: '', pageBreak: 'after' });
+                }
+
+                // 9. DAFTAR PUSTAKA
+                if (bookContent.bibliography && bookContent.bibliography.length > 0) {
+                    docDefinition.content.push({ text: 'DAFTAR PUSTAKA', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
+                    bookContent.bibliography.forEach(b => {
+                        docDefinition.content.push({ text: b, margin: [0, 0, 0, 10], alignment: 'justify' });
+                    });
+                }
+
+                // CETAK!
+                pdfMake.createPdf(docDefinition).download(`Buku_${bookContent.title ? bookContent.title.replace(/\s+/g,'_') : 'Materi'}.pdf`);
+                Swal.fire('Berhasil!', 'Buku berhasil diunduh dalam format PDF (A5, Times New Roman, Lengkap dengan Daftar Isi).', 'success');
 
             } catch(e) {
                 console.error(e);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat memproses data PDF.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan saat memproses data PDF. Pastikan koneksi internet stabil.', 'error');
             }
         };
-
 
         window.openThemeModal = (id) => {
             currentPosterItem = materialsData.find(x => x.id === id);
