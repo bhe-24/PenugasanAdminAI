@@ -65,7 +65,7 @@ export default async function handler(req, res) {
                     body: JSON.stringify({
                         targetUserId: userId, 
                         judul: "Selamat Ulang Tahun! 🎉",
-                        pesan: `Barakallah Fii Umrik, ${userName}! Buka kejutan spesial dari Cendekia Aksara sekarang.`,
+                        pesan: `Hai, ${userName}! Buka kejutan spesial dari Cendekia Aksara sekarang.`,
                         urlTujuan: "/siswa/ultah.html",
                         jenis: "ultah"
                     })
