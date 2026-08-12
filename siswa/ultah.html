@@ -120,7 +120,7 @@
     <div id="my-birthday-view" class="hidden" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         <div class="card-container" id="birthday-card">
             <div class="badge-brand"><i class="fa-solid fa-crown"></i> Cendekia Aksara Wish</div>
-            <div class="photo-frame"><img id="my-photo" src="" alt="Foto Siswa"></div>
+            <div class="photo-frame"><img id="my-photo" src="" alt="Foto Siswa" crossorigin="anonymous"></div>
             <h1 class="wishes-title">Selamat Ulang Tahun!</h1>
             <div style="font-size: 0.85rem; color: var(--gold-light); margin-bottom: 10px;">Barakallah Fii Umrik 🎉</div>
             <div class="user-name" id="my-name">Memuat Nama...</div>
@@ -128,7 +128,7 @@
                 "Semoga di usiamu yang baru ini, Allah SWT senantiasa melimpahkan berkah, kesehatan, petunjuk, serta kemudahan dalam menuntut ilmu. Semoga setiap langkahmu selalu menginspirasi dan menghadirkan karya-karya terbaik bagi literasi Indonesia."
             </div>
             <div class="card-footer-brand">
-                <img src="https://i.imgur.com/5Srjyo4.png" style="width: 20px; height: 20px; border-radius: 50%;">
+                <img src="https://i.imgur.com/5Srjyo4.png" style="width: 20px; height: 20px; border-radius: 50%;" crossorigin="anonymous">
                 <span>Cendekia Aksara &middot; Portal Edukasi</span>
             </div>
         </div>
@@ -144,7 +144,7 @@
     <div id="friend-birthday-view" class="hidden" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         <div class="card-container" style="padding-bottom: 25px;">
             <div class="badge-brand"><i class="fa-solid fa-gift"></i> Momen Spesial Temanmu</div>
-            <div class="photo-frame"><img id="friend-photo" src="" alt="Foto Teman"></div>
+            <div class="photo-frame"><img id="friend-photo" src="" alt="Foto Teman" crossorigin="anonymous"></div>
             <h1 class="wishes-title" style="font-size: 1.5rem;">Hari ini Ulang Tahun<br><span id="friend-name" style="color: white;">...</span>!</h1>
             <p style="font-size: 0.9rem; color: #cbd5e1; margin-bottom: 0; line-height: 1.6;">
                 Mari berikan doa dan ucapan hangatmu untuk mempererat persahabatan di Cendekia Aksara.
@@ -179,7 +179,7 @@
                 return;
             }
 
-            // 2. CEK URL PARAMETER (Jika diklik dari Notifikasi Teman)
+            // 2. CEK URL PARAMETER
             const urlParams = new URLSearchParams(window.location.search);
             const targetUserId = urlParams.get('u');
 
@@ -187,7 +187,6 @@
             const today = new Date();
             const currentMonthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-            // Fungsi ekstrak format YYYY-MM-DD atau DD-MM-YYYY menjadi MM-DD
             function checkIsBirthdayToday(tglLahir) {
                 if(!tglLahir) return false;
                 const parts = tglLahir.split('-');
@@ -218,17 +217,12 @@
             document.getElementById('loading-view').style.opacity = '0';
             setTimeout(() => { document.getElementById('loading-view').style.display = 'none'; }, 400);
 
-            // 5. LOGIKA TAMPILAN
-            const isMyBirthday = birthdayUsers.find(u => u.id === currentUserData.uid);
+            // 5. LOGIKA TAMPILAN YANG DIPERBAIKI
+            // Cek spesifik apakah KITA SENDIRI ulang tahun hari ini
+            const isMyBirthday = birthdayUsers.some(u => u.id === currentUserData.uid);
             
-            if (isMyBirthday) {
-                // A. KITA SENDIRI YANG ULANG TAHUN
-                document.getElementById('my-birthday-view').classList.remove('hidden');
-                document.getElementById('my-name').innerText = currentUserData.name || "Cendekia Muda";
-                document.getElementById('my-photo').src = currentUserData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserData.name)}&background=003366&color=fff&size=200`;
-            } 
-            else if (targetUserId) {
-                // B. KITA KLIK NOTIFIKASI TEMAN YANG ULANG TAHUN
+            // PRIORITAS 1: Jika user klik link notifikasi teman (ada parameter 'u')
+            if (targetUserId && targetUserId !== currentUserData.uid) {
                 const friend = birthdayUsers.find(u => u.id === targetUserId);
                 if (friend) {
                     showFriendView(friend, currentUserData);
@@ -236,13 +230,24 @@
                     document.getElementById('empty-view').classList.remove('hidden');
                 }
             } 
-            else if (birthdayUsers.length > 0) {
-                // C. BUKAN KITA YANG ULTAH, TAPI ADA TEMAN LAIN YANG ULTAH (Buka manual tanpa parameter)
-                // Kita tampilkan teman pertama yang ulang tahun
-                showFriendView(birthdayUsers[0], currentUserData);
+            // PRIORITAS 2: Jika kita buka halaman normal dan kita ulang tahun
+            else if (isMyBirthday) {
+                document.getElementById('my-birthday-view').classList.remove('hidden');
+                document.getElementById('my-name').innerText = currentUserData.name || "Cendekia Muda";
+                document.getElementById('my-photo').src = currentUserData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserData.name)}&background=003366&color=fff&size=200`;
             } 
+            // PRIORITAS 3: Buka halaman normal, kita TIDAK ultah, tapi ada teman lain yang ultah
+            else if (birthdayUsers.length > 0) {
+                // Pilih teman yang bukan diri kita sendiri
+                const otherFriend = birthdayUsers.find(u => u.id !== currentUserData.uid);
+                if(otherFriend) {
+                    showFriendView(otherFriend, currentUserData);
+                } else {
+                    document.getElementById('empty-view').classList.remove('hidden');
+                }
+            } 
+            // PRIORITAS 4: Tidak ada siapa-siapa yang ulang tahun
             else {
-                // D. TIDAK ADA SAMA SEKALI
                 document.getElementById('empty-view').classList.remove('hidden');
             }
         })();
@@ -252,21 +257,26 @@
             document.getElementById('friend-name').innerText = friendData.name;
             document.getElementById('friend-photo').src = friendData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(friendData.name)}&background=d4af37&color=001f3f&size=200`;
 
-            // FORMAT NOMOR WA (Ubah 08.. jadi 628..)
+            // PERBAIKAN: Deteksi dan Pembersihan Nomor WhatsApp yang lebih aman
             let phone = friendData.noHp || friendData.whatsapp || friendData.phone || "";
-            phone = phone.replace(/\D/g, ''); // Buang spasi/strip
-            if (phone.startsWith('0')) phone = '62' + phone.substring(1);
+            if (phone) {
+                phone = phone.toString().replace(/\D/g, ''); // Hapus semua karakter non-angka
+                if (phone.startsWith('0')) {
+                    phone = '62' + phone.substring(1); // Ubah 0 jadi 62
+                }
+            }
 
-            // TEKS FORMAL & HANGAT
             const message = `Halo ${friendData.name}, saya ${myData.name}.\n\nBarakallah Fii Umrik! 🎉\nSelamat ulang tahun ya. Semoga senantiasa diberikan kesehatan, keberkahan, kemudahan dalam belajar, dan sukses terus bersama Cendekia Aksara. Salam hangat! ✨`;
             
             const waBtn = document.getElementById('btn-wa-friend');
-            if(phone) {
+            if(phone && phone.length >= 10) { // Pastikan panjang nomor wajar
                 waBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                waBtn.target = "_blank";
             } else {
+                waBtn.href = "#";
                 waBtn.onclick = (e) => {
                     e.preventDefault();
-                    Swal.fire("Maaf", "Nomor WhatsApp teman ini tidak terdaftar di sistem.", "info");
+                    Swal.fire("Maaf", "Nomor WhatsApp teman ini tidak terdaftar atau tidak valid di sistem.", "info");
                 }
             }
         }
@@ -282,7 +292,9 @@
 
             html2canvas(card, {
                 scale: 3, // Kualitas gambar HD (3x Lipat)
-                useCORS: true, allowTaint: true, backgroundColor: null
+                useCORS: true, 
+                allowTaint: true, 
+                backgroundColor: null
             }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `Ucapan_Ultah_Cendekia_${Date.now()}.png`;
