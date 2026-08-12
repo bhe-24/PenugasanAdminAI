@@ -694,6 +694,7 @@
             const bookContent = materialsData.find(x => x.id === id);
             if(!bookContent) return;
 
+            // Jika buku tidak ada isinya (misalnya cuma link Google Drive aja)
             if ((!bookContent.chapters || bookContent.chapters.length === 0) && (!bookContent.content || bookContent.content.trim() === "")) {
                 if (bookContent.link) {
                     window.open(bookContent.link, '_blank');
@@ -735,11 +736,11 @@
                     pageSize: 'A5',
                     pageMargins: [40, 50, 40, 50],
                     styles: {
-                        tocChapter: { bold: true, fontSize: 12, margin: [0, 8, 0, 2] },
-                        tocSub: { fontSize: 11, margin: [15, 3, 0, 0], italics: true }
+                        tocChapter: { bold: true, fontSize: 11, margin: [0, 8, 0, 2] }, // Diperkecil dari 12 ke 11
+                        tocSub: { fontSize: 10, margin: [15, 3, 0, 0], italics: true } // Diperkecil dari 11 ke 10
                     },
                     defaultStyle: {
-                        font: 'TimesNewRoman', // <--- SUNTIKAN FONT TIMES
+                        font: 'TimesNewRoman', 
                         fontSize: 11, 
                         alignment: 'justify', 
                         lineHeight: 1.15 
@@ -796,11 +797,26 @@
                 // 6. DAFTAR ISI (OTOMATIS)
                 docDefinition.content.push({
                     toc: {
-                        title: { text: 'DAFTAR ISI', fontSize: 16, bold: true, alignment: 'center', margin: [0, 0, 0, 20] },
+                        title: { text: 'DAFTAR ISI', fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 20] }, // Diperkecil dari 16 ke 14
                         numberStyle: { bold: false }
                     },
                     pageBreak: 'after'
                 });
+
+                const injectTocToSubChapters = (elements) => {
+                    if (Array.isArray(elements)) {
+                        elements.forEach(injectTocToSubChapters);
+                    } else if (elements && typeof elements === 'object') {
+                        if (elements.nodeName === 'H2') {
+                            elements.tocItem = true;
+                            elements.tocStyle = 'tocSub';
+                            elements.margin = [0, 15, 0, 8]; 
+                            elements.fontSize = 11; // Diperkecil dari 12 ke 11
+                        }
+                        if (elements.stack) injectTocToSubChapters(elements.stack);
+                        if (elements.text && Array.isArray(elements.text)) injectTocToSubChapters(elements.text);
+                    }
+                };
 
                 // 7. ISI BAB BUKU (CHAPTERS) DENGAN BLOK HITAM
                 if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
@@ -816,7 +832,7 @@
                         docDefinition.content.push({ 
                             text: [
                                 { text: `BAB ${ch.id || i+1}\n`, fontSize: 14 },
-                                { text: (ch.title || "").toUpperCase(), fontSize: 22 }
+                                { text: (ch.title || "").toUpperCase(), fontSize: 18 } // Diperkecil dari 22 ke 18
                             ],
                             bold: true, color: 'white', alignment: 'center', margin: [0, 180, 0, 5], 
                             pageBreak: 'after',
@@ -852,7 +868,7 @@
 
                 // 8. GLOSARIUM
                 if (bookContent.glossary && bookContent.glossary.length > 0) {
-                    docDefinition.content.push({ text: 'GLOSARIUM', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
+                    docDefinition.content.push({ text: 'GLOSARIUM', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' }); // Diperkecil dari 16 ke 14
                     bookContent.glossary.forEach(g => {
                         docDefinition.content.push({ text: [ { text: g.term, bold: true }, ` : ${g.definition}` ], margin: [0, 0, 0, 8], alignment: 'justify' });
                     });
@@ -861,7 +877,7 @@
 
                 // 9. DAFTAR PUSTAKA
                 if (bookContent.bibliography && bookContent.bibliography.length > 0) {
-                    docDefinition.content.push({ text: 'DAFTAR PUSTAKA', fontSize: 16, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
+                    docDefinition.content.push({ text: 'DAFTAR PUSTAKA', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' }); // Diperkecil dari 16 ke 14
                     bookContent.bibliography.forEach(b => {
                         docDefinition.content.push({ text: b, margin: [0, 0, 0, 10], alignment: 'justify' });
                     });
