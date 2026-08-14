@@ -1,27 +1,12 @@
 // File: api/central.js
 import OpenAI from 'openai';
-import admin from 'firebase-admin';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-// 1. INISIALISASI FIREBASE ADMIN
-if (!admin.apps.length) {
-    if (process.env.FIREBASE_PROJECT_ID) {
-        admin.initializeApp({
-            credential: admin.credential.cert({
-                projectId: process.env.FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-            })
-        });
-    }
-}
-const db = admin.firestore();
-
-// 2. INISIALISASI GROQ AI
+// 1. INISIALISASI GROQ AI
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
 
-// 3. INISIALISASI GEMINI AI
+// 2. INISIALISASI GEMINI AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Fungsi Pembersih Teks Universal
