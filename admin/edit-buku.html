@@ -123,7 +123,7 @@
         .btn-theme-mustard:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(250,204,21,0.4);}
         .btn-close-modal { background: none; border: none; font-size: 0.9rem; color: var(--text-gray); margin-top: 20px; font-weight: 600; cursor: pointer; text-decoration: underline;}
 
-        /* POSTER INSTAGRAM TEMPLATE */
+        /* POSTER INSTAGRAM TEMPLATE (HIDDEN, RENDERED BY HTML2CANVAS) */
         #pustaka-poster { position: fixed; top: 0; left: -9999px; z-index: -9999; width: 1080px; height: 1350px; display: flex; flex-direction: column; font-family: 'Poppins', sans-serif; overflow: hidden; box-sizing: border-box; }
         .pp-bg-texture { position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1; }
         
@@ -472,7 +472,7 @@
                         </td>
                         <td>
                             <div style="font-weight: 700; color: var(--primary); margin-bottom: 4px; font-size: 1rem;">${displayTitle}</div>
-                            <span style="font-size: 0.75rem; color: #64748b;">Oleh: ${item.author || 'Pustaka Cendekia Aksara'}</span>
+                            <span style="font-size: 0.75rem; color: #64748b;">Oleh: Tim Akademik Komunitas Cendekia Aksara</span>
                         </td>
                         <td>
                             <span class="badge bg-materi">${displayType}</span>
@@ -662,7 +662,8 @@
                 if (elements.nodeName === 'H2') {
                     elements.tocItem = true;
                     elements.tocStyle = 'tocSub';
-                    elements.margin = [0, 15, 0, 8]; 
+                    elements.margin = [0, 10, 0, 5]; // Jarak diturunkan
+                    elements.fontSize = 12; // Ukuran sub-judul diatur jadi 12
                 }
                 
                 // Memaksa paragraf rata kanan-kiri (Justify) dan menjorok 8 spasi ke dalam
@@ -673,12 +674,19 @@
                     const indentSpaces = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'; 
                     
                     if (typeof elements.text === 'string') {
-                        elements.text = indentSpaces + elements.text;
+                        // Cegah double indent
+                        if (!elements.text.startsWith(indentSpaces)) {
+                            elements.text = indentSpaces + elements.text;
+                        }
                     } else if (Array.isArray(elements.text) && elements.text.length > 0) {
                         if (typeof elements.text[0] === 'string') {
-                            elements.text[0] = indentSpaces + elements.text[0];
+                            if (!elements.text[0].startsWith(indentSpaces)) {
+                                elements.text[0] = indentSpaces + elements.text[0];
+                            }
                         } else if (typeof elements.text[0] === 'object' && elements.text[0].text) {
-                            elements.text[0].text = indentSpaces + elements.text[0].text;
+                            if (!elements.text[0].text.startsWith(indentSpaces)) {
+                                elements.text[0].text = indentSpaces + elements.text[0].text;
+                            }
                         }
                     }
                 }
@@ -689,7 +697,7 @@
             }
         };
 
-        // --- FUNGSI UNDUH BUKU KE PDF (1:1 DENGAN REACT TAPI PAKAI FONT TIMES) ---
+        // --- FUNGSI UNDUH BUKU KE PDF ---
         window.downloadBook = async (id) => {
             const bookContent = materialsData.find(x => x.id === id);
             if(!bookContent) return;
@@ -731,17 +739,17 @@
                     TimesNewRoman: { normal: 'Times-Regular.ttf', bold: 'Times-Bold.ttf', italics: 'Times-Italic.ttf', bolditalics: 'Times-BoldItalic.ttf' }
                 };
 
-                // 2. SETTING PDF BUKU (UKURAN A5 SEPERTI DI REACT)
+                // 2. SETTING PDF BUKU (UKURAN A5)
                 const docDefinition = {
                     pageSize: 'A5',
                     pageMargins: [40, 50, 40, 50],
                     styles: {
-                        tocChapter: { bold: true, fontSize: 11, margin: [0, 8, 0, 2] }, // Diperkecil dari 12 ke 11
-                        tocSub: { fontSize: 10, margin: [15, 3, 0, 0], italics: true } // Diperkecil dari 11 ke 10
+                        tocChapter: { bold: true, fontSize: 12, margin: [0, 8, 0, 2] }, // Font di daftar isi jadi 12
+                        tocSub: { fontSize: 11, margin: [15, 3, 0, 0], italics: true } // Font sub bab di daftar isi jadi 11
                     },
                     defaultStyle: {
                         font: 'TimesNewRoman', 
-                        fontSize: 11, 
+                        fontSize: 11, // Naskah utama tetap 11
                         alignment: 'justify', 
                         lineHeight: 1.15 
                     },
@@ -756,7 +764,8 @@
                 // HALAMAN KREDIT
                 docDefinition.content.push({ text: 'KREDIT', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20] });
                 docDefinition.content.push({ text: `Judul: ${bookContent.title || bookContent.judul || 'Tanpa Judul'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
-                docDefinition.content.push({ text: `Penulis: ${bookContent.author || 'AI Textbook Architect'}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
+                // KREDIT PENULIS DIUBAH MENJADI TIM AKADEMIK
+                docDefinition.content.push({ text: `Penulis: Tim Akademik Komunitas Cendekia Aksara`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 5] });
                 docDefinition.content.push({ 
                     text: [
                         `© ${new Date().getFullYear()}\n`,
@@ -797,7 +806,7 @@
                 // 6. DAFTAR ISI (OTOMATIS)
                 docDefinition.content.push({
                     toc: {
-                        title: { text: 'DAFTAR ISI', fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 20] }, // Diperkecil dari 16 ke 14
+                        title: { text: 'DAFTAR ISI', fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 20] }, 
                         numberStyle: { bold: false }
                     },
                     pageBreak: 'after'
@@ -810,8 +819,8 @@
                         if (elements.nodeName === 'H2') {
                             elements.tocItem = true;
                             elements.tocStyle = 'tocSub';
-                            elements.margin = [0, 15, 0, 8]; 
-                            elements.fontSize = 11; // Diperkecil dari 12 ke 11
+                            elements.margin = [0, 10, 0, 5]; 
+                            elements.fontSize = 12; // Diperkecil jadi 12
                         }
                         if (elements.stack) injectTocToSubChapters(elements.stack);
                         if (elements.text && Array.isArray(elements.text)) injectTocToSubChapters(elements.text);
@@ -822,17 +831,16 @@
                 if (bookContent.chapters && Array.isArray(bookContent.chapters)) {
                     bookContent.chapters.forEach((ch, i) => {
                         
-                        // Halaman Pembuka Bab: Blok Hitam Pekat Menutupi HVS A5 (420x596)
                         docDefinition.content.push({
                             canvas: [{ type: 'rect', x: 0, y: 0, w: 420, h: 596, color: 'black' }],
                             absolutePosition: { x: 0, y: 0 }
                         });
 
-                        // Teks tumpuk di halaman hitam. Tapi di Daftar Isi digabung dengan "\n"
+                        // Teks tumpuk di halaman hitam
                         docDefinition.content.push({ 
                             text: [
-                                { text: `BAB ${ch.id || i+1}\n`, fontSize: 14 },
-                                { text: (ch.title || "").toUpperCase(), fontSize: 18 } // Diperkecil dari 22 ke 18
+                                { text: `BAB ${ch.id || i+1}\n`, fontSize: 12 }, // Diperkecil jadi 12
+                                { text: (ch.title || "").toUpperCase(), fontSize: 14 } // Diperkecil jadi 14
                             ],
                             bold: true, color: 'white', alignment: 'center', margin: [0, 180, 0, 5], 
                             pageBreak: 'after',
@@ -847,7 +855,8 @@
                                 th: { bold: true, fillColor: '#f3f3f3', alignment: 'center' },
                                 td: { alignment: 'justify' },
                                 ol: { margin: [0, 0, 0, 10] },
-                                ul: { margin: [0, 0, 0, 10] }
+                                ul: { margin: [0, 0, 0, 10] },
+                                h2: { fontSize: 12, bold: true, margin: [0, 10, 0, 5] } // Default h2 jadi 12pt
                             }
                         });
 
@@ -858,7 +867,7 @@
                         docDefinition.content.push({ text: '', pageBreak: 'after' });
                     });
                 } else if (bookContent.content || bookContent.isi) {
-                    docDefinition.content.push({ text: 'MATERI BUKU', fontSize: 16, bold: true, alignment: 'center', margin: [0, 120, 0, 5], pageBreak: 'after', tocItem: true, tocStyle: 'tocChapter' });
+                    docDefinition.content.push({ text: 'MATERI BUKU', fontSize: 14, bold: true, alignment: 'center', margin: [0, 120, 0, 5], pageBreak: 'after', tocItem: true, tocStyle: 'tocChapter' });
                     const htmlFallback = window.marked.parse(bookContent.content || bookContent.isi);
                     const pdfFallback = window.htmlToPdfmake(htmlFallback);
                     processHtmlNodes(pdfFallback);
@@ -868,7 +877,7 @@
 
                 // 8. GLOSARIUM
                 if (bookContent.glossary && bookContent.glossary.length > 0) {
-                    docDefinition.content.push({ text: 'GLOSARIUM', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' }); // Diperkecil dari 16 ke 14
+                    docDefinition.content.push({ text: 'GLOSARIUM', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
                     bookContent.glossary.forEach(g => {
                         docDefinition.content.push({ text: [ { text: g.term, bold: true }, ` : ${g.definition}` ], margin: [0, 0, 0, 8], alignment: 'justify' });
                     });
@@ -877,7 +886,7 @@
 
                 // 9. DAFTAR PUSTAKA
                 if (bookContent.bibliography && bookContent.bibliography.length > 0) {
-                    docDefinition.content.push({ text: 'DAFTAR PUSTAKA', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' }); // Diperkecil dari 16 ke 14
+                    docDefinition.content.push({ text: 'DAFTAR PUSTAKA', fontSize: 14, bold: true, alignment: 'center', margin: [0, 50, 0, 20], tocItem: true, tocStyle: 'tocChapter' });
                     bookContent.bibliography.forEach(b => {
                         docDefinition.content.push({ text: b, margin: [0, 0, 0, 10], alignment: 'justify' });
                     });
