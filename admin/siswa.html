@@ -153,6 +153,7 @@
         const db = getFirestore(app);
 
         let allStudents = [];
+        let validStudentIds = new Set(); // Menyimpan UID siswa yang masuk di absensi kelas
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -165,11 +166,31 @@
 
         async function loadData() {
             try {
+                // 1. Tarik Data Kelas untuk Mendapatkan Daftar Siswa Resmi (Filter Anti-Akun Bodong)
+                const classesSnap = await getDocs(collection(db, 'classes'));
+                classesSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.students && Array.isArray(data.students)) {
+                        data.students.forEach(uid => validStudentIds.add(uid));
+                    }
+                });
+
+                // 2. Tarik Data Seluruh Akun Siswa
                 const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
                 const snap = await getDocs(q);
                 
                 allStudents = [];
-                snap.forEach(d => allStudents.push({id: d.id, ...d.data()}));
+                snap.forEach(d => {
+                    const studentData = d.data();
+                    
+                    // 3. LOGIC PENYARINGAN (Hanya masukkan siswa jika dia ada di kelas ATAU dia Semester 3)
+                    const isSemester3 = parseInt(studentData.semester) === 3;
+                    const isRegistered = validStudentIds.has(d.id);
+                    
+                    if (isRegistered || isSemester3) {
+                        allStudents.push({id: d.id, ...studentData});
+                    }
+                });
                 
                 // Urutkan A-Z
                 allStudents.sort((a,b) => (a.name || "").localeCompare(b.name || ""));
@@ -177,7 +198,7 @@
                 render(allStudents);
             } catch(e) {
                 console.error(e);
-                document.getElementById('list-siswa').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:red;">Gagal memuat data.</div>';
+                document.getElementById('list-siswa').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:red;">Gagal memuat data. Pastikan koneksi stabil.</div>';
             }
         }
 
@@ -247,7 +268,7 @@
                     <div style="grid-column: 1/-1; text-align: center; color: #888; padding: 60px; background:white; border-radius:12px; border:2px dashed #ddd;">
                         <i class="fa-regular fa-folder-open" style="font-size: 4rem; margin-bottom: 15px; color:#cbd5e1;"></i>
                         <h3 style="margin:0; color:#64748b;">Tidak ada data</h3>
-                        <p>Tidak ada data siswa ditemukan.</p>
+                        <p>Tidak ada data siswa ditemukan yang terdaftar di kelas manapun.</p>
                     </div>`; 
                 return; 
             }
@@ -258,7 +279,7 @@
                 const n = u; 
                 const ips = parseFloat(u.ips||0).toFixed(2);
                 const isKHSOpen = u.akses_khs === true; 
-                const isSem3 = (u.semester == 3);
+                const isSem3 = (parseInt(u.semester) === 3);
 
                 // --- LOGIKA DETEKSI SISWA PASIF ---
                 let totalTugasTerisi = 0;
@@ -273,7 +294,6 @@
                 const nameClass = isInactive ? 'student-name inactive-name' : 'student-name';
                 
                 // --- DYNAMIC LABELS KHUSUS SEMESTER 3 ---
-                // Nama label sengaja disingkat agar muat di kotak kecil
                 const lT1 = isSem3 ? 'Ide & Asli' : 'T1';
                 const lT2 = isSem3 ? 'Struktur' : 'T2';
                 const lT3 = isSem3 ? 'Karakter' : 'T3';
@@ -285,7 +305,7 @@
                 const lUTS = isSem3 ? 'Resolusi (UTS)' : 'UTS';
                 const lUAS = isSem3 ? 'PUEBI (UAS)' : 'UAS';
                 
-                const colClass = isSem3 ? 'naskah' : ''; // Biar warnanya ungu ala AI
+                const colClass = isSem3 ? 'naskah' : ''; 
                 
                 htmlBuffer += `
                     <div class="${cardClass}" id="card-${u.id}">
@@ -426,7 +446,6 @@
                         jumlahTugasTerisi++;
                     }
                 }
-                // Rata-rata tugas * 40%
                 let rataRataTugas = jumlahTugasTerisi > 0 ? (sumTugas / jumlahTugasTerisi) : 0;
                 let scoreTugas = rataRataTugas * 0.40; 
 
@@ -444,7 +463,7 @@
                 dataToSave['nilai_uas'] = valUas === '' ? null : numUas;
                 let scoreUas = numUas * 0.25;
 
-                // 4. Ambil Nilai Tambahan/Kuis/Naskah (10% maksimal, dirata-rata dari yang terisi saja)
+                // 4. Ambil Nilai Tambahan/Kuis/Naskah (10% maksimal)
                 const elEx1 = document.getElementById(`extra1-${uid}`);
                 const elEx2 = document.getElementById(`extra2-${uid}`);
                 const elNaskah = document.getElementById(`naskah-${uid}`);
@@ -461,32 +480,25 @@
                 const avgExtra = extraValues.length > 0 ? (extraValues.reduce((a, b) => a + b, 0) / extraValues.length) : 0;
                 let scoreExtra = avgExtra * 0.10;
 
-                // Hitung Final Score (Max 100) dan Konversi ke IPS (Max 4.0)
                 let finalScore = scoreTugas + scoreUts + scoreUas + scoreExtra;
                 
-                // Pastikan tidak lebih dari 100 (jika guru ngasih nilai bonus di luar nalar)
                 if (finalScore > 100) finalScore = 100;
 
                 const ips = (finalScore / 100) * 4;
 
-                // Semester
                 const sem = parseInt(document.getElementById(`sem-${uid}`).value) || 1;
                 dataToSave['semester'] = sem;
                 dataToSave['ips'] = ips;
 
-                // Update Firestore
                 await updateDoc(doc(db,'users',uid), dataToSave);
 
-                // FIX PENTING: catat titik riwayat IPS hari ini setiap kali admin menilai,
-                // supaya grafik "Riwayat IPS Harian" di profil/index.html ikut ter-update
-                // realtime (lihat listenIPSHistory/onSnapshot di sana). Sebelumnya riwayat
-                // ini HANYA tercatat saat siswa menyimpan form profilnya sendiri.
+                // FIX PENTING: catat titik riwayat IPS hari ini
                 const today = new Date();
-                const dateKey = today.toISOString().split('T')[0]; // YYYY-MM-DD, juga dipakai sbg ID dokumen
+                const dateKey = today.toISOString().split('T')[0]; 
                 const label = today.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
                 await setDoc(doc(db, 'users', uid, 'ipsHistory', dateKey), {
                     date: label,
-                    dateKey: dateKey, // field terurut yang benar lintas bulan/tahun
+                    dateKey: dateKey,
                     ips: ips,
                     sumber: 'admin_penilaian',
                     updatedAt: serverTimestamp()
@@ -494,7 +506,6 @@
 
                 showToast(`Berhasil! IPS Siswa: ${ips.toFixed(2)}`, 'success');
                 
-                // Load ulang tanpa mem-freeze layar agar data baru tampil
                 setTimeout(() => loadData(), 500); 
 
             } catch(e) {
@@ -513,7 +524,7 @@
                 try {
                     await deleteDoc(doc(db, 'users', uid));
                     showToast(`Siswa ${name} berhasil dihapus.`, 'success');
-                    loadData(); // Reload UI
+                    loadData(); 
                 } catch(e) {
                     console.error(e);
                     showToast("Gagal menghapus siswa: " + e.message, 'error');
