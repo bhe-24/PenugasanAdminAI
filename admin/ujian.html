@@ -183,6 +183,12 @@
         .btn-modal-ok { background: var(--primary); color: white; }
         .btn-modal-cancel { background: #f1f5f9; color: var(--text-gray); }
 
+        /* CUSTOM BULK BYPASS CSS */
+        .bypass-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #e2e8f0; background: white; transition: 0.2s;}
+        .bypass-item:hover { background: #f8fafc; }
+        .bypass-item:last-child { border-bottom: none; }
+        .bypass-checkbox { width: 22px; height: 22px; cursor: pointer; accent-color: #10b981; }
+
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 3000; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px);}
         .hidden { display: none !important; }
         @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
@@ -204,14 +210,14 @@
             .monitor-header h3 { font-size: 1.1rem; }
         }
     </style>
-    <!-- SweetAlert2 (Dibutuhkan untuk pop up siswa terkendala) -->
+    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
     <div class="container">
         
-        <!-- HEADER BARU -->
+        <!-- HEADER -->
         <div class="brand-header">
             <div class="header-content-wrapper">
                 <div class="header-logo-circle">
@@ -228,6 +234,7 @@
         <!-- ACTION BAR -->
         <div class="action-bar">
             <button onclick="openForm()" class="btn-action-main"><i class="fa-solid fa-plus"></i> Buat Ujian Baru</button>
+            <button onclick="bukaModalMassal()" class="btn-action-main" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fa-solid fa-users-viewfinder"></i> Cek Siswa Terkendala (Bypass)</button>
         </div>
 
         <div id="loading" style="text-align:center; padding:50px; color: var(--text-gray);">
@@ -237,7 +244,7 @@
         <div id="exam-list" class="exam-grid"></div>
     </div>
 
-    <!-- FORM EDITOR UJIAN (FULLSCREEN-LIKE) -->
+    <!-- FORM EDITOR UJIAN -->
     <div id="form-overlay" class="form-overlay">
         <div class="form-container">
             <div class="editor-header">
@@ -280,7 +287,7 @@
                 </div>
             </div>
 
-            <!-- SECTION PILIHAN GANDA (DENGAN AI) -->
+            <!-- SECTION PILIHAN GANDA -->
             <div id="section-pg">
                 <div class="ai-generator-box">
                     <div class="left-side">
@@ -319,7 +326,6 @@ D. Medan"></textarea>
                 <div class="form-group">
                     <label class="form-label"><i class="fa-solid fa-robot" style="color:var(--ai-color);"></i> Rubrik Penilaian untuk AI (Prompt System)</label>
                     <textarea id="essay-rubric" class="form-input" style="background:#f0fdfa;" placeholder="Contoh: Berikan nilai 90-100 jika EYD sempurna, plot menarik, dan diksi kaya. Nilai 70-80 jika ada salah ejaan ringan namun ide cerita bagus. Nilai di bawah 70 jika keluar dari tema."></textarea>
-                    <small style="color:#64748b; font-weight:500; display:block; margin-top:5px;">*Beritahu AI kriteria karya seperti apa yang pantas mendapatkan nilai tinggi dan rendah.</small>
                 </div>
             </div>
 
@@ -362,13 +368,51 @@ D. Medan"></textarea>
         </div>
     </div>
 
-    <!-- LOADING & CUSTOM MODAL -->
+    <!-- MODAL MASSAL BYPASS -->
+    <div id="modal-massal" class="modal-overlay-alert" style="z-index: 5000;">
+        <div class="modal-box-alert" style="max-width: 600px; padding: 25px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #dc2626; font-family: 'Aleo', serif;"><i class="fa-solid fa-users-slash"></i> Daftar Siswa Terkendala</h3>
+                <button onclick="document.getElementById('modal-massal').classList.remove('active')" style="background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <select id="filter-semester" class="form-input" style="padding: 8px 12px; font-size: 0.9rem;" onchange="loadDaftarTerkendala()">
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                </select>
+                <button onclick="loadDaftarTerkendala()" class="btn-action-main" style="padding: 8px 15px; font-size: 0.85rem;"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
+            </div>
+
+            <div style="background: #fffbeb; padding: 12px; border-radius: 8px; border: 1px solid #fcd34d; font-size: 0.85rem; color: #92400e; margin-bottom: 15px;">
+                Centang nama siswa di bawah ini, lalu klik tombol hijau untuk memberikan akses ujian massal secara instan.
+            </div>
+
+            <div id="list-terkendala" style="max-height: 350px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; padding: 10px;">
+                <div style="text-align: center; color: #94a3b8; padding: 20px;">Silakan klik Cari untuk memuat data.</div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #334155;">
+                    <input type="checkbox" id="check-all" onchange="toggleCheckAll(this)" style="margin-right: 5px;"> Pilih Semua
+                </label>
+                <button onclick="prosesBypassMassal()" class="btn-action-main" style="background: #10b981; padding: 10px 25px;"><i class="fa-solid fa-unlock-keyhole"></i> Izinkan Siswa Terpilih</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOADING SCREEN -->
     <div id="loading-overlay" class="hidden">
         <i class="fa-solid fa-robot fa-bounce" style="font-size: 4rem; color: var(--ai-color);"></i>
         <h3 id="loading-text" style="color:var(--primary); margin-top:20px; font-family: 'Aleo', serif;">AI Sedang Menyusun Soal...</h3>
         <p style="color:#64748b;">Harap tunggu sebentar, proses ini memakan waktu beberapa detik.</p>
     </div>
 
+    <!-- CUSTOM MODAL -->
     <div id="custom-modal" class="modal-overlay-alert">
         <div class="modal-box-alert">
             <div id="modal-icon" class="modal-icon"></div>
@@ -383,7 +427,6 @@ D. Medan"></textarea>
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // URL API Sentral untuk fitur Kuis (Asumsi ini mengarah ke API kuis atau Central)
         const VERCEL_API_URL = "/api/kuis"; 
 
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
@@ -413,7 +456,6 @@ D. Medan"></textarea>
             container.innerHTML = '';
             
             try {
-                // Urutkan dari yang terbaru
                 const q = query(collection(db, 'exams'), orderBy('createdAt', 'desc'));
                 const snap = await getDocs(q);
                 document.getElementById('loading').style.display = 'none';
@@ -463,10 +505,6 @@ D. Medan"></textarea>
                                 <button onclick="window.openMonitor('${d.id}', '${data.judul.replace(/'/g, "\\'")}')" class="btn-act bg-info full-btn">
                                     <i class="fa-solid fa-chart-pie"></i> Monitoring & Sinkron Rapor
                                 </button>
-                                <!-- TOMBOL BARU: CEK SISWA TERKENDALA -->
-                                <button onclick="window.cekKendalaSiswa('${sem}')" class="btn-act bg-warning full-btn">
-                                    <i class="fa-solid fa-user-shield"></i> Siswa Terkendala (Bypass)
-                                </button>
                                 <button onclick="window.editExam('${d.id}')" class="btn-act bg-edit">
                                     <i class="fa-solid fa-pen"></i> Edit
                                 </button>
@@ -487,19 +525,30 @@ D. Medan"></textarea>
             catch(e) { alert("Gagal update: " + e.message); loadExams(); }
         }
 
-        // --- SISTEM PENGECEKAN SISWA TERKENDALA (PRESENSI < 60% ATAU BELUM LUNAS) ---
-        window.cekKendalaSiswa = async (semesterStr) => {
-            Swal.fire({ title: 'Menganalisis Data...', text: 'Membaca presensi dan status pembayaran siswa di kelas ini.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            
-            try {
-                const targetSemester = parseInt(semesterStr);
+        // ============================================================
+        // SISTEM BYPASS MASSAL SISWA TERKENDALA
+        // ============================================================
+        window.bukaModalMassal = () => {
+            document.getElementById('modal-massal').classList.add('active');
+            document.getElementById('list-terkendala').innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px;">Silakan pilih semester dan klik Cari.</div>';
+            document.getElementById('check-all').checked = false;
+        };
 
+        window.loadDaftarTerkendala = async () => {
+            const targetSemester = parseInt(document.getElementById('filter-semester').value);
+            const container = document.getElementById('list-terkendala');
+            
+            container.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Sedang memindai data kelas...</div>';
+            document.getElementById('check-all').checked = false;
+
+            try {
                 // 1. Dapatkan kelas yang aktif di semester ini
                 const classQ = query(collection(db, 'classes'), where('semester', '==', targetSemester));
                 const classSnap = await getDocs(classQ);
                 
                 if (classSnap.empty) {
-                    return Swal.fire('Informasi', `Belum ada kelas yang dibuat untuk Semester ${targetSemester}.`, 'info');
+                    container.innerHTML = `<div style="text-align: center; color: #dc2626; padding: 20px; font-weight:600;">Belum ada kelas yang dibuat untuk Semester ${targetSemester}.</div>`;
+                    return;
                 }
 
                 let studentClassId = null;
@@ -511,10 +560,11 @@ D. Medan"></textarea>
                 });
 
                 if (enrolledStudentIds.length === 0) {
-                    return Swal.fire('Informasi', 'Tidak ada siswa yang terdaftar di kelas semester ini.', 'info');
+                    container.innerHTML = '<div style="text-align: center; color: #10b981; padding: 20px; font-weight:600;">Tidak ada siswa yang terdaftar di kelas semester ini.</div>';
+                    return;
                 }
 
-                // 2. Hitung Persentase Kehadiran Kelas Ini
+                // 2. Hitung Persentase Kehadiran
                 const attSnap = await getDocs(query(collection(db, 'dailyAttendance'), where('classId', '==', studentClassId)));
                 const attendanceMap = {}; 
                 enrolledStudentIds.forEach(uid => { attendanceMap[uid] = { hadir: 0, total: 0 }; });
@@ -552,12 +602,11 @@ D. Medan"></textarea>
                         pct = Math.round((att.hadir / att.total) * 100);
                     }
                     
-                    // Cek apakah dia sudah mendapat izin bypass
                     const isBypassed = student.bypassUjian === true;
                     
                     let alasan = [];
-                    if (pct < 60) alasan.push(`Hadir ${pct}%`);
-                    if (student.statusPembayaran !== 'Lunas') alasan.push('Belum Lunas');
+                    if (pct < 60) alasan.push(`Kehadiran ${pct}%`);
+                    if (student.statusPembayaran !== 'Lunas') alasan.push('Tunggakan Biaya');
 
                     if (alasan.length > 0 && !isBypassed) {
                         terkendala.push({
@@ -569,91 +618,76 @@ D. Medan"></textarea>
                 });
 
                 if (terkendala.length === 0) {
-                    return Swal.fire('Aman!', 'Semua siswa di kelas ini telah memenuhi syarat ujian.', 'success');
+                    container.innerHTML = '<div style="text-align: center; color: #10b981; padding: 20px; font-weight:600;"><i class="fa-solid fa-circle-check"></i> Hebat! Semua siswa di kelas ini telah memenuhi syarat ujian.</div>';
+                    return;
                 }
 
-                // 5. Tampilkan Daftar Terkendala di Pop-Up
-                let listHtml = '<div style="max-height: 350px; overflow-y: auto; text-align: left; padding-right:5px;">';
+                // 5. Render Daftar Checkbox
+                let listHtml = '';
                 terkendala.forEach(s => {
                     listHtml += `
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <label class="bypass-item">
                             <div>
                                 <h4 style="margin: 0; color: #0f172a; font-size: 0.95rem;">${s.name}</h4>
-                                <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Kendala: ${s.alasan}</span>
+                                <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> ${s.alasan}</span>
                             </div>
-                            <button onclick="window.izinkanSiswa('${s.id}')" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">Beri Izin</button>
-                        </div>
+                            <input type="checkbox" class="bypass-checkbox" value="${s.id}">
+                        </label>
                     `;
                 });
-                listHtml += '</div>';
-
-                Swal.fire({
-                    title: '<i class="fa-solid fa-users-slash" style="color:#ef4444;"></i> Siswa Terkendala',
-                    html: listHtml,
-                    showCloseButton: true,
-                    showConfirmButton: false,
-                    width: '500px'
-                });
+                container.innerHTML = listHtml;
 
             } catch (error) {
                 console.error(error);
-                Swal.fire('Error', 'Terjadi kesalahan sistem saat menarik data siswa.', 'error');
+                container.innerHTML = '<div style="text-align: center; color: #dc2626; padding: 20px;">Gagal memuat data dari database.</div>';
             }
         };
 
-        // --- FUNGSI MEMBERIKAN IZIN (BYPASS) ---
-        window.izinkanSiswa = async (uid) => {
-            try {
-                Swal.fire({ title: 'Memproses Izin...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                
-                // Set field bypassUjian: true di Firebase untuk user tersebut
-                await updateDoc(doc(db, 'users', uid), {
-                    bypassUjian: true,
-                    statusPembayaran: 'Lunas' // Opsional: anggap lunas jika diizinkan
-                });
-
-                Swal.fire('Diizinkan!', 'Siswa tersebut sekarang bisa mengakses ujian. Silakan klik tombol cek lagi untuk memastikan.', 'success');
-            } catch (error) {
-                Swal.fire('Error', 'Gagal memberikan izin.', 'error');
-            }
+        window.toggleCheckAll = (source) => {
+            const checkboxes = document.querySelectorAll('.bypass-checkbox');
+            checkboxes.forEach(cb => cb.checked = source.checked);
         };
 
-        // --- CUSTOM MODAL ---
-        function showModal(type, title, text, onConfirm) {
-            const overlay = document.getElementById('custom-modal');
-            const icon = document.getElementById('modal-icon');
-            const actions = document.getElementById('modal-actions');
-            
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-text').innerText = text;
-            
-            if(type === 'success') { icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i>'; }
-            else if(type === 'error') { icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i>'; }
-            else { icon.innerHTML = '<i class="fa-solid fa-circle-question" style="color:#0284c7;"></i>'; }
-            
-            actions.innerHTML = '';
-            if(onConfirm) {
-                let btnStyle = type === 'error' ? 'background:#ef4444;' : 'background:var(--primary);';
-                actions.innerHTML = `
-                    <button class="btn-modal btn-modal-cancel" onclick="document.getElementById('custom-modal').classList.remove('active')">Batal</button>
-                    <button class="btn-modal btn-modal-ok" id="btn-yes" style="${btnStyle}">Lanjutkan</button>
-                `;
-                document.getElementById('btn-yes').onclick = () => {
-                    overlay.classList.remove('active');
-                    onConfirm();
-                };
-            } else {
-                actions.innerHTML = `<button class="btn-modal btn-modal-ok" onclick="document.getElementById('custom-modal').classList.remove('active')">Tutup</button>`;
+        window.prosesBypassMassal = async () => {
+            const checkboxes = document.querySelectorAll('.bypass-checkbox:checked');
+            if (checkboxes.length === 0) {
+                return Swal.fire('Peringatan', 'Silakan centang setidaknya satu siswa untuk diizinkan.', 'warning');
             }
-            overlay.classList.add('active');
-        }
 
-        window.deleteExam = (id) => {
-            showModal('error', 'Hapus Ujian Permanen?', 'Data ujian beserta semua nilai siswa yang terkait akan hilang dari server.', async () => {
-                await deleteDoc(doc(db, 'exams', id));
-                loadExams();
+            Swal.fire({
+                title: 'Konfirmasi Izin',
+                text: `Anda akan memberikan akses ujian kepada ${checkboxes.length} siswa terpilih. Lanjutkan?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Berikan Akses',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    showLoading("Memproses Izin Masal...");
+                    try {
+                        // Jalankan pembaruan data secara paralel (cepat)
+                        const updatePromises = [];
+                        checkboxes.forEach(cb => {
+                            const uid = cb.value;
+                            const p = updateDoc(doc(db, 'users', uid), {
+                                bypassUjian: true,
+                                statusPembayaran: 'Lunas' // Opsional
+                            });
+                            updatePromises.push(p);
+                        });
+
+                        await Promise.all(updatePromises);
+                        hideLoading();
+                        
+                        document.getElementById('modal-massal').classList.remove('active');
+                        Swal.fire('Berhasil!', `Akses ujian untuk ${checkboxes.length} siswa telah dibuka.`, 'success');
+                    } catch (error) {
+                        hideLoading();
+                        Swal.fire('Error', 'Gagal memproses perubahan di database.', 'error');
+                    }
+                }
             });
-        }
+        };
 
         // --- FORM EDITOR LOGIC ---
         window.openForm = () => {
