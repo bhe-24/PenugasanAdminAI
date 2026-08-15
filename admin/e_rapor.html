@@ -99,7 +99,7 @@
             background: white;
             padding: 40px 50px;
             box-sizing: border-box;
-            font-family: 'Times New Roman', serif;
+            font-family: 'Times New Roman', Times, serif;
             color: #000;
         }
         
@@ -199,6 +199,7 @@
         </div>
     </div>
 
+    <!-- WRAPPER RENDER RAHASIA -->
     <div id="pdf-wrapper">
         <div id="pdf-content">
             </div>
@@ -223,6 +224,7 @@
         const db = getFirestore(app);
 
         let allStudents = [];
+        let validStudentIds = new Set(); // Menyimpan UID siswa resmi
 
         // FUNGSI CUSTOM MODAL
         window.showModal = (type, title, desc, onConfirmCallback = null) => {
@@ -275,14 +277,31 @@
 
         async function loadData() {
             try {
-                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
-                const snap = await getDocs(q);
-                allStudents = [];
-                snap.forEach(d => {
-                    if (!allStudents.some(s => s.id === d.id)) {
-                        allStudents.push({id: d.id, ...d.data()});
+                // 1. Tarik Data Kelas untuk Mendapatkan Daftar Siswa Resmi (Filter Anti-Akun Bodong)
+                const classesSnap = await getDocs(collection(db, 'classes'));
+                classesSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.students && Array.isArray(data.students)) {
+                        data.students.forEach(uid => validStudentIds.add(uid));
                     }
                 });
+
+                // 2. Tarik Data Seluruh Akun Siswa
+                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
+                const snap = await getDocs(q);
+                
+                allStudents = [];
+                snap.forEach(d => {
+                    const studentData = d.data();
+                    const isSemester3 = parseInt(studentData.semester) === 3;
+                    const isRegistered = validStudentIds.has(d.id);
+                    
+                    // 3. Hanya masukkan jika terdaftar di absensi ATAU jika Semester 3
+                    if (isRegistered || isSemester3) {
+                        allStudents.push({id: d.id, ...studentData});
+                    }
+                });
+
                 allStudents.sort((a,b) => (a.name||"").localeCompare(b.name||""));
                 render(allStudents);
             } catch(e) {
@@ -299,7 +318,7 @@
         function render(list) {
             const container = document.getElementById('student-list');
             if(list.length === 0) { 
-                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color: #64748b; font-weight: bold;">Tidak ada siswa yang cocok dengan pencarian.</div>'; 
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 40px; color: #64748b; font-weight: bold;">Tidak ada siswa resmi yang cocok dengan kriteria.</div>'; 
                 return; 
             }
 
@@ -328,7 +347,7 @@
             container.innerHTML = htmlBuffer;
         }
 
-        // --- FUNGSI GENERATE ISI RAPOR (TANPA WRAPPER DIV) ---
+        // --- FUNGSI GENERATE ISI RAPOR ---
         function buildRaporHTML(studentData, semRapor, name, id) {
             const now = new Date();
             const month = now.getMonth() + 1;
@@ -362,7 +381,6 @@
             const ips = parseFloat(studentData.ips || 0).toFixed(2);
             const predikat = ips >= 3.5 ? "CUMLAUDE" : (ips >= 3.0 ? "SANGAT MEMUASKAN" : (ips >= 2.5 ? "MEMUASKAN" : "-"));
 
-            // Mengembalikan struktur tabel dan header saja
             return `
                 <div class="pdf-header">
                     <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" crossorigin="anonymous">
@@ -414,7 +432,7 @@
             `;
         }
 
-        // --- UNDUH SATUAN (MENGGUNAKAN JSPDF + HTML2CANVAS MURNI) ---
+        // --- UNDUH SATUAN ---
         window.downloadSinglePdf = async (id, sem, name) => {
             const loader = document.getElementById('main-loading');
             const loadText = document.getElementById('loading-text');
@@ -430,14 +448,11 @@
                 const docSnap = await getDoc(doc(db, 'users', id));
                 if(!docSnap.exists()) throw new Error("Data tidak ditemukan");
                 
-                // Masukkan isi rapor ke dalam bingkai A4 (#pdf-content)
                 const contentBox = document.getElementById('pdf-content');
                 contentBox.innerHTML = buildRaporHTML(docSnap.data(), sem, name, id);
 
-                // Tunggu sebentar agar gambar logo ter-render di browser
                 await new Promise(r => setTimeout(r, 400)); 
 
-                // Ambil "foto" dari bingkai A4 tersebut
                 const canvas = await html2canvas(contentBox, { 
                     scale: 2, 
                     useCORS: true, 
@@ -446,7 +461,6 @@
                 
                 const imgData = canvas.toDataURL('image/jpeg', 0.98);
                 
-                // Tempel foto tersebut ke PDF
                 pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                 pdf.save(`Rapor_Sem${sem}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 
@@ -459,7 +473,7 @@
             }
         };
 
-        // --- UNDUH KOLEKTIF MURNI (ANTI-POTONG, ANTI-ERROR PIKSEL) ---
+        // --- UNDUH KOLEKTIF MURNI (BATCH) ---
         window.downloadBatchCustom = async () => {
             const targetRaporSem = parseInt(document.getElementById('batch-rapor-sem').value);
             const currentStudentSem = parseInt(document.getElementById('batch-current-sem').value);
@@ -478,18 +492,17 @@
             const eligibleStudents = Array.from(uniqueStudentsMap.values());
             
             if(eligibleStudents.length === 0) {
-                window.showModal('warning', 'Data Kosong', `Saat ini tidak ada satupun siswa yang berstatus Semester ${currentStudentSem} di sistem.`);
+                window.showModal('warning', 'Data Kosong', `Saat ini tidak ada satupun siswa (yang terdaftar resmi) di Semester ${currentStudentSem}.`);
                 return;
             }
 
-            window.showModal('info', 'Konfirmasi Cetak Massal', `Ditemukan ${eligibleStudents.length} siswa di Semester ${currentStudentSem}.\n\nSistem akan membuat Rapor Semester ${targetRaporSem} untuk mereka dan menggabungkannya dalam 1 File PDF.\n\nProses ini memakan waktu beberapa detik (jangan ditutup).`, async () => {
+            window.showModal('info', 'Konfirmasi Cetak Massal', `Ditemukan ${eligibleStudents.length} siswa resmi di Semester ${currentStudentSem}.\n\nSistem akan membuat Rapor Semester ${targetRaporSem} untuk mereka dan menggabungkannya dalam 1 File PDF.\n\nProses ini memakan waktu beberapa detik (jangan ditutup).`, async () => {
                 
                 const loader = document.getElementById('main-loading');
                 const loadText = document.getElementById('loading-text');
                 loader.style.display = 'flex';
 
                 try {
-                    // Deklarasi jsPDF
                     const { jsPDF } = window.jspdf;
                     const pdf = new jsPDF('p', 'mm', 'a4');
                     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -497,19 +510,14 @@
                     
                     const contentBox = document.getElementById('pdf-content');
 
-                    // LOOPING SATU PER SATU
                     for(let i=0; i<eligibleStudents.length; i++) {
                         const s = eligibleStudents[i];
                         
                         loadText.innerText = `Menyusun rapor ${i+1} dari ${eligibleStudents.length}...`;
                         
-                        // 1. Kosongkan & Isi bingkai dengan data siswa yang sedang diloop
                         contentBox.innerHTML = buildRaporHTML(s, targetRaporSem, s.name, s.id);
-                        
-                        // 2. Beri jeda kecil agar DOM & Logo selesai merender
                         await new Promise(r => setTimeout(r, 200)); 
 
-                        // 3. Foto bingkai A4 tersebut
                         const canvas = await html2canvas(contentBox, { 
                             scale: 2, 
                             useCORS: true, 
@@ -517,16 +525,13 @@
                         });
                         const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
-                        // 4. Jika ini bukan siswa pertama, tambahkan halaman baru ke PDF
                         if (i > 0) {
                             pdf.addPage();
                         }
 
-                        // 5. Tempel foto rapor siswa ini ke halaman yang sedang aktif
                         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
                     }
 
-                    // Selesai looping, simpan PDF utuh
                     loadText.innerText = "Menyimpan file PDF...";
                     pdf.save(`Rekap_Rapor_Sem${targetRaporSem}_(SiswaSem${currentStudentSem}).pdf`);
                     
