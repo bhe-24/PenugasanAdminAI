@@ -100,6 +100,7 @@
         .bg-info { background: #e0f2fe; color: #0284c7; }
         .bg-edit { background: #fef3c7; color: #d97706; }
         .bg-del { background: #fee2e2; color: #dc2626; }
+        .bg-warning { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; } /* Tombol Khusus Cek Siswa */
 
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -174,7 +175,7 @@
         /* CUSTOM MODAL & LOADING */
         .modal-overlay-alert { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,31,63,0.6); backdrop-filter: blur(4px); z-index: 4000; display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: 0.3s; }
         .modal-overlay-alert.active { opacity: 1; pointer-events: all; }
-        .modal-box-alert { background: white; padding: 35px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; transform: scale(0.8); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
+        .modal-box-alert { background: white; padding: 35px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; transform: scale(0.8); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
         .modal-overlay-alert.active .modal-box-alert { transform: scale(1); }
         .modal-icon { font-size: 3.5rem; margin-bottom: 15px; }
         .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 25px; }
@@ -203,6 +204,8 @@
             .monitor-header h3 { font-size: 1.1rem; }
         }
     </style>
+    <!-- SweetAlert2 (Dibutuhkan untuk pop up siswa terkendala) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
@@ -380,6 +383,7 @@ D. Medan"></textarea>
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // URL API Sentral untuk fitur Kuis (Asumsi ini mengarah ke API kuis atau Central)
         const VERCEL_API_URL = "/api/kuis"; 
 
         const showLoading = (msg) => { document.getElementById('loading-text').innerText = msg; document.getElementById('loading-overlay').classList.remove('hidden'); };
@@ -459,6 +463,10 @@ D. Medan"></textarea>
                                 <button onclick="window.openMonitor('${d.id}', '${data.judul.replace(/'/g, "\\'")}')" class="btn-act bg-info full-btn">
                                     <i class="fa-solid fa-chart-pie"></i> Monitoring & Sinkron Rapor
                                 </button>
+                                <!-- TOMBOL BARU: CEK SISWA TERKENDALA -->
+                                <button onclick="window.cekKendalaSiswa('${sem}')" class="btn-act bg-warning full-btn">
+                                    <i class="fa-solid fa-user-shield"></i> Siswa Terkendala (Bypass)
+                                </button>
                                 <button onclick="window.editExam('${d.id}')" class="btn-act bg-edit">
                                     <i class="fa-solid fa-pen"></i> Edit
                                 </button>
@@ -478,6 +486,137 @@ D. Medan"></textarea>
             try { await updateDoc(doc(db, 'exams', id), { status: newStatus }); loadExams(); } 
             catch(e) { alert("Gagal update: " + e.message); loadExams(); }
         }
+
+        // --- SISTEM PENGECEKAN SISWA TERKENDALA (PRESENSI < 60% ATAU BELUM LUNAS) ---
+        window.cekKendalaSiswa = async (semesterStr) => {
+            Swal.fire({ title: 'Menganalisis Data...', text: 'Membaca presensi dan status pembayaran siswa di kelas ini.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
+            try {
+                const targetSemester = parseInt(semesterStr);
+
+                // 1. Dapatkan kelas yang aktif di semester ini
+                const classQ = query(collection(db, 'classes'), where('semester', '==', targetSemester));
+                const classSnap = await getDocs(classQ);
+                
+                if (classSnap.empty) {
+                    return Swal.fire('Informasi', `Belum ada kelas yang dibuat untuk Semester ${targetSemester}.`, 'info');
+                }
+
+                let studentClassId = null;
+                let enrolledStudentIds = [];
+                
+                classSnap.forEach(doc => {
+                    studentClassId = doc.id; // Asumsi 1 kelas per semester
+                    enrolledStudentIds = doc.data().students || [];
+                });
+
+                if (enrolledStudentIds.length === 0) {
+                    return Swal.fire('Informasi', 'Tidak ada siswa yang terdaftar di kelas semester ini.', 'info');
+                }
+
+                // 2. Hitung Persentase Kehadiran Kelas Ini
+                const attSnap = await getDocs(query(collection(db, 'dailyAttendance'), where('classId', '==', studentClassId)));
+                const attendanceMap = {}; 
+                enrolledStudentIds.forEach(uid => { attendanceMap[uid] = { hadir: 0, total: 0 }; });
+
+                attSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (data.presensi) {
+                        enrolledStudentIds.forEach(uid => {
+                            if (data.presensi[uid]) {
+                                attendanceMap[uid].total++;
+                                const status = data.presensi[uid];
+                                if (status === 'Hadir' || status.includes('Bimbingan')) {
+                                    attendanceMap[uid].hadir++;
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // 3. Tarik Data Siswa
+                const studentsData = [];
+                const usersSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'siswa')));
+                usersSnap.forEach(doc => {
+                    if (enrolledStudentIds.includes(doc.id)) {
+                        studentsData.push({ id: doc.id, ...doc.data() });
+                    }
+                });
+
+                // 4. Cari Siswa Terkendala
+                const terkendala = [];
+                studentsData.forEach(student => {
+                    const att = attendanceMap[student.id];
+                    let pct = 100;
+                    if (att.total > 0) {
+                        pct = Math.round((att.hadir / att.total) * 100);
+                    }
+                    
+                    // Cek apakah dia sudah mendapat izin bypass
+                    const isBypassed = student.bypassUjian === true;
+                    
+                    let alasan = [];
+                    if (pct < 60) alasan.push(`Hadir ${pct}%`);
+                    if (student.statusPembayaran !== 'Lunas') alasan.push('Belum Lunas');
+
+                    if (alasan.length > 0 && !isBypassed) {
+                        terkendala.push({
+                            id: student.id,
+                            name: student.name || 'Siswa',
+                            alasan: alasan.join(' & ')
+                        });
+                    }
+                });
+
+                if (terkendala.length === 0) {
+                    return Swal.fire('Aman!', 'Semua siswa di kelas ini telah memenuhi syarat ujian.', 'success');
+                }
+
+                // 5. Tampilkan Daftar Terkendala di Pop-Up
+                let listHtml = '<div style="max-height: 350px; overflow-y: auto; text-align: left; padding-right:5px;">';
+                terkendala.forEach(s => {
+                    listHtml += `
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h4 style="margin: 0; color: #0f172a; font-size: 0.95rem;">${s.name}</h4>
+                                <span style="font-size: 0.75rem; color: #dc2626; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Kendala: ${s.alasan}</span>
+                            </div>
+                            <button onclick="window.izinkanSiswa('${s.id}')" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition:0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">Beri Izin</button>
+                        </div>
+                    `;
+                });
+                listHtml += '</div>';
+
+                Swal.fire({
+                    title: '<i class="fa-solid fa-users-slash" style="color:#ef4444;"></i> Siswa Terkendala',
+                    html: listHtml,
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    width: '500px'
+                });
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Error', 'Terjadi kesalahan sistem saat menarik data siswa.', 'error');
+            }
+        };
+
+        // --- FUNGSI MEMBERIKAN IZIN (BYPASS) ---
+        window.izinkanSiswa = async (uid) => {
+            try {
+                Swal.fire({ title: 'Memproses Izin...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // Set field bypassUjian: true di Firebase untuk user tersebut
+                await updateDoc(doc(db, 'users', uid), {
+                    bypassUjian: true,
+                    statusPembayaran: 'Lunas' // Opsional: anggap lunas jika diizinkan
+                });
+
+                Swal.fire('Diizinkan!', 'Siswa tersebut sekarang bisa mengakses ujian. Silakan klik tombol cek lagi untuk memastikan.', 'success');
+            } catch (error) {
+                Swal.fire('Error', 'Gagal memberikan izin.', 'error');
+            }
+        };
 
         // --- CUSTOM MODAL ---
         function showModal(type, title, text, onConfirm) {
@@ -559,11 +698,8 @@ D. Medan"></textarea>
                 }
 
                 const data = await response.json();
-                
-                // Menempatkan hasil AI langsung ke dalam textarea editor hitam
                 document.getElementById('bulk-text').value = data.result;
                 hideLoading();
-
                 showModal('success', 'Soal Berhasil Dibuat!', `AI telah menyusun ${jumlah} soal untuk Anda. Silakan periksa kembali dan edit jika diperlukan di kotak editor hitam.`);
 
             } catch (error) {
@@ -596,7 +732,7 @@ D. Medan"></textarea>
                     let bulkString = "";
                     if(data.questions) {
                         data.questions.forEach((q, i) => {
-                            bulkString += `${q.text}\n`; // Tanpa nomor untuk memudahkan copy-paste ulang
+                            bulkString += `${q.text}\n`; 
                             q.options.forEach((opt, optIdx) => {
                                 const prefix = optIdx === q.correctIndex ? "*" : "";
                                 const letter = String.fromCharCode(65 + optIdx); 
@@ -703,7 +839,6 @@ D. Medan"></textarea>
             switchMonTab('done');
 
             try {
-                // Gunakan promise.all agar query berjalan paralel (lebih cepat)
                 const [snapSiswa, snapResult] = await Promise.all([
                     getDocs(query(collection(db, 'users'), where('role', '==', 'siswa'))),
                     getDocs(query(collection(db, 'quiz_results'), where('quizId', '==', examId)))
