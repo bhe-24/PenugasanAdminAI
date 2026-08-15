@@ -203,12 +203,13 @@
         .modal-icon { font-size: 3rem; margin-bottom: 15px; color: #003366; }
         .modal-title { font-family: 'Aleo', serif; margin: 0 0 10px 0; font-size: 1.5rem; color: #333; }
         .modal-text { color: #666; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
-        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
-        .btn-modal { padding: 10px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: transform 0.2s; font-family: 'Poppins';}
+        .modal-buttons { display: flex; flex-direction: column; gap: 10px; justify-content: center; } /* Dirubah jadi vertikal biar rapi */
+        .btn-modal { padding: 12px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: transform 0.2s; font-family: 'Poppins';}
         .btn-modal:active { transform: scale(0.95); }
         .btn-cancel { background: #f1f1f1; color: #666; }
         .btn-confirm { background: #003366; color: white; box-shadow: 0 4px 10px rgba(0, 51, 102, 0.3); }
         .btn-danger-modal { background: #dc3545; color: white; box-shadow: 0 4px 10px rgba(220, 53, 69, 0.3); }
+        .btn-wa-modal { background: #25D366; color: white; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;}
 
         /* --- RESPONSIVE MOBILE FIX --- */
         @media (max-width: 600px) {
@@ -320,9 +321,8 @@
             <div id="modal-icon" class="modal-icon"><i class="fa-solid fa-circle-question"></i></div>
             <h3 id="modal-title" class="modal-title">Konfirmasi</h3>
             <p id="modal-text" class="modal-text">Apakah Anda yakin?</p>
-            <div class="modal-buttons">
-                <button id="btn-modal-cancel" class="btn-modal btn-cancel">Batal</button>
-                <button id="btn-modal-confirm" class="btn-modal btn-confirm">Ya, Lanjutkan</button>
+            <div id="modal-button-container" class="modal-buttons">
+                <!-- Tombol dinamis via JS -->
             </div>
         </div>
     </div>
@@ -377,50 +377,61 @@
     <script type="module">
         import { db, auth, checkAuth } from "/js/firebase-config.js";
         import { signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { doc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- FUNGSI CUSTOM MODAL ---
-        window.showModal = (title, message, isConfirm = false, type = 'normal') => {
+        // --- FUNGSI CUSTOM MODAL (DIPERBARUI MENDUKUNG TOMBOL WA) ---
+        window.showModal = (title, message, type = 'normal', waLink = null) => {
             return new Promise((resolve) => {
                 const modal = document.getElementById('app-modal');
                 const titleEl = document.getElementById('modal-title');
                 const textEl = document.getElementById('modal-text');
                 const iconEl = document.getElementById('modal-icon');
-                const btnConfirm = document.getElementById('btn-modal-confirm');
-                const btnCancel = document.getElementById('btn-modal-cancel');
+                const btnContainer = document.getElementById('modal-button-container');
 
                 titleEl.innerText = title;
                 textEl.innerText = message;
                 
+                let buttonsHtml = '';
+
                 if (type === 'danger') {
                     iconEl.innerHTML = '<i class="fa-solid fa-ban" style="color:#dc3545"></i>';
-                    btnConfirm.className = 'btn-modal btn-danger-modal';
-                    btnConfirm.innerText = "Mengerti";
+                    buttonsHtml = `<button id="btn-modal-confirm" class="btn-modal btn-danger-modal">Mengerti</button>`;
+                
                 } else if (type === 'logout') {
                     iconEl.innerHTML = '<i class="fa-solid fa-right-from-bracket" style="color:#dc3545"></i>';
-                    btnConfirm.className = 'btn-modal btn-danger-modal';
-                    btnConfirm.innerText = "Ya, Keluar";
+                    buttonsHtml = `
+                        <button id="btn-modal-confirm" class="btn-modal btn-danger-modal">Ya, Keluar</button>
+                        <button id="btn-modal-cancel" class="btn-modal btn-cancel">Batal</button>
+                    `;
+                
                 } else if (type === 'warning') {
                     iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b"></i>';
-                    btnConfirm.className = 'btn-modal btn-confirm';
-                    btnConfirm.innerText = "Mengerti";
+                    buttonsHtml = `<button id="btn-modal-confirm" class="btn-modal btn-confirm">Mengerti</button>`;
+                
+                } else if (type === 'not-registered') {
+                    // Modal Fatal: Belum terdaftar di presensi kelas manapun
+                    iconEl.innerHTML = '<i class="fa-solid fa-users-slash" style="color:#dc3545"></i>';
+                    buttonsHtml = `
+                        <a href="${waLink}" target="_blank" class="btn-modal btn-wa-modal">
+                            <i class="fa-brands fa-whatsapp" style="font-size:1.2rem;"></i> Hubungi Admin Sekarang
+                        </a>
+                        <button id="btn-modal-cancel" class="btn-modal btn-cancel" style="margin-top:5px;">Keluar Akun</button>
+                    `;
+                
                 } else {
                     iconEl.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
-                    btnConfirm.className = 'btn-modal btn-confirm';
-                    btnConfirm.innerText = "Oke";
+                    buttonsHtml = `<button id="btn-modal-confirm" class="btn-modal btn-confirm">Oke</button>`;
                 }
 
-                btnCancel.style.display = isConfirm ? 'block' : 'none';
+                btnContainer.innerHTML = buttonsHtml;
                 modal.classList.add('active');
 
-                const cleanup = () => {
-                    modal.classList.remove('active');
-                    btnConfirm.replaceWith(btnConfirm.cloneNode(true));
-                    btnCancel.replaceWith(btnCancel.cloneNode(true));
-                };
+                // Event Listeners
+                const confirmBtn = document.getElementById('btn-modal-confirm');
+                if (confirmBtn) confirmBtn.onclick = () => { modal.classList.remove('active'); resolve(true); };
 
-                document.getElementById('btn-modal-confirm').onclick = () => { cleanup(); resolve(true); };
-                document.getElementById('btn-modal-cancel').onclick = () => { cleanup(); resolve(false); };
+                const cancelBtn = document.getElementById('btn-modal-cancel');
+                if (cancelBtn) cancelBtn.onclick = () => { modal.classList.remove('active'); resolve(false); };
             });
         };
 
@@ -430,7 +441,56 @@
             
             if(userData) {
                 // =======================================================
-                // ONESIGNAL REGISTRATION (UID & SEMESTER TAG)
+                // 1. PENGECEKAN KELAS PRESENSI (ANTI AKUN SILUMAN)
+                // =======================================================
+                let isRegisteredInClass = false;
+                
+                try {
+                    // Ambil semua daftar kelas yang ada
+                    const classSnap = await getDocs(collection(db, 'classes'));
+                    classSnap.forEach(doc => {
+                        const classData = doc.data();
+                        // Cek apakah UID user ini ada di array students kelas tsb
+                        if (classData.students && classData.students.includes(userData.uid)) {
+                            isRegisteredInClass = true;
+                        }
+                    });
+
+                } catch (error) {
+                    console.error("Gagal memeriksa kelas:", error);
+                }
+
+                // JIKA TIDAK TERDAFTAR DI KELAS MANAPUN -> BLOKIR SEMUA AKSES
+                if (!isRegisteredInClass) {
+                    const waMessage = `Halo Admin Cendekia,\nSaya *${userData.name}*.\nSaya sudah mendaftar dan berhasil login, namun sistem menyatakan akun saya belum dimasukkan ke dalam daftar Absensi/Kelas manapun. Mohon bantuannya untuk mengaktifkan akun saya ke dalam kelas. Terima kasih.`;
+                    const waLink = `https://wa.me/6285939188592?text=${encodeURIComponent(waMessage)}`;
+
+                    // Kunci semua kartu
+                    document.querySelectorAll('.dashboard-card').forEach(card => {
+                        card.classList.add('disabled-card');
+                        card.onclick = (e) => { e.preventDefault(); };
+                    });
+
+                    // Tampilkan Modal Peringatan
+                    const isLogout = await window.showModal(
+                        'Akses Dibatasi!', 
+                        'Data Anda (Nama/Akun) tidak terdaftar di kelas manapun dalam sistem Presensi kami.\n\nSistem mengunci otomatis semua akses untuk mencegah akun ilegal. Jika Anda adalah siswa resmi, silakan hubungi Admin.', 
+                        false, 
+                        'not-registered',
+                        waLink
+                    );
+
+                    // Jika siswa menekan tombol "Keluar Akun" di pop-up
+                    if (isLogout === false) { 
+                        await signOut(auth);
+                        window.location.href = '../index.html';
+                    }
+                    
+                    return; // BERHENTI DI SINI. Logic bawahnya tidak akan dieksekusi.
+                }
+
+                // =======================================================
+                // 2. ONESIGNAL REGISTRATION (UID & SEMESTER TAG)
                 // =======================================================
                 window.OneSignalDeferred = window.OneSignalDeferred || [];
                 OneSignalDeferred.push(function(OneSignal) {
@@ -441,8 +501,10 @@
                         OneSignal.User.addTag("semester", userData.semester.toString());
                     }
                 });
-                // =======================================================
 
+                // =======================================================
+                // 3. SAPAAN WAKTU & RENDER UI LAINNYA
+                // =======================================================
                 const jam = new Date().getHours();
                 let sapaan = "Selamat Pagi"; let icon = "⛅";
                 if (jam >= 10 && jam < 15) { sapaan = "Selamat Siang"; icon = "☀️"; }
