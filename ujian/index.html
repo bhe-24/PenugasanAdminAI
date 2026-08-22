@@ -192,7 +192,8 @@
                     </div>
                 </div>
             </div>
-            <a href="/dashboard/index.html" class="btn-back">
+            <!-- Perbaikan path Clean URL ke /dashboard -->
+            <a href="/dashboard" class="btn-back">
                 <i class="fa-solid fa-arrow-left"></i> <span>Dashboard Utama</span>
             </a>
         </header>
@@ -302,7 +303,6 @@
         };
 
         // Fungsi Buka Kunci Paksa (Jika sudah izin admin)
-        // Cara kerjanya: Admin nyuruh siswa pencet layar 5x untuk bypass
         let clickCount = 0;
         document.querySelector('.header-logo-circle').addEventListener('click', () => {
             clickCount++;
@@ -329,7 +329,7 @@
                 });
 
                 // 2. HITUNG PRESENTASE KEHADIRAN (Jika siswa punya kelas)
-                let attendancePercentage = 100; // Default lulus jika belum ada kelas
+                let attendancePercentage = 100;
 
                 if (studentClassId) {
                     const attSnap = await getDocs(query(collection(db, 'dailyAttendance'), where('classId', '==', studentClassId), orderBy('date', 'asc')));
@@ -364,7 +364,6 @@
                     iconAtt.innerHTML = '<i class="fa-solid fa-user-xmark"></i>';
                 }
 
-                // Cek apakah siswa mendapat izin baypass
                 const isBypassed = localStorage.getItem('bypass_attendance') === 'true';
 
                 // 3. AMBIL DATA UJIAN & HASIL UJIAN
@@ -404,16 +403,16 @@
                         let btnHtml = "";
                         let scoreHtml = "";
 
-                        // -- LOGIKA SISTEM TILANG CERDAS --
+                        // -- LOGIKA TOMBOL & PATH BERSIH (CLEAN URL) --
                         if (history) {
-                            // SUDAH DIKERJAKAN
+                            // SUDAH DIKERJAKAN -> Arahkan ke /ujian/detail
                             doneCount++;
                             cardClass = "done";
                             scoreHtml = `<div class="score-display">${history.score}</div>`;
-                            btnHtml = `<a href="detail.html?rid=${history.resultId}" class="btn-exam btn-result"><i class="fa-solid fa-list"></i> Pembahasan Ujian</a>`;
+                            btnHtml = `<a href="/ujian/detail?rid=${history.resultId}" class="btn-exam btn-result"><i class="fa-solid fa-list"></i> Pembahasan Ujian</a>`;
                         
                         } else if (attendancePercentage < 60 && !isBypassed) {
-                            // TIDAK LULUS PRESENSI (TILANG AKTIF)
+                            // TIDAK LULUS PRESENSI
                             cardClass = "locked";
                             btnHtml = `
                                 <button onclick="hubungiAdmin('${studentName}')" class="btn-exam btn-warning">
@@ -423,13 +422,13 @@
                             `;
 
                         } else if (paymentStatus !== 'Lunas') {
-                            // BELUM LUNAS BAYARAN
+                            // BELUM LUNAS -> Arahkan ke /checkout
                             cardClass = "locked";
-                            btnHtml = `<a href="/payment.html" class="btn-exam btn-locked"><i class="fa-solid fa-lock"></i> Bayar Biaya Ujian</a>`;
+                            btnHtml = `<a href="/checkout" class="btn-exam btn-locked"><i class="fa-solid fa-lock"></i> Bayar Biaya Ujian</a>`;
                         
                         } else {
-                            // LULUS SEMUA SYARAT (PRESENSI OKE, BAYARAN LUNAS)
-                            btnHtml = `<a href="start.html?id=${doc.id}" class="btn-exam btn-start"><i class="fa-solid fa-pen"></i> Mulai Ujian</a>`;
+                            // LULUS -> Arahkan ke /ujian/start
+                            btnHtml = `<a href="/ujian/start?id=${doc.id}" class="btn-exam btn-start"><i class="fa-solid fa-pen"></i> Mulai Ujian</a>`;
                         }
 
                         const examInfo = data.type === 'essay' 
