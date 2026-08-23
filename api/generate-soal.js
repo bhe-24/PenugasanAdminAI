@@ -89,7 +89,7 @@ ATURAN SANGAT KETAT:
 
         // Panggil Groq Llama 3.3 70B
         const completion = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             messages: [{ role: "user", content: promptText }],
             temperature: tipe_soal === 'kuis' ? 0.1 : 0.3, // Kuis suhunya rendah biar kaku & akurat, Tugas suhunya lebih tinggi biar kreatif
         });
