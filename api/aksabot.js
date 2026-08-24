@@ -1,21 +1,18 @@
 import OpenAI from 'openai';
 
-// Inisialisasi OpenRouter API (Fallback Anti-Mati)
-const openrouter = new OpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY,
-    baseURL: 'https://openrouter.ai/api/v1',
-    defaultHeaders: {
-        'HTTP-Referer': 'https://edu-cendekia.my.id',
-        'X-Title': 'Cendekia Aksara Bot'
-    }
+// Inisialisasi API Groq Resmi
+const groq = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1'
 });
 
-// Daftar Model Gratis AksaBot (Pilih yang cepat untuk chat)
-const FREE_MODELS = [
-    'google/gemini-2.0-flash-exp:free',          // Super cepat untuk chat
-    'meta-llama/llama-3.3-70b-instruct:free',   // Sangat cerdas
-    'deepseek/deepseek-chat:free',              // Logika bagus
-    'nvidia/nemotron-3.5-lightning:free'        // Cepat & ringan
+// Daftar Model Langsung dari Console Groq (Sesuai List Kamu)
+// Sistem akan otomatis loncat ke model bawahnya jika model pertama error/limit
+const GROQ_MODELS = [
+    'groq/compound',               // Prioritas 1: Utama
+    'groq/compound-mini',          // Prioritas 2: Cadangan ringan
+    'qwen/qwen3.6-27b',            // Prioritas 3: Qwen di LPU Groq
+    'openai/gpt-oss-120b'          // Prioritas 4: Cadangan terakhir
 ];
 
 export default async function handler(req, res) {
@@ -35,26 +32,26 @@ export default async function handler(req, res) {
             return res.status(400).json({ error: true, reply: 'Pesan tidak boleh kosong.' });
         }
 
-        // Susun System Prompt
+        // Susun System Prompt (Super Ketat & Dinamis)
         const systemPrompt = `Kamu adalah AksaBot, asisten virtual resmi komunitas Cendekia Aksara. Sikapmu ramah, antusias, dan helpful layaknya seorang teman belajar.
 
 IDENTITAS PENGGUNA YANG MENYAPA: ${userName || 'Teman'}
 
 ATURAN WAJIB (HARUS DIIKUTI 100%):
-1. Berikan jawaban yang LENGKAP dan DETAIL.
-2. Gunakan [REFERENSI PENGKAYAAN] di bawah ini sebagai pedoman utama jika relevan.
-3. JANGAN memakai markdown bintang ganda (**teks**). 
-4. Gunakan maksimal 2 emoji per pesan.
-5. Jika pengguna hanya menyapa (misal: "hai"), sapa balik dengan ramah, sebut namanya, dan tawarkan bantuan.
+1. BERADAPTASI DENGAN GAYA BAHASA PENGGUNA (MIRRORING). Jika pengguna menyapa santai/gaul (misal: "helow broo", "lagi ngapain"), balaslah dengan bahasa gaul dan santai ("heloow juga bro!", "lagi *standby* nih"). Jika pengguna memakai bahasa baku/formal, balaslah dengan sopan dan formal.
+2. PANJANG JAWABAN DINAMIS. Jika pertanyaan sederhana, santai, basa-basi, atau sapaan biasa, balas dengan SANGAT SINGKAT dan PADAT (cukup 1-2 paragraf pendek). JANGAN bertele-tele. Namun, JIKA pertanyaan kompleks (minta penjelasan materi, bedah karya), berikan penjelasan yang komprehensif dan detail.
+3. Gunakan [REFERENSI PENGKAYAAN] di bawah ini sebagai pedoman utama jika relevan dengan pertanyaan.
+4. JANGAN memakai markdown bintang ganda (**teks**). Gunakan maksimal 2 emoji per pesan.
+5. Jangan pernah menyebutkan nama perusahaan AI atau model pembuatmu. Kamu murni "AksaBot".
 
 [REFERENSI PENGKAYAAN]:
-${knowledgeContext || 'Jawablah berdasarkan pengetahuan umum seputar Cendekia Aksara, literasi, dan kepenulisan.'}`;
+${knowledgeContext || 'Tidak ada data spesifik. Jawablah secara natural berdasarkan pengetahuan umum seputar Cendekia Aksara, literasi, dan kepenulisan.'}`;
 
         const formattedMessages = [
             { role: 'system', content: systemPrompt }
         ];
 
-        // Masukkan histori maksimal 4 chat terakhir
+        // Histori maksimal 4 chat terakhir agar API tidak berat
         if (history && Array.isArray(history)) {
             const recentHistory = history.slice(-4);
             recentHistory.forEach(h => {
@@ -72,10 +69,10 @@ ${knowledgeContext || 'Jawablah berdasarkan pengetahuan umum seputar Cendekia Ak
         let modelUsed = "";
         let lastError = null;
 
-        // Loop Fallback Model
-        for (const model of FREE_MODELS) {
+        // Loop Fallback Model Groq (Anti-Mogok)
+        for (const model of GROQ_MODELS) {
             try {
-                const completion = await openrouter.chat.completions.create({
+                const completion = await groq.chat.completions.create({
                     model: model,
                     messages: formattedMessages,
                     temperature: 0.7,
@@ -85,24 +82,24 @@ ${knowledgeContext || 'Jawablah berdasarkan pengetahuan umum seputar Cendekia Ak
                 textResponse = completion.choices[0]?.message?.content || "";
                 if (textResponse.trim()) {
                     modelUsed = model;
-                    break;
+                    break; // Berhenti kalau sukses dapet jawaban
                 }
             } catch (err) {
-                console.warn(`[AksaBot] Gagal model ${model}:`, err.message);
+                console.warn(`[AksaBot] Gagal menggunakan model Groq ${model}:`, err.message);
                 lastError = err;
             }
         }
 
         if (!textResponse && lastError) {
-            throw new Error(`Semua model AI sibuk. ${lastError.message}`);
+            throw new Error(`Semua model Groq sedang sibuk. Detail: ${lastError.message}`);
         }
 
-        // Bersihkan hasil
-        let finalAnswer = textResponse.replace(/```[\w]*\n?/g, '').trim();
+        // Bersihkan hasil (jika AI bandel ngasih bintang atau code block)
+        let finalAnswer = textResponse.replace(/```[\w]*\n?/g, '').replace(/\*\*/g, '').trim();
 
         return res.status(200).json({
             reply: finalAnswer,
-            model: modelUsed,
+            model: modelUsed, // Buat ngecek di console model mana yang kepake
             timestamp: new Date().toISOString()
         });
 
@@ -110,7 +107,7 @@ ${knowledgeContext || 'Jawablah berdasarkan pengetahuan umum seputar Cendekia Ak
         console.error('[AksaBot] Fatal error:', error?.message || error);
         return res.status(500).json({
             error: true,
-            reply: 'Waduh, AksaBot lagi pusing nih (Server Penuh). Coba sapa aku lagi beberapa menit lagi ya! 🙏'
+            reply: 'Waduh, AksaBot lagi pusing nih (Server Groq Penuh). Coba sapa aku lagi beberapa detik lagi ya! 🙏'
         });
     }
 }
