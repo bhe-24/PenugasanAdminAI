@@ -222,7 +222,7 @@ ${finalContext && finalContext.trim().length > 0 ? finalContext : 'Jawab berdasa
 
         // PANGGIL GROQ
         const completion = await groq.chat.completions.create({
-            model: 'llama-3.1-8b-instant',
+            model: 'openai/gpt-oss-120bt',
             messages: formattedMessages,
             temperature: 0.7,
             max_tokens: 1024 // Dikecilkan sedikit agar aman di limit TPM
@@ -238,7 +238,7 @@ ${finalContext && finalContext.trim().length > 0 ? finalContext : 'Jawab berdasa
 
         return res.status(200).json({
             reply: finalAnswer,
-            model: 'llama-3.1-8b-instant',
+            model: 'openai/gpt-oss-120b',
             questionId: questionId,
             fromKnowledge: !!similarAnswer,
             timestamp: new Date().toISOString()
