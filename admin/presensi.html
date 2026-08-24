@@ -188,6 +188,9 @@
                             <option value="1">Semester 1</option>
                             <option value="2">Semester 2</option>
                             <option value="3">Semester 3 (Inkubasi/Proses Kreatif)</option>
+                            <option value="4">Semester 4</option>
+                            <option value="5">Semester 5</option>
+                            <option value="6">Semester 6</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -219,14 +222,22 @@
         </div>
 
         <div id="tab-laporan" class="admin-card" style="display: none;">
-            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi Semester (8 Sesi)</h2>
+            <h2 class="section-title"><i class="fa-solid fa-file-pdf"></i> Laporan Presensi (Global Semester)</h2>
             
             <div class="form-group" style="margin-bottom: 25px;">
-                <label class="form-label">Tarik Laporan Berdasarkan Kelas</label>
-                <select id="laporan-class" class="form-select" onchange="generateReportPreview()">
-                    <option value="">-- Pilih Kelas --</option>
+                <label class="form-label">Tarik Laporan Berdasarkan Semester</label>
+                <select id="laporan-semester" class="form-select" onchange="generateReportPreview()">
+                    <option value="">-- Pilih Semester --</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
                 </select>
-                <p style="font-size: 0.8rem; color: #64748b; margin-top: 6px;">*Menampilkan seluruh rekam jejak presensi kelas ini sejak awal kelas dibuat (maks. 8 sesi).</p>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 6px;">
+                    *Menampilkan absensi seluruh siswa yang terdaftar dalam rombongan kelas di semester tersebut (maks. 8 sesi).
+                </p>
             </div>
 
             <div id="report-container" style="display: none;">
@@ -336,8 +347,6 @@
             document.getElementById('tab-setup').style.display = tab === 'setup' ? 'block' : 'none';
             document.getElementById('tab-kelola').style.display = tab === 'kelola' ? 'block' : 'none';
             document.getElementById('tab-laporan').style.display = tab === 'laporan' ? 'block' : 'none';
-
-            if(tab === 'laporan') loadLaporanDropdown();
         }
 
         // --- LOAD DATA ---
@@ -463,7 +472,6 @@
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">Belum ada siswa terdaftar di semester ini.</div>';
             } else {
                 availableStudents.forEach(s => {
-                    // Cek apakah siswa sudah ada di dalam kelas
                     const isChecked = existingStudents.includes(s.id) ? 'checked' : '';
                     container.innerHTML += `
                         <label class="student-checkbox-item">
@@ -485,11 +493,9 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
             try {
-                // Ambil semua checkbox yang dicentang
                 const checkboxes = document.querySelectorAll('input[name="student_ids"]:checked');
                 const selectedStudentIds = Array.from(checkboxes).map(cb => cb.value);
 
-                // Perbarui (tumpuk) array 'students' di Firestore
                 await updateDoc(doc(db, 'classes', currentClassId), { students: selectedStudentIds });
                 
                 await loadClasses();
@@ -550,109 +556,116 @@
             document.getElementById(id).classList.remove('active');
         };
 
-        // --- LAPORAN SEMESTER (8 SESI) ---
-        function loadLaporanDropdown() {
-            const select = document.getElementById('laporan-class');
-            select.innerHTML = '<option value="">-- Pilih Kelas --</option>';
-            allClasses.forEach(cls => {
-                select.innerHTML += `<option value="${cls.id}">${cls.name} (Sem ${cls.semester})</option>`;
-            });
-        }
-
+        // ============================================================
+        // LOGIKA BARU: LAPORAN PRESENSI BERDASARKAN SISWA TERDAFTAR KELAS
+        // ============================================================
         window.generateReportPreview = async () => {
-            const classId = document.getElementById('laporan-class').value;
+            const semesterStr = document.getElementById('laporan-semester').value;
 
-            if(!classId) {
+            if(!semesterStr) {
                 document.getElementById('report-container').style.display = 'none';
                 return;
             }
 
-            // Tampilkan loading state manual di tabel
-            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Menarik data presensi...</td></tr>';
+            const targetSemester = parseInt(semesterStr);
+
+            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Menarik dan menggabungkan data presensi semester...</td></tr>';
             document.getElementById('report-container').style.display = 'block';
 
             try {
-                const cls = allClasses.find(c => c.id === classId);
-                const studentIds = cls.students || [];
-                
-                // Get all attendance records for this class, ordered from oldest to newest
-                const q = query(collection(db, 'dailyAttendance'), where('classId', '==', classId), orderBy('date', 'asc'));
-                const snap = await getDocs(q);
+                // 1. Cari semua kelas di semester terpilih
+                const validClasses = allClasses.filter(c => parseInt(c.semester) === targetSemester);
+                const validClassIds = validClasses.map(c => c.id);
 
-                const attendanceMap = {}; // Format: { uid: { session1: {status, date}, session2: ... } }
-                
-                let sessionCount = 0;
+                if (validClassIds.length === 0) {
+                     document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada satupun kelas yang dibuat di semester ini.</td></tr>';
+                     return;
+                }
 
-                snap.forEach(d => {
+                // 2. Kumpulkan HANYA ID siswa yang BENAR-BENAR dimasukkan ke dalam kelas pada semester tersebut
+                let enrolledStudentIds = new Set();
+                validClasses.forEach(c => {
+                    if (c.students && Array.isArray(c.students)) {
+                        c.students.forEach(uid => enrolledStudentIds.add(uid));
+                    }
+                });
+
+                if (enrolledStudentIds.size === 0) {
+                     document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada satupun siswa yang dimasukkan ke dalam rombongan kelas di semester ini.</td></tr>';
+                     return;
+                }
+
+                // 3. Filter data siswa (allStudents) untuk mencocokkan dengan enrolledStudentIds
+                const semesterStudents = allStudents.filter(s => enrolledStudentIds.has(s.id));
+
+                // 4. Tarik seluruh rekam absensi dan filter yang ClassID-nya masuk ke semester ini
+                const attSnap = await getDocs(collection(db, 'dailyAttendance'));
+                let allAtt = [];
+                
+                attSnap.forEach(d => {
                     const data = d.data();
-                    const fbDate = data.date ? data.date.toDate() : new Date();
-                    
-                    // Increment urutan sesi terlepas dari bulan apapun
-                    sessionCount++; 
-                    
-                    // Limit to 8 sessions display (1 Semester)
-                    if (sessionCount <= 8) {
-                        const dateString = fbDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                        
-                        Object.entries(data.presensi || {}).forEach(([uid, status]) => {
-                            if(!attendanceMap[uid]) {
-                                attendanceMap[uid] = { totalHadir: 0, totalValidSessions: 0 };
-                            }
-                            
-                            // Treat "Bimbingan X" as Hadir for calculation
-                            let calcStatus = status;
-                            if (status && status.includes('Bimbingan')) {
-                                calcStatus = 'Hadir';
-                            }
-
-                            attendanceMap[uid][`session${sessionCount}`] = {
-                                status: status,
-                                date: dateString
-                            };
-                            
-                            attendanceMap[uid].totalValidSessions++;
-                            if(calcStatus === 'Hadir') attendanceMap[uid].totalHadir++;
+                    if (validClassIds.includes(data.classId)) {
+                        allAtt.push({
+                            id: d.id,
+                            ...data,
+                            dateObj: data.date ? data.date.toDate() : new Date()
                         });
                     }
                 });
 
+                // Urutkan jadwal absen secara kronologis berdasarkan waktu
+                allAtt.sort((a, b) => a.dateObj - b.dateObj);
+
                 const tbody = document.getElementById('report-tbody');
                 tbody.innerHTML = '';
                 
-                if (studentIds.length === 0) {
-                     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada siswa di kelas ini.</td></tr>';
-                     return;
-                }
-
-                studentIds.forEach(uid => {
-                    const student = allStudents.find(s => s.id === uid);
-                    const att = attendanceMap[uid] || { totalHadir: 0, totalValidSessions: 0 };
+                // 5. Proses absensi PER SISWA YANG TERDAFTAR KELAS
+                semesterStudents.forEach(student => {
+                    const uid = student.id;
                     
-                    // Calculation percentage based ONLY on recorded sessions, not absolute 8.
-                    const percentage = att.totalValidSessions > 0 ? Math.round((att.totalHadir / att.totalValidSessions) * 100) : 0;
-                    const statusText = percentage >= 60 ? '<span style="color:green; font-weight:700;">✅ Lulus Ujian</span>' : '<span style="color:red; font-weight:700;">❌ Tidak Lulus</span>';
-
-                    let rowHTML = `<tr><td><strong>${student?.name || 'Unknown'}</strong></td>`;
+                    // Saring hanya sesi absensi di mana nama siswa ini dipanggil (dicentang) oleh pengajar
+                    const studentSessions = allAtt.filter(att => att.presensi && att.presensi[uid] !== undefined);
                     
-                    // Generate 8 Columns
-                    for (let i = 1; i <= 8; i++) {
-                        const sessionData = att[`session${i}`];
+                    let totalHadir = 0;
+                    let totalValid = 0;
+                    let rowHTML = `<tr><td><strong>${student.name || 'Unknown'}</strong></td>`;
+
+                    // Generate Maksimal 8 Kolom Kehadiran
+                    for (let i = 0; i < 8; i++) {
+                        const sessionData = studentSessions[i];
+                        
                         if (sessionData) {
+                            totalValid++;
+                            const status = sessionData.presensi[uid];
+                            
+                            // Logika kelulusan (Hadir atau Bimbingan dihitung masuk)
+                            let calcStatus = status;
+                            if (status && status.includes('Bimbingan')) calcStatus = 'Hadir';
+                            if (calcStatus === 'Hadir') totalHadir++;
+
+                            // Style pewarnaan badge
                             let badgeClass = 'status-absen';
-                            if (sessionData.status === 'Hadir') badgeClass = 'status-hadir';
-                            else if (sessionData.status === 'Izin') badgeClass = 'status-izin';
-                            else if (sessionData.status.includes('Bimbingan')) badgeClass = 'status-bimbingan';
+                            if (status === 'Hadir') badgeClass = 'status-hadir';
+                            else if (status === 'Izin') badgeClass = 'status-izin';
+                            else if (status.includes('Bimbingan')) badgeClass = 'status-bimbingan';
+
+                            const dateString = sessionData.dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
                             rowHTML += `
                                 <td>
-                                    <span class="status-badge ${badgeClass}">${sessionData.status}</span>
-                                    <span class="session-date">${sessionData.date}</span>
+                                    <span class="status-badge ${badgeClass}">${status}</span>
+                                    <span class="session-date">${dateString}</span>
                                 </td>
                             `;
                         } else {
+                            // Jika siswa tidak punya sesi ini
                             rowHTML += `<td><span style="color:#cbd5e1;">-</span></td>`;
                         }
                     }
+
+                    // 6. Kalkulasi akhir persentase
+                    const percentage = totalValid > 0 ? Math.round((totalHadir / totalValid) * 100) : 0;
+                    const statusText = percentage >= 60 ? '<span style="color:green; font-weight:700;">✅ Lulus</span>' : '<span style="color:red; font-weight:700;">❌ Tdk Lulus</span>';
 
                     rowHTML += `
                             <td class="${percentage >= 60 ? 'percentage-high' : 'percentage-low'}">${percentage}%</td>
@@ -664,26 +677,27 @@
 
             } catch(e) {
                 console.error(e);
-                Swal.fire('Error', 'Gagal memuat laporan. Pastikan Index Firebase sudah dibuat.', 'error');
+                Swal.fire('Error', 'Gagal memuat laporan. Pastikan koneksi internet stabil.', 'error');
                 document.getElementById('report-container').style.display = 'none';
             }
         };
 
         window.exportReportPDF = () => {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('landscape'); // Landscape to fit 8 columns
+            const doc = new jsPDF('landscape'); 
             
             doc.setFontSize(14);
-            doc.text('LAPORAN PRESENSI KELAS (SEMESTER)', 148, 15, { align: 'center' });
+            doc.text('LAPORAN PRESENSI GLOBAL (SEMESTER)', 148, 15, { align: 'center' });
             doc.setFontSize(10);
-            const className = document.getElementById('laporan-class').options[document.getElementById('laporan-class').selectedIndex].text;
-            doc.text(`Kelas: ${className}`, 15, 25);
+            
+            const semName = document.getElementById('laporan-semester').options[document.getElementById('laporan-semester').selectedIndex].text;
+            doc.text(`Periode: ${semName}`, 15, 25);
             
             const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             doc.text(`Dicetak pada: ${today}`, 15, 32);
 
             doc.autoTable({ html: '#report-table', startY: 40, headStyles: { fillColor: [0, 51, 102] } });
-            doc.save(`Laporan_Presensi_${className.replace(/\s/g,'_')}.pdf`);
+            doc.save(`Laporan_Presensi_${semName.replace(/\s/g,'_')}.pdf`);
         };
 
         window.printReport = () => {
