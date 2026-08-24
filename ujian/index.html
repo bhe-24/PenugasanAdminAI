@@ -340,7 +340,8 @@
                 const studentSem = parseInt(String(rawSem).replace(/\D/g, '')) || 1;
                 document.getElementById('user-sem-label').innerText = studentSem;
                 
-                await processAttendanceAndExams(user.uid, studentSem, user.statusPembayaran, user.name);
+                // PERBAIKAN: Melempar status user.bypassUjian ke dalam fungsi pemroses
+                await processAttendanceAndExams(user.uid, studentSem, user.statusPembayaran, user.name, user.bypassUjian);
             }
         })();
 
@@ -359,7 +360,8 @@
             }
         });
 
-        async function processAttendanceAndExams(uid, semester, paymentStatus, studentName) {
+        // PERBAIKAN: Menambahkan parameter dbBypassStatus
+        async function processAttendanceAndExams(uid, semester, paymentStatus, studentName, dbBypassStatus) {
             const container = document.getElementById('exam-list');
             const loading = document.getElementById('loading');
             
@@ -408,7 +410,8 @@
                     iconAtt.innerHTML = '<i class="fa-solid fa-user-xmark"></i>';
                 }
 
-                const isBypassed = localStorage.getItem('bypass_attendance') === 'true';
+                // PERBAIKAN: Mengecek dari localStorage ATAU dari database Firestore
+                const isBypassed = (localStorage.getItem('bypass_attendance') === 'true') || (dbBypassStatus === true);
 
                 const [snapExam, snapResult] = await Promise.all([
                     getDocs(query(collection(db, 'exams'), where('status', '==', 'active'))),
@@ -452,7 +455,7 @@
                             scoreHtml = `<div class="score-display">${history.score}</div>`;
                             btnHtml = `<a href="/ujian/detail?rid=${history.resultId}" class="btn-exam btn-result"><i class="fa-solid fa-list"></i> Pembahasan Ujian</a>`;
                         
-                        } else if (attendancePercentage < 60 && !isBypassed) {
+                        } else if (attendancePercentage < 60 && !isBypassed) { // Gunakan isBypassed gabungan tadi
                             cardClass = "locked";
                             btnHtml = `
                                 <button onclick="hubungiAdmin('${studentName}')" class="btn-exam btn-warning">
@@ -461,7 +464,7 @@
                                 <div style="font-size:0.7rem; color:#dc2626; text-align:center; margin-top:5px;">Kehadiran Anda < 60%</div>
                             `;
 
-                        } else if (paymentStatus !== 'Lunas') {
+                        } else if (paymentStatus !== 'Lunas' && !isBypassed) { // Tunggakan juga bisa dibypass
                             cardClass = "locked";
                             btnHtml = `<a href="/payment" class="btn-exam btn-locked"><i class="fa-solid fa-lock"></i> Bayar Biaya Ujian</a>`;
                         
