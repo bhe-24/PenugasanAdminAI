@@ -236,7 +236,7 @@
                     <option value="6">Semester 6</option>
                 </select>
                 <p style="font-size: 0.8rem; color: #64748b; margin-top: 6px;">
-                    *Menampilkan absensi seluruh siswa yang terdaftar dalam rombongan kelas di semester tersebut (maks. 8 sesi).
+                    *Kolom absensi akan dikunci berdasarkan tanggal (kronologis). Jika siswa tidak masuk/beda kelas pada tanggal tersebut, kolomnya akan terisi kosong/strip (-).
                 </p>
             </div>
 
@@ -465,7 +465,6 @@
             const cls = allClasses.find(c => c.id === classId);
             const existingStudents = cls.students || [];
             
-            // Filter siswa berdasarkan semester yang sama dengan kelas
             const availableStudents = allStudents.filter(s => parseInt(s.semester || 1) === parseInt(cls.semester));
             
             if (availableStudents.length === 0) {
@@ -557,7 +556,7 @@
         };
 
         // ============================================================
-        // LOGIKA BARU: LAPORAN PRESENSI BERDASARKAN SISWA TERDAFTAR KELAS
+        // LOGIKA BARU: LAPORAN BERDASARKAN TANGGAL KRONOLOGIS GLOBAL
         // ============================================================
         window.generateReportPreview = async () => {
             const semesterStr = document.getElementById('laporan-semester').value;
@@ -569,7 +568,7 @@
 
             const targetSemester = parseInt(semesterStr);
 
-            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Menarik dan menggabungkan data presensi semester...</td></tr>';
+            document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin"></i> Menarik dan menyinkronkan tanggal presensi...</td></tr>';
             document.getElementById('report-container').style.display = 'block';
 
             try {
@@ -582,7 +581,7 @@
                      return;
                 }
 
-                // 2. Kumpulkan HANYA ID siswa yang BENAR-BENAR dimasukkan ke dalam kelas pada semester tersebut
+                // 2. Kumpulkan ID siswa yang dimasukkan ke dalam rombongan belajar
                 let enrolledStudentIds = new Set();
                 validClasses.forEach(c => {
                     if (c.students && Array.isArray(c.students)) {
@@ -591,74 +590,82 @@
                 });
 
                 if (enrolledStudentIds.size === 0) {
-                     document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada satupun siswa yang dimasukkan ke dalam rombongan kelas di semester ini.</td></tr>';
+                     document.getElementById('report-tbody').innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 20px; color: #64748b;">Belum ada satupun siswa yang dimasukkan ke dalam rombongan kelas.</td></tr>';
                      return;
                 }
 
-                // 3. Filter data siswa (allStudents) untuk mencocokkan dengan enrolledStudentIds
                 const semesterStudents = allStudents.filter(s => enrolledStudentIds.has(s.id));
 
-                // 4. Tarik seluruh rekam absensi dan filter yang ClassID-nya masuk ke semester ini
+                // 3. Tarik seluruh rekam absensi (dari db) yang ClassID-nya masuk ke semester ini
                 const attSnap = await getDocs(collection(db, 'dailyAttendance'));
                 let allAtt = [];
                 
                 attSnap.forEach(d => {
                     const data = d.data();
                     if (validClassIds.includes(data.classId)) {
+                        const dateObj = data.date ? data.date.toDate() : new Date();
                         allAtt.push({
                             id: d.id,
                             ...data,
-                            dateObj: data.date ? data.date.toDate() : new Date()
+                            dateObj: dateObj,
+                            // Buat string tanggal unik (contoh: "31/08/2026")
+                            dateStr: dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
                         });
                     }
                 });
 
-                // Urutkan jadwal absen secara kronologis berdasarkan waktu
+                // 4. Urutkan secara kronologis untuk mendapatkan urutan tanggal global semester
                 allAtt.sort((a, b) => a.dateObj - b.dateObj);
+
+                // Dapatkan array unik yang berisi maksimal 8 tanggal presensi pertama
+                const uniqueDates = [...new Set(allAtt.map(a => a.dateStr))].slice(0, 8);
 
                 const tbody = document.getElementById('report-tbody');
                 tbody.innerHTML = '';
                 
-                // 5. Proses absensi PER SISWA YANG TERDAFTAR KELAS
+                // 5. Proses mapping absensi ke TANGGAL yang KRONOLOGIS dan TETAP
                 semesterStudents.forEach(student => {
                     const uid = student.id;
-                    
-                    // Saring hanya sesi absensi di mana nama siswa ini dipanggil (dicentang) oleh pengajar
-                    const studentSessions = allAtt.filter(att => att.presensi && att.presensi[uid] !== undefined);
                     
                     let totalHadir = 0;
                     let totalValid = 0;
                     let rowHTML = `<tr><td><strong>${student.name || 'Unknown'}</strong></td>`;
 
-                    // Generate Maksimal 8 Kolom Kehadiran
+                    // Generate Maksimal 8 Kolom (Sesi 1 sampai Sesi 8) berdasarkan uniqueDates
                     for (let i = 0; i < 8; i++) {
-                        const sessionData = studentSessions[i];
-                        
-                        if (sessionData) {
-                            totalValid++;
-                            const status = sessionData.presensi[uid];
+                        if (i < uniqueDates.length) {
+                            const targetDate = uniqueDates[i];
                             
-                            // Logika kelulusan (Hadir atau Bimbingan dihitung masuk)
-                            let calcStatus = status;
-                            if (status && status.includes('Bimbingan')) calcStatus = 'Hadir';
-                            if (calcStatus === 'Hadir') totalHadir++;
+                            // Cari dokumen absensi pada tanggal tersebut dimana nama siswa ini dipanggil
+                            const sessionData = allAtt.find(att => att.dateStr === targetDate && att.presensi && att.presensi[uid] !== undefined);
+                            
+                            if (sessionData) {
+                                totalValid++;
+                                const status = sessionData.presensi[uid];
+                                
+                                // Kalkulasi
+                                let calcStatus = status;
+                                if (status && status.includes('Bimbingan')) calcStatus = 'Hadir';
+                                if (calcStatus === 'Hadir') totalHadir++;
 
-                            // Style pewarnaan badge
-                            let badgeClass = 'status-absen';
-                            if (status === 'Hadir') badgeClass = 'status-hadir';
-                            else if (status === 'Izin') badgeClass = 'status-izin';
-                            else if (status.includes('Bimbingan')) badgeClass = 'status-bimbingan';
+                                // Warna Badge
+                                let badgeClass = 'status-absen';
+                                if (status === 'Hadir') badgeClass = 'status-hadir';
+                                else if (status === 'Izin') badgeClass = 'status-izin';
+                                else if (status.includes('Bimbingan')) badgeClass = 'status-bimbingan';
 
-                            const dateString = sessionData.dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-                            rowHTML += `
-                                <td>
-                                    <span class="status-badge ${badgeClass}">${status}</span>
-                                    <span class="session-date">${dateString}</span>
-                                </td>
-                            `;
+                                rowHTML += `
+                                    <td>
+                                        <span class="status-badge ${badgeClass}">${status}</span>
+                                        <span class="session-date">${targetDate}</span>
+                                    </td>
+                                `;
+                            } else {
+                                // Tanggal/Sesi ini ada, tapi siswa tdk diabsen (karena beda kelas atau tidak hadir)
+                                rowHTML += `<td><span style="color:#cbd5e1;">-</span></td>`;
+                            }
                         } else {
-                            // Jika siswa tidak punya sesi ini
+                            // Semester belum mencapai Sesi ke-(i+1)
                             rowHTML += `<td><span style="color:#cbd5e1;">-</span></td>`;
                         }
                     }
