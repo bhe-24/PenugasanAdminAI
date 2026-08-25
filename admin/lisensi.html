@@ -17,7 +17,7 @@
         :root { --primary: #003366; --gold: #d4af37; --bg-color: #f1f5f9; --text-dark: #1e293b; --text-gray: #64748b; }
         * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-dark); margin: 0; padding-top: 70px; min-height: 100vh; }
-        .app-wrapper { width: 100%; max-width: 700px; margin: 0 auto; background-color: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden; }
+        .app-wrapper { width: 100%; max-width: 750px; margin: 0 auto; background-color: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 50px; }
         
         .top-navbar { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: #001f3f; display: flex; align-items: center; padding: 15px 20px; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .nav-title { font-family: 'Aleo', serif; font-size: 1.2rem; color: white; margin: 0 0 0 15px; }
@@ -36,6 +36,17 @@
         .btn-submit { width: 100%; background: linear-gradient(135deg, var(--primary), #0f4c81); color: white; border: none; padding: 15px; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 10px; }
         .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 51, 102, 0.2); }
         
+        /* TABEL RIWAYAT */
+        .history-section { border-top: 1px solid #cbd5e1; background: #f8fafc; padding: 25px 30px; }
+        .history-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: var(--primary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px; }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        .report-table th, .report-table td { border-bottom: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+        .report-table th { background: #f1f5f9; color: var(--primary); font-weight: 700; }
+        
+        .btn-sm { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s; font-family: 'Poppins'; }
+        .btn-lanjut { background: #dcfce7; color: #166534; } .btn-lanjut:hover { background: #bbf7d0; }
+        .btn-hapus { background: #fee2e2; color: #991b1b; padding: 6px 10px; } .btn-hapus:hover { background: #fecaca; }
+
         #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
     </style>
 </head>
@@ -51,7 +62,7 @@
     <div class="app-wrapper">
         <div class="header-banner">
             <h2>Langkah 1: Permintaan Data Penulis</h2>
-            <p>Sistem akan membuat Surat Resmi berstempel Cendekia Aksara untuk memohon kelengkapan data diri penulis (KTP, NPWP, Rekening) sebelum kontrak 15 halaman diterbitkan.</p>
+            <p>Sistem akan membuat Surat Resmi berstempel Cendekia Aksara untuk memohon kelengkapan data diri penulis sebelum kontrak lisensi diterbitkan.</p>
         </div>
 
         <form id="praLisensiForm" class="form-section">
@@ -65,14 +76,35 @@
             </div>
             
             <button type="submit" id="btn-submit" class="btn-submit">
-                <i class="fa-solid fa-file-arrow-down"></i> Unduh Surat Permintaan Data & Lanjut
+                <i class="fa-solid fa-file-arrow-down"></i> Unduh Surat Permintaan Data
             </button>
         </form>
+
+        <!-- BAGIAN TABEL RIWAYAT -->
+        <div class="history-section">
+            <h3 class="history-title"><i class="fa-solid fa-clock-rotate-left"></i> Daftar Pengajuan Data</h3>
+            <p style="font-size: 0.8rem; color: var(--text-gray); margin-top: -10px; margin-bottom: 15px;">Klik tombol "Lanjut Kontrak" jika penulis sudah menyerahkan datanya.</p>
+            <div style="overflow-x: auto;">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Nama Penulis</th>
+                            <th>Judul Karya</th>
+                            <th style="min-width: 150px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="riwayat-tbody">
+                        <tr><td colspan="4" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
-        import { collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, orderBy, limit, getDocs, addDoc, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
@@ -109,9 +141,69 @@
             });
         }
 
+        // FUNGSI MEMUAT RIWAYAT DARI DATABASE
+        async function loadRiwayat() {
+            try {
+                // Kita ambil arsip surat keluar yang perihalnya khusus Pra Lisensi
+                const q = query(collection(db, 'arsip_surat_keluar'), where('perihal', '==', 'Permohonan Kelengkapan Data Kontrak Lisensi'));
+                const snap = await getDocs(q);
+                let dataArr = [];
+                snap.forEach(d => { dataArr.push({id: d.id, ...d.data()}); });
+                
+                // Urutkan dari yang terbaru (karena where + orderBy kadang butuh Index, kita sort manual di JS saja agar mudah)
+                dataArr.sort((a,b) => (b.tanggalGenerate?.seconds || 0) - (a.tanggalGenerate?.seconds || 0));
+
+                const tbody = document.getElementById('riwayat-tbody');
+                tbody.innerHTML = '';
+
+                if(dataArr.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">Belum ada riwayat pengajuan.</td></tr>';
+                    return;
+                }
+
+                dataArr.forEach(item => {
+                    const dateObj = item.tanggalGenerate ? new Date(item.tanggalGenerate.seconds * 1000) : new Date();
+                    const tgl = dateObj.toLocaleDateString('id-ID', {day: 'numeric', month:'short', year:'numeric'});
+                    const judul = item.judul_karya || '-';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="color:#64748b;">${tgl}</td>
+                            <td style="font-weight:600; color:var(--primary);">${item.tujuan}</td>
+                            <td>${judul}</td>
+                            <td>
+                                <button class="btn-sm btn-lanjut" onclick="lanjutKontrak('${item.tujuan}', '${judul}')"><i class="fa-solid fa-file-contract"></i> Lanjut</button>
+                                <button class="btn-sm btn-hapus" onclick="hapusRiwayat('${item.id}')" title="Hapus Pengajuan"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        window.lanjutKontrak = (nama, judul) => {
+            window.location.href = `lisensi-create.html?nama=${encodeURIComponent(nama)}&judul=${encodeURIComponent(judul)}`;
+        };
+
+        window.hapusRiwayat = async (id) => {
+            const res = await Swal.fire({
+                title: 'Hapus Data?',
+                text: 'Data riwayat pengajuan ini akan dihapus.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Hapus'
+            });
+            if(res.isConfirmed) {
+                await deleteDoc(doc(db, 'arsip_surat_keluar', id));
+                loadRiwayat();
+                Swal.fire('Terhapus', '', 'success');
+            }
+        };
+
         (async () => {
             const user = await checkAuth('admin'); 
             if(!user) window.location.href = '../index.html';
+            loadRiwayat(); // Load tabel riwayat
         })();
 
         document.getElementById('praLisensiForm').onsubmit = async (e) => {
@@ -213,7 +305,7 @@
                         { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + par2, alignment: 'justify', margin: [0, 0, 0, 8] },
                         { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + par3, alignment: 'justify', margin: [0, 0, 0, 40] },
 
-                        // Area Tanda Tangan
+                        // AREA TANDA TANGAN (DENGAN EFEK STEMPEL OVERLAP / MENIMPA)
                         {
                             unbreakable: true,
                             columns: [
@@ -222,13 +314,11 @@
                                     width: 250, 
                                     stack: [
                                         { text: 'Hormat kami,', alignment: 'center', margin: [0,0,0,2] },
-                                        { text: 'Kepala Pembina Literasi', alignment: 'center', margin: [0,0,0,5] },
-                                        {
-                                            margin: [0, 5, 0, 5],
-                                            stack: [
-                                                base64Cap ? { image: base64Cap, width: 95, alignment: 'center', margin: [0, 10, 0, 10], opacity: 0.85 } : { text: '\n\n\n' }
-                                            ].filter(Boolean)
-                                        },
+                                        { text: 'Kepala Pembina Literasi', alignment: 'center', margin: [0,0,0,45] }, // Jarak kosong untuk TTD
+                                        
+                                        // TRIK OVERLAP: Margin negatif menarik teks/gambar ke ATAS sehingga menimpa baris sebelumnya
+                                        base64Cap ? { image: base64Cap, width: 90, alignment: 'center', margin: [-40, -60, 0, -35], opacity: 0.85 } : { text: '' },
+                                        
                                         { text: 'Mukhamad Bayu Aji Tolafudin', alignment: 'center', bold: true, decoration: 'underline' }
                                     ]
                                 }
@@ -241,12 +331,13 @@
                 const fileName = `Surat_Pengantar_Data_${p_nama.replace(/\s+/g,'_')}.pdf`;
                 pdfMake.createPdf(docDefinition).download(fileName, async () => {
                     
-                    // 5. Simpan ke Arsip agar nomor urut surat maju otomatis
+                    // 5. Simpan ke Arsip agar masuk ke tabel Riwayat (dan update nomor)
                     try {
                         await addDoc(collection(db, 'arsip_surat_keluar'), {
                             nomor: noSurat,
                             perihal: "Permohonan Kelengkapan Data Kontrak Lisensi",
                             tujuan: p_nama,
+                            judul_karya: n_judul, // Disimpan agar bisa dibaca di tabel riwayat
                             pembuka: `${par1} ${par2}`,
                             penutup: par3,
                             lampiran_teks: '',
@@ -257,22 +348,23 @@
                         });
                     } catch(e) { console.error("Gagal nyimpan arsip:", e); }
 
-                    // SETELAH DOWNLOAD & ARSIP, REDIRECT KE HALAMAN PEMBUATAN KONTRAK 15 HALAMAN
+                    // Muat ulang tabel di bawah agar data langsung muncul
+                    loadRiwayat();
+                    
                     Swal.fire({
-                        title: 'Surat Terunduh!',
-                        text: 'Mengarahkan ke halaman Generator Perjanjian Lisensi Penuh...',
-                        icon: 'success',
-                        timer: 2500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.href = `lisensi-create.html?nama=${encodeURIComponent(p_nama)}&judul=${encodeURIComponent(n_judul)}`;
+                        title: 'Berhasil!',
+                        text: 'Surat telah diunduh. Anda bisa melanjutkan proses kontrak lisensi melalui tabel riwayat di bawah kapan saja.',
+                        icon: 'success'
                     });
+                    
+                    document.getElementById('praLisensiForm').reset();
                 });
 
             } catch (err) {
                 console.error(err);
                 Swal.fire('Gagal', 'Terjadi kesalahan sistem.', 'error');
-                btn.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i> Unduh Surat Permintaan Data & Lanjut';
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i> Unduh Surat Permintaan Data';
                 btn.disabled = false;
             }
         };
