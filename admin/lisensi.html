@@ -72,6 +72,7 @@
 
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
@@ -116,13 +117,34 @@
         document.getElementById('praLisensiForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-submit');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyusun Surat...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa Nomor & Menyusun Surat...';
             btn.disabled = true;
 
             try {
                 const p_nama = document.getElementById('p_nama').value.trim();
                 const n_judul = document.getElementById('n_judul').value.trim();
 
+                // 1. Tarik Nomor Surat Terakhir dari Database
+                let urutanBaru = 1;
+                try {
+                    const qArsip = query(collection(db, 'arsip_surat_keluar'), orderBy('tanggalGenerate', 'desc'), limit(1));
+                    const snapArsip = await getDocs(qArsip);
+                    if(!snapArsip.empty) {
+                        const lastNo = snapArsip.docs[0].data().nomor;
+                        const match = lastNo.match(/^(\d+)/);
+                        if(match) urutanBaru = parseInt(match[1]) + 1;
+                    }
+                } catch(e) { console.warn("Gagal get nomor arsip"); }
+
+                const noSuratFormat = String(urutanBaru).padStart(3, '0');
+                const d = new Date();
+                const romawi = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+                const noSurat = `${noSuratFormat}/PMH/CA/${romawi[d.getMonth()]}/${d.getFullYear()}`;
+                
+                const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                const tanggalSurat = `Temanggung, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+
+                // 2. Load Assets & Fonts
                 const [base64Logo, base64Cap, fontTnrReg, fontTnrBold] = await Promise.all([
                     getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
                     getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf')
@@ -136,15 +158,15 @@
                     };
                 }
 
-                const d = new Date();
-                const romawi = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
-                const noSurat = `.../.../CA/${romawi[d.getMonth()]}/${d.getFullYear()}`;
-                const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-                const tanggalSurat = `Temanggung, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                // 3. Susun Teks Paragraf Rapi
+                const par1 = `Sehubungan dengan proses kurasi dan penilaian karya literasi pada sistem kami, kami sampaikan ucapan selamat karena naskah Saudara/i yang berjudul "${n_judul}" telah dinyatakan layak untuk dipublikasikan dan dikelola oleh Cendekia Aksara.`;
+                const par2 = `Untuk menindaklanjuti hal tersebut, kami bermaksud menerbitkan Perjanjian Lisensi Eksklusif yang mengikat secara hukum guna menjamin Hak Moral dan Hak Ekonomi (Royalti) dari karya tersebut. Oleh karena itu, kami memohon kesediaan Saudara/i untuk segera melengkapi data diri yang terdiri dari Kartu Tanda Penduduk (KTP), Nomor Pokok Wajib Pajak (NPWP - jika ada), dan Rekening Bank atas nama pribadi.`;
+                const par3 = `Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerja sama Saudara/i, kami ucapkan terima kasih.`;
 
+                // 4. Bangun PDF
                 const docDefinition = {
                     pageSize: 'A4',
-                    pageMargins: [40, 40, 40, 50],
+                    pageMargins: [50, 50, 50, 60],
                     content: [
                         {
                             margin: [0, 0, 0, 10],
@@ -160,8 +182,8 @@
                                 }
                             ]
                         },
-                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }] },
-                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 515, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 495, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
                         
                         {
                             columns: [
@@ -185,8 +207,13 @@
                             ]
                         },
 
-                        { text: 'Dengan hormat,\n\n\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Sehubungan dengan proses kurasi dan penilaian karya literasi pada sistem kami, kami sampaikan ucapan selamat karena naskah Saudara/i yang berjudul "' + n_judul + '" telah dinyatakan layak untuk dipublikasikan dan dikelola oleh Cendekia Aksara.\n\n\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Untuk menindaklanjuti hal tersebut, kami bermaksud menerbitkan Perjanjian Lisensi Eksklusif yang mengikat secara hukum guna menjamin Hak Moral dan Hak Ekonomi (Royalti) dari karya tersebut. Oleh karena itu, kami memohon kesediaan Saudara/i untuk segera melengkapi data diri yang terdiri dari Kartu Tanda Penduduk (KTP), Nomor Pokok Wajib Pajak (NPWP - jika ada), dan Rekening Bank atas nama pribadi.\n\n\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerja sama Saudara/i, kami ucapkan terima kasih.', alignment: 'justify', margin: [0,0,0,40], lineHeight: 1.5 },
+                        // Paragraf Dipecah dengan jarak yang rapi dan menjorok
+                        { text: 'Dengan hormat,', margin: [0, 0, 0, 10] },
+                        { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + par1, alignment: 'justify', margin: [0, 0, 0, 8] },
+                        { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + par2, alignment: 'justify', margin: [0, 0, 0, 8] },
+                        { text: '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + par3, alignment: 'justify', margin: [0, 0, 0, 40] },
 
+                        // Area Tanda Tangan
                         {
                             unbreakable: true,
                             columns: [
@@ -195,14 +222,14 @@
                                     width: 250, 
                                     stack: [
                                         { text: 'Hormat kami,', alignment: 'center', margin: [0,0,0,2] },
-                                        { text: 'Administrator Cendekia Aksara', alignment: 'center', margin: [0,0,0,5] },
+                                        { text: 'Kepala Pembina Literasi', alignment: 'center', margin: [0,0,0,5] },
                                         {
                                             margin: [0, 5, 0, 5],
                                             stack: [
                                                 base64Cap ? { image: base64Cap, width: 95, alignment: 'center', margin: [0, 10, 0, 10], opacity: 0.85 } : { text: '\n\n\n' }
                                             ].filter(Boolean)
                                         },
-                                        { text: 'Sistem Terotomasi CA', alignment: 'center', bold: true, decoration: 'underline' }
+                                        { text: 'Mukhamad Bayu Aji Tolafudin', alignment: 'center', bold: true, decoration: 'underline' }
                                     ]
                                 }
                             ]
@@ -212,16 +239,32 @@
                 };
 
                 const fileName = `Surat_Pengantar_Data_${p_nama.replace(/\s+/g,'_')}.pdf`;
-                pdfMake.createPdf(docDefinition).download(fileName, () => {
-                    // SETELAH DOWNLOAD, REDIRECT KE HALAMAN PEMBUATAN KONTRAK 15 HALAMAN
+                pdfMake.createPdf(docDefinition).download(fileName, async () => {
+                    
+                    // 5. Simpan ke Arsip agar nomor urut surat maju otomatis
+                    try {
+                        await addDoc(collection(db, 'arsip_surat_keluar'), {
+                            nomor: noSurat,
+                            perihal: "Permohonan Kelengkapan Data Kontrak Lisensi",
+                            tujuan: p_nama,
+                            pembuka: `${par1} ${par2}`,
+                            penutup: par3,
+                            lampiran_teks: '',
+                            jabatan: 'Kepala Pembina Literasi',
+                            admin: 'Sistem Terotomasi CA',
+                            tanggalGenerate: serverTimestamp(),
+                            hasTable: false
+                        });
+                    } catch(e) { console.error("Gagal nyimpan arsip:", e); }
+
+                    // SETELAH DOWNLOAD & ARSIP, REDIRECT KE HALAMAN PEMBUATAN KONTRAK 15 HALAMAN
                     Swal.fire({
                         title: 'Surat Terunduh!',
-                        text: 'Mengarahkan ke halaman Generator Perjanjian Lisensi 15 Halaman...',
+                        text: 'Mengarahkan ke halaman Generator Perjanjian Lisensi Penuh...',
                         icon: 'success',
                         timer: 2500,
                         showConfirmButton: false
                     }).then(() => {
-                        // Bawa parameter via URL agar admin gak ngetik ulang
                         window.location.href = `lisensi-create.html?nama=${encodeURIComponent(p_nama)}&judul=${encodeURIComponent(n_judul)}`;
                     });
                 });
