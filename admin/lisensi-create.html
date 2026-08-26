@@ -49,6 +49,10 @@
         .btn-submit { width: 100%; background: linear-gradient(135deg, var(--primary), #00122e); color: white; border: none; padding: 16px; border-radius: 10px; font-family: 'Poppins'; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 51, 102, 0.3); display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;}
         .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 51, 102, 0.4); }
 
+        /* --- CSS TAMBAHAN UNTUK TOMBOL DRAF KOSONG --- */
+        .btn-draft { width: 100%; background: white; color: var(--text-gray); border: 2px solid #cbd5e1; padding: 14px; border-radius: 10px; font-family: 'Poppins'; font-weight: 600; font-size: 0.95rem; cursor: pointer; margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-draft:hover { border-color: var(--primary); color: var(--primary); background: #f8fafc; }
+
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; transition: 0.4s; }
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;}
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -165,6 +169,12 @@
             <button type="submit" id="btn-submit" class="btn-submit">
                 <i class="fa-solid fa-scale-balanced"></i> Generate Dokumen Kontrak Hukum (PDF)
             </button>
+            
+            <!-- HTML TAMBAHAN: Tombol Draf Kosong -->
+            <button type="button" id="btn-draft" class="btn-draft" onclick="generateDraft()">
+                <i class="fa-regular fa-file-pdf"></i> Unduh Draf Kosong (Contoh untuk Dibaca)
+            </button>
+            
         </form>
     </div>
 
@@ -258,7 +268,340 @@
             setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; resizeCanvas(); }, 400);
         })();
 
-        // --- PDF GENERATOR MASSIVE ---
+
+        // HELPER PDF 
+        const pasal = (nomor, judul) => ({ text: `Pasal ${nomor}\n${judul}`, style: 'pasalTitle' });
+        const ayat = (arr) => ({ ol: arr.map(t => ({ text: t, alignment: 'justify', margin: [0, 0, 0, 6] })), lineHeight: 1.4, margin: [0, 0, 0, 15] });
+        const paragraf = (t) => ({ text: t, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 15] });
+
+
+        // JS TAMBAHAN: FUNGSI CETAK DRAF KOSONG
+        window.generateDraft = async () => {
+            const btn = document.getElementById('btn-draft');
+            const oriHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan Draf...';
+            btn.disabled = true;
+
+            try {
+                if (globalAssets.tnrR) {
+                    pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
+                    pdfMake.fonts = {
+                        Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
+                        TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' }
+                    };
+                }
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageMargins: [50, 70, 50, 80], 
+                    header: function(currentPage) {
+                        return { text: 'DOKUMEN LISENSI RESMI & BERBADAN HUKUM - PT CENDEKIA AKSARA EDUKASI', alignment: 'center', fontSize: 8, color: '#94a3b8', bold: true, margin: [0, 20, 0, 0] };
+                    },
+                    footer: function(currentPage, pageCount) {
+                        return {
+                            stack: [
+                                {
+                                    canvas: [
+                                        { type: 'rect', x: 0, y: 0, w: 595.28, h: 50, color: { type: 'linear', x1: 0, y1: 0, x2: 595.28, y2: 0, colorStops: [ { offset: 0, color: '#001f3f' }, { offset: 1, color: '#d4af37' } ] } }
+                                    ]
+                                },
+                                { text: `XXX/CA-LSN/DRAF/202X`, alignment: 'left', color: 'white', fontSize: 9, absolutePosition: { x: 40, y: 15 } },
+                                { text: `Halaman ${currentPage} dari ${pageCount}`, alignment: 'right', color: 'white', fontSize: 9, bold: true, absolutePosition: { x: -40, y: 15 } }
+                            ]
+                        };
+                    },
+                    content: [
+                        {
+                            margin: [0, 0, 0, 10],
+                            columns: [
+                                globalAssets.logo ? { image: globalAssets.logo, width: 60, margin: [10, 0, 15, 0] } : { text: '', width: 75 },
+                                {
+                                    stack: [
+                                        { text: 'KOMUNITAS LITERASI INDONESIA', fontSize: 11, alignment: 'center', margin: [0,0,0,2] },
+                                        { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, alignment: 'center', margin: [0,0,0,2] },
+                                        { text: 'Jl. Dusun Delok, No. 22 Karangtejo, Kedu, Kab. Temanggung', fontSize: 9, alignment: 'center', margin: [0,0,0,2] },
+                                        { text: 'Telp/WA: +62 889-561-5630 | +62 859-3918-8592 | Email: cendekia.aksara25@gmail.com', fontSize: 9, alignment: 'center' }
+                                    ]
+                                }
+                            ]
+                        },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 495, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
+
+                        { text: `DRAF PERJANJIAN LISENSI NASKAH`, fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 5] },
+                        { text: `Nomor: XXX/CA-LSN/DRAF/202X`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 30] },
+
+                        paragraf(`Perjanjian Lisensi Naskah ini (selanjutnya disebut sebagai "Perjanjian Lisensi") dibuat dan ditandatangani pada tanggal [ TANGGAL PENANDATANGANAN ], oleh dan antara pihak-pihak sebagai berikut:`),
+
+                        {
+                            table: {
+                                widths: [120, 10, '*'],
+                                body: [
+                                    [ { text: 'Nama Lengkap', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: '[ NAMA LENGKAP PENULIS ]', bold: true, border: [false,false,false,false], color: 'red' } ],
+                                    [ { text: 'Warga Negara', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: '[ KEWARGANEGARAAN ]', border: [false,false,false,false], color: 'red' } ],
+                                    [ { text: 'NIK', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: '[ NOMOR INDUK KEPENDUDUKAN ]', border: [false,false,false,false], color: 'red' } ],
+                                    [ { text: 'Alamat Domisili', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: '[ ALAMAT DOMISILI LENGKAP PENULIS ]', border: [false,false,false,false], alignment: 'justify', color: 'red' } ],
+                                    [ { text: 'Rekening Royalti', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: '[ NAMA BANK - NOMOR REKENING a.n. PEMILIK ]', border: [false,false,false,false], color: 'red' } ]
+                                ]
+                            }, margin: [20, 0, 0, 10]
+                        },
+                        paragraf('bertindak untuk dan atas nama diri sendiri selaku Pencipta, untuk selanjutnya di sepanjang Perjanjian ini disebut sebagai "PIHAK PERTAMA".'),
+
+                        {
+                            table: {
+                                widths: [120, 10, '*'],
+                                body: [
+                                    [ { text: 'Nama Perusahaan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'PT Cendekia Aksara Edukasi', bold: true, border: [false,false,false,false] } ],
+                                    [ { text: 'Kedudukan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'Kabupaten Temanggung, Jawa Tengah', border: [false,false,false,false] } ],
+                                    [ { text: 'Diwakili Oleh', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'Mukhamad Bayu Aji Tolafudin', border: [false,false,false,false] } ],
+                                    [ { text: 'Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'Kepala Pembina Literasi', border: [false,false,false,false] } ]
+                                ]
+                            }, margin: [20, 0, 0, 10]
+                        },
+                        paragraf('dari dan oleh karenanya berhak bertindak untuk dan atas nama serta sah mewakili PT Cendekia Aksara Edukasi untuk selanjutnya di sepanjang Perjanjian ini disebut sebagai "PIHAK KEDUA".'),
+
+                        { text: 'PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama di dalam Perjanjian ini disebut sebagai PARA PIHAK.\n\nPARA PIHAK terlebih dahulu menerangkan:', alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 10] },
+
+                        ayat([
+                            'Bahwa PIHAK PERTAMA adalah penulis, pencipta, dan pemegang hak cipta penuh atas naskah dan berkeinginan untuk memberikan lisensi eksklusif atas naskah miliknya kepada PIHAK KEDUA;',
+                            'Bahwa PIHAK KEDUA adalah perusahaan yang dalam menjalankan usahanya sendiri dan/atau bekerja sama dengan pihak ketiga, mengembangkan layanan sistem aplikasi dan penerbitan yang di dalamnya dapat menampilkan, mendistribusikan, mempromosikan dan/atau menyewakan buku digital kepada member, dan melakukan kegiatan-kegiatan lainnya, layaknya mengelola sebuah e-library atau perpustakaan digital;',
+                            'Bahwa PIHAK KEDUA menerima lisensi eksklusif atas naskah milik PIHAK PERTAMA dan selanjutnya akan menampilkan, mendistribusikan, mempromosikan dan/atau menyewakan naskah milik PIHAK PERTAMA tersebut kepada jaringan layanan milik PIHAK KEDUA;',
+                            'Bahwa PARA PIHAK sepakat untuk saling menghormati kedudukan hukum masing-masing, bertindak dengan itikad baik (good faith), dan mengutamakan penyelesaian secara musyawarah atas setiap permasalahan yang timbul dalam pelaksanaan Perjanjian ini.'
+                        ]),
+
+                        paragraf('Selanjutnya, untuk pelaksanaan lisensi eksklusif dimaksud, PARA PIHAK dengan ini sepakat dan mengikatkan diri dengan syarat dan ketentuan sebagai berikut:'),
+
+                        pasal(1, 'DEFINISI'),
+                        ayat([
+                            [ { text: '"Perjanjian" ', bold: true }, 'adalah Perjanjian Lisensi Naskah ini beserta seluruh lampiran, adendum, dan perubahannya yang dibuat kemudian oleh PARA PIHAK secara tertulis.' ],
+                            [ { text: '"Naskah" ', bold: true }, 'adalah karangan atau buah pena, yang dapat berjenis fiksi maupun nonfiksi, yang dalam hal ini merupakan karya asli dari penciptanya atau orang yang dianggap sebagai pencipta, baik yang telah diterbitkan ke dalam bentuk buku, maupun yang belum.' ],
+                            [ { text: '"Pencipta" ', bold: true }, 'adalah seorang atau beberapa orang yang menghasilkan Naskah, atau yang dinyatakan sebagai demikian.' ],
+                            [ { text: '"Pemegang Hak Cipta" ', bold: true }, 'adalah Pencipta itu sendiri atau pihak lain yang menerima hak dari Pencipta.' ],
+                            [ { text: '"Lisensi Eksklusif" ', bold: true }, 'adalah izin tertulis yang diberikan dari Pemegang Hak Cipta untuk melaksanakan Hak Ekonomi atas Naskahnya, dengan syarat dan ketentuan sebagaimana diatur di dalam Perjanjian Lisensi ini, yang selama jangka waktu berlakunya tidak dapat diberikan kepada pihak lain.' ],
+                            [ { text: '"Hak Moral" ', bold: true }, 'adalah hak yang melekat pada Pencipta tanpa batas waktu, yang terdiri dari: hak untuk tetap mencantumkan atau tidak mencantumkan namanya; hak untuk menggunakan nama aliasnya; hak untuk mengubah Naskah sesuai kepatutan dalam masyarakat; hak mengubah judul, serta mempertahankan integritas Naskah dari perubahan yang merugikan kehormatan diri atau reputasi Pencipta.' ],
+                            [ { text: '"Hak Ekonomi" ', bold: true }, 'adalah hak yang diberikan oleh Pemberi Lisensi kepada Penerima Lisensi, yang berdasarkan perjanjian ini meliputi: hak penerbitan; penggandaan; penerjemahan; pengadaptasian; pendistribusian; pertunjukan; pengumuman; komunikasi; dan hak penyewaan Naskah.' ],
+                            [ { text: '"Buku Digital" ', bold: true }, 'adalah Naskah Final yang melalui proses Penggandaan dan Pengadaptasian berubah bentuk menjadi elektronik atau digital (e-book), termasuk format turunannya seperti audiobook.' ],
+                            [ { text: '"Royalti" ', bold: true }, 'adalah imbalan atas pemanfaatan Hak Ekonomi dari Naskah yang diterima oleh Pencipta sebagaimana diatur dalam Pasal 10 Perjanjian ini.' ],
+                            [ { text: '"Wilayah Lisensi" ', bold: true }, 'adalah Republik Indonesia dan global melalui jaringan internet, tanpa batasan geografis selama dilaksanakan melalui kanal resmi PIHAK KEDUA.' ],
+                            [ { text: '"Hari Kerja" ', bold: true }, 'adalah hari Senin sampai dengan Jumat, kecuali hari libur nasional yang ditetapkan Pemerintah Republik Indonesia.' ],
+                            [ { text: '"Wanprestasi" ', bold: true }, 'adalah keadaan tidak dipenuhinya salah satu atau lebih kewajiban oleh salah satu pihak sebagaimana diatur dalam Perjanjian ini.' ]
+                        ]),
+
+                        pasal(2, 'OBJEK DAN RUANG LINGKUP LISENSI'),
+                        ayat([
+                            'Efektif sejak ditandatanganinya Perjanjian ini, PIHAK PERTAMA memberikan Lisensi Eksklusif atas Naskah miliknya kepada PIHAK KEDUA dan segala hal yang tercakup di dalam Lisensi Eksklusif sesuai dengan definisi di dalam Perjanjian ini, di seluruh Wilayah Lisensi.',
+                            `Bahwa PIHAK PERTAMA memberikan Lisensi Eksklusif kepada PIHAK KEDUA, khusus untuk Naskah yang berjudul: "[ JUDUL NASKAH ]", dengan kategori [ KATEGORI NASKAH ].`,
+                            'Ruang lingkup Lisensi Eksklusif ini mencakup hak untuk melakukan penerbitan, penggandaan, penerjemahan, pengadaptasian, pendistribusian, pertunjukan, pengumuman, komunikasi, dan penyewaan atas Naskah, baik dalam bentuk cetak, elektronik, maupun format lain yang berkembang di kemudian hari.',
+                            'Bahwa Naskah dimaksud, setelah melalui proses Penyuntingan dan ditetapkan sebagai Naskah Final, dapat mengalami perubahan atau perbaikan judul, sampul, dan tata letak, sepanjang tidak mengubah substansi dan Hak Moral PIHAK PERTAMA.',
+                            'Lisensi yang diberikan dalam Perjanjian ini bersifat eksklusif, sehingga selama Jangka Waktu Perjanjian berlaku, PIHAK PERTAMA tidak akan memberikan hak yang sama atas Naskah kepada pihak ketiga mana pun dalam bentuk apa pun.'
+                        ]),
+
+                        pasal(3, 'KEWAJIBAN PIHAK PERTAMA'),
+                        ayat([
+                            'Memberikan Lisensi Eksklusif kepada PIHAK KEDUA, seperti halnya PIHAK PERTAMA melaksanakan sendiri, untuk melaksanakan Hak Ekonomi atas Naskah, sepanjang Jangka Waktu Perjanjian.',
+                            'Memberikan Naskah secara lengkap dan utuh kepada PIHAK KEDUA, dalam format digital yang dapat dibaca (docx/pdf) sesuai standar yang ditentukan PIHAK KEDUA.',
+                            'Memberikan bantuan informasi, keterangan-keterangan, biodata, dan gambar yang diperlukan oleh PIHAK KEDUA dalam rangka mempromosikan Naskah.',
+                            'Mengikuti prosedur penyuntingan dan publikasi Naskah sesuai dengan ketentuan yang diberlakukan oleh PIHAK KEDUA, termasuk memberikan tanggapan atas revisi dalam waktu yang wajar.',
+                            'Menyampaikan data rekening penerima Royalti secara benar dan bertanggung jawab penuh atas kekeliruan data rekening yang diberikan.',
+                            'Tidak melakukan tindakan apa pun yang dapat merugikan nama baik dan reputasi PIHAK KEDUA selama Jangka Waktu Perjanjian berlaku.'
+                        ]),
+
+                        pasal(4, 'HAK PIHAK PERTAMA'),
+                        ayat([
+                            'Mempertahankan Hak Moral atas Naskah, termasuk pencantuman nama sebagai Pencipta pada setiap bentuk publikasi.',
+                            'Menerima Royalti yang jumlah dan tata cara pembayarannya diatur lebih lanjut di dalam Pasal 10 Perjanjian Lisensi ini.',
+                            'Menerima dukungan Penyuntingan untuk Naskah agar layak dan sesuai standar publikasi PIHAK KEDUA.',
+                            'Menerima bantuan pemasaran dengan tujuan untuk bekerja sama dengan pihak ketiga dalam hal Pengadaptasian.',
+                            'Memperoleh informasi dan/atau laporan perkembangan pemanfaatan Naskah dari PIHAK KEDUA sebagaimana diatur dalam Pasal 11 Perjanjian ini.'
+                        ]),
+
+                        pasal(5, 'KEWAJIBAN PIHAK KEDUA'),
+                        ayat([
+                            'Melaksanakan Hak Ekonomi yang telah diterima dari PIHAK PERTAMA sesuai dengan ruang lingkup pada Pasal 2.',
+                            'Membayarkan Royalti kepada PIHAK PERTAMA yang jumlah dan tata cara pembayarannya diatur di dalam Pasal 10.',
+                            'Memberikan dukungan Penyuntingan untuk Naskah, sehingga memenuhi standar publikasi PIHAK KEDUA.',
+                            'Menjaga keutuhan Hak Moral PIHAK PERTAMA dan tidak melakukan perubahan substansial atas Naskah tanpa persetujuan tertulis dari PIHAK PERTAMA.',
+                            'Menyampaikan laporan pemanfaatan Naskah kepada PIHAK PERTAMA secara berkala sebagaimana diatur dalam Pasal 11.'
+                        ]),
+
+                        pasal(6, 'HAK PIHAK KEDUA'),
+                        ayat([
+                            'Menerima Lisensi Eksklusif dari PIHAK PERTAMA, untuk melaksanakan Hak Ekonomi atas Naskah, sepanjang Jangka Waktu Perjanjian Lisensi di seluruh Wilayah Lisensi.',
+                            'Melakukan Penyuntingan terhadap Naskah, bersama-sama dengan PIHAK PERTAMA, termasuk perbaikan ejaan, tata bahasa, dan kelayakan terbit.',
+                            'Mendapatkan Komisi atas penjualan alih wahana Naskah PIHAK PERTAMA sebagaimana diatur dalam Pasal 10.',
+                            'Menggunakan cuplikan, sinopsis, dan identitas Naskah untuk kepentingan promosi di seluruh kanal resmi PIHAK KEDUA.'
+                        ]),
+
+                        pasal(7, 'JAMINAN DAN PERNYATAAN'),
+                        ayat([
+                            'PIHAK PERTAMA menjamin bahwa Naskah adalah karya orisinil PIHAK PERTAMA, bebas dari plagiarisme, dan oleh karenanya dengan ini PIHAK PERTAMA membebaskan PIHAK KEDUA dari segala laporan atau tuntutan hukum yang berasal dari pihak manapun terkait dengan Hak Cipta.',
+                            'PIHAK PERTAMA menjamin bahwa segala bentuk kutipan dari karya orisinil milik pihak lain, termasuk namun tidak terbatas pada kutipan lirik lagu, puisi, atau karya tulis lain, telah disebutkan sumbernya secara lengkap dan/atau telah memperoleh izin yang sah, serta tidak melanggar ketentuan Undang-Undang Nomor 28 Tahun 2014 tentang Hak Cipta.',
+                            'PIHAK PERTAMA menjamin tidak pernah dan tidak akan memberikan Lisensi Eksklusif atas Naskah kepada pihak manapun, baik dengan maupun tanpa sepengetahuan PIHAK KEDUA, selama Jangka Waktu Perjanjian berlaku.',
+                            'Apabila di kemudian hari terbukti terjadi pelanggaran atas jaminan sebagaimana dimaksud pada ayat (1) sampai ayat (3), maka segala akibat hukum, biaya, dan kerugian yang timbul menjadi tanggung jawab penuh PIHAK PERTAMA, dan PIHAK KEDUA berhak menghentikan Perjanjian secara sepihak tanpa kewajiban ganti rugi apa pun kepada PIHAK PERTAMA.'
+                        ]),
+
+                        pasal(8, 'PENGADAPTASIAN DAN PENTRANSFORMASIAN'),
+                        ayat([
+                            'PIHAK KEDUA memegang hak ekonomi pengadaptasian Naskah baik ke dalam bentuk lain (termasuk namun tidak terbatas pada audiobook, komik, skenario film/series) maupun ke dalam bahasa lain selama masa berlaku Perjanjian.',
+                            'Bilamana PIHAK PERTAMA mendapatkan tawaran pengadaptasian Naskah oleh pihak ketiga, maka PIHAK PERTAMA wajib untuk memberitahukan secara tertulis kepada PIHAK KEDUA selambat-lambatnya 7 (tujuh) Hari Kerja sejak tawaran diterima, untuk kemudian ditangani oleh PIHAK KEDUA.',
+                            'Segala hasil pengadaptasian yang dilaksanakan PIHAK KEDUA tetap mencantumkan nama PIHAK PERTAMA sebagai penulis/pencipta Naskah asli, kecuali disepakati lain secara tertulis.'
+                        ]),
+
+                        pasal(9, 'PROMOSI DAN PEMASARAN'),
+                        ayat([
+                            'PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama melakukan iklan dan promosi atas Buku Digital maupun bentuk alih wahananya, baik secara langsung maupun tidak langsung, di seluruh media promosi tanpa terkecuali, termasuk media sosial atau melalui internet.',
+                            'PIHAK KEDUA berhak menentukan strategi, materi, dan jadwal promosi sepanjang tidak bertentangan dengan Hak Moral PIHAK PERTAMA.',
+                            'PIHAK PERTAMA bersedia berpartisipasi secara wajar dalam kegiatan promosi yang diselenggarakan PIHAK KEDUA, seperti wawancara, bedah buku, atau kegiatan literasi lain, sepanjang disepakati bersama.'
+                        ]),
+
+                        pasal(10, 'ROYALTI DAN TATA CARA PEMBAYARAN'),
+                        ayat([
+                            'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti dengan perhitungan persentase bagi hasil sesuai kebijakan Cendekia Aksara yang berlaku, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.',
+                            'Penerimaan Royalti PIHAK PERTAMA dikenakan Pajak sesuai dengan ketentuan perpajakan Republik Indonesia yang berlaku.',
+                            'Royalti akan dibayarkan bilamana jumlah nilai Royalti mencapai nilai minimum pencairan yang ditetapkan oleh sistem keuangan PIHAK KEDUA, ke dalam rekening sebagaimana tercantum pada identitas PIHAK PERTAMA di awal Perjanjian ini.',
+                            'Segala biaya administrasi transfer bank (selain bank yang ditunjuk PIHAK KEDUA) ditanggung oleh PIHAK PERTAMA dan akan dipotong langsung dari nilai Royalti yang dicairkan.',
+                            'Apabila terjadi perubahan data rekening, PIHAK PERTAMA wajib memberitahukan secara tertulis kepada PIHAK KEDUA paling lambat 7 (tujuh) Hari Kerja sebelum jadwal pencairan Royalti berikutnya. Keterlambatan pemberitahuan menjadi tanggung jawab PIHAK PERTAMA.'
+                        ]),
+
+                        pasal(11, 'LAPORAN DAN AUDIT'),
+                        ayat([
+                            'PIHAK KEDUA akan menyampaikan laporan ringkas pemanfaatan Naskah dan perhitungan Royalti kepada PIHAK PERTAMA secara berkala melalui sistem atau kanal resmi PIHAK KEDUA.',
+                            'PIHAK PERTAMA berhak mengajukan permintaan klarifikasi tertulis atas laporan sebagaimana dimaksud pada ayat (1) dalam waktu 14 (empat belas) hari kalender sejak laporan diterima.',
+                            'Apabila ditemukan kekeliruan perhitungan Royalti, PIHAK KEDUA wajib melakukan penyesuaian pada periode pembayaran berikutnya.'
+                        ]),
+
+                        pasal(12, 'KERAHASIAAN'),
+                        ayat([
+                            'PARA PIHAK sepakat untuk menjaga kerahasiaan informasi yang bersifat rahasia (termasuk namun tidak terbatas pada nilai Royalti, data pribadi, dan strategi bisnis) yang diperoleh sehubungan dengan pelaksanaan Perjanjian ini.',
+                            'Kewajiban kerahasiaan sebagaimana dimaksud pada ayat (1) tidak berlaku terhadap informasi yang wajib diungkapkan berdasarkan peraturan perundang-undangan atau perintah instansi yang berwenang.',
+                            'Kewajiban kerahasiaan ini tetap berlaku meskipun Perjanjian ini telah berakhir.'
+                        ]),
+
+                        pasal(13, 'AHLI WARIS DAN PENGALIHAN HAK'),
+                        ayat([
+                            'Apabila PIHAK PERTAMA meninggal dunia maka segala hak dan kewajiban milik PIHAK PERTAMA dalam Perjanjian ini, demi hukum, beralih dan mengikat sepenuhnya kepada ahli waris yang berhak dengan menyertakan bukti hukum yang sah (Surat Keterangan Waris dan dokumen pendukung lainnya).',
+                            'PIHAK KEDUA dapat mengalihkan sebagian atau seluruh hak dan kewajibannya berdasarkan Perjanjian ini kepada perusahaan afiliasi atau penerus usahanya, dengan pemberitahuan tertulis kepada PIHAK PERTAMA.',
+                            'PIHAK PERTAMA tidak dapat mengalihkan hak dan kewajibannya dalam Perjanjian ini kepada pihak lain tanpa persetujuan tertulis PIHAK KEDUA, kecuali dalam hal pewarisan sebagaimana dimaksud pada ayat (1).'
+                        ]),
+
+                        pasal(14, 'JANGKA WAKTU'),
+                        ayat([
+                            'Perjanjian Lisensi ini mengikat PARA PIHAK untuk 5 (lima) tahun, terhitung sejak tanggal yang tercantum pada tanda tangan elektronik Perjanjian Lisensi ini.',
+                            'Jangka waktu Perjanjian Lisensi dapat diperpanjang berdasarkan kesepakatan tertulis PARA PIHAK, yang dilakukan selambat-lambatnya 30 (tiga puluh) hari kalender sebelum berakhirnya Jangka Waktu Perjanjian.',
+                            'Apabila tidak ada pemberitahuan tertulis dari salah satu pihak mengenai keinginan untuk mengakhiri Perjanjian selambat-lambatnya 30 (tiga puluh) hari kalender sebelum berakhirnya Jangka Waktu, maka Perjanjian ini dapat diperpanjang secara otomatis untuk periode yang sama berdasarkan kesepakatan PARA PIHAK.'
+                        ]),
+
+                        pasal(15, 'BERAKHIRNYA PERJANJIAN'),
+                        ayat([
+                            'Perjanjian Lisensi ini dapat berakhir apabila: (a) Jangka Waktu Perjanjian telah berakhir dan tidak diperpanjang; (b) PARA PIHAK sepakat untuk mengakhiri Perjanjian secara tertulis; atau (c) salah satu pihak melakukan Wanprestasi sebagaimana diatur dalam Pasal 16.',
+                            'Pada saat berakhirnya Perjanjian ini, seluruh Hak Ekonomi yang dilisensikan akan kembali sepenuhnya kepada PIHAK PERTAMA, kecuali untuk transaksi yang sedang berjalan dan wajib diselesaikan hingga tuntas.',
+                            'Berakhirnya Perjanjian ini tidak menghapuskan kewajiban pembayaran Royalti yang telah menjadi hak PIHAK PERTAMA sebelum tanggal berakhirnya Perjanjian.'
+                        ]),
+
+                        pasal(16, 'WANPRESTASI DAN SANKSI'),
+                        ayat([
+                            'Dalam hal salah satu pihak lalai atau tidak memenuhi kewajibannya sebagaimana diatur dalam Perjanjian ini, maka pihak yang dirugikan wajib menyampaikan Surat Peringatan (SP) secara tertulis.',
+                            'Apabila dalam waktu 14 (empat belas) hari kalender sejak Surat Peringatan diterima, pihak yang lalai tidak juga memenuhi kewajibannya, maka pihak yang dirugikan berhak mengakhiri Perjanjian secara sepihak tanpa perlu menunggu putusan pengadilan, dengan tetap memperhitungkan hak dan kewajiban yang telah timbul sebelumnya.',
+                            'Pengakhiran sepihak sebagaimana dimaksud pada ayat (2) tidak menghilangkan hak pihak yang dirugikan untuk menuntut ganti rugi sesuai peraturan perundang-undangan yang berlaku.'
+                        ]),
+
+                        pasal(17, 'KEADAAN KAHAR (FORCE MAJEURE)'),
+                        ayat([
+                            'PARA PIHAK tidak akan bertanggung jawab atas keterlambatan atau kegagalan pelaksanaan kewajiban akibat Keadaan Kahar, yaitu suatu peristiwa yang tidak terduga di luar kendali wajar PARA PIHAK dan tidak disebabkan oleh kesalahan atau kelalaian PARA PIHAK, termasuk namun tidak terbatas pada bencana alam, kebakaran, perang, huru-hara, kebijakan pemerintah, gangguan sistem elektronik berskala luas, atau pandemi.',
+                            'Pihak yang mengalami Keadaan Kahar wajib memberitahukan secara tertulis kepada pihak lainnya selambat-lambatnya 7 (tujuh) Hari Kerja sejak terjadinya Keadaan Kahar tersebut.',
+                            'Apabila Keadaan Kahar berlangsung lebih dari 90 (sembilan puluh) hari kalender secara berturut-turut, PARA PIHAK akan melakukan musyawarah untuk menentukan kelanjutan Perjanjian ini.'
+                        ]),
+
+                        pasal(18, 'PEMBERITAHUAN'),
+                        ayat([
+                            'Setiap pemberitahuan, persetujuan, atau korespondensi resmi lainnya sehubungan dengan Perjanjian ini wajib disampaikan secara tertulis melalui surat elektronik (email) atau media komunikasi resmi lainnya yang disepakati PARA PIHAK, ke alamat sebagaimana tercantum pada identitas PARA PIHAK dalam Perjanjian ini.',
+                            'Pemberitahuan dianggap telah diterima secara sah apabila telah dikirimkan ke alamat yang tercantum, kecuali dibuktikan sebaliknya secara tertulis.'
+                        ]),
+
+                        pasal(19, 'PENYELESAIAN PERSELISIHAN'),
+                        ayat([
+                            'Apabila terjadi perselisihan di antara PARA PIHAK sehubungan dengan pelaksanaan Perjanjian ini, PARA PIHAK terlebih dahulu akan menyelesaikannya secara musyawarah untuk mencapai mufakat.',
+                            'Apabila musyawarah sebagaimana dimaksud pada ayat (1) tidak mencapai kata mufakat dalam waktu 30 (tiga puluh) hari kalender, maka PARA PIHAK sepakat untuk menyelesaikannya melalui upaya hukum berdasarkan peraturan perundang-undangan di Republik Indonesia, dengan memilih domisili hukum yang tetap dan umum di Pengadilan Negeri yang berwenang di wilayah kedudukan PIHAK KEDUA.'
+                        ]),
+
+                        pasal(20, 'KETENTUAN LAIN-LAIN'),
+                        ayat([
+                            'Hal-hal yang belum diatur atau belum cukup diatur dalam Perjanjian ini akan diatur kemudian dalam adendum yang merupakan satu kesatuan dan bagian yang tidak terpisahkan dari Perjanjian ini.',
+                            'Apabila salah satu ketentuan dalam Perjanjian ini dinyatakan tidak sah atau batal demi hukum, maka ketentuan lain dalam Perjanjian ini tetap berlaku dan mengikat PARA PIHAK.',
+                            'Perjanjian ini dibuat dan ditandatangani secara elektronik oleh PARA PIHAK dan berlaku serta mempunyai kekuatan hukum yang sama dengan perjanjian yang ditandatangani secara konvensional, sesuai dengan Undang-Undang Nomor 11 Tahun 2008 tentang Informasi dan Transaksi Elektronik beserta perubahannya.'
+                        ]),
+
+                        paragraf('Demikianlah perjanjian ini dibuat, disetujui, dan ditandatangani bermaterai cukup, dan berkekuatan hukum, sebagaimana diatur di dalam undang-undang dan peraturan pemerintah terkait dokumen dan tanda tangan elektronik.'),
+
+                        // ==== BLOK TANDA TANGAN DRAF ====
+                        {
+                            margin: [0, 15, 0, 0],
+                            table: {
+                                widths: ['50%', '50%'],
+                                heights: [24, 130, 18, 16],
+                                body: [
+                                    [
+                                        { text: 'PIHAK PERTAMA', bold: true, alignment: 'center', fillColor: '#f8fafc', fontSize: 10 },
+                                        { text: 'PIHAK KEDUA', bold: true, alignment: 'center', fillColor: '#f8fafc', fontSize: 10 }
+                                    ],
+                                    [
+                                        {
+                                            alignment: 'center',
+                                            stack: [
+                                                { text: '', margin: [0, 30, 0, 0] },
+                                                { text: '( Tanda Tangan Basah Penulis )', italics: true, fontSize: 8, color: '#94a3b8', alignment: 'center' }
+                                            ]
+                                        },
+                                        {
+                                            alignment: 'center',
+                                            stack: [
+                                                globalAssets.cap
+                                                    ? { image: globalAssets.cap, width: 92, alignment: 'center', opacity: 0.55, margin: [0, 8, 0, 0] }
+                                                    : { text: '', margin: [0, 45, 0, 0] },
+                                                { text: '( Tanda Tangan Digital Pimpinan )', italics: true, fontSize: 8, color: '#94a3b8', alignment: 'center', relativePosition: { x: 0, y: -50 } }
+                                            ]
+                                        }
+                                    ],
+                                    [
+                                        { text: '[ NAMA PENULIS ]', bold: true, alignment: 'center', decoration: 'underline', fontSize: 10, color: 'red' },
+                                        { text: 'Mukhamad Bayu Aji Tolafudin', bold: true, alignment: 'center', decoration: 'underline', fontSize: 10 }
+                                    ],
+                                    [
+                                        { text: 'Penulis / Pencipta Naskah', alignment: 'center', fontSize: 9, color: '#64748b' },
+                                        { text: 'Kepala Pembina Literasi', alignment: 'center', fontSize: 9, color: '#64748b' }
+                                    ]
+                                ]
+                            },
+                            layout: {
+                                hLineWidth: (i) => (i === 0 || i === 1) ? 0.75 : 0,
+                                vLineWidth: (i) => (i === 1) ? 0.75 : 0,
+                                hLineColor: () => '#cbd5e1',
+                                vLineColor: () => '#cbd5e1',
+                                paddingTop: () => 6,
+                                paddingBottom: () => 6
+                            }
+                        }
+                    ],
+                    defaultStyle: { font: globalAssets.tnrR ? 'TimesNewRoman' : 'Roboto', fontSize: 11, color: '#000000' },
+                    styles: {
+                        pasalTitle: { fontSize: 11, bold: true, alignment: 'center', margin: [0, 15, 0, 8] }
+                    }
+                };
+
+                pdfMake.createPdf(docDefinition).download('Draf_Kosong_Perjanjian_Lisensi.pdf', () => {
+                    Swal.fire('Berhasil!', 'Draf kosong berhasil diunduh.', 'success');
+                });
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat Draf PDF.', 'error');
+            } finally {
+                btn.innerHTML = oriHtml;
+                btn.disabled = false;
+            }
+        };
+
+        // --- PDF GENERATOR MASSIVE (TETAP SAMA) ---
         document.getElementById('lisensiForm').onsubmit = async (e) => {
             e.preventDefault();
             if (signaturePad.isEmpty()) { Swal.fire('Tanda Tangan Kosong', 'Harap coretkan tanda tangan Anda.', 'warning'); return; }
@@ -304,7 +647,6 @@
                 const strHariIni = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
                 const noSurat = `${noSuratFormat}/CA-LSN/${romawi[d.getMonth()]}/${d.getFullYear()}`;
 
-                // 2. Gunakan Aset yang sudah di-preload (TIDAK ADA LAGI AWAIT FETCH DI SINI)
                 const base64Logo = globalAssets.logo;
                 const base64Cap = globalAssets.cap;
                 
@@ -318,7 +660,6 @@
 
                 const base64TTD = signaturePad.toDataURL('image/png');
 
-                // KONSIDERAN LOGIC
                 let konsideranA = "";
                 if(kelompok === 'Apresiasi Pemenang Lomba') {
                     konsideranA = `Bahwa PIHAK PERTAMA adalah penulis naskah yang telah memenangkan penghargaan atau terpilih sebagai karya terbaik dalam event "${namaLomba}" yang diselenggarakan oleh PIHAK KEDUA, dan berkeinginan memberikan lisensi eksklusif atas naskah miliknya kepada PIHAK KEDUA;`;
@@ -328,11 +669,6 @@
                     konsideranA = `Bahwa PIHAK PERTAMA adalah penulis, pencipta, dan pemegang hak cipta penuh atas naskah dan berkeinginan untuk memberikan lisensi eksklusif atas naskah miliknya kepada PIHAK KEDUA;`;
                 }
 
-                const pasal = (nomor, judul) => ({ text: `Pasal ${nomor}\n${judul}`, style: 'pasalTitle' });
-                const ayat = (arr) => ({ ol: arr.map(t => ({ text: t, alignment: 'justify', margin: [0, 0, 0, 6] })), lineHeight: 1.4, margin: [0, 0, 0, 15] });
-                const paragraf = (t) => ({ text: t, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 15] });
-
-                // DOCUMENT DEFINITION
                 const docDefinition = {
                     pageSize: 'A4',
                     pageMargins: [50, 70, 50, 80], 
@@ -357,7 +693,6 @@
                     },
 
                     content: [
-                        // KOP SURAT
                         {
                             margin: [0, 0, 0, 10],
                             columns: [
@@ -375,7 +710,6 @@
                         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }] },
                         { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 495, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
 
-                        // JUDUL KONTRAK
                         { text: `PERJANJIAN LISENSI NASKAH ${n_jenis.toUpperCase()}`, fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 5] },
                         { text: `Nomor: ${noSurat}`, fontSize: 11, alignment: 'center', margin: [0, 0, 0, 30] },
 
@@ -419,7 +753,6 @@
 
                         paragraf('Selanjutnya, untuk pelaksanaan lisensi eksklusif dimaksud, PARA PIHAK dengan ini sepakat dan mengikatkan diri dengan syarat dan ketentuan sebagai berikut:'),
 
-                        // PASAL 1 - SUDAH DIPERBAIKI (HAPUS WRAPPER { text: ... })
                         pasal(1, 'DEFINISI'),
                         ayat([
                             [ { text: '"Perjanjian" ', bold: true }, 'adalah Perjanjian Lisensi Naskah ini beserta seluruh lampiran, adendum, dan perubahannya yang dibuat kemudian oleh PARA PIHAK secara tertulis.' ],
@@ -436,7 +769,6 @@
                             [ { text: '"Wanprestasi" ', bold: true }, 'adalah keadaan tidak dipenuhinya salah satu atau lebih kewajiban oleh salah satu pihak sebagaimana diatur dalam Perjanjian ini.' ]
                         ]),
 
-                        // PASAL 2
                         pasal(2, 'OBJEK DAN RUANG LINGKUP LISENSI'),
                         ayat([
                             'Efektif sejak ditandatanganinya Perjanjian ini, PIHAK PERTAMA memberikan Lisensi Eksklusif atas Naskah miliknya kepada PIHAK KEDUA dan segala hal yang tercakup di dalam Lisensi Eksklusif sesuai dengan definisi di dalam Perjanjian ini, di seluruh Wilayah Lisensi.',
@@ -446,7 +778,6 @@
                             'Lisensi yang diberikan dalam Perjanjian ini bersifat eksklusif, sehingga selama Jangka Waktu Perjanjian berlaku, PIHAK PERTAMA tidak akan memberikan hak yang sama atas Naskah kepada pihak ketiga mana pun dalam bentuk apa pun.'
                         ]),
 
-                        // PASAL 3
                         pasal(3, 'KEWAJIBAN PIHAK PERTAMA'),
                         ayat([
                             'Memberikan Lisensi Eksklusif kepada PIHAK KEDUA, seperti halnya PIHAK PERTAMA melaksanakan sendiri, untuk melaksanakan Hak Ekonomi atas Naskah, sepanjang Jangka Waktu Perjanjian.',
@@ -457,7 +788,6 @@
                             'Tidak melakukan tindakan apa pun yang dapat merugikan nama baik dan reputasi PIHAK KEDUA selama Jangka Waktu Perjanjian berlaku.'
                         ]),
 
-                        // PASAL 4
                         pasal(4, 'HAK PIHAK PERTAMA'),
                         ayat([
                             'Mempertahankan Hak Moral atas Naskah, termasuk pencantuman nama sebagai Pencipta pada setiap bentuk publikasi.',
@@ -467,7 +797,6 @@
                             'Memperoleh informasi dan/atau laporan perkembangan pemanfaatan Naskah dari PIHAK KEDUA sebagaimana diatur dalam Pasal 11 Perjanjian ini.'
                         ]),
 
-                        // PASAL 5
                         pasal(5, 'KEWAJIBAN PIHAK KEDUA'),
                         ayat([
                             'Melaksanakan Hak Ekonomi yang telah diterima dari PIHAK PERTAMA sesuai dengan ruang lingkup pada Pasal 2.',
@@ -477,7 +806,6 @@
                             'Menyampaikan laporan pemanfaatan Naskah kepada PIHAK PERTAMA secara berkala sebagaimana diatur dalam Pasal 11.'
                         ]),
 
-                        // PASAL 6
                         pasal(6, 'HAK PIHAK KEDUA'),
                         ayat([
                             'Menerima Lisensi Eksklusif dari PIHAK PERTAMA, untuk melaksanakan Hak Ekonomi atas Naskah, sepanjang Jangka Waktu Perjanjian Lisensi di seluruh Wilayah Lisensi.',
@@ -486,7 +814,6 @@
                             'Menggunakan cuplikan, sinopsis, dan identitas Naskah untuk kepentingan promosi di seluruh kanal resmi PIHAK KEDUA.'
                         ]),
 
-                        // PASAL 7
                         pasal(7, 'JAMINAN DAN PERNYATAAN'),
                         ayat([
                             'PIHAK PERTAMA menjamin bahwa Naskah adalah karya orisinil PIHAK PERTAMA, bebas dari plagiarisme, dan oleh karenanya dengan ini PIHAK PERTAMA membebaskan PIHAK KEDUA dari segala laporan atau tuntutan hukum yang berasal dari pihak manapun terkait dengan Hak Cipta.',
@@ -495,7 +822,6 @@
                             'Apabila di kemudian hari terbukti terjadi pelanggaran atas jaminan sebagaimana dimaksud pada ayat (1) sampai ayat (3), maka segala akibat hukum, biaya, dan kerugian yang timbul menjadi tanggung jawab penuh PIHAK PERTAMA, dan PIHAK KEDUA berhak menghentikan Perjanjian secara sepihak tanpa kewajiban ganti rugi apa pun kepada PIHAK PERTAMA.'
                         ]),
 
-                        // PASAL 8
                         pasal(8, 'PENGADAPTASIAN DAN PENTRANSFORMASIAN'),
                         ayat([
                             'PIHAK KEDUA memegang hak ekonomi pengadaptasian Naskah baik ke dalam bentuk lain (termasuk namun tidak terbatas pada audiobook, komik, skenario film/series) maupun ke dalam bahasa lain selama masa berlaku Perjanjian.',
@@ -503,7 +829,6 @@
                             'Segala hasil pengadaptasian yang dilaksanakan PIHAK KEDUA tetap mencantumkan nama PIHAK PERTAMA sebagai penulis/pencipta Naskah asli, kecuali disepakati lain secara tertulis.'
                         ]),
 
-                        // PASAL 9
                         pasal(9, 'PROMOSI DAN PEMASARAN'),
                         ayat([
                             'PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama melakukan iklan dan promosi atas Buku Digital maupun bentuk alih wahananya, baik secara langsung maupun tidak langsung, di seluruh media promosi tanpa terkecuali, termasuk media sosial atau melalui internet.',
@@ -511,7 +836,6 @@
                             'PIHAK PERTAMA bersedia berpartisipasi secara wajar dalam kegiatan promosi yang diselenggarakan PIHAK KEDUA, seperti wawancara, bedah buku, atau kegiatan literasi lain, sepanjang disepakati bersama.'
                         ]),
 
-                        // PASAL 10
                         pasal(10, 'ROYALTI DAN TATA CARA PEMBAYARAN'),
                         ayat([
                             'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti dengan perhitungan persentase bagi hasil sesuai kebijakan Cendekia Aksara yang berlaku, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.',
@@ -521,7 +845,6 @@
                             'Apabila terjadi perubahan data rekening, PIHAK PERTAMA wajib memberitahukan secara tertulis kepada PIHAK KEDUA paling lambat 7 (tujuh) Hari Kerja sebelum jadwal pencairan Royalti berikutnya. Keterlambatan pemberitahuan menjadi tanggung jawab PIHAK PERTAMA.'
                         ]),
 
-                        // PASAL 11
                         pasal(11, 'LAPORAN DAN AUDIT'),
                         ayat([
                             'PIHAK KEDUA akan menyampaikan laporan ringkas pemanfaatan Naskah dan perhitungan Royalti kepada PIHAK PERTAMA secara berkala melalui sistem atau kanal resmi PIHAK KEDUA.',
@@ -529,7 +852,6 @@
                             'Apabila ditemukan kekeliruan perhitungan Royalti, PIHAK KEDUA wajib melakukan penyesuaian pada periode pembayaran berikutnya.'
                         ]),
 
-                        // PASAL 12
                         pasal(12, 'KERAHASIAAN'),
                         ayat([
                             'PARA PIHAK sepakat untuk menjaga kerahasiaan informasi yang bersifat rahasia (termasuk namun tidak terbatas pada nilai Royalti, data pribadi, dan strategi bisnis) yang diperoleh sehubungan dengan pelaksanaan Perjanjian ini.',
@@ -537,7 +859,6 @@
                             'Kewajiban kerahasiaan ini tetap berlaku meskipun Perjanjian ini telah berakhir.'
                         ]),
 
-                        // PASAL 13
                         pasal(13, 'AHLI WARIS DAN PENGALIHAN HAK'),
                         ayat([
                             'Apabila PIHAK PERTAMA meninggal dunia maka segala hak dan kewajiban milik PIHAK PERTAMA dalam Perjanjian ini, demi hukum, beralih dan mengikat sepenuhnya kepada ahli waris yang berhak dengan menyertakan bukti hukum yang sah (Surat Keterangan Waris dan dokumen pendukung lainnya).',
@@ -545,7 +866,6 @@
                             'PIHAK PERTAMA tidak dapat mengalihkan hak dan kewajibannya dalam Perjanjian ini kepada pihak lain tanpa persetujuan tertulis PIHAK KEDUA, kecuali dalam hal pewarisan sebagaimana dimaksud pada ayat (1).'
                         ]),
 
-                        // PASAL 14
                         pasal(14, 'JANGKA WAKTU'),
                         ayat([
                             'Perjanjian Lisensi ini mengikat PARA PIHAK untuk 5 (lima) tahun, terhitung sejak tanggal yang tercantum pada tanda tangan elektronik Perjanjian Lisensi ini.',
@@ -553,7 +873,6 @@
                             'Apabila tidak ada pemberitahuan tertulis dari salah satu pihak mengenai keinginan untuk mengakhiri Perjanjian selambat-lambatnya 30 (tiga puluh) hari kalender sebelum berakhirnya Jangka Waktu, maka Perjanjian ini dapat diperpanjang secara otomatis untuk periode yang sama berdasarkan kesepakatan PARA PIHAK.'
                         ]),
 
-                        // PASAL 15
                         pasal(15, 'BERAKHIRNYA PERJANJIAN'),
                         ayat([
                             'Perjanjian Lisensi ini dapat berakhir apabila: (a) Jangka Waktu Perjanjian telah berakhir dan tidak diperpanjang; (b) PARA PIHAK sepakat untuk mengakhiri Perjanjian secara tertulis; atau (c) salah satu pihak melakukan Wanprestasi sebagaimana diatur dalam Pasal 16.',
@@ -561,7 +880,6 @@
                             'Berakhirnya Perjanjian ini tidak menghapuskan kewajiban pembayaran Royalti yang telah menjadi hak PIHAK PERTAMA sebelum tanggal berakhirnya Perjanjian.'
                         ]),
 
-                        // PASAL 16
                         pasal(16, 'WANPRESTASI DAN SANKSI'),
                         ayat([
                             'Dalam hal salah satu pihak lalai atau tidak memenuhi kewajibannya sebagaimana diatur dalam Perjanjian ini, maka pihak yang dirugikan wajib menyampaikan Surat Peringatan (SP) secara tertulis.',
@@ -569,7 +887,6 @@
                             'Pengakhiran sepihak sebagaimana dimaksud pada ayat (2) tidak menghilangkan hak pihak yang dirugikan untuk menuntut ganti rugi sesuai peraturan perundang-undangan yang berlaku.'
                         ]),
 
-                        // PASAL 17
                         pasal(17, 'KEADAAN KAHAR (FORCE MAJEURE)'),
                         ayat([
                             'PARA PIHAK tidak akan bertanggung jawab atas keterlambatan atau kegagalan pelaksanaan kewajiban akibat Keadaan Kahar, yaitu suatu peristiwa yang tidak terduga di luar kendali wajar PARA PIHAK dan tidak disebabkan oleh kesalahan atau kelalaian PARA PIHAK, termasuk namun tidak terbatas pada bencana alam, kebakaran, perang, huru-hara, kebijakan pemerintah, gangguan sistem elektronik berskala luas, atau pandemi.',
@@ -577,21 +894,18 @@
                             'Apabila Keadaan Kahar berlangsung lebih dari 90 (sembilan puluh) hari kalender secara berturut-turut, PARA PIHAK akan melakukan musyawarah untuk menentukan kelanjutan Perjanjian ini.'
                         ]),
 
-                        // PASAL 18
                         pasal(18, 'PEMBERITAHUAN'),
                         ayat([
                             'Setiap pemberitahuan, persetujuan, atau korespondensi resmi lainnya sehubungan dengan Perjanjian ini wajib disampaikan secara tertulis melalui surat elektronik (email) atau media komunikasi resmi lainnya yang disepakati PARA PIHAK, ke alamat sebagaimana tercantum pada identitas PARA PIHAK dalam Perjanjian ini.',
                             'Pemberitahuan dianggap telah diterima secara sah apabila telah dikirimkan ke alamat yang tercantum, kecuali dibuktikan sebaliknya secara tertulis.'
                         ]),
 
-                        // PASAL 19
                         pasal(19, 'PENYELESAIAN PERSELISIHAN'),
                         ayat([
                             'Apabila terjadi perselisihan di antara PARA PIHAK sehubungan dengan pelaksanaan Perjanjian ini, PARA PIHAK terlebih dahulu akan menyelesaikannya secara musyawarah untuk mencapai mufakat.',
                             'Apabila musyawarah sebagaimana dimaksud pada ayat (1) tidak mencapai kata mufakat dalam waktu 30 (tiga puluh) hari kalender, maka PARA PIHAK sepakat untuk menyelesaikannya melalui upaya hukum berdasarkan peraturan perundang-undangan di Republik Indonesia, dengan memilih domisili hukum yang tetap dan umum di Pengadilan Negeri yang berwenang di wilayah kedudukan PIHAK KEDUA.'
                         ]),
 
-                        // PASAL 20
                         pasal(20, 'KETENTUAN LAIN-LAIN'),
                         ayat([
                             'Hal-hal yang belum diatur atau belum cukup diatur dalam Perjanjian ini akan diatur kemudian dalam adendum yang merupakan satu kesatuan dan bagian yang tidak terpisahkan dari Perjanjian ini.',
@@ -599,7 +913,6 @@
                             'Perjanjian ini dibuat dan ditandatangani secara elektronik oleh PARA PIHAK dan berlaku serta mempunyai kekuatan hukum yang sama dengan perjanjian yang ditandatangani secara konvensional, sesuai dengan Undang-Undang Nomor 11 Tahun 2008 tentang Informasi dan Transaksi Elektronik beserta perubahannya.'
                         ]),
 
-                        // PENUTUP & TANDA TANGAN
                         paragraf('Demikianlah perjanjian ini dibuat, disetujui, dan ditandatangani bermaterai cukup, dan berkekuatan hukum, sebagaimana diatur di dalam undang-undang dan peraturan pemerintah terkait dokumen dan tanda tangan elektronik.'),
 
                         // ==== BLOK TANDA TANGAN ====
