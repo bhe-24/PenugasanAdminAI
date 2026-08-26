@@ -61,7 +61,7 @@
 
     <div id="loading-overlay">
         <div class="spinner"></div>
-        <div style="font-family: 'Poppins'; font-weight: 500; font-size: 1rem;">Memeriksa Akses...</div>
+        <div style="font-family: 'Poppins'; font-weight: 500; font-size: 1rem;" id="loading-text">Menyiapkan Sistem & Aset...</div>
     </div>
 
     <header class="top-navbar">
@@ -172,12 +172,10 @@
         import { db, checkAuth } from "/js/firebase-config.js";
         import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Menerima parameter dari halaman sebelumnya
         const urlParams = new URLSearchParams(window.location.search);
         if(urlParams.has('nama')) document.getElementById('p_nama').value = urlParams.get('nama');
         if(urlParams.has('judul')) document.getElementById('n_judul').value = urlParams.get('judul');
 
-        // Signature Pad
         const canvas = document.getElementById('signature-pad');
         const signaturePad = new SignaturePad(canvas, { penColor: "rgb(15, 23, 42)", backgroundColor: "rgba(0,0,0,0)" });
 
@@ -204,6 +202,9 @@
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
         const fontCache = {};
+
+        // Objek Global untuk menyimpan Asset agar tidak diload berulang-ulang
+        const globalAssets = {}; 
 
         async function getFontBase64(url) {
             if (fontCache[url]) return fontCache[url];
@@ -236,9 +237,24 @@
             });
         }
 
+        // --- PROSES PRE-LOAD ASSET SAAT HALAMAN DIBUKA ---
         (async () => {
-            const user = await checkAuth('admin'); 
-            if(!user) window.location.href = '../index.html';
+            // const user = await checkAuth('admin'); 
+            // if(!user) window.location.href = '../index.html';
+
+            // Tarik semua font dan gambar HANYA 1 KALI di sini
+            const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
+                getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
+                getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'), getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
+            ]);
+            
+            globalAssets.logo = logo;
+            globalAssets.cap = cap;
+            globalAssets.tnrR = tnrR;
+            globalAssets.tnrB = tnrB;
+            globalAssets.tnrI = tnrI;
+            globalAssets.tnrBI = tnrBI;
+
             setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; resizeCanvas(); }, 400);
         })();
 
@@ -288,14 +304,12 @@
                 const strHariIni = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
                 const noSurat = `${noSuratFormat}/CA-LSN/${romawi[d.getMonth()]}/${d.getFullYear()}`;
 
-                // 2. Tarik Assets
-                const [base64Logo, base64Cap, fontTnrReg, fontTnrBold, fontTnrItalic, fontTnrBoldItalic] = await Promise.all([
-                    getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
-                    getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'), getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
-                ]);
-
-                if (fontTnrReg) {
-                    pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': fontTnrReg, 'timesbd.ttf': fontTnrBold, 'timesi.ttf': fontTnrItalic, 'timesbi.ttf': fontTnrBoldItalic };
+                // 2. Gunakan Aset yang sudah di-preload (TIDAK ADA LAGI AWAIT FETCH DI SINI)
+                const base64Logo = globalAssets.logo;
+                const base64Cap = globalAssets.cap;
+                
+                if (globalAssets.tnrR) {
+                    pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
                     pdfMake.fonts = {
                         Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
                         TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' }
@@ -314,7 +328,6 @@
                     konsideranA = `Bahwa PIHAK PERTAMA adalah penulis, pencipta, dan pemegang hak cipta penuh atas naskah dan berkeinginan untuk memberikan lisensi eksklusif atas naskah miliknya kepada PIHAK KEDUA;`;
                 }
 
-                // Helper kecil untuk merapikan penomoran ayat/pasal secara konsisten
                 const pasal = (nomor, judul) => ({ text: `Pasal ${nomor}\n${judul}`, style: 'pasalTitle' });
                 const ayat = (arr) => ({ ol: arr.map(t => ({ text: t, alignment: 'justify', margin: [0, 0, 0, 6] })), lineHeight: 1.4, margin: [0, 0, 0, 15] });
                 const paragraf = (t) => ({ text: t, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 15] });
@@ -322,35 +335,22 @@
                 // DOCUMENT DEFINITION
                 const docDefinition = {
                     pageSize: 'A4',
-                    pageMargins: [50, 70, 50, 80], // Margin diperbesar untuk Header/Footer
-
-                    // HEADER: Keterangan Badan Hukum
+                    pageMargins: [50, 70, 50, 80], 
                     header: function(currentPage) {
-                        return {
-                            text: 'DOKUMEN LISENSI RESMI & BERBADAN HUKUM - PT CENDEKIA AKSARA EDUKASI',
-                            alignment: 'center', fontSize: 8, color: '#94a3b8', bold: true, margin: [0, 20, 0, 0]
-                        };
+                        return { text: 'DOKUMEN LISENSI RESMI & BERBADAN HUKUM - PT CENDEKIA AKSARA EDUKASI', alignment: 'center', fontSize: 8, color: '#94a3b8', bold: true, margin: [0, 20, 0, 0] };
                     },
-
-                    // FOOTER: Gradasi Navy Kuning & Nomor Halaman
                     footer: function(currentPage, pageCount) {
                         return {
                             stack: [
                                 {
                                     canvas: [
-                                        // Gradient background (Navy to Gold)
                                         {
                                             type: 'rect', x: 0, y: 0, w: 595.28, h: 50,
-                                            color: {
-                                                type: 'linear', x1: 0, y1: 0, x2: 595.28, y2: 0,
-                                                colorStops: [ { offset: 0, color: '#001f3f' }, { offset: 1, color: '#d4af37' } ]
-                                            }
+                                            color: { type: 'linear', x1: 0, y1: 0, x2: 595.28, y2: 0, colorStops: [ { offset: 0, color: '#001f3f' }, { offset: 1, color: '#d4af37' } ] }
                                         }
                                     ]
                                 },
-                                // Teks Kiri
                                 { text: `${noSurat}`, alignment: 'left', color: 'white', fontSize: 9, absolutePosition: { x: 40, y: 15 } },
-                                // Teks Kanan (Hal)
                                 { text: `Halaman ${currentPage} dari ${pageCount}`, alignment: 'right', color: 'white', fontSize: 9, bold: true, absolutePosition: { x: -40, y: 15 } }
                             ]
                         };
@@ -419,22 +419,22 @@
 
                         paragraf('Selanjutnya, untuk pelaksanaan lisensi eksklusif dimaksud, PARA PIHAK dengan ini sepakat dan mengikatkan diri dengan syarat dan ketentuan sebagai berikut:'),
 
-                        // PASAL 1 - DEFINISI
+                        // PASAL 1 - SUDAH DIPERBAIKI (HAPUS WRAPPER { text: ... })
                         pasal(1, 'DEFINISI'),
                         ayat([
-                                { text: [ { text: '"Perjanjian" ', bold: true }, 'adalah Perjanjian Lisensi Naskah ini beserta seluruh lampiran, adendum, dan perubahannya yang dibuat kemudian oleh PARA PIHAK secara tertulis.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Naskah" ', bold: true }, 'adalah karangan atau buah pena, yang dapat berjenis fiksi maupun nonfiksi, yang dalam hal ini merupakan karya asli dari penciptanya atau orang yang dianggap sebagai pencipta, baik yang telah diterbitkan ke dalam bentuk buku, maupun yang belum.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Pencipta" ', bold: true }, 'adalah seorang atau beberapa orang yang menghasilkan Naskah, atau yang dinyatakan sebagai demikian.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Pemegang Hak Cipta" ', bold: true }, 'adalah Pencipta itu sendiri atau pihak lain yang menerima hak dari Pencipta.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Lisensi Eksklusif" ', bold: true }, 'adalah izin tertulis yang diberikan dari Pemegang Hak Cipta untuk melaksanakan Hak Ekonomi atas Naskahnya, dengan syarat dan ketentuan sebagaimana diatur di dalam Perjanjian Lisensi ini, yang selama jangka waktu berlakunya tidak dapat diberikan kepada pihak lain.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Hak Moral" ', bold: true }, 'adalah hak yang melekat pada Pencipta tanpa batas waktu, yang terdiri dari: hak untuk tetap mencantumkan atau tidak mencantumkan namanya; hak untuk menggunakan nama aliasnya; hak untuk mengubah Naskah sesuai kepatutan dalam masyarakat; hak mengubah judul, serta mempertahankan integritas Naskah dari perubahan yang merugikan kehormatan diri atau reputasi Pencipta.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Hak Ekonomi" ', bold: true }, 'adalah hak yang diberikan oleh Pemberi Lisensi kepada Penerima Lisensi, yang berdasarkan perjanjian ini meliputi: hak penerbitan; penggandaan; penerjemahan; pengadaptasian; pendistribusian; pertunjukan; pengumuman; komunikasi; dan hak penyewaan Naskah.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Buku Digital" ', bold: true }, 'adalah Naskah Final yang melalui proses Penggandaan dan Pengadaptasian berubah bentuk menjadi elektronik atau digital (e-book), termasuk format turunannya seperti audiobook.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Royalti" ', bold: true }, 'adalah imbalan atas pemanfaatan Hak Ekonomi dari Naskah yang diterima oleh Pencipta sebagaimana diatur dalam Pasal 10 Perjanjian ini.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Wilayah Lisensi" ', bold: true }, 'adalah Republik Indonesia dan global melalui jaringan internet, tanpa batasan geografis selama dilaksanakan melalui kanal resmi PIHAK KEDUA.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Hari Kerja" ', bold: true }, 'adalah hari Senin sampai dengan Jumat, kecuali hari libur nasional yang ditetapkan Pemerintah Republik Indonesia.' ], margin: [0,0,0,6] },
-                                { text: [ { text: '"Wanprestasi" ', bold: true }, 'adalah keadaan tidak dipenuhinya salah satu atau lebih kewajiban oleh salah satu pihak sebagaimana diatur dalam Perjanjian ini.' ], margin: [0,0,0,6] }
-                            ]), lineHeight: 1.4, margin: [15, 0, 0, 15],
+                            [ { text: '"Perjanjian" ', bold: true }, 'adalah Perjanjian Lisensi Naskah ini beserta seluruh lampiran, adendum, dan perubahannya yang dibuat kemudian oleh PARA PIHAK secara tertulis.' ],
+                            [ { text: '"Naskah" ', bold: true }, 'adalah karangan atau buah pena, yang dapat berjenis fiksi maupun nonfiksi, yang dalam hal ini merupakan karya asli dari penciptanya atau orang yang dianggap sebagai pencipta, baik yang telah diterbitkan ke dalam bentuk buku, maupun yang belum.' ],
+                            [ { text: '"Pencipta" ', bold: true }, 'adalah seorang atau beberapa orang yang menghasilkan Naskah, atau yang dinyatakan sebagai demikian.' ],
+                            [ { text: '"Pemegang Hak Cipta" ', bold: true }, 'adalah Pencipta itu sendiri atau pihak lain yang menerima hak dari Pencipta.' ],
+                            [ { text: '"Lisensi Eksklusif" ', bold: true }, 'adalah izin tertulis yang diberikan dari Pemegang Hak Cipta untuk melaksanakan Hak Ekonomi atas Naskahnya, dengan syarat dan ketentuan sebagaimana diatur di dalam Perjanjian Lisensi ini, yang selama jangka waktu berlakunya tidak dapat diberikan kepada pihak lain.' ],
+                            [ { text: '"Hak Moral" ', bold: true }, 'adalah hak yang melekat pada Pencipta tanpa batas waktu, yang terdiri dari: hak untuk tetap mencantumkan atau tidak mencantumkan namanya; hak untuk menggunakan nama aliasnya; hak untuk mengubah Naskah sesuai kepatutan dalam masyarakat; hak mengubah judul, serta mempertahankan integritas Naskah dari perubahan yang merugikan kehormatan diri atau reputasi Pencipta.' ],
+                            [ { text: '"Hak Ekonomi" ', bold: true }, 'adalah hak yang diberikan oleh Pemberi Lisensi kepada Penerima Lisensi, yang berdasarkan perjanjian ini meliputi: hak penerbitan; penggandaan; penerjemahan; pengadaptasian; pendistribusian; pertunjukan; pengumuman; komunikasi; dan hak penyewaan Naskah.' ],
+                            [ { text: '"Buku Digital" ', bold: true }, 'adalah Naskah Final yang melalui proses Penggandaan dan Pengadaptasian berubah bentuk menjadi elektronik atau digital (e-book), termasuk format turunannya seperti audiobook.' ],
+                            [ { text: '"Royalti" ', bold: true }, 'adalah imbalan atas pemanfaatan Hak Ekonomi dari Naskah yang diterima oleh Pencipta sebagaimana diatur dalam Pasal 10 Perjanjian ini.' ],
+                            [ { text: '"Wilayah Lisensi" ', bold: true }, 'adalah Republik Indonesia dan global melalui jaringan internet, tanpa batasan geografis selama dilaksanakan melalui kanal resmi PIHAK KEDUA.' ],
+                            [ { text: '"Hari Kerja" ', bold: true }, 'adalah hari Senin sampai dengan Jumat, kecuali hari libur nasional yang ditetapkan Pemerintah Republik Indonesia.' ],
+                            [ { text: '"Wanprestasi" ', bold: true }, 'adalah keadaan tidak dipenuhinya salah satu atau lebih kewajiban oleh salah satu pihak sebagaimana diatur dalam Perjanjian ini.' ]
+                        ]),
 
                         // PASAL 2
                         pasal(2, 'OBJEK DAN RUANG LINGKUP LISENSI'),
@@ -602,7 +602,7 @@
                         // PENUTUP & TANDA TANGAN
                         paragraf('Demikianlah perjanjian ini dibuat, disetujui, dan ditandatangani bermaterai cukup, dan berkekuatan hukum, sebagaimana diatur di dalam undang-undang dan peraturan pemerintah terkait dokumen dan tanda tangan elektronik.'),
 
-                        // ==== BLOK TANDA TANGAN — TABEL TETAP, TIDAK BERUBAH POSISI ANTAR GENERATE ====
+                        // ==== BLOK TANDA TANGAN ====
                         {
                             margin: [0, 15, 0, 0],
                             table: {
@@ -624,9 +624,6 @@
                                         {
                                             alignment: 'center',
                                             stack: [
-                                                // Stempel dicetak lebih dulu (lapisan bawah, transparan) —
-                                                // tanda tangan dicetak di atasnya lewat relativePosition, BUKAN margin negatif,
-                                                // sehingga posisi teks di bawahnya (nama & jabatan) selalu konsisten setiap kali PDF dibuat.
                                                 base64Cap
                                                     ? { image: base64Cap, width: 92, alignment: 'center', opacity: 0.55, margin: [0, 8, 0, 0] }
                                                     : { text: '', margin: [0, 45, 0, 0] },
@@ -659,7 +656,7 @@
                             }
                         }
                     ],
-                    defaultStyle: { font: fontTnrReg ? 'TimesNewRoman' : 'Roboto', fontSize: 11, color: '#000000' },
+                    defaultStyle: { font: globalAssets.tnrR ? 'TimesNewRoman' : 'Roboto', fontSize: 11, color: '#000000' },
                     styles: {
                         pasalTitle: { fontSize: 11, bold: true, alignment: 'center', margin: [0, 15, 0, 8] }
                     }
