@@ -7,7 +7,8 @@ const openrouter = new OpenAI({
     defaultHeaders: {
         'HTTP-Referer': 'https://edu-cendekia.my.id', // URL Web untuk identifikasi OpenRouter
         'X-Title': 'Cendekia Aksara AI Mentor'
-    }
+    },
+    maxRetries: 0 // PERBAIKAN: Jangan retry otomatis dari SDK, karena kita sudah punya sistem fallback sendiri
 });
 
 // DAFTAR MODEL GRATIS OPENROUTER (Sesuai Ketersediaan Terbaru)
@@ -18,6 +19,18 @@ const FREE_MODELS = [
     'thinkingmachines/inkling:free',          // Prioritas 4: Alternatif
     'google/gemma-4-26b-a4b-it:free'          // Prioritas 5: Cadangan terakhir
 ];
+
+// PERBAIKAN: Fungsi timeout agar request model tidak menggantung terlalu lama
+function withTimeout(promise, ms) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error(`Request timeout setelah ${ms / 1000} detik`));
+            }, ms);
+        })
+    ]);
+}
 
 export default async function handler(req, res) {
     // 1. ATUR CORS
@@ -90,27 +103,36 @@ Ketentuan Review (SANGAT KETAT):
         // SISTEM AUTO-FALLBACK: Mencoba model 1 per 1 jika ada yang error / limit
         for (const model of FREE_MODELS) {
             try {
-                const completion = await openrouter.chat.completions.create({
-                    model: model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Kamu adalah editor penerbitan novel profesional. Taati instruksi roleplay dengan ketat dan patuhi seluruh format aturan review tanpa terkecuali.'
-                        },
-                        {
-                            role: 'user',
-                            content: promptText
-                        }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 2500
-                });
+                const completion = await withTimeout(
+                    openrouter.chat.completions.create({
+                        model: model,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: 'Kamu adalah editor penerbitan novel profesional. Taati instruksi roleplay dengan ketat dan patuhi seluruh format aturan review tanpa terkecuali.'
+                            },
+                            {
+                                role: 'user',
+                                content: promptText
+                            }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 2500
+                    }),
+                    30000 // PERBAIKAN: Maksimal 30 detik per model
+                );
 
-                textResponse = completion.choices[0]?.message?.content || "";
+                // PERBAIKAN: Cegah error "Cannot read properties of undefined (reading '0')"
+                textResponse = completion?.choices?.[0]?.message?.content || "";
+
                 if (textResponse.trim()) {
                     modelUsed = model;
                     break; // Berhasil dapat jawaban, hentikan loop
                 }
+
+                // PERBAIKAN: Jika respons ada tetapi tidak memiliki content, anggap model gagal
+                lastError = new Error(`Model ${model} mengembalikan respons kosong atau format respons tidak valid.`);
+
             } catch (err) {
                 console.warn(`Gagal memanggil model ${model}:`, err.message);
                 lastError = err;
