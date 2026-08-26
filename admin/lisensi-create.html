@@ -49,7 +49,6 @@
         .btn-submit { width: 100%; background: linear-gradient(135deg, var(--primary), #00122e); color: white; border: none; padding: 16px; border-radius: 10px; font-family: 'Poppins'; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 51, 102, 0.3); display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;}
         .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 51, 102, 0.4); }
 
-        /* --- CSS TAMBAHAN UNTUK TOMBOL DRAF KOSONG --- */
         .btn-draft { width: 100%; background: white; color: var(--text-gray); border: 2px solid #cbd5e1; padding: 14px; border-radius: 10px; font-family: 'Poppins'; font-weight: 600; font-size: 0.95rem; cursor: pointer; margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-draft:hover { border-color: var(--primary); color: var(--primary); background: #f8fafc; }
 
@@ -170,7 +169,6 @@
                 <i class="fa-solid fa-scale-balanced"></i> Generate Dokumen Kontrak Hukum (PDF)
             </button>
             
-            <!-- HTML TAMBAHAN: Tombol Draf Kosong -->
             <button type="button" id="btn-draft" class="btn-draft" onclick="generateDraft()">
                 <i class="fa-regular fa-file-pdf"></i> Unduh Draf Kosong (Contoh untuk Dibaca)
             </button>
@@ -213,7 +211,6 @@
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
         const fontCache = {};
 
-        // Objek Global untuk menyimpan Asset agar tidak diload berulang-ulang
         const globalAssets = {}; 
 
         async function getFontBase64(url) {
@@ -247,12 +244,7 @@
             });
         }
 
-        // --- PROSES PRE-LOAD ASSET SAAT HALAMAN DIBUKA ---
         (async () => {
-            // const user = await checkAuth('admin'); 
-            // if(!user) window.location.href = '../index.html';
-
-            // Tarik semua font dan gambar HANYA 1 KALI di sini
             const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
                 getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
                 getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'), getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
@@ -268,14 +260,11 @@
             setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; resizeCanvas(); }, 400);
         })();
 
-
-        // HELPER PDF 
         const pasal = (nomor, judul) => ({ text: `Pasal ${nomor}\n${judul}`, style: 'pasalTitle' });
         const ayat = (arr) => ({ ol: arr.map(t => ({ text: t, alignment: 'justify', margin: [0, 0, 0, 6] })), lineHeight: 1.4, margin: [0, 0, 0, 15] });
         const paragraf = (t) => ({ text: t, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 15] });
 
-
-        // JS TAMBAHAN: FUNGSI CETAK DRAF KOSONG
+        // DRAF GENERATOR
         window.generateDraft = async () => {
             const btn = document.getElementById('btn-draft');
             const oriHtml = btn.innerHTML;
@@ -289,6 +278,18 @@
                         Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
                         TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' }
                     };
+                }
+
+                const kelompok = document.getElementById('l_kelompok').value;
+                
+                // LOGIKA ROYALTI BERDASARKAN KELOMPOK
+                let teksRoyalti = "";
+                if (kelompok === 'Penerbitan Buku Solo Umum') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 20% (dua puluh persen) dari pendapatan bersih, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
+                } else if (kelompok === 'Penerbitan Antologi Komunitas') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 50% (lima puluh persen) dari pendapatan bersih yang akan dibagi rata dengan jumlah penulis yang ada di dalam buku tersebut, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
+                } else if (kelompok === 'Apresiasi Pemenang Lomba') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 10% (sepuluh persen) dari pendapatan bersih, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
                 }
 
                 const docDefinition = {
@@ -456,7 +457,7 @@
 
                         pasal(10, 'ROYALTI DAN TATA CARA PEMBAYARAN'),
                         ayat([
-                            'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti dengan perhitungan persentase bagi hasil sesuai kebijakan Cendekia Aksara yang berlaku, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.',
+                            teksRoyalti,
                             'Penerimaan Royalti PIHAK PERTAMA dikenakan Pajak sesuai dengan ketentuan perpajakan Republik Indonesia yang berlaku.',
                             'Royalti akan dibayarkan bilamana jumlah nilai Royalti mencapai nilai minimum pencairan yang ditetapkan oleh sistem keuangan PIHAK KEDUA, ke dalam rekening sebagaimana tercantum pada identitas PIHAK PERTAMA di awal Perjanjian ini.',
                             'Segala biaya administrasi transfer bank (selain bank yang ditunjuk PIHAK KEDUA) ditanggung oleh PIHAK PERTAMA dan akan dipotong langsung dari nilai Royalti yang dicairkan.',
@@ -601,7 +602,7 @@
             }
         };
 
-        // --- PDF GENERATOR MASSIVE (TETAP SAMA) ---
+        // --- PDF GENERATOR MASSIVE ---
         document.getElementById('lisensiForm').onsubmit = async (e) => {
             e.preventDefault();
             if (signaturePad.isEmpty()) { Swal.fire('Tanda Tangan Kosong', 'Harap coretkan tanda tangan Anda.', 'warning'); return; }
@@ -625,7 +626,17 @@
                 const kelompok = document.getElementById('l_kelompok').value;
                 const namaLomba = document.getElementById('l_nama_lomba').value;
 
-                // 1. Tarik Nomor Lisensi Otomatis
+                // LOGIKA ROYALTI BERDASARKAN KELOMPOK (UNTUK CETAK FINAL)
+                let teksRoyalti = "";
+                if (kelompok === 'Penerbitan Buku Solo Umum') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 20% (dua puluh persen) dari pendapatan bersih, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
+                } else if (kelompok === 'Penerbitan Antologi Komunitas') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 50% (lima puluh persen) dari pendapatan bersih yang akan dibagi rata dengan jumlah penulis yang ada di dalam buku tersebut, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
+                } else if (kelompok === 'Apresiasi Pemenang Lomba') {
+                    teksRoyalti = 'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti sebesar 10% (sepuluh persen) dari pendapatan bersih, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.';
+                }
+
+                // Tarik Nomor Lisensi Otomatis
                 let urutanBaru = 1;
                 try {
                     const qArsip = query(collection(db, 'arsip_lisensi'), orderBy('tanggalGenerate', 'desc'), limit(1));
@@ -838,7 +849,7 @@
 
                         pasal(10, 'ROYALTI DAN TATA CARA PEMBAYARAN'),
                         ayat([
-                            'Terhitung sejak Buku Digital ditampilkan, PIHAK PERTAMA berhak atas Royalti dengan perhitungan persentase bagi hasil sesuai kebijakan Cendekia Aksara yang berlaku, atau sebesar 50% (lima puluh persen) komisi apabila terjadi pengadaptasian Naskah sebagaimana dimaksud dalam Pasal 8.',
+                            teksRoyalti,
                             'Penerimaan Royalti PIHAK PERTAMA dikenakan Pajak sesuai dengan ketentuan perpajakan Republik Indonesia yang berlaku.',
                             'Royalti akan dibayarkan bilamana jumlah nilai Royalti mencapai nilai minimum pencairan yang ditetapkan oleh sistem keuangan PIHAK KEDUA, ke dalam rekening sebagaimana tercantum pada identitas PIHAK PERTAMA di awal Perjanjian ini.',
                             'Segala biaya administrasi transfer bank (selain bank yang ditunjuk PIHAK KEDUA) ditanggung oleh PIHAK PERTAMA dan akan dipotong langsung dari nilai Royalti yang dicairkan.',
