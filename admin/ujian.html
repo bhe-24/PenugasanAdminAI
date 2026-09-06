@@ -100,7 +100,7 @@
         .bg-info { background: #e0f2fe; color: #0284c7; }
         .bg-edit { background: #fef3c7; color: #d97706; }
         .bg-del { background: #fee2e2; color: #dc2626; }
-        .bg-warning { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; } /* Tombol Khusus Cek Siswa */
+        .bg-warning { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; } 
 
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -111,7 +111,7 @@
         .status-label { font-size: 0.75rem; font-weight: 700; margin-left: 8px; display: block; text-align: right; margin-top: 4px; }
         .lbl-on { color: #10b981; } .lbl-off { color: #94a3b8; }
 
-        /* --- FORM EDITOR (FULLSCREEN-LIKE) --- */
+        /* --- FORM EDITOR --- */
         .form-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(244, 246, 249, 0.95); backdrop-filter: blur(5px);
@@ -177,12 +177,7 @@
         .modal-overlay-alert.active { opacity: 1; pointer-events: all; }
         .modal-box-alert { background: white; padding: 35px; border-radius: 20px; width: 90%; max-width: 450px; text-align: center; transform: scale(0.8); transition: 0.3s; box-shadow: 0 15px 30px rgba(0,0,0,0.2); }
         .modal-overlay-alert.active .modal-box-alert { transform: scale(1); }
-        .modal-icon { font-size: 3.5rem; margin-bottom: 15px; }
-        .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 25px; }
-        .btn-modal { padding: 10px 25px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; font-family: 'Poppins', sans-serif; width: 100%;}
-        .btn-modal-ok { background: var(--primary); color: white; }
-        .btn-modal-cancel { background: #f1f5f9; color: var(--text-gray); }
-
+        
         /* CUSTOM BULK BYPASS CSS */
         .bypass-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #e2e8f0; background: white; transition: 0.2s;}
         .bypass-item:hover { background: #f8fafc; }
@@ -207,7 +202,6 @@
             .form-container { padding: 20px; }
             .editor-footer { flex-direction: column; }
             .btn-batal, .btn-simpan { width: 100%; justify-content: center; }
-            .monitor-header h3 { font-size: 1.1rem; }
         }
     </style>
     <!-- SweetAlert2 -->
@@ -265,7 +259,7 @@
             <div class="form-group">
                 <label class="form-label">Judul Ujian</label>
                 <input type="text" id="judul" class="form-input" placeholder="Contoh: UTS Sastra Indonesia, UAS Bahasa">
-                <small style="color:#d97706; font-weight:500; display:block; margin-top:6px;">*Gunakan kata 'UTS' atau 'UAS' dalam judul agar nilai bisa sinkron otomatis ke e-Rapor.</small>
+                <small style="color:#d97706; font-weight:500; display:block; margin-top:6px;">*Gunakan kata 'UTS', 'UAS', atau 'Tugas 1' dalam judul agar nilai bisa sinkron otomatis ke e-Rapor.</small>
             </div>
             
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom: 25px;">
@@ -412,20 +406,33 @@ D. Medan"></textarea>
         <p style="color:#64748b;">Harap tunggu sebentar, proses ini memakan waktu beberapa detik.</p>
     </div>
 
-    <!-- CUSTOM MODAL -->
-    <div id="custom-modal" class="modal-overlay-alert">
-        <div class="modal-box-alert">
-            <div id="modal-icon" class="modal-icon"></div>
-            <h3 id="modal-title" style="margin:0 0 10px 0; font-family:'Aleo', serif; color: var(--primary);"></h3>
-            <p id="modal-text" style="color:#64748b; font-size:0.95rem; margin-bottom:20px; line-height: 1.6;"></p>
-            <div id="modal-actions" class="modal-btns"></div>
-        </div>
-    </div>
-
     <!-- JAVASCRIPT -->
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // FIX: Menambahkan setDoc untuk keperluan History IPS
+        import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, serverTimestamp, getDoc, query, where, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // FIX: Fungsi Wrapper showModal untuk mengaktifkan SweetAlert2 yang dipanggil oleh berbagai tombol
+        window.showModal = (icon, title, text, callback = null) => {
+            const isConfirm = typeof callback === 'function' && text.includes('?'); 
+            
+            Swal.fire({
+                icon: icon,
+                title: title,
+                text: text,
+                showCancelButton: isConfirm,
+                confirmButtonText: isConfirm ? 'Ya, Lanjutkan' : 'OK',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (callback && typeof callback === 'function') {
+                    if (isConfirm) {
+                        if (result.isConfirmed) callback();
+                    } else {
+                        callback(); 
+                    }
+                }
+            });
+        };
 
         const VERCEL_API_URL = "/api/kuis"; 
 
@@ -542,7 +549,6 @@ D. Medan"></textarea>
             document.getElementById('check-all').checked = false;
 
             try {
-                // 1. Dapatkan kelas yang aktif di semester ini
                 const classQ = query(collection(db, 'classes'), where('semester', '==', targetSemester));
                 const classSnap = await getDocs(classQ);
                 
@@ -555,7 +561,7 @@ D. Medan"></textarea>
                 let enrolledStudentIds = [];
                 
                 classSnap.forEach(doc => {
-                    studentClassId = doc.id; // Asumsi 1 kelas per semester
+                    studentClassId = doc.id; 
                     enrolledStudentIds = doc.data().students || [];
                 });
 
@@ -564,7 +570,6 @@ D. Medan"></textarea>
                     return;
                 }
 
-                // 2. Hitung Persentase Kehadiran
                 const attSnap = await getDocs(query(collection(db, 'dailyAttendance'), where('classId', '==', studentClassId)));
                 const attendanceMap = {}; 
                 enrolledStudentIds.forEach(uid => { attendanceMap[uid] = { hadir: 0, total: 0 }; });
@@ -584,7 +589,6 @@ D. Medan"></textarea>
                     }
                 });
 
-                // 3. Tarik Data Siswa
                 const studentsData = [];
                 const usersSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'siswa')));
                 usersSnap.forEach(doc => {
@@ -593,7 +597,6 @@ D. Medan"></textarea>
                     }
                 });
 
-                // 4. Cari Siswa Terkendala
                 const terkendala = [];
                 studentsData.forEach(student => {
                     const att = attendanceMap[student.id];
@@ -622,7 +625,6 @@ D. Medan"></textarea>
                     return;
                 }
 
-                // 5. Render Daftar Checkbox
                 let listHtml = '';
                 terkendala.forEach(s => {
                     listHtml += `
@@ -665,13 +667,12 @@ D. Medan"></textarea>
                 if (result.isConfirmed) {
                     showLoading("Memproses Izin Masal...");
                     try {
-                        // Jalankan pembaruan data secara paralel (cepat)
                         const updatePromises = [];
                         checkboxes.forEach(cb => {
                             const uid = cb.value;
                             const p = updateDoc(doc(db, 'users', uid), {
                                 bypassUjian: true,
-                                statusPembayaran: 'Lunas' // Opsional
+                                statusPembayaran: 'Lunas' 
                             });
                             updatePromises.push(p);
                         });
@@ -915,18 +916,28 @@ D. Medan"></textarea>
             }
         }
 
+        // FIX: Sinkronisasi sekarang menggunakan rumus IPS baru persis seperti di halaman admin/siswa
         window.syncGrades = async (examId, title) => {
             const btn = document.getElementById('btn-sync');
             const originalText = btn.innerHTML;
             
             const lowerTitle = title.toLowerCase();
             let targetField = null;
+            
+            // FIX: Deteksi dinamis untuk semua kolom rapor (UTS, UAS, Tugas 1 sampai 8)
             if (lowerTitle.includes("uts")) targetField = "nilai_uts";
             else if (lowerTitle.includes("uas")) targetField = "nilai_uas";
-            else if (lowerTitle.includes("tugas 1") || lowerTitle.includes("t1")) targetField = "nilai_t1";
+            else {
+                for(let i=1; i<=8; i++) {
+                    if (lowerTitle.includes(`tugas ${i}`) || lowerTitle.includes(`t${i}`)) {
+                        targetField = `nilai_t${i}`;
+                        break;
+                    }
+                }
+            }
 
             if (!targetField) {
-                return showModal('warning', 'Gagal Sinkronisasi', 'Sistem tidak mengenali jenis ujian dari Judul.\n\nPastikan Judul mengandung kata "UTS" atau "UAS" agar sistem tahu di kolom rapor mana nilai ini harus diletakkan.');
+                return showModal('warning', 'Gagal Sinkronisasi', 'Sistem tidak mengenali jenis ujian dari Judul.\n\nPastikan Judul mengandung kata "UTS", "UAS", atau "Tugas 1" s.d "Tugas 8" agar sistem tahu di kolom e-Rapor mana nilai ini harus diletakkan.');
             }
 
             showModal('info', 'Konfirmasi Sinkronisasi', `Nilai dari ujian ini akan disalin otomatis ke kolom '${targetField.toUpperCase()}' di Data e-Rapor Siswa. Lanjutkan?`, async () => {
@@ -939,6 +950,12 @@ D. Medan"></textarea>
                     if(snapResult.empty) throw new Error("Belum ada data nilai satupun yang terkumpul.");
 
                     let updatedCount = 0;
+                    
+                    // Siapkan tanggal untuk History IPS
+                    const today = new Date();
+                    const dateKey = today.toISOString().split('T')[0]; 
+                    const dateLabel = today.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+
                     for (const docRes of snapResult.docs) {
                         const res = docRes.data();
                         if (res.studentId) {
@@ -949,16 +966,42 @@ D. Medan"></textarea>
                                 let d = userSnap.data();
                                 d[targetField] = res.score; 
 
-                                // Kalkulasi ulang IP Semester (IPS)
-                                let totalTugas = 0;
-                                for(let i=1; i<=8; i++) { totalTugas += (d[`nilai_t${i}`] || 0) * 0.05; }
-                                let sUts = (d['nilai_uts'] || 0) * 0.30;
-                                let sUas = (d['nilai_uas'] || 0) * 0.30;
+                                // FIX: Kalkulasi ulang IPS dengan rumus persis admin/siswa.html
+                                let sumTugas = 0, jumlahTugasTerisi = 0;
+                                for(let i=1; i<=8; i++) {
+                                    if(d[`nilai_t${i}`] !== undefined && d[`nilai_t${i}`] !== null && d[`nilai_t${i}`] !== "") {
+                                        sumTugas += parseFloat(d[`nilai_t${i}`]);
+                                        jumlahTugasTerisi++;
+                                    }
+                                }
+                                let scoreTugas = jumlahTugasTerisi > 0 ? (sumTugas / jumlahTugasTerisi) * 0.40 : 0;
+                                let scoreUts = (parseFloat(d['nilai_uts']) || 0) * 0.25;
+                                let scoreUas = (parseFloat(d['nilai_uas']) || 0) * 0.25;
+
+                                let valEx1 = parseFloat(d['nilai_extra1']);
+                                let valEx2 = parseFloat(d['nilai_extra2']);
+                                let valNaskah = parseFloat(d['nilai_naskah']);
                                 
-                                const finalScore = totalTugas + sUts + sUas;
+                                const extraValues = [valEx1, valEx2, valNaskah].filter(v => !isNaN(v));
+                                const avgExtra = extraValues.length > 0 ? (extraValues.reduce((a, b) => a + b, 0) / extraValues.length) : 0;
+                                let scoreExtra = avgExtra * 0.10;
+
+                                let finalScore = scoreTugas + scoreUts + scoreUas + scoreExtra;
+                                if (finalScore > 100) finalScore = 100;
                                 const newIps = (finalScore / 100) * 4;
 
+                                // Update ke Firebase (User Doc)
                                 await updateDoc(userRef, { [targetField]: res.score, ips: newIps });
+                                
+                                // FIX: Catat juga ke History IPS agar terbaca di halaman lain
+                                await setDoc(doc(db, 'users', res.studentId, 'ipsHistory', dateKey), {
+                                    date: dateLabel,
+                                    dateKey: dateKey,
+                                    ips: newIps,
+                                    sumber: 'sync_ujian_admin',
+                                    updatedAt: serverTimestamp()
+                                }, { merge: true });
+
                                 updatedCount++;
                             }
                         }
