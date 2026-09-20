@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem MOU & Kerjasama - Cendekia Aksara</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --primary: #003366;      
+            --gold: #d4af37;         
+            --bg-color: #f1f5f9;
+            --text-dark: #1e293b;
+        }
+
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-dark); margin: 0; padding-top: 60px; }
+
+        .app-wrapper { width: 100%; max-width: 1000px; margin: 0 auto; background-color: white; min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,0.1); }
+
+        /* NAVBAR & TABS */
+        .top-navbar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; z-index: 1000; background: #001f3f; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 3px solid var(--gold); }
+        .nav-title { font-family: 'Aleo', serif; font-size: 1.1rem; color: white; margin: 0; }
+        
+        .tabs-container { display: flex; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: transparent; font-family: 'Poppins'; font-weight: 600; font-size: 0.95rem; color: #64748b; cursor: pointer; transition: 0.3s; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: white; }
+        .tab-btn i { margin-right: 8px; }
+
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* FORM & INPUTS */
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .form-group { flex: 1; min-width: 250px; display: flex; flex-direction: column; margin-bottom: 15px; }
+        .form-group label { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+        .form-control { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins'; font-size: 0.9rem; background: #f8fafc; width: 100%; }
+        .form-control:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 100px; }
+        .section-divider { border-bottom: 2px dashed #cbd5e1; margin: 25px 0 15px 0; padding-bottom: 5px; font-family: 'Aleo', serif; color: var(--primary); font-size: 1.2rem; }
+
+        /* RADIOS JENIS MOU */
+        .radio-group { display: flex; gap: 15px; }
+        .radio-card { flex: 1; border: 2px solid #e2e8f0; border-radius: 8px; padding: 15px; text-align: center; cursor: pointer; transition: 0.3s; background: #f8fafc; font-weight: 600; }
+        .radio-card input { display: none; }
+        .radio-card:hover { border-color: #94a3b8; }
+        .radio-card.selected { border-color: var(--primary); background: #e0f2fe; color: var(--primary); }
+
+        /* AI BOX */
+        .ai-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .btn-ai { background: #16a34a; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-family: 'Poppins'; cursor: pointer; width: 100%; font-weight: 600; margin-top: 10px;}
+        
+        /* ACTION BUTTONS */
+        .btn-draft { background: #fef08a; color: #854d0e; border: 1px solid #fde047; padding: 15px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Poppins'; transition: 0.3s;}
+        .btn-draft:hover { background: #fde047; }
+        
+        .btn-final { background: linear-gradient(135deg, var(--primary), #00122e); color: white; border: none; padding: 16px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Poppins'; box-shadow: 0 4px 15px rgba(0, 51, 102, 0.3); }
+
+        /* ARSIP TABLE */
+        .table-responsive { overflow-x: auto; }
+        table.arsip-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        .arsip-table th, .arsip-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .arsip-table th { background: #f1f5f9; font-weight: 600; color: var(--primary); }
+        .btn-arsip-dl { background: #e2e8f0; color: #334155; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;}
+        .btn-arsip-dl:hover { background: var(--primary); color: white; }
+
+        /* CANVAS */
+        .signature-wrapper { border: 2px dashed #cbd5e1; border-radius: 8px; background: white; padding: 10px; text-align: center; }
+        canvas#signature-pad { border: 1px solid #e2e8f0; background: #f8fafc; width: 100%; height: 150px; cursor: crosshair; }
+        
+        #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
+        .loading-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: white; z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+    <canvas id="hidden-canvas"></canvas>
+    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color:var(--primary); margin-bottom:15px;"></i><h3>Menyiapkan Sistem MOU...</h3></div>
+
+    <header class="top-navbar">
+        <div class="nav-title"><i class="fa-solid fa-file-contract"></i> Draft & Cetak MOU Cendekia Aksara</div>
+    </header>
+
+    <div class="app-wrapper">
+        
+        <!-- TABS NAVIGATION -->
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchTab('tab-form', this)"><i class="fa-solid fa-pen-to-square"></i> 1. Pengisian Data</button>
+            <button class="tab-btn" onclick="switchTab('tab-preview', this)"><i class="fa-solid fa-file-pdf"></i> 2. Preview & Cetak</button>
+            <button class="tab-btn" onclick="switchTab('tab-arsip', this); loadArsip();"><i class="fa-solid fa-folder-open"></i> 3. Arsip Data</button>
+        </div>
+
+        <!-- TAB 1: FORMULIR -->
+        <div id="tab-form" class="tab-content active">
+            <div class="section-divider">Tipe & Detail Kegiatan</div>
+            <div class="form-group">
+                <label>Pilih Jenis Kerjasama (MOU):</label>
+                <div class="radio-group">
+                    <label class="radio-card selected" id="opt-media" onclick="selectRadio('Media Partner')">
+                        <input type="radio" name="jenis_mou" value="Media Partner" checked> <i class="fa-solid fa-bullhorn"></i> Media Partner
+                    </label>
+                    <label class="radio-card" id="opt-sponsor" onclick="selectRadio('Sponsorship')">
+                        <input type="radio" name="jenis_mou" value="Sponsorship"> <i class="fa-solid fa-hand-holding-dollar"></i> Sponsorship
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group"><label>Nama Kegiatan / Event</label><input type="text" id="kegiatan_nama" class="form-control" placeholder="Contoh: Lomba Cipta Cerpen Nasional"></div>
+                <div class="form-group"><label>Tanggal Penandatanganan</label><input type="date" id="mou_tanggal" class="form-control"></div>
+            </div>
+            <div class="form-group">
+                <label>Deskripsi Singkat Kegiatan</label>
+                <textarea id="kegiatan_deskripsi" class="form-control" placeholder="Jelaskan secara singkat apa tujuan kegiatan ini..."></textarea>
+            </div>
+
+            <div class="section-divider">Identitas Pihak Pertama (Cendekia Aksara)</div>
+            <div class="form-row">
+                <div class="form-group"><label>Nama Perwakilan</label><input type="text" id="p1_nama" class="form-control" value="Mukhamad Bayu Aji Tolafudin"></div>
+                <div class="form-group"><label>Jabatan</label><input type="text" id="p1_jabatan" class="form-control" value="Ketua Pembina Literasi"></div>
+            </div>
+            
+            <div class="section-divider">Identitas Pihak Kedua (Mitra/Sponsor)</div>
+            <div class="form-row">
+                <div class="form-group"><label>Instansi / Perusahaan</label><input type="text" id="p2_instansi" class="form-control" placeholder="Nama instansi mitra..."></div>
+                <div class="form-group"><label>Nama Perwakilan</label><input type="text" id="p2_nama" class="form-control" placeholder="Nama pimpinan mitra..."></div>
+                <div class="form-group"><label>Jabatan</label><input type="text" id="p2_jabatan" class="form-control" placeholder="Jabatan pimpinan..."></div>
+            </div>
+            <div class="form-group"><label>Alamat Instansi Mitra</label><input type="text" id="p2_alamat" class="form-control" placeholder="Alamat lengkap..."></div>
+
+            <div class="section-divider">Pembagian Tanggung Jawab (Kewajiban)</div>
+            
+            <div class="ai-box">
+                <label style="font-size:0.85rem; font-weight:bold; color:#166534;"><i class="fa-solid fa-robot"></i> Asisten AI Penyusun Kewajiban</label>
+                <p style="font-size:0.75rem; margin:5px 0;">Isi detail kegiatan di atas, lalu tekan tombol ini. AI akan membuatkan daftar kewajiban masing-masing pihak secara otomatis dan mengisinya ke kolom di bawah.</p>
+                <button type="button" class="btn-ai" id="btn-generate-ai" onclick="generateKewajibanAI()"><i class="fa-solid fa-wand-magic-sparkles"></i> Buatkan Draft Kewajiban Otomatis</button>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Kewajiban Pihak Pertama (Kewajiban Kita)</label>
+                    <textarea id="p1_kewajiban" class="form-control" placeholder="Contoh: 1. Memasang logo mitra di banner. 2. Menyediakan sertifikat..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kewajiban Pihak Kedua (Kewajiban Mitra)</label>
+                    <textarea id="p2_kewajiban" class="form-control" placeholder="Contoh: 1. Membayar dana sponsorship. 2. Mempromosikan kegiatan di media sosial..."></textarea>
+                </div>
+            </div>
+            
+            <button class="btn-final" style="margin-top:20px;" onclick="switchTab('tab-preview', document.querySelectorAll('.tab-btn')[1])">Lanjut ke Halaman Preview <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+
+        <!-- TAB 2: PREVIEW & CETAK -->
+        <div id="tab-preview" class="tab-content">
+            
+            <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <h4 style="margin:0 0 10px 0; color:#b45309;"><i class="fa-solid fa-circle-info"></i> Sistem Draft Cerdas</h4>
+                <p style="font-size:0.85rem; margin:0; color:#92400e;">Anda dapat mengunduh <b>Draft Sementara</b>. Jika ada kolom di Tab 1 yang belum diisi (kosong), sistem akan otomatis mengubahnya menjadi <b><span style="color:red;">[ KURUNG MERAH ]</span></b> agar mudah ditinjau sebelum cetak final.</p>
+            </div>
+
+            <button type="button" class="btn-draft" onclick="generatePDF(true)">
+                <i class="fa-solid fa-file-pen"></i> Unduh Draft (Draf Merah)
+            </button>
+
+            <div class="section-divider">Otorisasi & Tanda Tangan Final</div>
+            <div class="form-group">
+                <label>Tanda Tangan Pihak Pertama (Cendekia Aksara)</label>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad"></canvas>
+                    <button type="button" onclick="signaturePad.clear()" style="background:#fee2e2; color:#dc2626; border:none; padding:5px 10px; border-radius:4px; font-size:0.8rem; margin-top:10px; cursor:pointer;">Hapus Tanda Tangan</button>
+                </div>
+            </div>
+
+            <button type="button" class="btn-final" id="btn-cetak-final" onclick="generatePDF(false)">
+                <i class="fa-solid fa-file-signature"></i> Terbitkan MOU Final & Simpan ke Arsip
+            </button>
+        </div>
+
+        <!-- TAB 3: ARSIP -->
+        <div id="tab-arsip" class="tab-content">
+            <h3 style="margin-top:0; color:var(--primary);"><i class="fa-solid fa-server"></i> Arsip Dokumen MOU</h3>
+            <p style="font-size:0.85rem;">Daftar pengajuan MOU yang telah diterbitkan (Final). Anda dapat mengunduh ulang dokumen-dokumen ini kapan saja.</p>
+            
+            <div class="table-responsive">
+                <table class="arsip-table" id="table-arsip">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Mitra / Instansi</th>
+                            <th>Kegiatan</th>
+                            <th>Jenis MOU</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="arsip-body">
+                        <!-- Data Arsip Masuk Sini -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MOCK FIREBASE & SYSTEM SCRIPT -->
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // TAB LOGIC
+        window.switchTab = function(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+            if(tabId === 'tab-preview') setTimeout(resizeCanvas, 200);
+        }
+
+        // RADIO LOGIC
+        window.selectRadio = function(jenis) {
+            document.querySelectorAll('.radio-card').forEach(el => el.classList.remove('selected'));
+            if(jenis === 'Media Partner') document.getElementById('opt-media').classList.add('selected');
+            else document.getElementById('opt-sponsor').classList.add('selected');
+        }
+
+        // KANVAS TANDA TANGAN
+        const canvas = document.getElementById('signature-pad');
+        window.signaturePad = new SignaturePad(canvas, { penColor: "rgb(15, 23, 42)" });
+        function resizeCanvas() {
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            signaturePad.clear();
+        }
+
+        // ASSETS LOAD (Logo, Stempel Cendekia Aksara, Fonts)
+        const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
+        const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
+        const globalAssets = {}; 
+        
+        async function getFontBase64(url) {
+            try {
+                const res = await fetch(url); const blob = await res.blob();
+                return await new Promise((resolve) => {
+                    const reader = new FileReader(); reader.onloadend = () => resolve(reader.result.split(',')[1]); reader.readAsDataURL(blob);
+                });
+            } catch (e) { return null; }
+        }
+
+        function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image(); img.crossOrigin = 'Anonymous'; 
+                img.onload = () => {
+                    const hc = document.getElementById('hidden-canvas');
+                    hc.width = img.width; hc.height = img.height;
+                    hc.getContext('2d').drawImage(img, 0, 0); resolve(hc.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null); img.src = url;
+            });
+        }
+
+        // INIT LOAD
+        window.onload = async () => {
+            document.getElementById('mou_tanggal').valueAsDate = new Date();
+            const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
+                getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
+                getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'), getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
+            ]);
+            globalAssets.logo = logo; globalAssets.cap = cap;
+            globalAssets.tnrR = tnrR; globalAssets.tnrB = tnrB; globalAssets.tnrI = tnrI; globalAssets.tnrBI = tnrBI;
+            document.getElementById('loader').style.display = 'none';
+        };
+
+        // --- AI GENERATOR UNTUK KEWAJIBAN ---
+        window.generateKewajibanAI = async () => {
+            const btn = document.getElementById('btn-generate-ai');
+            const kegiatan = document.getElementById('kegiatan_nama').value;
+            const jenis = document.querySelector('input[name="jenis_mou"]:checked').value;
+            const desc = document.getElementById('kegiatan_deskripsi').value;
+
+            if(!kegiatan) { Swal.fire('Data Kurang', 'Isi Nama Kegiatan terlebih dahulu.', 'warning'); return; }
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI Sedang Memikirkan...'; btn.disabled = true;
+
+            try {
+                // Simulasi pemanggilan endpoint /api/surat
+                const prompt = `Buatkan poin kewajiban Pihak 1 (Penyelenggara) dan Pihak 2 (Mitra) untuk kegiatan "${kegiatan}". Jenis kerjasama: ${jenis}. Konteks: ${desc}. Berikan respons format JSON murni: {"kewajiban_p1": "1. ...\\n2. ...", "kewajiban_p2": "1. ...\\n2. ..."}`;
+                
+                const response = await fetch('/api/surat', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: 'MOU', konteks: prompt, format: 'json' })
+                });
+                
+                const resData = await response.json();
+                
+                // Jika API tidak terhubung sempurna, berikan fallback text
+                let dataP1 = resData.kewajiban_p1 || "1. Menyelenggarakan kegiatan dengan baik.\n2. Mencantumkan logo mitra pada seluruh media promosi event.\n3. Memberikan sertifikat penghargaan kepada mitra.";
+                let dataP2 = resData.kewajiban_p2 || "1. Mempublikasikan kegiatan di platform mitra.\n2. Memberikan dukungan sesuai kesepakatan tertulis.\n3. Mengirimkan logo instansi dengan resolusi tinggi.";
+
+                document.getElementById('p1_kewajiban').value = dataP1;
+                document.getElementById('p2_kewajiban').value = dataP2;
+                
+                Swal.fire({ toast: true, position: 'top', icon: 'success', title: 'Kewajiban berhasil disusun AI!', showConfirmButton: false, timer: 2000 });
+            } catch (error) {
+                // Fallback default text jika fetch error
+                document.getElementById('p1_kewajiban').value = "1. Memasang logo mitra di banner utama dan sertifikat.\n2. Menyebut nama mitra saat acara berlangsung (Adlips).\n3. Memberikan laporan kegiatan pasca acara.";
+                document.getElementById('p2_kewajiban').value = "1. Mempromosikan kegiatan di Instagram instansi.\n2. Mendelegasikan peserta/perwakilan untuk hadir.\n3. Mendukung publikasi acara secara maksimal.";
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Buatkan Draft Kewajiban Otomatis'; btn.disabled = false;
+            }
+        };
+
+        // --- PDF GENERATOR (DRAFT & FINAL) ---
+        // Helper mengecek isi data dan mengganti warna merah dan kurung [ ... ] jika Draft mode
+        const cekData = (val, label, isDraft) => {
+            if (isDraft && (!val || val.trim() === '')) {
+                return { text: `[ BELUM DIISI: ${label.toUpperCase()} ]`, color: 'red', bold: true };
+            }
+            return val || '';
+        };
+
+        const teksParagraf = (textArr) => ({ text: textArr, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 10] });
+        const judulPasal = (pasal, judul) => ({ text: `Pasal ${pasal}\n${judul}`, fontSize: 11, bold: true, alignment: 'center', margin: [0, 15, 0, 10] });
+
+        window.generatePDF = async (isDraft) => {
+            if (!isDraft && signaturePad.isEmpty()) {
+                Swal.fire('Otorisasi Diperlukan', 'Harap tanda tangani form sebelum mencetak dokumen final.', 'error'); return;
+            }
+
+            const btn = isDraft ? document.querySelector('.btn-draft') : document.getElementById('btn-cetak-final');
+            const oriHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun PDF...'; btn.disabled = true;
+
+            try {
+                // Gather Data
+                const dataMOU = {
+                    jenis: document.querySelector('input[name="jenis_mou"]:checked').value,
+                    kegiatan: document.getElementById('kegiatan_nama').value,
+                    tanggal: document.getElementById('mou_tanggal').value,
+                    p1_nama: document.getElementById('p1_nama').value,
+                    p1_jabatan: document.getElementById('p1_jabatan').value,
+                    p2_instansi: document.getElementById('p2_instansi').value,
+                    p2_nama: document.getElementById('p2_nama').value,
+                    p2_jabatan: document.getElementById('p2_jabatan').value,
+                    p2_alamat: document.getElementById('p2_alamat').value,
+                    p1_kw: document.getElementById('p1_kewajiban').value,
+                    p2_kw: document.getElementById('p2_kewajiban').value,
+                    ttd: isDraft ? null : signaturePad.toDataURL('image/png')
+                };
+
+                // Load Times New Roman jika ada
+                if (globalAssets.tnrR) {
+                    pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
+                    pdfMake.fonts = { TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' } };
+                }
+
+                // Format Tanggal
+                let strTanggal = '';
+                if(dataMOU.tanggal) {
+                    const d = new Date(dataMOU.tanggal);
+                    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                    strTanggal = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+                }
+
+                const docDef = {
+                    pageSize: 'A4', pageMargins: [50, 70, 50, 80],
+                    header: (cp) => ({ text: `MOU ${dataMOU.jenis.toUpperCase()} - CENDEKIA AKSARA & ${dataMOU.p2_instansi ? dataMOU.p2_instansi.toUpperCase() : 'MITRA'}`, alignment: 'center', fontSize: 8, color: '#94a3b8', bold: true, margin: [0, 20, 0, 0] }),
+                    footer: (cp, pc) => ({ stack: [ { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 50, color: '#001f3f' } ] }, { text: `Halaman ${cp} dari ${pc}`, alignment: 'right', color: 'white', fontSize: 9, bold: true, absolutePosition: { x: -40, y: 15 } } ] }),
+                    content: [
+                        // KOP
+                        {
+                            columns: [
+                                globalAssets.logo ? { image: globalAssets.logo, width: 60, margin: [10, 0, 15, 0] } : { text: '' },
+                                { stack: [ { text: 'KOMUNITAS LITERASI', fontSize: 11, alignment: 'center' }, { text: 'CENDEKIA AKSARA', fontSize: 18, bold: true, alignment: 'center' }, { text: 'Jl. Dusun Delok No. 22 Karangtejo, Kedu, Kab. Temanggung', fontSize: 9, alignment: 'center' } ] }
+                            ], margin: [0, 0, 0, 10]
+                        },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 495, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
+                        
+                        // JUDUL
+                        { text: `MEMORANDUM OF UNDERSTANDING (MOU)`, fontSize: 13, bold: true, alignment: 'center', decoration: 'underline' },
+                        { text: ['KERJASAMA ', cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft)], fontSize: 11, bold: true, alignment: 'center', margin: [0, 5, 0, 25] },
+
+                        teksParagraf(['Pada hari ini, tertanggal ', cekData(strTanggal, 'Tanggal MOU', isDraft), ', kami yang bertanda tangan di bawah ini:']),
+
+                        // PIHAK 1
+                        {
+                            table: { widths: [100, 10, '*'], body: [
+                                [ { text: 'I. Nama', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p1_nama, 'Nama Pihak 1', isDraft), bold: true, border: [false,false,false,false] } ],
+                                [ { text: '   Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p1_jabatan, 'Jabatan Pihak 1', isDraft), border: [false,false,false,false] } ],
+                                [ { text: '   Instansi', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'Komunitas Cendekia Aksara', border: [false,false,false,false] } ]
+                            ]}, margin: [20, 0, 0, 10]
+                        },
+                        teksParagraf('Bertindak untuk dan atas nama Cendekia Aksara, yang selanjutnya disebut sebagai PIHAK PERTAMA.'),
+
+                        // PIHAK 2
+                        {
+                            table: { widths: [100, 10, '*'], body: [
+                                [ { text: 'II. Instansi', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_instansi, 'Nama Instansi Mitra', isDraft), bold: true, border: [false,false,false,false] } ],
+                                [ { text: '    Diwakili Oleh', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_nama, 'Nama Perwakilan Mitra', isDraft), border: [false,false,false,false] } ],
+                                [ { text: '    Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_jabatan, 'Jabatan Mitra', isDraft), border: [false,false,false,false] } ],
+                                [ { text: '    Alamat', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_alamat, 'Alamat Mitra', isDraft), border: [false,false,false,false] } ]
+                            ]}, margin: [20, 0, 0, 10]
+                        },
+                        teksParagraf('Bertindak untuk dan atas nama instansinya, yang selanjutnya disebut sebagai PIHAK KEDUA.'),
+
+                        teksParagraf(['PIHAK PERTAMA dan PIHAK KEDUA sepakat mengikatkan diri dalam sebuah perjanjian kerjasama untuk kegiatan ', cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft), ' dengan syarat dan ketentuan sebagai berikut:']),
+
+                        judulPasal(1, 'MAKSUD DAN TUJUAN'),
+                        teksParagraf(['Kerjasama ini bertujuan untuk mengoptimalkan penyelenggaraan kegiatan ', cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft), ' yang memberikan manfaat literasi/pendidikan bagi masyarakat melalui kolaborasi ', cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft), ' yang berprinsip pada simbiosis mutualisme.']),
+
+                        judulPasal(2, 'RUANG LINGKUP & KEWAJIBAN PIHAK PERTAMA'),
+                        teksParagraf('PIHAK PERTAMA dalam perjanjian ini memiliki kewajiban sebagai berikut:'),
+                        // Render Kewajiban P1
+                        isDraft && !dataMOU.p1_kw ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK PERTAMA ]', color: 'red', bold:true, margin:[20,0,0,10] } 
+                        : { text: dataMOU.p1_kw.split('\n').join('\n\n'), margin: [20, 0, 0, 10], alignment:'justify' },
+
+                        judulPasal(3, 'RUANG LINGKUP & KEWAJIBAN PIHAK KEDUA'),
+                        teksParagraf('PIHAK KEDUA dalam perjanjian ini memiliki kewajiban sebagai berikut:'),
+                        // Render Kewajiban P2
+                        isDraft && !dataMOU.p2_kw ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK KEDUA ]', color: 'red', bold:true, margin:[20,0,0,10] } 
+                        : { text: dataMOU.p2_kw.split('\n').join('\n\n'), margin: [20, 0, 0, 10], alignment:'justify' },
+
+                        judulPasal(4, 'JANGKA WAKTU'),
+                        teksParagraf('Perjanjian kerjasama ini berlaku efektif sejak tanggal penandatanganan dan akan berakhir setelah seluruh rangkaian hak dan kewajiban masing-masing pihak telah dituntaskan sepenuhnya.'),
+
+                        judulPasal(5, 'FORCE MAJEURE (KEADAAN MEMAKSA)'),
+                        teksParagraf('Apabila terjadi keadaan di luar kendali PARA PIHAK seperti bencana alam, kebakaran, atau kebijakan pemerintah (Force Majeure) yang menyebabkan terhentinya kegiatan ini, maka hal tersebut diselesaikan secara musyawarah tanpa ada tuntutan ganti rugi.'),
+
+                        judulPasal(6, 'PENYELESAIAN PERSELISIHAN & PENUTUP'),
+                        teksParagraf('Setiap perselisihan akan diselesaikan secara musyawarah untuk mufakat. Surat Perjanjian ini dibuat rangkap 2 (dua), bermaterai cukup, dan mempunyai kekuatan hukum yang sama.'),
+
+                        // AREA TTD
+                        {
+                            unbreakable: true,
+                            margin: [0, 30, 0, 0],
+                            table: {
+                                widths: ['50%', '50%'], heights: [20, 100, 18],
+                                body: [
+                                    [
+                                        { text: 'PIHAK PERTAMA\nCendekia Aksara', bold: true, alignment: 'center', border: [false,false,false,false] },
+                                        { text: ['PIHAK KEDUA\n', cekData(dataMOU.p2_instansi, 'Instansi', isDraft)], bold: true, alignment: 'center', border: [false,false,false,false] }
+                                    ],
+                                    [
+                                        {
+                                            alignment: 'center', border: [false,false,false,false],
+                                            stack: [
+                                                (globalAssets.cap && !isDraft) ? { image: globalAssets.cap, width: 90, opacity: 0.6 } : { text: '\n\n' },
+                                                (!isDraft && dataMOU.ttd) ? { image: dataMOU.ttd, width: 130, relativePosition: { x: 0, y: -60 } } : { text: '' }
+                                            ]
+                                        },
+                                        { alignment: 'center', border: [false,false,false,false], stack: [ { text: '\n\n\n( Materai 10.000 & Ttd )', fontSize: 9, color: '#94a3b8', italics: true, alignment: 'center' } ] }
+                                    ],
+                                    [
+                                        { text: cekData(dataMOU.p1_nama, 'Nama P1', isDraft), bold: true, alignment: 'center', decoration: 'underline', border: [false,false,false,false] },
+                                        { text: cekData(dataMOU.p2_nama, 'Nama P2', isDraft), bold: true, alignment: 'center', decoration: 'underline', border: [false,false,false,false] }
+                                    ]
+                                ]
+                            }
+                        }
+                    ],
+                    defaultStyle: { font: globalAssets.tnrR ? 'TimesNewRoman' : 'Roboto', fontSize: 11 }
+                };
+
+                const prefix = isDraft ? 'DRAFT_MERAH_MOU' : 'FINAL_MOU';
+                const fName = `${prefix}_${dataMOU.p2_instansi ? dataMOU.p2_instansi.replace(/\s+/g,'_') : 'Mitra'}.pdf`;
+                
+                pdfMake.createPdf(docDef).download(fName, async () => {
+                    // Jika INI FINAL, simpan ke database (Firebase / LocalStorage)
+                    if(!isDraft) {
+                        try {
+                            // Simpan ke Firebase
+                            await addDoc(collection(db, 'arsip_mou'), { ...dataMOU, ttd: '', created_at: serverTimestamp() });
+                        } catch(e) {
+                            // Fallback LocalStorage jika Firebase offline/gagal
+                            let arsip = JSON.parse(localStorage.getItem('arsipMOU') || '[]');
+                            arsip.push({ ...dataMOU, created_at: new Date().toISOString() });
+                            localStorage.setItem('arsipMOU', JSON.stringify(arsip));
+                        }
+                        
+                        Swal.fire('Sukses', 'MOU Final telah diterbitkan dan tersimpan di Arsip.', 'success').then(() => {
+                            document.getElementById('mouForm').reset(); signaturePad.clear(); switchTab('tab-arsip', document.querySelectorAll('.tab-btn')[2]); loadArsip();
+                        });
+                    }
+                });
+
+            } catch (err) {
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. '+err.message, 'error');
+            } finally {
+                btn.innerHTML = oriHtml; btn.disabled = false;
+            }
+        };
+
+        // --- ARSIP SYSTEM ---
+        window.loadArsip = async () => {
+            const tbody = document.getElementById('arsip-body');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat Data Arsip...</td></tr>';
+            
+            let html = '';
+            try {
+                // Coba ambil dari Firebase
+                const q = query(collection(db, 'arsip_mou'), orderBy('created_at', 'desc'));
+                const snap = await getDocs(q);
+                
+                if(!snap.empty) {
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const idObj = encodeURIComponent(JSON.stringify(d));
+                        html += `<tr><td>${d.tanggal || '-'}</td><td>${d.p2_instansi}</td><td>${d.kegiatan}</td><td>${d.jenis}</td><td><button class="btn-arsip-dl" onclick="cetakUlang('${idObj}')"><i class="fa-solid fa-download"></i> Cetak Ulang</button></td></tr>`;
+                    });
+                } else throw new Error("Kosong");
+            } catch (e) {
+                // Fallback LocalStorage
+                const arsip = JSON.parse(localStorage.getItem('arsipMOU') || '[]');
+                if(arsip.length > 0) {
+                    arsip.reverse().forEach(d => {
+                        const idObj = encodeURIComponent(JSON.stringify(d));
+                        html += `<tr><td>${d.tanggal || '-'}</td><td>${d.p2_instansi}</td><td>${d.kegiatan}</td><td>${d.jenis}</td><td><button class="btn-arsip-dl" onclick="cetakUlang('${idObj}')"><i class="fa-solid fa-download"></i> Cetak Ulang</button></td></tr>`;
+                    });
+                } else {
+                    html = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Belum ada arsip MOU final yang diterbitkan.</td></tr>';
+                }
+            }
+            tbody.innerHTML = html;
+        };
+
+        // Re-populasikan Form lalu Pindah Tab Preview untuk TTD ulang atau Print tanpa TTD
+        window.cetakUlang = (dataStr) => {
+            const d = JSON.parse(decodeURIComponent(dataStr));
+            // Isi kembali semua form
+            if(d.jenis === 'Media Partner') selectRadio('Media Partner'); else selectRadio('Sponsorship');
+            document.getElementById('kegiatan_nama').value = d.kegiatan || '';
+            document.getElementById('mou_tanggal').value = d.tanggal || '';
+            document.getElementById('p2_instansi').value = d.p2_instansi || '';
+            document.getElementById('p2_nama').value = d.p2_nama || '';
+            document.getElementById('p2_jabatan').value = d.p2_jabatan || '';
+            document.getElementById('p2_alamat').value = d.p2_alamat || '';
+            document.getElementById('p1_kewajiban').value = d.p1_kw || '';
+            document.getElementById('p2_kewajiban').value = d.p2_kw || '';
+            
+            signaturePad.clear();
+            switchTab('tab-preview', document.querySelectorAll('.tab-btn')[1]);
+            Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Data dimuat ulang!', text: 'Silakan tanda tangan kembali untuk cetak PDF Final.', showConfirmButton: false, timer: 3000 });
+        };
+
+    </script>
+</body>
+</html>
