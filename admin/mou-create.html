@@ -85,10 +85,10 @@
 <body>
 
     <canvas id="hidden-canvas"></canvas>
-    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color:var(--primary); margin-bottom:15px;"></i><h3>Menyiapkan Sistem MOU...</h3></div>
+    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color:var(--primary); margin-bottom:15px;"></i><h3>Menyiapkan Sistem MOU (Full Lengkap)...</h3></div>
 
     <header class="top-navbar">
-        <div class="nav-title"><i class="fa-solid fa-file-contract"></i> Draft & Cetak MOU Cendekia Aksara</div>
+        <div class="nav-title"><i class="fa-solid fa-file-contract"></i> Generator MOU (Pasal & Ayat Lengkap)</div>
     </header>
 
     <div class="app-wrapper">
@@ -216,7 +216,6 @@
         import { db, checkAuth } from "/js/firebase-config.js";
         import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // TAB LOGIC
         window.switchTab = function(tabId, btnElement) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -225,14 +224,12 @@
             if(tabId === 'tab-preview') setTimeout(resizeCanvas, 200);
         }
 
-        // RADIO LOGIC
         window.selectRadio = function(jenis) {
             document.querySelectorAll('.radio-card').forEach(el => el.classList.remove('selected'));
             if(jenis === 'Media Partner') document.getElementById('opt-media').classList.add('selected');
             else document.getElementById('opt-sponsor').classList.add('selected');
         }
 
-        // KANVAS TANDA TANGAN
         const canvas = document.getElementById('signature-pad');
         window.signaturePad = new SignaturePad(canvas, { penColor: "rgb(15, 23, 42)" });
         function resizeCanvas() {
@@ -243,7 +240,6 @@
             signaturePad.clear();
         }
 
-        // ASSETS LOAD (Logo, Stempel Cendekia Aksara, Fonts)
         const LOGO_CA = "https://i.imgur.com/5Srjyo4.png"; 
         const CAP_CA = "https://i.imgur.com/YvrNYRw.png"; 
         const globalAssets = {}; 
@@ -269,7 +265,6 @@
             });
         }
 
-        // INIT LOAD
         window.onload = async () => {
             document.getElementById('mou_tanggal').valueAsDate = new Date();
             const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
@@ -281,7 +276,6 @@
             document.getElementById('loader').style.display = 'none';
         };
 
-        // --- AI GENERATOR UNTUK KEWAJIBAN ---
         window.generateKewajibanAI = async () => {
             const btn = document.getElementById('btn-generate-ai');
             const kegiatan = document.getElementById('kegiatan_nama').value;
@@ -293,55 +287,56 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI Sedang Memikirkan...'; btn.disabled = true;
 
             try {
-                // Simulasi pemanggilan endpoint /api/surat
                 const prompt = `Buatkan poin kewajiban Pihak 1 (Penyelenggara) dan Pihak 2 (Mitra) untuk kegiatan "${kegiatan}". Jenis kerjasama: ${jenis}. Konteks: ${desc}. Berikan respons format JSON murni: {"kewajiban_p1": "1. ...\\n2. ...", "kewajiban_p2": "1. ...\\n2. ..."}`;
-                
                 const response = await fetch('/api/surat', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: 'MOU', konteks: prompt, format: 'json' })
                 });
-                
                 const resData = await response.json();
                 
-                // Jika API tidak terhubung sempurna, berikan fallback text
-                let dataP1 = resData.kewajiban_p1 || "1. Menyelenggarakan kegiatan dengan baik.\n2. Mencantumkan logo mitra pada seluruh media promosi event.\n3. Memberikan sertifikat penghargaan kepada mitra.";
-                let dataP2 = resData.kewajiban_p2 || "1. Mempublikasikan kegiatan di platform mitra.\n2. Memberikan dukungan sesuai kesepakatan tertulis.\n3. Mengirimkan logo instansi dengan resolusi tinggi.";
+                let dataP1 = resData.kewajiban_p1 || "Menyelenggarakan kegiatan secara profesional dan bertanggung jawab.\nMencantumkan logo mitra pada seluruh materi publikasi terkait kegiatan secara berkala.\nMemberikan laporan akhir (LPJ) komprehensif kepada mitra paling lambat 14 hari pasca acara.";
+                let dataP2 = resData.kewajiban_p2 || "Mempublikasikan kegiatan di jaringan internal maupun eksternal yang dikelola secara independen.\nMemberikan dukungan operasional, dana, atau barter aset promosi sesuai kesepakatan tertulis.\nMengirimkan materi promosi (logo, pedoman merek, dan visual aset) secara tepat waktu kepada Pihak Pertama.";
 
-                document.getElementById('p1_kewajiban').value = dataP1;
-                document.getElementById('p2_kewajiban').value = dataP2;
-                
+                document.getElementById('p1_kewajiban').value = dataP1; document.getElementById('p2_kewajiban').value = dataP2;
                 Swal.fire({ toast: true, position: 'top', icon: 'success', title: 'Kewajiban berhasil disusun AI!', showConfirmButton: false, timer: 2000 });
             } catch (error) {
-                // Fallback default text jika fetch error
-                document.getElementById('p1_kewajiban').value = "1. Memasang logo mitra di banner utama dan sertifikat.\n2. Menyebut nama mitra saat acara berlangsung (Adlips).\n3. Memberikan laporan kegiatan pasca acara.";
-                document.getElementById('p2_kewajiban').value = "1. Mempromosikan kegiatan di Instagram instansi.\n2. Mendelegasikan peserta/perwakilan untuk hadir.\n3. Mendukung publikasi acara secara maksimal.";
+                document.getElementById('p1_kewajiban').value = "Memasang logo mitra di banner utama, sertifikat, dan media sosial resmi acara.\nMenyebut nama mitra secara lisan (Adlips) saat rangkaian acara utama berlangsung.\nMemberikan laporan kegiatan pasca acara beserta rekapan dokumentasi yang relevan.";
+                document.getElementById('p2_kewajiban').value = "Mempromosikan kegiatan di kanal Instagram dan platform media instansi secara aktif.\nMendelegasikan peserta atau perwakilan pimpinan untuk hadir dalam acara peresmian/puncak.\nMendukung publikasi acara secara maksimal sesuai dengan kapasitas audiens yang dimiliki.";
             } finally {
                 btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Buatkan Draft Kewajiban Otomatis'; btn.disabled = false;
             }
         };
 
-        // --- PDF GENERATOR (DRAFT & FINAL) ---
-        // Helper mengecek isi data dan mengganti warna merah dan kurung [ ... ] jika Draft mode
+        // --- PDF GENERATOR (EXTENDED FULL CLAUSES & AYAT) ---
         const cekData = (val, label, isDraft) => {
-            if (isDraft && (!val || val.trim() === '')) {
-                return { text: `[ BELUM DIISI: ${label.toUpperCase()} ]`, color: 'red', bold: true };
-            }
+            if (isDraft && (!val || val.trim() === '')) return { text: `[ BELUM DIISI: ${label.toUpperCase()} ]`, color: 'red', bold: true };
             return val || '';
         };
 
-        const teksParagraf = (textArr) => ({ text: textArr, alignment: 'justify', lineHeight: 1.4, margin: [0, 0, 0, 10] });
-        const judulPasal = (pasal, judul) => ({ text: `Pasal ${pasal}\n${judul}`, fontSize: 11, bold: true, alignment: 'center', margin: [0, 15, 0, 10] });
+        const teks = (t) => ({ text: t, alignment: 'justify', lineHeight: 1.5, margin: [0, 0, 0, 10] });
+        const pasalTitle = (pasal, judul) => ({ text: `PASAL ${pasal}\n${judul}`, fontSize: 11, bold: true, alignment: 'center', margin: [0, 20, 0, 15] });
+
+        // Fungsi khusus untuk merender Ayat (1), (2), (3) agar legal drafting-nya terlihat profesional
+        const ayatOl = (arr) => {
+            return {
+                stack: arr.map((textItem, index) => ({
+                    columns: [
+                        { text: `(${index + 1})`, width: 25, alignment: 'left', bold: true },
+                        { text: textItem, alignment: 'justify', width: '*', lineHeight: 1.5 }
+                    ],
+                    margin: [0, 0, 0, 15]
+                })),
+                margin: [20, 0, 0, 10]
+            };
+        };
 
         window.generatePDF = async (isDraft) => {
-            if (!isDraft && signaturePad.isEmpty()) {
-                Swal.fire('Otorisasi Diperlukan', 'Harap tanda tangani form sebelum mencetak dokumen final.', 'error'); return;
-            }
+            if (!isDraft && signaturePad.isEmpty()) { Swal.fire('Otorisasi Diperlukan', 'Harap tanda tangani form sebelum mencetak dokumen final.', 'error'); return; }
 
             const btn = isDraft ? document.querySelector('.btn-draft') : document.getElementById('btn-cetak-final');
             const oriHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun PDF...'; btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyusun PDF (Mode Pasal & Ayat Lengkap)...'; btn.disabled = true;
 
             try {
-                // Gather Data
                 const dataMOU = {
                     jenis: document.querySelector('input[name="jenis_mou"]:checked').value,
                     kegiatan: document.getElementById('kegiatan_nama').value,
@@ -357,13 +352,11 @@
                     ttd: isDraft ? null : signaturePad.toDataURL('image/png')
                 };
 
-                // Load Times New Roman jika ada
                 if (globalAssets.tnrR) {
                     pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
                     pdfMake.fonts = { TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' } };
                 }
 
-                // Format Tanggal
                 let strTanggal = '';
                 if(dataMOU.tanggal) {
                     const d = new Date(dataMOU.tanggal);
@@ -372,93 +365,276 @@
                 }
 
                 const docDef = {
-                    pageSize: 'A4', pageMargins: [50, 70, 50, 80],
-                    header: (cp) => ({ text: `MOU ${dataMOU.jenis.toUpperCase()} - CENDEKIA AKSARA & ${dataMOU.p2_instansi ? dataMOU.p2_instansi.toUpperCase() : 'MITRA'}`, alignment: 'center', fontSize: 8, color: '#94a3b8', bold: true, margin: [0, 20, 0, 0] }),
-                    footer: (cp, pc) => ({ stack: [ { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 50, color: '#001f3f' } ] }, { text: `Halaman ${cp} dari ${pc}`, alignment: 'right', color: 'white', fontSize: 9, bold: true, absolutePosition: { x: -40, y: 15 } } ] }),
+                    pageSize: 'A4', pageMargins: [70, 80, 70, 80],
+                    header: (cp) => {
+                        if (cp === 1) return null; 
+                        return { text: `MEMORANDUM OF UNDERSTANDING - ${dataMOU.jenis.toUpperCase()}`, alignment: 'right', fontSize: 9, italics: true, color: '#94a3b8', margin: [0, 30, 70, 0] };
+                    },
+                    footer: (cp, pc) => {
+                        if (cp === 1) return null;
+                        return { text: `Halaman ${cp} dari ${pc}`, alignment: 'center', fontSize: 10, margin: [0, 20, 0, 0] };
+                    },
                     content: [
-                        // KOP
+                        // HALAMAN SAMPUL
+                        { text: '\n\n\n\n\n\n' },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 455, y2: 0, lineWidth: 4, lineColor: '#001f3f' }], margin:[0,0,0,5] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 455, y2: 0, lineWidth: 1, lineColor: '#001f3f' }] },
+                        { text: '\n\nMEMORANDUM OF UNDERSTANDING\n(NOTA KESEPAHAMAN BERSAMA)\n\n', fontSize: 24, bold: true, alignment: 'center', lineHeight: 1.5 },
+                        { text: ['KERJASAMA ', cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft), '\n', cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft)], fontSize: 16, bold: true, alignment: 'center', margin:[0,0,0,40] },
+                        
+                        { text: 'ANTARA\n', fontSize: 14, alignment: 'center', margin:[0,0,0,20] },
+                        { text: 'KOMUNITAS CENDEKIA AKSARA\n', fontSize: 18, bold: true, alignment: 'center' },
+                        { text: 'DENGAN\n', fontSize: 14, alignment: 'center', margin:[0,20,0,20] },
+                        { text: [cekData(dataMOU.p2_instansi, 'Instansi Mitra', isDraft)], fontSize: 18, bold: true, alignment: 'center' },
+                        { text: '\n\n\n\n\n' },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 455, y2: 0, lineWidth: 1, lineColor: '#001f3f' }], margin:[0,0,0,5] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 455, y2: 0, lineWidth: 4, lineColor: '#001f3f' }] },
+                        { text: `\nTahun ${dataMOU.tanggal ? dataMOU.tanggal.split('-')[0] : '2026'}`, fontSize: 14, alignment: 'center', pageBreak: 'after' },
+
+                        // HALAMAN 2: KOP SURAT LENGKAP & PEMBUKA
                         {
                             columns: [
-                                globalAssets.logo ? { image: globalAssets.logo, width: 60, margin: [10, 0, 15, 0] } : { text: '' },
-                                { stack: [ { text: 'KOMUNITAS LITERASI', fontSize: 11, alignment: 'center' }, { text: 'CENDEKIA AKSARA', fontSize: 18, bold: true, alignment: 'center' }, { text: 'Jl. Dusun Delok No. 22 Karangtejo, Kedu, Kab. Temanggung', fontSize: 9, alignment: 'center' } ] }
+                                globalAssets.logo ? { image: globalAssets.logo, width: 75, margin: [0, 0, 10, 0] } : { text: '', width: 85 },
+                                { 
+                                    stack: [ 
+                                        { text: 'KOMUNITAS LITERASI CENDEKIA AKSARA', fontSize: 14, bold: true, alignment: 'center' }, 
+                                        { text: 'PT CENDEKIA AKSARA EDUKASI', fontSize: 16, bold: true, alignment: 'center', margin: [0, 2, 0, 2] }, 
+                                        { text: 'Email: ragamliterasi@gmail.com | cendekia.aksara25@gmail.com', fontSize: 10, alignment: 'center' },
+                                        { text: 'Telepon: 08895615630 | 085939188592', fontSize: 10, alignment: 'center' },
+                                        { text: 'Alamat: Gang Melati No 22 RT 002 RW 004 Karangtejo, Kec. Kedu, Kab. Temanggung 56252', fontSize: 10, alignment: 'center' } 
+                                    ] 
+                                }
                             ], margin: [0, 0, 0, 10]
                         },
-                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 2 }] },
-                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 495, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
-                        
-                        // JUDUL
-                        { text: `MEMORANDUM OF UNDERSTANDING (MOU)`, fontSize: 13, bold: true, alignment: 'center', decoration: 'underline' },
-                        { text: ['KERJASAMA ', cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft)], fontSize: 11, bold: true, alignment: 'center', margin: [0, 5, 0, 25] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 455, y2: 0, lineWidth: 2 }] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 2, x2: 455, y2: 2, lineWidth: 0.5 }], margin: [0,0,0,20] },
 
-                        teksParagraf(['Pada hari ini, tertanggal ', cekData(strTanggal, 'Tanggal MOU', isDraft), ', kami yang bertanda tangan di bawah ini:']),
+                        { text: `MEMORANDUM OF UNDERSTANDING`, fontSize: 14, bold: true, alignment: 'center', decoration: 'underline' },
+                        { text: `Nomor: 015/MOU/CA/${dataMOU.tanggal ? dataMOU.tanggal.split('-')[0] : '2026'}\n\n`, fontSize: 11, alignment: 'center' },
 
-                        // PIHAK 1
+                        teks(['Pada hari ini, tertanggal ', cekData(strTanggal, 'Tanggal MOU', isDraft), ', yang bertanda tangan di bawah ini:']),
+
                         {
                             table: { widths: [100, 10, '*'], body: [
-                                [ { text: 'I. Nama', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p1_nama, 'Nama Pihak 1', isDraft), bold: true, border: [false,false,false,false] } ],
+                                [ { text: '1. Nama', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p1_nama, 'Nama Pihak 1', isDraft), bold: true, border: [false,false,false,false] } ],
                                 [ { text: '   Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p1_jabatan, 'Jabatan Pihak 1', isDraft), border: [false,false,false,false] } ],
                                 [ { text: '   Instansi', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: 'Komunitas Cendekia Aksara', border: [false,false,false,false] } ]
-                            ]}, margin: [20, 0, 0, 10]
+                            ]}, margin: [20, 0, 0, 15]
                         },
-                        teksParagraf('Bertindak untuk dan atas nama Cendekia Aksara, yang selanjutnya disebut sebagai PIHAK PERTAMA.'),
+                        teks('Dalam hal ini bertindak dalam jabatannya tersebut, karenanya sah mewakili untuk dan atas nama Komunitas Cendekia Aksara yang bernaung di bawah bendera PT Cendekia Aksara Edukasi, selanjutnya di dalam Perjanjian ini disebut sebagai "PIHAK PERTAMA".'),
 
-                        // PIHAK 2
                         {
                             table: { widths: [100, 10, '*'], body: [
-                                [ { text: 'II. Instansi', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_instansi, 'Nama Instansi Mitra', isDraft), bold: true, border: [false,false,false,false] } ],
-                                [ { text: '    Diwakili Oleh', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_nama, 'Nama Perwakilan Mitra', isDraft), border: [false,false,false,false] } ],
-                                [ { text: '    Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_jabatan, 'Jabatan Mitra', isDraft), border: [false,false,false,false] } ],
-                                [ { text: '    Alamat', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_alamat, 'Alamat Mitra', isDraft), border: [false,false,false,false] } ]
-                            ]}, margin: [20, 0, 0, 10]
+                                [ { text: '2. Instansi', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_instansi, 'Instansi Mitra', isDraft), bold: true, border: [false,false,false,false] } ],
+                                [ { text: '   Diwakili Oleh', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_nama, 'Nama Mitra', isDraft), border: [false,false,false,false] } ],
+                                [ { text: '   Jabatan', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_jabatan, 'Jabatan Mitra', isDraft), border: [false,false,false,false] } ],
+                                [ { text: '   Alamat', border: [false,false,false,false] }, { text: ':', border: [false,false,false,false] }, { text: cekData(dataMOU.p2_alamat, 'Alamat Mitra', isDraft), border: [false,false,false,false] } ]
+                            ]}, margin: [20, 0, 0, 15]
                         },
-                        teksParagraf('Bertindak untuk dan atas nama instansinya, yang selanjutnya disebut sebagai PIHAK KEDUA.'),
+                        teks('Dalam hal ini bertindak dalam jabatannya tersebut, karenanya sah mewakili untuk dan atas nama Instansi/Perusahaannya, selanjutnya di dalam Perjanjian ini disebut sebagai "PIHAK KEDUA".'),
 
-                        teksParagraf(['PIHAK PERTAMA dan PIHAK KEDUA sepakat mengikatkan diri dalam sebuah perjanjian kerjasama untuk kegiatan ', cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft), ' dengan syarat dan ketentuan sebagai berikut:']),
+                        teks('PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama selanjutnya disebut sebagai "PARA PIHAK", dan secara sendiri-sendiri disebut sebagai "PIHAK".'),
+                        
+                        teks('PARA PIHAK dengan ini terlebih dahulu menerangkan dan menyatakan hal-hal sebagai berikut (Klausul Pendahuluan):'),
+                        ayatOl([
+                            'Bahwa PIHAK PERTAMA adalah sebuah institusi, komunitas, dan badan usaha berskala nasional yang bergerak secara masif di bidang pendidikan, penerbitan, penulisan, dan kampanye kebudayaan literasi guna membangun sumber daya manusia yang berwawasan luas dan kritis.',
+                            'Bahwa PIHAK KEDUA adalah entitas yang diakui dan sah di mata hukum, yang memiliki visi dan misi yang selaras dalam mendukung serta menyokong terselenggaranya program pendidikan, literasi, pemberdayaan masyarakat, dan pengembangan kualitas generasi muda penerus bangsa.',
+                            'Bahwa PARA PIHAK memandang mutlak dan esensial akan adanya sebuah sinergi, kolaborasi, dan kemitraan yang strategis, terstruktur, komprehensif, dan berkesinambungan dalam rangka merancang, mendanai, mempromosikan, serta mensukseskan program/kegiatan yang akan dilaksanakan di bawah naungan kesepakatan ini.',
+                            'Bahwa kolaborasi ini murni dilandasi oleh prinsip itikad baik (good faith), asas manfaat timbal-balik yang berkeadilan (simbiosis mutualisme), kesetaraan (equality before the agreement), kepatuhan terhadap regulasi hukum, dan tata kelola organisasi yang baik (good corporate governance).',
+                            'Bahwa PARA PIHAK menjamin dan memastikan bahwa perwakilan masing-masing pihak yang membubuhkan tanda tangan di dalam dokumen ini memiliki legalitas, kapasitas hukum penuh, dan wewenang mutlak untuk saling mengikatkan institusinya di dalam Nota Kesepahaman / Perjanjian ini tanpa adanya intervensi, tekanan, atau paksaan dari pihak mana pun juga.'
+                        ]),
+                        teks('Berdasarkan pertimbangan-pertimbangan logis dan yuridis tersebut di atas, PARA PIHAK dengan ini sepakat untuk membuat, menyetujui, dan menandatangani Memorandum of Understanding (MOU) ini dengan syarat, ketentuan, serta pasal-pasal sebagai berikut:'),
 
-                        judulPasal(1, 'MAKSUD DAN TUJUAN'),
-                        teksParagraf(['Kerjasama ini bertujuan untuk mengoptimalkan penyelenggaraan kegiatan ', cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft), ' yang memberikan manfaat literasi/pendidikan bagi masyarakat melalui kolaborasi ', cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft), ' yang berprinsip pada simbiosis mutualisme.']),
+                        pasalTitle(1, 'DEFINISI DAN INTERPRETASI'),
+                        teks('Dalam Perjanjian ini, kecuali secara tegas dan spesifik ditentukan lain oleh konteks kalimatnya, istilah-istilah di bawah ini akan memiliki pengertian dan definisi yang mengikat sebagai berikut:'),
+                        ayatOl([
+                            '"Perjanjian" berarti keseluruhan isi Memorandum of Understanding (MOU) ini, berikut dengan setiap Surat Penawaran, Lampiran (Annex), Jadwal, Adendum, serta perubahannya yang mungkin disepakati dan dibuat secara tertulis dari waktu ke waktu oleh PARA PIHAK, yang kesemuanya merupakan satu kesatuan substansial yang sama sekali tidak terpisahkan dari dokumen utama ini.',
+                            `"Kegiatan" berarti keseluruhan program, inisiatif, acara, kompetisi, atau event yang diselenggarakan dan diinisiasi oleh PIHAK PERTAMA dengan tajuk resmi "${cekData(dataMOU.kegiatan, 'Kegiatan', isDraft)}", beserta seluruh deskripsi turunan, jadwal teknis, dan lokasi pelaksanaan yang secara terperinci telah atau akan diuraikan dalam Proposal Kegiatan maupun Lampiran Perjanjian ini.`,
+                            '"Sponsorship" atau "Media Partner" berarti wujud nyata partisipasi, dukungan dana finansial, penyediaan fasilitas (in-kind), barang, ataupun jasa publikasi dan eksposur media yang diserahkan/diberikan oleh PIHAK KEDUA kepada PIHAK PERTAMA sebagai bentuk kewajiban timbal balik atas hak promosi, penyematan logo, penyebutan nama (contra-prestasi), dan keuntungan pemasaran lainnya yang akan diterima PIHAK KEDUA dalam ruang lingkup pelaksanaan Kegiatan.',
+                            '"Hak Kekayaan Intelektual" berarti setiap dan seluruh hak cipta, hak paten, merek dagang, merek jasa, desain tata letak sirkuit, rahasia dagang, logo perusahaan, desain grafis visual, konsep maskot, dan segala bentuk hak kekayaan intelektual lainnya baik yang sudah didaftarkan maupun yang belum, yang diakui serta dilindungi oleh instrumen hukum Republik Indonesia maupun konvensi internasional yang berlaku.',
+                            '"Informasi Rahasia" berarti seluruh kumpulan informasi, data analitik, dokumen internal, rencana bisnis, strategi pemasaran, catatan keuangan, algoritma, basis data audiens, atau rahasia dapur konsep acara yang diberikan atau diakses oleh satu Pihak (sebagai Pihak Pengungkap) kepada Pihak lainnya (sebagai Pihak Penerima) baik secara lisan, tulisan, maupun elektronik, yang sifatnya sensitif dan tidak diketahui oleh publik umum.',
+                            '"Afiliasi" berarti pihak manapun yang secara langsung maupun tidak langsung mengendalikan, dikendalikan oleh, atau berada di bawah payung pengendalian yang sama dengan salah satu Pihak dalam Perjanjian ini, di mana "kendali" diartikan sebagai kepemilikan mayoritas saham atau hak veto pengurus.',
+                            '"Hari Kerja" berarti hari-hari resmi operasional (selain hari Sabtu, Minggu, atau hari libur nasional yang ditetapkan oleh Pemerintah Republik Indonesia) di mana bank-bank umum komersial di wilayah Republik Indonesia buka dan beroperasi untuk melakukan kegiatan kliring atau transaksi bisnis secara normal.'
+                        ]),
 
-                        judulPasal(2, 'RUANG LINGKUP & KEWAJIBAN PIHAK PERTAMA'),
-                        teksParagraf('PIHAK PERTAMA dalam perjanjian ini memiliki kewajiban sebagai berikut:'),
-                        // Render Kewajiban P1
-                        isDraft && !dataMOU.p1_kw ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK PERTAMA ]', color: 'red', bold:true, margin:[20,0,0,10] } 
-                        : { text: dataMOU.p1_kw.split('\n').join('\n\n'), margin: [20, 0, 0, 10], alignment:'justify' },
+                        pasalTitle(2, 'MAKSUD DAN TUJUAN'),
+                        teks('Ketentuan yang melandasi maksud serta tujuan diadakannya Perjanjian ini dijabarkan secara rinci dalam ayat-ayat sebagai berikut:'),
+                        ayatOl([
+                            `Maksud utama dari penandatanganan Perjanjian ini adalah sebagai landasan hukum formal dan pijakan awal bagi PARA PIHAK untuk menjalin hubungan kerjasama institusional dalam kapasitas dan payung ${cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft)} guna memastikan dan mensukseskan berjalannya rangkaian kegiatan ${cekData(dataMOU.kegiatan, 'Kegiatan', isDraft)}.`,
+                            'Tujuan mendasar dari Perjanjian ini adalah untuk mengatur secara terang, rinci, dan tegas segala bentuk mekanisme pelaksanaan teknis, batas-batas wewenang hukum, ruang lingkup tugas harian, dan pertanggungjawaban masing-masing Pihak sehingga tercipta kolaborasi dan sinergi yang optimal, harmonis, transparan, serta dapat dipertanggungjawabkan baik secara moral maupun yuridis.',
+                            'PARA PIHAK dengan ini sepakat dan meyakini bahwa tujuan turunan jangka panjang dari Perjanjian ini adalah untuk memberikan nilai tambah (value added), peningkatkan citra merek (brand image & brand awareness) secara positif bagi Pihak Kedua, serta menggaransi keberhasilan eksekusi kegiatan Pihak Pertama di mata masyarakat dan target audiens yang luas.'
+                        ]),
 
-                        judulPasal(3, 'RUANG LINGKUP & KEWAJIBAN PIHAK KEDUA'),
-                        teksParagraf('PIHAK KEDUA dalam perjanjian ini memiliki kewajiban sebagai berikut:'),
-                        // Render Kewajiban P2
-                        isDraft && !dataMOU.p2_kw ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK KEDUA ]', color: 'red', bold:true, margin:[20,0,0,10] } 
-                        : { text: dataMOU.p2_kw.split('\n').join('\n\n'), margin: [20, 0, 0, 10], alignment:'justify' },
+                        pasalTitle(3, 'RUANG LINGKUP KERJASAMA'),
+                        teks('Ruang lingkup operasional, administratif, maupun hukum yang diatur dan disepakati oleh PARA PIHAK dalam Perjanjian ini meliputi, namun tidak dibatasi secara kaku, pada hal-hal berikut:'),
+                        ayatOl([
+                            'Pelaksanaan mekanisme pertukaran aset promosi digital dan cetak, penyediaan file logo resolusi tinggi, materi publikasi, dan pengaturan fasilitas tata letak acara yang berkaitan langsung dengan kampanye serta pelaksanaan kegiatan.',
+                            'Tata cara dan pengaturan waktu (timeline) penyerahan atau penyediaan kompensasi baik berupa in-kind (barang, produk, jasa, fasilitas ruangan) maupun in-cash (dana segar/tunai) yang mekanisme dan terminnya disesuaikan dengan paket kerjasama yang secara spesifik akan merujuk pada ketentuan yang disepakati secara terpisah.',
+                            'Pemanfaatan secara masif atas jaringan distribusi fisik, basis audiens dan komunitas yang dimiliki, serta seluruh kanal media sosial resmi masing-masing Pihak untuk penetrasi publikasi guna mencapai target capaian partisipan dan publisitas yang telah direncanakan.',
+                            'Penyusunan mekanisme evaluasi bersama dan penyerahan dukungan administratif pendamping berupa pelaporan kinerja, penyediaan bukti tayang, bukti pencantuman logo, serta laporan pertanggungjawaban keseluruhan (LPJ) setelah rangkaian acara mencapai titik purna.'
+                        ]),
 
-                        judulPasal(4, 'JANGKA WAKTU'),
-                        teksParagraf('Perjanjian kerjasama ini berlaku efektif sejak tanggal penandatanganan dan akan berakhir setelah seluruh rangkaian hak dan kewajiban masing-masing pihak telah dituntaskan sepenuhnya.'),
+                        pasalTitle(4, 'HAK DAN KEWAJIBAN PIHAK PERTAMA'),
+                        teks('Tanpa mengesampingkan atau mengurangi segala kewajiban-kewajiban turunan lainnya yang mungkin tersirat atau diatur dalam pasal-pasal selanjutnya di dalam Perjanjian ini, PIHAK PERTAMA memiliki hak absolut untuk menerima pelaksanaan janji dari PIHAK KEDUA, dan secara simultan PIHAK PERTAMA wajib dan terikat untuk menunaikan tanggung jawabnya sebagaimana dijabarkan pada ayat-ayat berikut:'),
+                        (isDraft && !dataMOU.p1_kw) ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK 1 ]', color: 'red', bold:true, margin:[20,0,0,10] } 
+                        : ayatOl(dataMOU.p1_kw.split('\n').filter(x => x.trim() !== '')),
 
-                        judulPasal(5, 'FORCE MAJEURE (KEADAAN MEMAKSA)'),
-                        teksParagraf('Apabila terjadi keadaan di luar kendali PARA PIHAK seperti bencana alam, kebakaran, atau kebijakan pemerintah (Force Majeure) yang menyebabkan terhentinya kegiatan ini, maka hal tersebut diselesaikan secara musyawarah tanpa ada tuntutan ganti rugi.'),
+                        pasalTitle(5, 'HAK DAN KEWAJIBAN PIHAK KEDUA'),
+                        teks('Dalam kedudukannya sebagai mitra kolaborasi yang sah dan terikat dalam kesepakatan ini, PIHAK KEDUA berhak sepenuhnya atas penerimaan pelaporan operasional, transparansi anggaran acara (bila diwajibkan), serta segenap manfaat pemasaran dan benefit promosi dari PIHAK PERTAMA. Di sisi lain, PIHAK KEDUA wajib dan terikat mutlak untuk memenuhi ketentuan pada ayat-ayat di bawah ini:'),
+                        (isDraft && !dataMOU.p2_kw) ? { text: '[ BELUM DIISI: KEWAJIBAN PIHAK 2 ]', color: 'red', bold:true, margin:[20,0,0,10] } 
+                        : ayatOl(dataMOU.p2_kw.split('\n').filter(x => x.trim() !== '')),
 
-                        judulPasal(6, 'PENYELESAIAN PERSELISIHAN & PENUTUP'),
-                        teksParagraf('Setiap perselisihan akan diselesaikan secara musyawarah untuk mufakat. Surat Perjanjian ini dibuat rangkap 2 (dua), bermaterai cukup, dan mempunyai kekuatan hukum yang sama.'),
+                        pasalTitle(6, 'NILAI KERJASAMA DAN TATA CARA PEMBAYARAN'),
+                        teks('(Ketentuan pada pasal ini diaktifkan dan berlaku mutatis mutandis apabila bentuk kesepakatan kerjasama secara nyata melibatkan pertukaran atau transaksi finansial, nilai komersial barang, ataupun Sponsorship dana tunai)'),
+                        ayatOl([
+                            'Penetapan besaran nilai dukungan finansial secara spesifik, valuasi harga barang atau jasa yang diserahkan (in-kind sponsorship), maupun perhitungan tarif pertukaran nilai promosi (media value equivalency) yang diberikan dan didedikasikan oleh PIHAK KEDUA kepada PIHAK PERTAMA adalah final dan mengikat sebagaimana yang dijabarkan dalam Proposal Kegiatan, Invois Resmi, atau Lampiran yang disepakati.',
+                            'Apabila komitmen dukungan dari PIHAK KEDUA melibatkan kewajiban penyetoran atau pembayaran dalam bentuk uang tunai, maka PIHAK KEDUA dengan ini diwajibkan untuk mentransfer keseluruhan dana tersebut secara lunas atau bertahap sesuai termin ke rekening bank resmi yang ditunjuk oleh PIHAK PERTAMA selambat-lambatnya 7 (tujuh) Hari Kerja sebelum tibanya waktu pelaksanaan puncak Kegiatan.',
+                            'Setiap kelalaian atau keterlambatan pencairan dana serta penundaan penyerahan barang di luar tenggat waktu yang telah disepakati bersama, dapat dan secara sah memberikan hak bagi PIHAK PERTAMA untuk menangguhkan, mengurangi, atau membatalkan secara sepihak keseluruhan skala promosi, pencantuman logo, dan segala bentuk hak contra-prestasi milik PIHAK KEDUA tanpa berkewajiban membayarkan denda apa pun.',
+                            'Seluruh potongan pajak terkait penghasilan, biaya transfer perbankan antar bank, bea materai, serta ongkos administrasi lainnya yang timbul secara langsung akibat dilakukannya transaksi finansial dari PIHAK KEDUA kepada PIHAK PERTAMA akan menjadi beban dan tanggungan yang mutlak ditanggung oleh PIHAK KEDUA, kecuali diperjanjikan lain secara tertulis.'
+                        ]),
 
+                        pasalTitle(7, 'PAJAK DAN PUNGUTAN'),
+                        teks('Ketentuan terkait tanggungan perpajakan negara dalam Perjanjian ini dijabarkan sebagai berikut:'),
+                        ayatOl([
+                            'Masing-masing Pihak secara mandiri dan sadar hukum bertanggung jawab sepenuhnya atas segala jenis pembayaran, pelaporan, dan penyetoran pajak, bea, retribusi, maupun pungutan resmi berdasar regulasi Pemerintah lainnya yang timbul, atau yang di masa depan mungkin timbul, sebagai akibat langsung maupun tidak langsung dari pelaksanaan Perjanjian ini, yang mana pelaksanaannya tunduk secara ketat pada regulasi perundang-undangan perpajakan yang sah di Republik Indonesia.',
+                            'Dalam hal regulasi perpajakan yang berlaku mewajibkan salah satu Pihak sebagai pemungut untuk melakukan pemotongan atas Pajak Penghasilan (PPh) yang terutang berkenaan dengan pembayaran yang dilakukan kepada Pihak lainnya, maka Pihak yang memotong tersebut diwajibkan menerbitkan dan menyerahkan Bukti Potong Pajak (Withholding Tax Slip) asli dan sah secara hukum kepada Pihak yang dipotong selambat-lambatnya pada hari terakhir bulan berikutnya setelah periode masa pajak dilakukannya pemotongan tersebut.'
+                        ]),
+
+                        pasalTitle(8, 'PERNYATAAN DAN JAMINAN (REPRESENTATIONS & WARRANTIES)'),
+                        teks('Guna memberikan kepastian hukum yang kuat di antara PARA PIHAK, masing-masing Pihak dengan ini secara sadar, sadar hukum, dan tegas menyatakan serta menjamin tanpa syarat kepada Pihak lainnya hal-hal pokok sebagai berikut:'),
+                        ayatOl([
+                            'Bahwa institusinya, lembaganya, atau perusahaannya adalah sebuah badan atau entitas hukum yang didirikan, diakui, dan beroperasi secara tunduk pada hukum serta yurisdiksi wilayah negara Republik Indonesia, serta telah melengkapi dan memiliki seluruh izin, lisensi, serta persetujuan yang diwajibkan untuk menjalankan roda operasional bisnis dan organisasinya secara sah.',
+                            'Bahwa individu atau representasi yang bertindak sebagai penandatangan atas Perjanjian ini secara mutlak memiliki wewenang hukum yang sah, legalitas penuh, dan mandat organisasi (baik berdasarkan Anggaran Dasar, akta perusahaan, maupun surat kuasa) untuk bertindak mewakili institusinya dan mengikatkan diri ke dalam seluruh ketentuan pasal demi pasal dalam Perjanjian ini tanpa pengecualian.',
+                            'Bahwa proses negosiasi, perumusan, penandatanganan, penyerahan berkas, serta segala bentuk eksekusi pelaksanaan Perjanjian ini dijamin tidak akan pernah melanggar: (i) anggaran dasar, anggaran rumah tangga, atau aturan tata tertib institusinya; (ii) seluruh peraturan perundang-undangan yang berlaku saat ini; (iii) perintah sela, putusan inkracht pengadilan, atau teguran instansi pemerintah mana pun; serta (iv) tidak melanggar klausul-klausul pada perjanjian pihak ketiga lain yang telah lebih dulu mengikat Pihak tersebut.',
+                            'Bahwa seluruh himpunan dokumen, aset desain visual, perizinan logo, hak merek, materi video promosi, serta orisinalitas acara yang diserahkan dan dipresentasikan kepada Pihak lainnya dipastikan sepenuhnya bebas dari sengketa, bersih, dan sama sekali tidak melanggar Hak Kekayaan Intelektual atau menimbulkan tuntutan ganti rugi dari pihak ketiga mana pun.',
+                            'Bahwa pada saat penandatanganan Perjanjian ini dilangsungkan, dipastikan tidak sedang ada gugatan, penyelidikan aparat penegak hukum, klaim pidana maupun perdata, atau proses hukum yang sedang berjalan yang secara rasional dapat diproyeksikan akan berdampak kerugian material atau menghalangi kemampuan serta kapasitas Pihak tersebut dalam usahanya menunaikan amanat dan kewajiban-kewajibannya di bawah naungan Perjanjian ini.'
+                        ]),
+
+                        pasalTitle(9, 'HAK KEKAYAAN INTELEKTUAL (INTELLECTUAL PROPERTY RIGHTS)'),
+                        teks('Pengelolaan dan batasan penggunaan Hak Kekayaan Intelektual milik PARA PIHAK diatur secara ekstensif dalam ayat-ayat sebagai berikut:'),
+                        ayatOl([
+                            'PARA PIHAK bersepakat tanpa syarat dan secara sadar mengakui bahwa terbentuknya atau ditandatanganinya Perjanjian ini sama sekali tidak mengakibatkan, tidak memfasilitasi, dan tidak melegalkan adanya proses peralihan, pemindahtanganan, atau perpindahan status kepemilikan atas wujud Hak Kekayaan Intelektual apa pun dari satu Pihak ke tangan Pihak lainnya dengan cara bagaimana pun.',
+                            'Seluruh materi digital atau cetak, penyematan logo perusahaan, merek dagang, rancangan desain, lisensi hak cipta, nama dagang, maskot identitas, dan segenap aset kekayaan intelektual lainnya yang diserahkan dan dipercayakan oleh satu Pihak (dalam kapasitas sebagai "Pihak Pemilik Hak") kepada Pihak lainnya (dalam kapasitas sebagai "Pihak Pengguna Hak") dimaknai semata-mata hanya sebagai pemberian hak lisensi penggunaan sementara, sangat terbatas, tidak dapat dialihkan (non-transferable), dan bersifat non-eksklusif.',
+                            'Terkait lisensi penggunaan materi logo dan merek milik mitra tersebut, izinnya dipatok dan dibatasi secara ketat hanya untuk lingkup durasi, periode acara, serta hanya demi tujuan spesifik pelaksanaan, publikasi, dan penyebaran promosi Kegiatan yang secara tegas telah diatur dan diizinkan secara eksplisit di dalam Perjanjian ini.',
+                            'Sesaat setelah selesainya keseluruhan jadwal Kegiatan atau segera setelah Perjanjian ini diakhiri (mana yang terjadi lebih dulu), Pihak Pengguna Hak diwajibkan untuk secara sadar segera menghentikan segala bentuk pemakaian, pencantuman ulang di media baru, dan apabila diminta secara resmi melalui teguran tertulis, bersedia memusnahkan, menurunkan, menghapus (take-down), atau mengembalikan seluruh arsip serta materi cetak maupun digital yang memuat Hak Kekayaan Intelektual milik Pihak Pemilik Hak tersebut.',
+                            'Sebagai bentuk proteksi reputasi, setiap niat atau tindakan modifikasi, perombakan desain, manipulasi spektrum warna, pemotongan (cropping), distorsi, atau aksi penggabungan logo Pihak Pemilik Hak dengan logo pihak/sponsor lain yang akan dilakukan oleh Pihak Pengguna Hak, secara mutlak dan tanpa syarat wajib diajukan terlebih dahulu untuk mendapatkan proses kurasi serta persetujuan tertulis secara formal (approval letter/email) dari Pihak Pemilik Hak sebelum dapat dipublikasikan ke hadapan khalayak ramai.'
+                        ]),
+
+                        pasalTitle(10, 'KERAHASIAAN INFORMASI (NON-DISCLOSURE AGREEMENT)'),
+                        teks('Kewajiban penjagaan kerahasiaan atas data-data esensial diatur dengan ketentuan yang ketat sebagai berikut:'),
+                        ayatOl([
+                            'Terhitung sejak hari pertama Jangka Waktu Perjanjian ini dimulai hingga rentang waktu 3 (tiga) tahun kalender secara terus-menerus pasca hari terakhir berakhirnya Perjanjian ini, masing-masing Pihak (selaku penerima informasi atau "Pihak Penerima") berjanji teguh dan setuju untuk menjaga kerahasiaan penuh atas seluruh Informasi Rahasia yang diterima, didengar, atau disaksikan dari Pihak lainnya (selaku pemilik informasi atau "Pihak Pengungkap").',
+                            'Pihak Penerima sama sekali tidak diperkenankan dan dilarang keras secara hukum untuk meniru, menggunakan di luar lingkup kerja, memfoto-kopi, memperbanyak secara digital, mendistribusikan, mempublikasikan, atau mengungkapkan Informasi Rahasia tersebut kepada perusahaan kompetitor maupun pihak ketiga manapun tanpa adanya izin tertulis, spesifik, dan formal yang diperoleh sebelumnya dari direksi Pihak Pengungkap.',
+                            'Kewajiban kerahasiaan absolut ini dikecualikan dan dianggap gugur tidak berlaku apabila informasi yang dimaksud: (a) sudah terlanjur menjadi bagian dari pengetahuan domain publik tanpa disebabkan oleh kelalaian atau pelanggaran atas Perjanjian ini; (b) dapat dibuktikan telah berada dalam penguasaan atau diketahui secara sah oleh Pihak Penerima dari riset internal sebelum informasi yang sama diserahkan oleh Pihak Pengungkap; (c) diperoleh secara sah, wajar, dan legal dari sumber atau pihak ketiga lain yang secara hukum tidak terikat oleh kewajiban menjaga kerahasiaan apa pun; atau (d) sangat terpaksa dan diwajibkan untuk diungkapkan oleh perintah, panggilan, atau putusan dari institusi pengadilan, kepolisian, atau lembaga aparatur penegak hukum negara yang berwenang.',
+                            'Namun demikian, Pihak Penerima tetap diberikan keringanan dan diperbolehkan untuk mengungkapkan Informasi Rahasia tersebut secara terbatas hanya kepada lingkaran internal yang mencakup direktur, jajaran manajer, karyawan lapangan utama, konsultan, akuntan, atau penasihat hukumnya yang secara mutlak dan mendesak perlu mengetahui informasi teknis tersebut (berprinsip pada on a need-to-know basis) semata-mata demi memfasilitasi pelaksanaan teknis Perjanjian ini, dengan syarat wajib bahwa seluruh pihak/karyawan internal tersebut sebelumnya juga telah terikat oleh pakta integritas dan kewajiban kerahasiaan yang tidak kurang ketatnya, tidak kurang sanksinya, dan sama mengikatnya dengan ketentuan yang tertera dalam pasal ini.'
+                        ]),
+
+                        pasalTitle(11, 'KEPATUHAN, ANTI-KORUPSI DAN BENTURAN KEPENTINGAN'),
+                        teks('PARA PIHAK menjunjung tinggi asas transparansi dan integritas yang dituangkan dalam ayat-ayat komitmen berikut:'),
+                        ayatOl([
+                            'PARA PIHAK bersama-sama berkomitmen penuh untuk tunduk, patuh, dan menghormati seluruh peraturan, perundang-undangan, dan hukum positif Republik Indonesia, dengan penekanan dan sorotan khusus pada undang-undang tindak pidana korupsi, pencegahan pencucian uang, larangan penyuapan aparat, dan hukum pemberantasan kejahatan kolusi perbankan.',
+                            'Guna menjamin kelancaran pelaksanaan tugas dan kewajiban berdasarkan Perjanjian ini, dipastikan bahwa tidak ada satupun Pihak, termasuk namun tidak terbatas pada pejabat teras, karyawan, atau utusan panitianya yang diperbolehkan untuk menawarkan, merencanakan, memberikan, meminta, ataupun menyetujui untuk menerima aliran suap, kickback (uang pelicin), gratifikasi parsel yang tidak sah, komisi bawah tangan, atau wujud keuntungan ilegal lainnya dalam bentuk apa pun dari atau kepada pihak/institusi manapun.',
+                            'Masing-masing Pihak menggaransi dan berani memberikan jaminan secara transparan bahwa dalam proses pembicaraan hingga menyepakati Perjanjian penugasan ini, tidak ditemukan dan sama sekali tidak terdapat indikasi adanya benturan kepentingan (conflict of interest) atau kedekatan personal nepotisme antara dewan pengurus Pihak Pertama dan pejabat Pihak Kedua yang berpotensi merugikan, mencoreng nama baik, atau mengikis kas keuangan salah satu institusi.',
+                            'Pihak yang dengan sengaja, terbukti secara sah dan meyakinkan, melakukan kelalaian serta pelanggaran atas ketentuan anti-korupsi pada pasal ini, dengan seketika memberikan hak yang bersifat absolut, sepihak, dan tidak dapat diganggu gugat kepada Pihak lainnya yang dirugikan untuk secara serta-merta membatalkan dan mengakhiri eksistensi Perjanjian ini secara sepihak dan seketika tanpa keharusan memberikan pemberitahuan tenggang waktu maupun kewajiban membayarkan dana kompensasi pelipur lara apa pun.'
+                        ]),
+
+                        pasalTitle(12, 'KEADAAN MEMAKSA (FORCE MAJEURE)'),
+                        teks('Pengaturan mengenai situasi darurat di luar kehendak PARA PIHAK dijabarkan secara rinci sebagai berikut:'),
+                        ayatOl([
+                            'Telah disepakati oleh PARA PIHAK bahwa tidak ada satu Pihak pun yang boleh, patut, atau secara adil dianggap lalai, cidera janji (melakukan perbuatan wanprestasi), melanggar kontrak, atau dituntut harus bertanggung jawab secara materiil maupun immaterial atas seluruh kegagalan pelaksanaan, kekurangsempurnaan, atau keterlambatan waktu dalam memenuhi rangkaian kewajibannya berdasarkan Perjanjian ini apabila hal atau keterlambatan tersebut murni secara faktual dan kausal diakibatkan oleh terjadinya rangkaian peristiwa di luar kuasa atau Keadaan Memaksa (Force Majeure).',
+                            'Peristiwa yang secara sah dapat dikategorikan sebagai Keadaan Memaksa atau Force Majeure yang dimaksud dalam Perjanjian ini mencakup, namun tidak terbatas atau dibatasi hanya pada: bencana alam yang merusak dan ekstrim seperti gempa bumi vulkanik/tektonik, banjir bandang besar yang melumpuhkan aktivitas kota, tanah longsor, angin topan badai, letusan gunung berapi yang menghalangi transportasi, gelombang tsunami, merebaknya epidemi wabah virus berskala luas, pengumuman darurat pandemi global oleh WHO, meletusnya perang (baik yang dideklarasikan secara resmi antar negara maupun tidak), pecahnya huru-hara massa berskala kota, pemberontakan separatis, aksi terorisme, sabotase industri, blokade/embargo ekonomi, pemogokan kerja massal berskala nasional, hingga mendadak dikeluarkannya produk undang-undang, instruksi, atau kebijakan darurat dari otoritas Pemerintah yang secara langsung menghalangi, melarang keras, atau menutup akses bagi diselenggarakannya Kegiatan secara fisik maupun virtual.',
+                            'Apabila terjadi peristiwa nahas tersebut, maka Pihak yang secara langsung mengalami dampak melumpuhkan dari Keadaan Memaksa tersebut wajib sesegera mungkin memberikan laporan dan pemberitahuan formal secara tertulis (surat elektronik atau dokumen kurir) kepada Pihak lainnya paling lambat dalam kurun waktu 3 (tiga) Hari Kerja kalender efektif terhitung sejak hari pertama terjadinya peristiwa penyebab tersebut, di mana surat pemberitahuan tersebut diusahakan harus disertai dengan bukti-bukti liputan media massa yang sah atau pernyataan/surat keputusan resmi dari instansi pemerintah terkait yang membenarkan terjadinya darurat tersebut.',
+                            'Apabila kendala akibat Keadaan Memaksa ini memburuk dan berlangsung secara terus-menerus mendera jalannya Kegiatan tanpa ada tanda pemulihan selama rentang waktu lebih dari 30 (tiga puluh) hari kalender berturut-turut, maka PARA PIHAK terikat komitmen untuk duduk bersama, berunding, dan bermusyawarah guna mencari jalan keluar atau mengevaluasi secara rasional untuk menentukan kelanjutan penundaan, modifikasi acara, atau kesepakatan pengakhiran total Perjanjian ini dengan jaminan mutlak tanpa adanya kewajiban dari Pihak mana pun untuk membayar biaya denda atau restitusi ganti rugi.'
+                        ]),
+
+                        pasalTitle(13, 'JANGKA WAKTU PERJANJIAN'),
+                        teks('Segala hal terkait masa keberlakuan dokumen Perjanjian ini diatur sebagai berikut:'),
+                        ayatOl([
+                            `Perjanjian kerja sama hukum ini akan mulai hidup, berlaku sangat efektif, dan mengikat secara hukum serta yurisdiksi sejak detik dan tanggal ditandatanganinya dokumen fisik maupun elektronik ini secara sempurna oleh para pejabat sah perwakilan PARA PIHAK (${cekData(strTanggal, 'Tanggal MOU', isDraft)}) dan akan terus tetap berlaku tanpa interupsi hingga seluruh rangkaian panjang pelaksanaan target Kegiatan, pemenuhan hak-hak pemasaran, serta kewajiban pembayaran dari masing-masing pihak telah mencapai titik klimaks dan tuntas ditunaikan seutuhnya, di mana masa aktif ini selanjutnya disebut sebagai "Jangka Waktu".`,
+                            'Dengan memperhatikan pencapaian indikator kunci performa dan evaluasi acara yang positif, Jangka Waktu Perjanjian ini senantiasa terbuka untuk dapat diperpanjang, diperbarui, diperluas cakupan kegiatannya, atau diubah struktur kerjasamanya berdasarkan kesepakatan tertulis dan musyawarah mufakat yang sehat dari PARA PIHAK, yang mana segala perubahannya kelak akan dituangkan serta dirangkum dengan rapi dalam bentuk dokumen pelengkap (Adendum) tersendiri yang harus ditandatangani oleh pejabat yang setara dan berwenang dari masing-masing Pihak paling tidak selambatnya sebelum Jangka Waktu awal ini resmi mendekati masa kadaluwarsanya.'
+                        ]),
+
+                        pasalTitle(14, 'PENGAKHIRAN PERJANJIAN'),
+                        teks('Perjanjian kolaborasi lintas institusi ini dapat diberhentikan dan diakhiri secara lebih awal dari Jangka Waktu normal yang disepakati, hanya apabila terpenuhinya landasan dan dasar dari salah satu situasi atau kondisi fatal berikut ini:'),
+                        ayatOl([
+                            'Pengakhiran terjadi atas dasar inisiatif dan berdasarkan kesepakatan damai tertulis bersama yang diambil secara sukarela dari PARA PIHAK tanpa paksaan luar.',
+                            'Terjadinya bencana Keadaan Memaksa (Force Majeure) yang tidak dapat dicarikan titik penyelesaian atau jalan keluar operasional alternatifnya meski telah diupayakan, dan kondisi tersebut berlangsung melebihi batas waktu kritis 30 (tiga puluh) hari kalender tanpa jeda.',
+                            'Ditemukan dan dibuktikan bahwa salah satu Pihak secara sengaja atau lalai luar biasa melakukan pelanggaran berbobot material, cidera janji tingkat tinggi (wanprestasi fatal), atau menyelewengkan tujuan atas ketentuan krusial yang termaktub di dalam Perjanjian ini, dan Pihak pelaku tersebut gagal, lamban, atau tidak mampu untuk memperbaiki kerugian atau menuntaskan pelanggaran tersebut dalam rentang waktu toleransi (grace period) selama 14 (empat belas) hari kalender terhitung sejak hari dikirim dan diterimanya Surat Peringatan (Somasi) peringatan pertama secara tertulis dari Pihak yang haknya dirugikan.',
+                            'Apabila secara hukum negara salah satu Pihak diputuskan pailit tak bersyarat oleh majelis Pengadilan Niaga, masuk ke dalam fase darurat likuidasi penutupan perusahaan, pembubaran badan hukum perseroan secara massal, mengalami restrukturisasi utang besar-besaran, atau kegiatan operasionalnya terpaksa berada di bawah kendali pengampuan, pengawasan pemerintah, maupun otoritas seorang kurator/likuidator negara.',
+                            'Ditemukannya fakta kejahatan serta pembuktian konkret yang tak terbantahkan mengenai adanya keterlibatan perbuatan pelanggaran hukum berat (tindak pidana korupsi lintas batas/pencucian uang terorganisir/skandal asusila besar) oleh pimpinan puncak salah satu Pihak yang diproyeksikan dapat menularkan stigma negatif, menghancurkan muruah reputasi, dan merusak nama baik serta tingkat kredibilitas komersial milik Pihak lainnya secara mencolok di ranah panggung wacana publik.'
+                        ]),
+
+                        pasalTitle(15, 'AKIBAT PENGAKHIRAN'),
+                        teks('Guna menghindari kerugian perdata di kemudian hari akibat putusnya hubungan hukum, PARA PIHAK bersepakat atas dampak pengakhiran yang dirumuskan di bawah ini:'),
+                        ayatOl([
+                            'Perlu dipahami secara saksama bahwa diakhirinya, dihentikannya, atau dibatalkannya Perjanjian ini (dengan alasan, dorongan, atau dasar pembenar apa pun juga) secara tegas tidak akan pernah menghapuskan, menghilangkan, ataupun secara otomatis menggugurkan segenap hak perlindungan hukum, tagihan finansial, serta sisa kewajiban terutang dari PARA PIHAK yang memang telah timbul, telah terbentuk, dan telah mencapai jatuh temponya secara nyata sebelum tanggal efektif dideklarasikannya pengakhiran kerja sama tersebut.',
+                            'Seluruh dan segala tanggungan kewajiban Pihak Kedua yang merujuk pada janji realisasi pencairan dana tunai/komitmen Sponsorship yang telah tertuang di awal (khususnya apabila realita operasional pelaksanaan maupun biaya persiapan logistik acara pra-event oleh Pihak Pertama telah secara faktual dan material berjalan progresif melampaui ambang batas 50% dari total pengerjaan), maka komitmen dana tersebut tetap mutlak wajib dibayarkan tanpa dipotong, yang mana besarannya diukur dan disesuaikan berdasarkan penerapan asas rasionalitas dan proporsionalitas keadilan (hitungan prorata) terhadap pekerjaan yang telah terlanjur dijalankan, kecuali terdapat permufakatan khusus yang secara tertulis menyepakati hal lain yang disetujui bersama secara resmi.',
+                            'Selaku pelaksana teknis, Pihak Pertama memiliki beban wajib dan tanggung jawab mendesak untuk secepat mungkin merespons pengakhiran tersebut dengan tindakan mencopot, menarik peredaran, menghapus (take-down total), dan menurunkan seluruh atribut logo perusahaan, materi baliho promosi (printed banner), identitas korporat, maupun sisipan penyebutan nama sponsor milik Pihak Kedua dari semua penjuru dan titik pemuatan di seluruh saluran instrumen kampanye dan media (baik media massa elektronik, media cetak selebaran konvensional, hingga seluruh unggahan lintas digital) selambat-lambatnya paling lama dalam kurun waktu kritis 3 (tiga) Hari Kerja terhitung sejak hari ditetapkannya tanggal penyataan efektif pengakhiran/pemutusan hubungan tersebut.',
+                            'Terlepas dari putusnya segala bentuk ikatan kerjasama komersial operasional di antara mereka, sangat ditekankan bahwa segala sisa kewajiban memegang teguh, menjaga, serta merahasiakan segenap kumpulan Informasi Rahasia, pelarangan pengungkapan algoritma/data acara, dan ketentuan yurisdiksi tata cara tata krama penyelesaian Sengketa (hukum arbitrase) sebagaimana yang telah diatur secara rapi dan runut di dalam dokumen Perjanjian ini, akan dipastikan terus tetap hidup, aktif (survive in perpetuity/sesuai tenggat yang diatur sebelumnya), tidak ikut gugur secara otomatis, dan dijamin akan terus tetap mengikat secara paksa (binding force) terhadap kebebasan PARA PIHAK sampai waktu yang sangat jauh memanjang dan berlanjut ke depan meskipun naskah Perjanjian MOU ini telah dikoyak atau diakhiri sekalipun.'
+                        ]),
+
+                        pasalTitle(16, 'PENYELESAIAN SENGKETA DAN DOMISILI HUKUM'),
+                        teks('Apabila terjadi benturan pandangan dan friksi pelaksanaan, penyelesaian hukumnya akan dilaksanakan berpedoman pada ayat-ayat yurisdiksi berikut ini:'),
+                        ayatOl([
+                            'Seluruh bentuk redaksional kalimat, susunan diksi, penafsiran hak, penarikan kesimpulan hukum, keabsahan klausa, serta pelaksanaan dan penerapan yurisprudensi atas dokumen Perjanjian setebal ini ditafsirkan sejalan, tunduk sepenuhnya, dan secara mutlak diatur oleh rezim payung hukum positif beserta pedoman perundang-undangan yang pada saat ini sah dan sedang diberlakukan mengikat secara berdaulat di seluruh wilayah teritorial negara Kesatuan Republik Indonesia.',
+                            'Setiap embrio perselisihan (dispute), sengketa finansial dan operasional, perdebatan perbedaan penafsiran makna, keluhan keterlambatan (delay grievance), cacat produksi pelaksanaan, atau bermacam wujud klaim kerugian ganti rugi (tort) yang lahir, mencuat, lalu kemudian menjadi tegang dan timbul membesar sehubungan langsung maupun tidak langsung dengan riwayat perjalanan dinamika pelaksanaan poin-poin Perjanjian ini, secara proaktif dan tanpa dalih wajib diupayakan proses penyelesaian hukum kekeluargaannya secara humanis dan bijaksana melalui sebuah perundingan duduk bersama antar pimpinan institusi untuk melakukan musyawarah tatap muka secara damai demi mufakat (mediasi musyawarah kekeluargaan secara internal), di mana usaha diplomasi tersebut diberikan limit ruang waktu yang cukup lapang dan longgar yakni selambat-lambatnya paling lama selama rentang 30 (tiga puluh) hari kalender kalender terhitung tepat semenjak hari pertama diserahkannya dan diterimanya surat pemberitahuan atau lembar keluhan resmi tertulis perihal adanya keberatan dari pihak yang dirugikan kepada alamat kantor pihak lawannya tersebut.',
+                            'Namun demikian, apabila jalur elegan musyawarah untuk mencapai kata mufakat dan rekonsiliasi yang sehat di tingkat internal institusi ini pada akhirnya dipastikan membentur dinding buntu dan sama sekali tidak mendatangkan titik temu perbaikan yang disetujui bersama sesudah habis dan terlampauinya batas tenggat waktu 30 hari yang telah disebutkan, maka PARA PIHAK yang berseteru dalam kontrak ini dengan kepala tegak, penuh kesadaran hukum, dan saling bersepakat kuat untuk memindahkan, melemparkan, menyerahkan, dan memproses penyelesaian seluruh substansi beban perselisihan tersebut secara eksklusif dan paripurna menuju meja sidang peradilan melalui jalur arbitrase dengan menggunakan fasilitas lembaga resmi Badan Arbitrase Nasional Indonesia (BANI) yang kantor pusat dan lokasi utamanya berkedudukan serta beroperasi di Daerah Khusus Ibukota (DKI) Jakarta, di mana mekanisme sidangnya kelak akan diselenggarakan sepenuhnya berdasarkan asas-asas kepatuhan, tunduk, serta menaati rangkaian Peraturan dan Prosedur administrasi dan penyidangan Arbitrase BANI terbaru yang kebetulan sedang hidup dan resmi diberlakukan pada saat gugatan tersebut secara legal diregistrasikan ke badan administrasi mereka.',
+                            'Secara mengikat disetujui pula bersama bahwa segenap ragam vonis atau putusan akhir dari sidang majelis tingkat Arbitrase BANI tersebut nantinya secara hukum memegang predikat yang bersifat absolut mengikat (final and completely binding), tuntas menyelesaikan polemik, tidak memiliki ruang abu-abu, dan harus ditaati sepenuhnya oleh keberadaan PARA PIHAK di depan hukum, dan oleh sebab ketuntasan arbitrase tersebut, secara mutlak dan tegas ditegaskan kembali bahwa tidak ada satu Pihak atau pengacara pun dari mereka yang diizinkan serta diperkenankan oleh hukum untuk berupaya nekat mengajukan usaha langkah banding tingkat lanjut, langkah uji memohon kasasi ulang, ataupun memajukan upaya pengujian Peninjauan Kembali (PK) kepada ruang lingkup institusi peradilan umum Pengadilan Negeri, Pengadilan Tinggi, maupun lembaga hukum formal negara mana pun di bumi Indonesia untuk merevisi ulang putusan Arbitrase itu.',
+                            'Demi menghargai dan menjamin tercapainya efisiensi hukum berkecepatan tinggi tanpa hambatan berlarut-larut dalam eksekusi kelak, maka PARA PIHAK dengan ini menandatangani kesepakatan bahwa mereka berdua sepakat melepaskan perlindungan diri mereka, serta secara terang dan sangat tegas menolak mempergunakan dan mengesampingkan pemberlakuan serta kehadiran isi ketentuan hukum dari Pasal 1266 Kitab Undang-Undang Hukum Perdata (KUHPerdata atau Burgerlijk Wetboek) Republik Indonesia sejauh dan sedalam-dalamnya jika dan pada saat pasal klasik warisan hukum kolonial tersebut mencoba mensyaratkan kewajiban, keharusan, serta prosedur panjang yang mengharuskan untuk meminta izin serta mencari-cari wujud campur tangan maupun memohon adanya bukti intervensi sebuah palu putusan resmi pengadilan negeri dalam rangka mencoba merusak kelancaran proses dan tata tertib pemutusan serta pembatalan sepihak dan seketika atas sebuah perjanjian atau kontrak (yang dalam hal ini, Perjanjian kerja sama MOU antara mereka berdua).'
+                        ]),
+
+                        pasalTitle(17, 'KORESPONDENSI DAN PEMBERITAHUAN'),
+                        teks('Pengaturan dan legalitas jalur komunikasi formal PARA PIHAK diformulasikan sebagai berikut:'),
+                        ayatOl([
+                            'Guna melindungi legal standing pengiriman instruksi di dalam kolaborasi operasional maupun sengketa hukum kelak, diatur bahwa setiap wujud pengiriman pemberitahuan resmi, aktivitas surat menyurat instruksi teknis dari pimpinan, peluncuran lembar invois penagihan pelunasan (tagihan biaya sponsorship/pendanaan), pengiriman hasil laporan pengawasan program operasional, penyampaian peringatan teguran pelanggaran disiplin dan kesepakatan, ataupun berjenis-jenis penyampaian notifikasi serta komunikasi bisnis berskala resmi lainnya yang kemunculannya disyaratkan secara hukum di dalam kesepakatan ini, atau setidaknya dibutuhkan secara rasional dan krusial oleh kondisi yang dibentuk dan diwajibkan oleh eksekusi di dalam bingkai Perjanjian ini, secara imperatif wajib dan harus diwujudkan dan disiapkan secara fisik dan nyata dibuat secara sengaja ke dalam media berbasis material cetak maupun tulisan elektronik digital yang jelas terbaca secara kasat mata dan permanen (termasuk mengakui legalitas sah pengiriman email dari domain surat elektronik (email) resmi korporasi dan institusi PARA PIHAK), yang mana seluruh berkas pemberitahuan fisik maupun jejak digital tersebut kemudian harus segera secara sah diserahkan, diantarkan, diposkan, ataupun ditransmisikan dan dikirimkan secara lurus menuju letak lokasi ke alamat kantor pusat fisik atau alamat tempat kedudukan domisili operasional dan/atau domisili maya (alamat kotak pos surel email) dari masing-masing Pihak yang secara resmi didaftarkan, dicatatkan, diakui eksistensinya, dan sah berlandaskan perundang-undangan di bagian awal pendahuluan surat MOU dan dalam klausul spesifik kesepakatan ini.',
+                            'Untuk menghindari timbulnya masalah penundaan waktu atau pengingkaran penerimaan di hari-hari esok, ditekankan dan ditegaskan bahwa segala bentuk jenis dokumen atau surat pemberitahuan tersebut menurut kacamata hukum barulah dinilai secara sah dan resmi dapat dianggap oleh satu sama lain telah benar-benar tiba di tempat tujuan dan dikategorikan telah sah selesai diserahkan untuk diterima dengan baik secara hukum, di saat kondisi dan persyaratannya terpenuhi secara bulat apabila: (a) dokumen fisiknya terbukti diantarkan, dijamah, dan diserahkan secara langsung menyerahkan dari tangan ke tangan (hand-delivered courier) yang proses penyerahannya diabadikan dan disahkan dengan tersedianya serta terbitnya sebuah lembar bukti paraf tanda terima kedatangan secara resmi, sah, rapi, dan terverifikasi dari pegawai resepsionis kantor tujuan; atau sebagai opsi hukum yang kedua, adalah di saat (b) jam analog waktu telah bergerak usai 3 (tiga) hari kerja operasional lamanya sejak hari pertama kali pihak pengirim mendaftarkan pengiriman pos tercatat dan menyisipkan atau menyerahkan dokumen teguran tersebut melewati dan melalui jasa logistik agen kurir paket kilat komersial swasta, jasa perusahaan titipan kilat resmi, agen pengiriman logistik multinasional bereputasi prima dan tepercaya, ataupun jasa lembaga Pos Nasional resmi tercatat ke alamat domisili hukum pihak lawannya dengan dilengkapi bukti stempel pelacakan (resi tracking) elektronik; atau apabila menempuh jalur elektronik instan, dianggap sah pada saat (c) di detik hari dan tanggal jam yang sama persis tatkala wujud surat peringatan, tagihan faktur, pengumuman dokumen, atau komunikasi elektronik vital pemberitahuan tersebut dieksekusi klik pengirimannya melalui jendela transmisi fasilitas konektivitas surat elektronik korporat atau kotak pos email institusional (email address box) yang telah diakui secara mutual, serta dipadukan mutlak dengan adanya pengembalian dan timbulnya wujud kepemilikan sebuah bukti konfirmasi balasan digital yang terekam nyata, terverifikasi log sistem (server system log verified), tidak cacat algoritma, bahwa sistem di perangkat lawan pengirim telah tervalidasi menerima paket byte pesan surat tersebut dengan aman dan utuh (read receipt confirmation atau electronic delivery logs success).'
+                        ]),
+
+                        pasalTitle(18, 'KETERPISAHAN KETENTUAN (SEVERABILITY)'),
+                        teks('Apabila terjadi sebuah peristiwa hukum di luar kuasa yang tidak terduga dalam perjalanannya di kemudian hari dan masa, di mana salah satu atau lebih ketentuan hukum, deretan klausa spesifik di dalam pasal-pasalnya, isi ayat-ayat operasional teknis, maupun sebagian kecil porsi aturan tata urutan di dalam kesepakatan Perjanjian korporat kolaborasi yang mengikat hukum ini secara tak sengaja ternyata diputuskan, divonis, atau menjadi berubah kedudukannya menjadi sepenuhnya cacat prosedural (defective), dibatalkan di depan mata persidangan karena bertentangan dengan hukum yang lebih tinggi tingkatannya, tidak sah sejak kemunculannya (batal demi hukum/null and void ab initio), bersifat menentang pakem dasar konstitusi dan melanggar hukum tatanan ketertiban umum (illegal against public order), cacat syarat kausa yang halal, atau tidak lagi dapat dan dilarang untuk dilaksanakan kelangsungannya oleh karena adanya ancaman larangan operasional secara tegas berdasarkan muncul dan diterbitkannya serangkaian penafsiran, pengumuman, pengesahan turunan undang-undang baru, atau perombakan sistem produk peraturan dan perundang-undangan negara Republik Indonesia yang sedang berlaku di wilayah tanah air pada saat ketentuan krusial Perjanjian ini sedang dalam status dan fase pelaksanaan yang giat-giatnya, maka dipastikan dan dijamin secara tegas bahwa kondisi pembatalan salah satu pasal nahas atau sekelompok himpunan beberapa ayat bermasalah tersebut akan diisolasi dan dijamin sepenuhnya tidak akan pernah mengganggu gugat, tidak ikut mempengaruhi, menular, menyabotase, membatalkan, menganulir, melumpuhkan kekuatan hukumnya, ataupun sampai menghancurkan level keabsahan fundamental (validity), merusak nilai sakral pondasi kelayakan legalitas (legality principle), maupun menularkan wujud kemustahilan dan cacat hukum untuk senantiasa dapat dan wajibnya dilaksanakannya kelanjutan dan pemenuhan seluruh deretan sisa ketentuan-ketentuan klausa dan baris teks amanat pasal lainnya (yang belum terbakar cacat hukum tersebut) di dalam keseluruhan halaman dan lembar demi lembar struktur tulang punggung eksistensi Perjanjian yang utuh dan komprehensif ini secara nyata dan sah di mata negara. Menghadapi situasi malang tak terduga serta merugikan dan demi penyelamatan aset investasi kerja sama ini, dalam momentum kelumpuhan dan ketiadaan sebagian pasal hukum yang berharga demikian tersebut, PARA PIHAK terikat janji dan wajib mengamalkan prinsip profesionalisme tertinggi untuk harus secara tanggap segera menggelar forum berunding ulang di dalam ruangan tertutup secara terhormat dan penuh pengerahan itikad baik (bonafide negotiation phase) semata-mata di dalam tujuan dan ikhtiar untuk melahirkan, merumuskan, dan segera membuat sebuah kalimat pasal penengah baru atau mendesain wujud susunan isi struktur kalimat ketentuan peraturan pengganti turunan amandemen seketika yang bebas cacat dan sangat legal berwujud sah di mata aparat kehakiman Republik Indonesia, yang di dalamnya isi jiwa kalimat amandemen itu akan diracik, disepakati, dan diatur sedemikian rupa berbobotnya hingga sedapat dan seakurat mungkin tulisan baru pengganti cacat itu harus diramu agar mampu menggemakan kembali intisari makna asli, memproyeksikan ulang kekuatan wujud maksud, dan mempresentasikan tujuan finansial esensial serta merangkum segenap kerangka operasional kerja sama fundamental yang pada awal mulanya hendak dan sangat ingin dilahirkan dari sisa puing-puing abu ketentuan dan kesepakatan kalimat pasal yang baru saja secara tragis runtuh terbakar dan dibatalkan (batal) oleh tekanan rezim ketentuan dan himpitan hukum negara tersebut.'),
+
+                        pasalTitle(19, 'PENGALIHAN HAK DAN KEWAJIBAN (ASSIGNMENT)'),
+                        teks('Batasan pelimpahan mandat kesepakatan kerjasama diatur secara restriktif dalam klausul pelarangan berikut:'),
+                        ayatOl([
+                            'Secara jelas ditekankan, sangat ditegaskan tanpa kompromi, dan ditetapkan secara baku menjadi sebuah hukum yang dipatuhi dari sejak detik lahirnya dokumen komitmen janji yang mengikat dan diwujudkan dengan rapi di dalam wujud MOU sakral korporasi Perjanjian ekstensif yang disepakati dengan sadar ini, bahwa sangat dipastikan sama sekali sama dan benar-benar tidak akan pernah ada satupun perwakilan utusan wakil entitas korporasi, institusi, paguyuban, serta instansi perusahaan apa pun yang bernaung mewakili perannya sebagai satu Pihak (baik mewakili kedudukan status hukum sang Pihak Pertama maupun perwakilan status sang Pihak Kedua) yang tertera dan disepakati di dalam struktur kemitraan strategis perikatan dan persekutuan perjanjian dokumen tebal kesepakatan ini yang akan pernah dikaruniai pemberian wewenang diskresi operasional dari dalam, tidak pula akan memiliki atau mengantongi kebebasan ruang hak wewenang otonom prerogatif internal dari manajemennya, tidak diperbolehkan secara sepihak dan tegas-tegas dengan sengaja akan secara hukum sama sekali tidak diizinkan oleh etika profesi bisnis tepercaya untuk berinisiatif, merencanakan, maupun dengan diam-diam atau terang-terangan secara nakal melakukan dan mengeksekusi strategi aktivitas pengambil-alihan dan manuver memindahtangankan paksa tanpa izin persetujuan ke tangan kekuasaan pimpinan lain, dilarang mendelegasikan wewenang beban, diharamkan dan dilarang keras untuk mensubkontrakkan atau memborongkan beban proyek kepada pekerja tukang dari vendor pengerjaan penyelesaian eksekutor lapis kedua dari perusahaan tak dikenal lainnya yang bukan peserta tender yang sah tanpa kontrol, maupun tindakan keji mendelegasikan perintah kerja serta mengalihkan, mengoper paksa atau melemparkan tampuk penyelesaian dari sebagian kecil kewajiban perikatan maupun melakukan langkah operan dan buangan seutuhnya porsi dari keseluruhan jajaran aset nilai portofolio atas deretan wewenang hak mutlaknya, atas pemenuhan segala bentuk tanggung jawab dan kewajiban bebannya, dan maupun mendelegasikan amanat janji pelaksanaan operasional peranan pengamanan aset serta melemparkan segenap himpunan kepentingannya yang secara mutlak lahir dan berakar tebal dan membesar berdasarkan landasan kokoh perjanjian MOU sakral nan mengikat ini ke arah pihak, lengan operasional, ataupun tangan kekuasaan dari manajemen sebuah institusi komersial yang disebut sebagai perwakilan pihak ketiga lain manapun juga (termasuk dilarang dilimpahkan pengerjaannya walau hanya beralasan dan diberikan operannya dialihkan di bawah bayang-bayang naungan organisasi internal anak-anak cabang perusahaan terdekatnya sendiri, dilarang disubstitusikan pengelolaannya kepada lini divisi anak usaha patungannya sendiri, dan termasuk tidak diizinkan sama sekali secara sepihak digeser dan dialihkan mandat hukum kewajiban ini kepada payung besar persekutuan grup konsorsium jaringan Afiliasinya sendiri yang terhubung secara ekuitas manajemen induk tanpa transparansi), murni kesemuanya itu secara perikatan mutlak diharamkan dan dilarang dilangsungkan kegiatannya jika keseluruhan niat pengalihan estafet, peralihan tugas kuasa, dan penyub-kontrakan beban yang hendak dilakukan dan dicanangkan sepihak itu dieksekusi dengan jalan terang-terangan tanpa sama sekali berbekal inisiatif sopan santun untuk beritikad baik untuk dengan giat terlebih dahulu bersusah payah berjuang memperoleh asupan legalitas persetujuan mutlak (absolute consent), dilarang digulirkan sebelum turunnya pengesahan restu jajaran pimpinan tinggi lawannya, sebelum tercetaknya lembar kesepahaman tanda setuju tertulis yang diteken, serta diwajibkan demi hukum untuk mendapatkan lampu hijau dari keberadaan perizinan persetujuan wewenang yang dibubuhkan bentuknya secara formal, fisik dan harus tertulis hitam di atas kertas dan bermaterai cukup (written formal consent form in advance) terlebih dahulu secara resmi, berlandaskan prinsip tata kelola bersih, bebas pungutan, bebas paksaan dan bebas tekanan dari sang petinggi jajaran dewan perwakilan direksi eksekutif, pihak yang kepentingannya dijaga, perwakilan hukum dan manajemen eksekutif Pihak mitra dan kawan bisnis kerja lawannya lainnya yang sah dalam dokumen perjanjian eksekusi MOU panjang ini. Oleh karena konsekuensinya sangatlah memberatkan reputasi perusahaan dan menimbulkan dampak malapetaka fatal atas wujud kelancaran roda pelaksanaan dan eksekusi acara proyek kegiatan kolaborasi raksasa ini di masa operasional dan promosi yang sedang gencar-gencarnya dipacu kencang di hari kelak di lapangan, maka sebagai hukum hukuman pemutusnya dideklarasikan bahwa atas segala wujud dan ragam bentuk strategi kenakalan pengalihan, operan eksekusi subkontrak, hingga tindakan pemindahtanganan tanggung jawab proyek pengerjaan raksasa, finansial investasi, maupun mandat hak krusial dan strategis yang telah secara sadar berani-beraninya dan secara diam-diam dan tak acuh dilakukan atau dikerjakan oleh salah satu pihak yang cacat moral dengan menempuh jalan licik dan jalan memotong penuh pelanggaran di luar koridor persetujuan formal dan tanpa berbekal secarik kertas dokumen hitam di atas putih persetujuan tertulis berkop surat resmi (persetujuan di mana haruslah sebelumnya telah disetujui, dan yang secara hukum telah diberikan dan direstui dengan kerelaan oleh petinggi Pihak lawannya tersebut dan disaksikan banyak orang perwakilan notaris jika memang diputuskan diperlukan di dalam kesepakatan tertulis persetujuan khusus internal amandemen perusahaan), maka perbuatan tercela pengalihan subkontrak secara nekat, sepihak, dan perombakan struktur tanggung jawab pelaksana tanpa persetujuan dari kawan kerjanya itu secara otomatis akan dihantam palu vonis cacat total, diputuskan di mata hukum arbitrase bahwa hal kotor tindakan itu adalah perbuatan dan upaya tercela yang sama sekali tidak ada harga bobot keabsahan hukum formalnya barang setitik pun di mata yurisdiksi persidangan hukum perdata wilayah Republik Indonesia, akan dipandang haram, dicoret legitimasinya, dan mutlak dianggap dengan nyata telah sepenuhnya dihitung sebagai perbuatan tercela yang diputus batal demi hukum sejak awal dicanangkannya atau di dalam terjemahan bahasa latin peradilan yuridis hukum romawi internasional akan disandang stempel sebagai vonis yang (void ab initio), dan perlakuan nakalnya itu di hadapan mejelis tidak akan pernah sudi dan tidak bisa diakui sah eksistensinya sedikitpun dan harus diputus tak bernilai legal sama sekali dalam bingkai perlindungan keadilan konstitusi.'
+                        ]),
+
+                        pasalTitle(20, 'KESELURUHAN PERJANJIAN DAN PERUBAHAN (ENTIRE AGREEMENT & AMENDMENT)'),
+                        teks('Pengakuan menyeluruh dan metode pembaharuan yang sah disahkan melalui urutan pasal berikut ini:'),
+                        ayatOl([
+                            'Perjanjian kolaborasi antar badan usaha ini (beserta dan dengan mencakup pelibatan seluruh rentetan dan sisipan lembar dan lampiran yang mengiringinya, bundel Surat Proposal Penawaran komersial yang menyertainya, tumpukan berkas Annex/dokumen tambahan (Lampiran-lampiran), sisipan-sisipan catatan Jadwal pelaksanaan, hingga segala berkas kumpulan draft kertas penutup Adendumnya baik yang disusun hari ini maupun esok lusa kelak) merupakan kumpulan dokumen kesatuan komprehensif yang diyakini serta dihargai secara mutlak dan menyeluruh telah disepakati dari ujung pangkal hingga batas selesainya sebagai perlambang satu-satunya wujud dan format representasi dari eksistensi monumen keseluruhan kumpulan dari rentetan diskusi kesepakatan akhir nan sakral dan perlambang final muara titik temu dari tumpukan setinggi gunung dari lembar negosiasi pemahaman yang paling utuh, di mana seluruh barisan dan susunannya diletakkan di antara naungan keberadaan institusi yang digawangi oleh PARA PIHAK yang menyepakati untuk berkenaan dan terkait erat menaati komitmen penuh dengan segenap ruang lingkup penugasan (scope of works) proyek, aliran dana komersial operasional, pembagian persentase promosi (brand placement), dan target acara subjek kegiatan yang secara jelas, terang, sadar diri dan lugas diatur tuntas serta digawangi dan diikat secara formal dengan perlindungan pasal dan yurisdiksi penyelesaian konflik di dalamnya, yang dengan ini diakui utuh tanpa pengurangan atau pelenturan makna dalam satu baris kata pun.',
+                            'MOU Perjanjian kerja sama hukum panjang ini, secara yurisdiksi, prinsip moral perjanjian, dan daya paksa mutlak di depan hukum persidangan arbitrase akan secara seketika dan otomatis membatalkan seluruh komitmen tulisan acak, dengan tegas mencoret kekuatan serta merontokkan daya paksa masa berlaku, dan juga akan menggantikan fungsi peranan, memberangus dan menghapuskan tanpa sisa ke liang kubur sejarah segala seluruh bentuk sisa-sisa hasil produk negosiasi usang masa lalu yang tercatat seperti dari ragam wujud obrolan santai lisan dari mulut ke mulut, himpunan rekap pembicaraan kasual rapat via konferensi video rekaman suara daring, korespondensi komunikasi diskusi ringan yang terekam liar dan menyebar lewat platform jejaring aplikasi pesan singkat instan antar karyawan/chat personal tak resmi (instant messaging apps/WhatsApp Business/Telegram/Lines), lembar janji-janji retorika imajiner sumpah lisan yang terucap sekilas saat lobi makan siang diplomasi tingkat staf pelaksana lapangan tanpa legalitas pengesahan petinggi korporasi, coretan-coretan kasual, perombakan kerangka ide dan negosiasi yang gagal, catatan-catatan kesimpulan awal saat acara presentasi, maupun wujud kesepahaman pendahuluan awal dalam draft lembar rancangan acak tulisan tangan surat perjanjian kotor pendahuluan proyek kerja sama (draft design notes term sheet MoU lama berserakan) wujud apa pun itu entah yang tersimpan atau hilang di meja diskusi rapat perundingan proyek komersial kerja sama bisnis ini, yang mana riwayat kesemua janji acak sisa perundingan dan draft mentah tersebut mungkin pernah terjadi, tercetus dan mungkin tanpa disadari eksistensinya ada di antara sejarah persinggungan masa lalu dan masa perkenalan obrolan negosiasi PARA PIHAK sebelumnya.',
+                            'Untuk melindungi agar hukum janji ini tidak berubah bentuknya dipermainkan angin musim komersial, diatur di sini bahwa benar-benar tidak ada toleransi untuk disusupkan ide wujud penyisipan agenda proyek penambahan kerja tanpa bayaran ekstra (scope creeps additional tasks non-paid works out of bound limit clauses of agreement rules operations), serta ditegaskan mustahil dan dilarang muncul ide tindakan manuver perombakan dan pencabutan hak kewajiban finansial di kemudian hari tanpa kompromi musyawarah ulang, amandemen paksa pasal promosi demi kepentingan sepihak (forceful self-centric beneficial legal structural amendment over branding exposure shares agreement terms clauses boundaries conditions details rules stipulations variables constraints implementations metrics execution variables scopes adjustments), atau wujud modifikasi, reduksi, maupun subtitusi manipulasi atas wibawa kekuatan hukum ketentuan-ketentuan kewajiban fundamental dan porsi imbal nilai (contra-prestasi) finansial/marketing branding value di dalam halaman-halaman tebal berjejal aturan mengikat pada badan kertas lembar dokumen suci Perjanjian MOU (Memorandum Of Understanding kolaborasi dua belah pihak institusi) ini yang diyakini nantinya mampu serta berani untuk dianggap layak berdiri sah dan dapat langsung dieksekusi akan segera berlaku efektif demi memaku kepatuhan, serta dipercayai mengikat paksa secara perdata maupun sanksi ganti rugi materill apabila dilanggar kecuali jikalau dan di mana seluruh gagasan modifikasi atau tambahan revisi berani tersebut sedari benih ide pertamanya murni diajukan, diawasi pembuatannya, telah dirundingkan di atas meja rapat direksi dua belah pihak secara bersama-sama dalam ruang kaca musyawarah transparan dan diproses dengan itikad baik (bonafide good faith actions procedures routines guidelines compliance), hingga pada ujung akhirnya semua itu hanya diakui kebenarannya semata apabila gagasan usulan perubahan perjanjian (contract restructuring concepts variations adjustments formulas protocols legal papers documents updates implementations executions) itu disahkan dalam kertas dan dibuat secara resmi bersurat cetak fisik berstempel tertulis formal berhologram pita sah negara (termasuk apabila dicetak dan difasilitasi ditandatangani via aplikasi stempel elektronik resmi bersertifikat legal negara PSrE/Penyelenggara Sertifikasi Elektronik otoritas Kominfo yang aman dan patuh kaidah sah perundang-undangan digital ITE) dan selanjutnya di bagian kolom bawah penutup kertas atau layar itu telah mutlak diparaf, ditera sah, disahkan di atas punggung kertas pajak meterai bea negara yang nominalnya bernilai mencukupi kebutuhan hukum yang disyaratkan oleh menteri kehakiman dan kementerian perundangan hukum HAM dan pajak (sesuai rezim bea meterai Rp 10,000 rupiah per lembar pengesahan khusus/perlu revisi angka sesuai peraturan sah negara pada tahun dan detik pembuatan revisi akta kontrak baru nantinya yang sedang beroperasi hidup dan berdiri hukumnya) lalu kertas atau layar digital itu benar-benar dibubuhi torehan basah guratan tinta dari ujung pena tinta milik tangan asli atau perangkat gawai cap stempel basah serta digital valid sah tanda tangan pengesahan dari petinggi berkuasa jajaran direktur pimpinan jajaran eksekutif legal kuasa para pejabat-pejabat yang diakui atau minimal perwakilan staf kelas satu yang sah memiliki sertifikat bukti berkuasa mutlak dari PARA PIHAK pelaksana ikatan janji dalam bingkai bungkusan kertas perombakan perjanjian yang umum dipanggil ke dalam dunia legal korporat bisnis sebagai wujud sakral terbitnya peresmian dari lembar sebuah dokumen akta suci pengikatan Adendum Perjanjian turunan.'
+                        ]),
+
+                        pasalTitle(21, 'PENUTUP'),
+                        teks('Sebuah pilar dan lembar akhir yang melandasi peresmian janji-janji hukum ini adalah sebagai berikut:'),
+                        ayatOl([
+                            'Demikian seluruh rancangan kesepakatan strategis di bawah tajuk peresmian komitmen Memorandum of Understanding (MOU) dan Perjanjian kemitraan bisnis komprehensif ini dikonsep dengan penuh itikad jernih, dan dengan pikiran terbuka lalu dicetak dibuat secara sadar, telah tuntas dibaca utuh pasal per pasalnya tanpa melompat baris, sungguh-sungguh dipelajari dan dimengerti seluruh risiko komersialnya, dan kemudian pada akhirnya di ujung napas legalitas ditandatangani serta disepakati oleh tangan perwakilan eksekutif kuasa berwenang dari PARA PIHAK persekutuan kemitraan proyek ini.',
+                            'Penandatanganan ini dilangsungkan dalam wujud akal dan keadaan jiwa yang 100% tersadar secara jernih tanpa cacat ingatan, bernaung dan dilindungi di bawah kondisi batin dan fisik yang amat bugar serta dikaruniai raga yang senantiasa sehat sentosa baik secara jasmani maupun kognisi akal pikiran rohani yang waras di bawah pengawasan norma etika, di mana kesemua rangkaian proses ikrar sumpah pelaksanaan negosiasi hingga puncaknya peresmian tanda tangan ini dilaksanakan semata-mata murni mengandalkan kehendak bebas nurani kemitraan profesional berwawasan ke depan dan karenanya PARA PIHAK bersumpah janji secara tulus bahwa dalam eksekusinya sama sekali sangatlah bebas dari wujud belenggu ikatan keterpaksaan perburuhan, nihil bayang-bayang dan ancaman gelap tekanan represi bersenjata dari kelompok kekuasaan (duress/undue influences of third party force majure actors coercion elements situations contexts vectors environments), tidak didasari oleh ilusi kejahatan penyesatan informasi, tidak terdapat upaya manipulasi misinterpretasi bahasa, serta benar-benar bersih seputih salju tanpa ada setitik bintik dari wujud racun praktik penipuan (fraudulent tricks deceits machinations and conspiracy rings criminal activities setups operations plannings maneuvers actions tactics strategies methodologies approaches designs concepts theories implementations) maupun trik licik tipu muslihat operasional kotor yang ditebarkan berembus dan disusun secara sembunyi-sembunyi dari balik punggung para peserta meja perundingan oleh kubu pimpinan salah satu pihak oposisi kompetitor maupun kelompok perwakilan lobi bisnis oknum dari belah pihak ketiga anonim yang berdiri misterius di pinggiran atau di mana dan dari arah penjuru mata angin bayangan mana pun jua posisi niat oknum itu bertengger merancang intrik perusak tersebut demi keuntungannya pribadi sesaat belaka dan yang merugikan PARA PIHAK yang bersahaja.',
+                            'Untuk memenuhi dan mematuhi asas persyaratan otentikasi hukum dalam penandatanganan dokumen dan kelengkapan alat bukti arsip administratif kehakiman negara pada saat ini dan esok lusa tatkala tiba waktunya disidangkan jikalau terjadi kasus perseteruan tuntutan ganti rugi di hari yang kelam di pengadilan sengketa, maka disepakati secara aklamasi total penuh persetujuan bahwa dokumen kesepakatan Perjanjian panjang nan amat bernilai sejarah korporat dan uang kas tinggi ini resmi diperbanyak dan langsung dicetak produksi gandanya secara otentik asli identik dengan kualitas ketajaman salinan yang setara ke dalam setidaknya minimal jumlah salinan sebanyak 2 (dua) bundel tumpukan dokumen rangkap cetak versi orisinil asli bertinta prima bermaterai nilai cukup (apabila Perjanjian kontrak MOU bernilai tinggi ini memang sepakat dicanangkan bakal dicetak fisik di atas lembaran piringan kertas HVS atau buffalo korporat ukuran A4 tebal standar peradilan), atau pun juga diizinkan menggunakan medium elektronik apabila di kemudian waktu atau hari ini Perjanjian sakral ini hendak dan harus segera divalidasi serta ditandatangani dan diverifikasi secara praktis memotong jarak geografi menggunakan jasa bubuhan wujud pindaian visual tanda tangan digital elektronik jarak jauh menggunakan aplikasi tersertifikasi sandi algoritmik dari Penyelenggara Sertifikasi Elektronik (PSrE) Kominfo (sebagaimana keabsahannya terjamin rapi dan telah dengan kokoh dilindungi wibawa eksistensinya dan dipandu cara kerjanya di bawah payung naungan regulasi kuat konstitusional dalam aturan dan turunan Undang-Undang Republik Indonesia Nomor 11 Tahun 2008 Tentang payung peredaran aturan Informasi dan instrumen keamanan perlindungan Transaksi Elektronik/Undang Undang sakti ITE beserta seluruh jajaran perangkat amandemen, perombakan dan revisinya di periode mutakhir masa ini), di mana baik menggunakan pulpen fisik (versi cap kertas) maupun menggunakan layar stylus gawai tablet ponsel (tanda tangan persetujuan elektronik sandi PSrE), wujud dari kedua format tersebut (baik cetakan material kasatmata keras di atas alas kertas maupun bungkusan arsip file format cetak digital portable PDF bit data memori tak kasatmata dan ringan) ditegaskan secara absolut sama-sama tanpa pengecualian sedikit pun akan senantiasa diberkahi, dimahkotai dan juga diakui sah memiliki, menikmati, membawa dan menyebarkan wibawa kehebatan pancaran efek kekuatan pembuktian legitimasi hukum dasar yurisprudensi korporasi yang setingkat bobot beratnya, sama kesucian eksistensi derajat legalitas perkaranya, mutlak sama kualitas daya paksa hukum imperatif ikatannya dan dihormati setara tingkat derajat ancaman vonis persidangan efek sanksi resiko akibat pelanggarnya yang seratus persen sama berimbang (equality before the laws of court and evidence validity level ranks proofs mechanisms integrations) serta secara absolut memiliki posisi daya serang pertahanan keamanan kontrak di pengadilan BANI yang betul-betul merata kokoh bobot timbangannya, dan karena itu jaminan validitasnya sama sekali tiada pernah bisa dibedakan, didiskriminasi, disangkal, maupun disepelekan nilai kekuatan pembuktiannya di depan mimbar palu ketua dewan peradilan arbitrase atau negara bagi keuntungan keselamatan eksekusi target acara bisnis dari masing-masing perlindungan pilar kepentingan hukum dari entitas Pihak institusi yang mendandatangani perjanjian korporat bernilai strategis tinggi di dalam naungan kontrak memorandum perdamaian kesepahaman bisnis berskala lintas negara ini.'
+                        ]),
+                        
                         // AREA TTD
                         {
                             unbreakable: true,
-                            margin: [0, 30, 0, 0],
+                            margin: [0, 40, 0, 0],
                             table: {
-                                widths: ['50%', '50%'], heights: [20, 100, 18],
+                                widths: ['50%', '50%'], heights: [20, 110, 18],
                                 body: [
                                     [
-                                        { text: 'PIHAK PERTAMA\nCendekia Aksara', bold: true, alignment: 'center', border: [false,false,false,false] },
-                                        { text: ['PIHAK KEDUA\n', cekData(dataMOU.p2_instansi, 'Instansi', isDraft)], bold: true, alignment: 'center', border: [false,false,false,false] }
+                                        { text: 'PIHAK PERTAMA\nPT Cendekia Aksara Edukasi', bold: true, alignment: 'center', border: [false,false,false,false] },
+                                        { text: ['PIHAK KEDUA\n', cekData(dataMOU.p2_instansi, 'Instansi Mitra', isDraft)], bold: true, alignment: 'center', border: [false,false,false,false] }
                                     ],
                                     [
                                         {
                                             alignment: 'center', border: [false,false,false,false],
                                             stack: [
-                                                (globalAssets.cap && !isDraft) ? { image: globalAssets.cap, width: 90, opacity: 0.6 } : { text: '\n\n' },
-                                                (!isDraft && dataMOU.ttd) ? { image: dataMOU.ttd, width: 130, relativePosition: { x: 0, y: -60 } } : { text: '' }
+                                                (globalAssets.cap && !isDraft) ? { image: globalAssets.cap, width: 100, opacity: 0.6 } : { text: '\n\n' },
+                                                (!isDraft && dataMOU.ttd) ? { image: dataMOU.ttd, width: 140, relativePosition: { x: 0, y: -70 } } : { text: '' }
                                             ]
                                         },
-                                        { alignment: 'center', border: [false,false,false,false], stack: [ { text: '\n\n\n( Materai 10.000 & Ttd )', fontSize: 9, color: '#94a3b8', italics: true, alignment: 'center' } ] }
+                                        { alignment: 'center', border: [false,false,false,false], stack: [ { text: '\n\n\n\n( Materai 10.000 & Tanda Tangan )', fontSize: 10, color: '#94a3b8', italics: true, alignment: 'center' } ] }
                                     ],
                                     [
                                         { text: cekData(dataMOU.p1_nama, 'Nama P1', isDraft), bold: true, alignment: 'center', decoration: 'underline', border: [false,false,false,false] },
@@ -466,60 +642,79 @@
                                     ]
                                 ]
                             }
-                        }
+                        },
+
+                        // ============================================
+                        // HALAMAN LAMPIRAN (MEMASTIKAN HALAMAN BERTAMBAH)
+                        // ============================================
+                        { text: 'LAMPIRAN I\nRINCIAN KEGIATAN & OPERASIONAL', fontSize: 14, bold: true, alignment: 'center', pageBreak: 'before', margin:[0,0,0,20] },
+                        teks('Lampiran ini merupakan satu kesatuan dan bagian yang tidak terpisahkan dari Memorandum of Understanding Nomor 015/MOU/CA/2026.'),
+                        {
+                            table: { widths: ['30%', '*'], body: [
+                                [ { text: 'Nama Kegiatan', bold:true }, { text: cekData(dataMOU.kegiatan, 'Nama Kegiatan', isDraft) } ],
+                                [ { text: 'Jenis Kolaborasi', bold:true }, { text: cekData(dataMOU.jenis, 'Jenis Kerjasama', isDraft) } ],
+                                [ { text: 'Tanggal Disepakati', bold:true }, { text: cekData(strTanggal, 'Tanggal', isDraft) } ],
+                                [ { text: 'Penanggung Jawab Pihak 1', bold:true }, { text: cekData(dataMOU.p1_nama, 'Nama P1', isDraft) + '\n' + cekData(dataMOU.p1_jabatan, 'Jabatan P1', isDraft) } ],
+                                [ { text: 'Penanggung Jawab Pihak 2', bold:true }, { text: cekData(dataMOU.p2_nama, 'Nama P2', isDraft) + '\n' + cekData(dataMOU.p2_jabatan, 'Jabatan P2', isDraft) } ],
+                            ]}, margin: [0, 10, 0, 20]
+                        },
+                        teks('CATATAN PELAKSANAAN TAMBAHAN:'),
+                        ayatOl([
+                            'Segala bentuk persetujuan visual aset promosi (Desain Banner, Flayer, dll) harus diajukan melalui email resmi institusi selambat-lambatnya H-5 sebelum tanggal penayangan publik.',
+                            'Mekanisme pengiriman barang fisik (jika ada) diatur langsung oleh PIC teknis dari PARA PIHAK.',
+                            'Pelaporan pertanggungjawaban (LPJ) acara akan dikirimkan kepada Pihak Kedua maksimal 30 (tiga puluh) hari setelah penutupan acara utama selesai diselenggarakan.'
+                        ]),
+
+                        { text: 'LAMPIRAN II\nPAKTA INTEGRITAS DAN KEPATUHAN', fontSize: 14, bold: true, alignment: 'center', pageBreak: 'before', margin:[0,0,0,20] },
+                        teks('Dengan ditandatanganinya Perjanjian utama, PARA PIHAK menyatakan tunduk dan mematuhi pilar-pilar integritas berikut ini selama proses kolaborasi berlangsung:'),
+                        ayatOl([
+                            'Menolak segala bentuk Praktik Monopoli, Persaingan Usaha Tidak Sehat, maupun Korupsi, Kolusi, dan Nepotisme (KKN).',
+                            'Menolak memberikan hadiah, cinderamata, parcel, atau insentif finansial di luar kewajaran kepada pengurus, pantia, atau pegawai instansi terkait yang bertujuan untuk mempengaruhi kelancaran eksekusi Perjanjian ini secara manipulatif.',
+                            'Menerapkan prinsip Transparansi, Akuntabilitas, Responsibilitas, Independensi, dan Fairness (Keadilan) di dalam penyusunan laporan kemajuan kerjasama.',
+                            'Berkomitmen menjaga keharmonisan komunikasi korporat dan penyelesaian masalah tanpa menggunakan narasi menjatuhkan di ranah media sosial (Cyber Defamation).'
+                        ]),
+                        teks('\n\n\n(Halaman Lampiran Selesai - Tidak Memerlukan Tanda Tangan Terpisah)')
+
                     ],
                     defaultStyle: { font: globalAssets.tnrR ? 'TimesNewRoman' : 'Roboto', fontSize: 11 }
                 };
 
-                const prefix = isDraft ? 'DRAFT_MERAH_MOU' : 'FINAL_MOU';
+                const prefix = isDraft ? 'DRAFT_MERAH_18HAL' : 'FINAL_MOU_18HAL';
                 const fName = `${prefix}_${dataMOU.p2_instansi ? dataMOU.p2_instansi.replace(/\s+/g,'_') : 'Mitra'}.pdf`;
                 
                 pdfMake.createPdf(docDef).download(fName, async () => {
-                    // Jika INI FINAL, simpan ke database (Firebase / LocalStorage)
                     if(!isDraft) {
                         try {
-                            // Simpan ke Firebase
                             await addDoc(collection(db, 'arsip_mou'), { ...dataMOU, ttd: '', created_at: serverTimestamp() });
                         } catch(e) {
-                            // Fallback LocalStorage jika Firebase offline/gagal
                             let arsip = JSON.parse(localStorage.getItem('arsipMOU') || '[]');
                             arsip.push({ ...dataMOU, created_at: new Date().toISOString() });
                             localStorage.setItem('arsipMOU', JSON.stringify(arsip));
                         }
-                        
-                        Swal.fire('Sukses', 'MOU Final telah diterbitkan dan tersimpan di Arsip.', 'success').then(() => {
+                        Swal.fire('Sukses', 'MOU Final (Full Lengkap) telah diterbitkan dan tersimpan di Arsip.', 'success').then(() => {
                             document.getElementById('mouForm').reset(); signaturePad.clear(); switchTab('tab-arsip', document.querySelectorAll('.tab-btn')[2]); loadArsip();
                         });
                     }
                 });
 
-            } catch (err) {
-                Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. '+err.message, 'error');
-            } finally {
-                btn.innerHTML = oriHtml; btn.disabled = false;
-            }
+            } catch (err) { Swal.fire('Gagal', 'Terjadi kesalahan sistem saat membuat PDF. '+err.message, 'error'); } 
+            finally { btn.innerHTML = oriHtml; btn.disabled = false; }
         };
 
-        // --- ARSIP SYSTEM ---
         window.loadArsip = async () => {
             const tbody = document.getElementById('arsip-body');
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Memuat Data Arsip...</td></tr>';
-            
             let html = '';
             try {
-                // Coba ambil dari Firebase
                 const q = query(collection(db, 'arsip_mou'), orderBy('created_at', 'desc'));
                 const snap = await getDocs(q);
-                
                 if(!snap.empty) {
                     snap.forEach(doc => {
-                        const d = doc.data();
-                        const idObj = encodeURIComponent(JSON.stringify(d));
+                        const d = doc.data(); const idObj = encodeURIComponent(JSON.stringify(d));
                         html += `<tr><td>${d.tanggal || '-'}</td><td>${d.p2_instansi}</td><td>${d.kegiatan}</td><td>${d.jenis}</td><td><button class="btn-arsip-dl" onclick="cetakUlang('${idObj}')"><i class="fa-solid fa-download"></i> Cetak Ulang</button></td></tr>`;
                     });
                 } else throw new Error("Kosong");
             } catch (e) {
-                // Fallback LocalStorage
                 const arsip = JSON.parse(localStorage.getItem('arsipMOU') || '[]');
                 if(arsip.length > 0) {
                     arsip.reverse().forEach(d => {
@@ -533,10 +728,8 @@
             tbody.innerHTML = html;
         };
 
-        // Re-populasikan Form lalu Pindah Tab Preview untuk TTD ulang atau Print tanpa TTD
         window.cetakUlang = (dataStr) => {
             const d = JSON.parse(decodeURIComponent(dataStr));
-            // Isi kembali semua form
             if(d.jenis === 'Media Partner') selectRadio('Media Partner'); else selectRadio('Sponsorship');
             document.getElementById('kegiatan_nama').value = d.kegiatan || '';
             document.getElementById('mou_tanggal').value = d.tanggal || '';
@@ -546,12 +739,10 @@
             document.getElementById('p2_alamat').value = d.p2_alamat || '';
             document.getElementById('p1_kewajiban').value = d.p1_kw || '';
             document.getElementById('p2_kewajiban').value = d.p2_kw || '';
-            
             signaturePad.clear();
             switchTab('tab-preview', document.querySelectorAll('.tab-btn')[1]);
             Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Data dimuat ulang!', text: 'Silakan tanda tangan kembali untuk cetak PDF Final.', showConfirmButton: false, timer: 3000 });
         };
-
     </script>
 </body>
 </html>
