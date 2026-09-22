@@ -30,20 +30,17 @@ ${info_mentah}
 """
 
 ATURAN PENGEMBANGAN (WAJIB DIIKUTI 100%):
-1. KAMU WAJIB mengembangkan informasi singkat menjadi narasi yang komprehensif, logis, dan menarik.
-2. WAJIB MENGGUNAKAN TABEL: Jika ada informasi tentang Timeline, Jadwal, atau Waktu Kegiatan, kamu WAJIB membuatnya dalam format Tabel Markdown. Contoh:
-| Tanggal | Kegiatan / Tahapan |
-| --- | --- |
-| 12 Agustus 2026 | Pendaftaran Dibuka |
-3. WAJIB MENGGUNAKAN POIN: Untuk bagian Syarat, Ketentuan, Penilaian, dan Tata Tertib, WAJIB gunakan list (gunakan awalan "a. ", "b. ", "c. " atau "- ").
-4. Pecah buku menjadi 4 atau 5 Bab Utama.
-5. OUTPUT WAJIB 100% JSON ARRAY MURNI! Tanpa basa-basi.
+1. WAJIB menggunakan cetak tebal Markdown (**teks**) untuk menegaskan poin atau kalimat penting.
+2. WAJIB MENGGUNAKAN TABEL untuk bagian Timeline/Jadwal. (Gunakan format Markdown | Tanggal | Kegiatan |).
+3. WAJIB MENGGUNAKAN POIN/LIST untuk bagian Syarat, Ketentuan, Kriteria. Gunakan awalan "a. ", "b. " atau "- ".
+4. SUPER PENTING: Berikan JARAK 1 BARIS KOSONG (ENTER 2 KALI / "\\n\\n") sebelum dan sesudah membuat Tabel atau List Poin agar tidak menempel dengan paragraf sebelumnya!
+5. OUTPUT WAJIB 100% JSON ARRAY MURNI!
 
 FORMAT JSON YANG DIWAJIBKAN:
 [
-  { "bab": "1. Pendahuluan & Latar Belakang", "isi": "Teks panjang paragraf..." },
-  { "bab": "2. Timeline Kegiatan", "isi": "Teks pengantar.\\n\\n| Tanggal | Kegiatan |\\n|---|---|\\n| 10 Ags | Daftar |" },
-  { "bab": "3. Syarat & Ketentuan", "isi": "Berikut syaratnya:\\na. Syarat pertama\\nb. Syarat kedua" }
+  { "bab": "1. Pendahuluan", "isi": "Teks paragraf pertama...\\n\\nTeks paragraf kedua..." },
+  { "bab": "2. Syarat & Ketentuan", "isi": "Berikut adalah syaratnya:\\n\\na. Syarat pertama\\nb. Syarat kedua" },
+  { "bab": "3. Timeline", "isi": "Jadwal acara:\\n\\n| Tanggal | Kegiatan |\\n|---|---|\\n| 10 Ags | Daftar |" }
 ]`;
 
         const completion = await groq.chat.completions.create({
