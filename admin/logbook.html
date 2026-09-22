@@ -165,7 +165,7 @@
             });
         }
 
-        // 2. FUNGSI UNTUK MENGUNDUH FONT DINAMIS (BARU)
+        // 2. FUNGSI UNTUK MENGUNDUH FONT DINAMIS
         async function getFontBase64(url) {
             try {
                 const response = await fetch(url);
@@ -234,18 +234,49 @@
         };
 
         // 4. FUNGSI PARSER (UBAH MARKDOWN JADI TABEL/LIST PDFMAKE)
+        
+        // FUNGSI BARU: Mendeteksi **bold** dan *italic* dari Markdown AI
+        function parseInlineMarkdown(text) {
+            const regex = /(\*\*.*?\*\*|\*.*?\*)/g;
+            const parts = text.split(regex);
+            let result = [];
+            
+            parts.forEach(part => {
+                if (!part) return;
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    result.push({ text: part.slice(2, -2), bold: true });
+                } else if (part.startsWith('*') && part.endsWith('*')) {
+                    result.push({ text: part.slice(1, -1), italics: true });
+                } else {
+                    result.push({ text: part });
+                }
+            });
+            return result;
+        }
+
         function parseTextToPDFMakeContent(text) {
+            // Failsafe: Paksa pisahkan paragraf yang menempel dengan list (contoh: "...lanjut.a. Ketentuan" -> "...lanjut.\n\na. Ketentuan")
+            text = text.replace(/([a-z\.\,>])([a-zA-Z0-9]\.\s)/g, "$1\n\n$2"); 
+
             const lines = text.split('\n');
             let contentArray = [];
             let currentTable = null;
             let currentList = null;
             let listType = null;
+            let listStyleType = 'decimal'; // default angka
 
             const flushList = () => {
                 if (currentList) {
-                    if (listType === 'ul') contentArray.push({ ul: currentList, margin: [15, 5, 0, 15], color: '#334155', fontSize: 11, lineHeight: 1.4 });
-                    else contentArray.push({ ol: currentList, margin: [15, 5, 0, 15], color: '#334155', fontSize: 11, lineHeight: 1.4 });
-                    currentList = null; listType = null;
+                    let listConfig = { margin: [15, 5, 0, 15], color: '#334155', fontSize: 11, lineHeight: 1.4 };
+                    if (listType === 'ul') {
+                        listConfig.ul = currentList;
+                    } else {
+                        listConfig.ol = currentList;
+                        listConfig.type = listStyleType; // support a, b, c
+                    }
+                    contentArray.push(listConfig);
+                    currentList = null; 
+                    listType = null;
                 }
             };
 
@@ -274,44 +305,72 @@
                 let txt = line.trim();
                 if (!txt) { flushList(); flushTable(); return; }
 
+                // DETEKSI TABEL
                 if (txt.includes('|') && !txt.startsWith('-') && !txt.match(/^[a-zA-Z0-9]\./)) {
                     flushList();
-                    if (txt.replace(/[\| \-]/g, '') === '') return; 
-                    let cols = txt.split('|').filter(c => c.trim() !== '').map(c => c.trim());
+                    let cleanTxt = txt.replace(/^\||\|$/g, ''); // Hapus pipa awal/akhir
+                    if (cleanTxt.replace(/[\| \-]/g, '') === '') return; // Skip separator tabel (---|---)
+                    
+                    let cols = cleanTxt.split('|').map(c => c.trim());
                     if (!currentTable) currentTable = [];
                     let isHeader = currentTable.length === 0;
-                    currentTable.push(cols.map(c => ({ text: c, bold: isHeader, color: isHeader ? 'white' : '#1e293b', margin: [8, 6, 8, 6], fontSize: 10 })));
+                    
+                    currentTable.push(cols.map(c => ({ 
+                        text: parseInlineMarkdown(c), // Terapkan bold dalam sel tabel
+                        bold: isHeader, 
+                        color: isHeader ? 'white' : '#1e293b', 
+                        margin: [8, 6, 8, 6], 
+                        fontSize: 10 
+                    })));
                     return;
                 }
 
+                // DETEKSI UNORDERED LIST (- atau •)
                 if (txt.startsWith('- ') || txt.startsWith('• ')) {
                     flushTable();
                     if (listType === 'ol') flushList();
                     listType = 'ul';
                     if (!currentList) currentList = [];
-                    currentList.push(txt.substring(2).trim());
+                    currentList.push({ text: parseInlineMarkdown(txt.substring(2).trim()) });
                     return;
                 }
 
+                // DETEKSI ORDERED LIST (1., a., b., A.)
                 let matchOl = txt.match(/^([a-zA-Z0-9]+)[\.\)]\s+(.*)/);
                 if (matchOl && matchOl[1].length <= 2) {
                     flushTable();
                     if (listType === 'ul') flushList();
+                    
+                    if (!currentList) {
+                        currentList = [];
+                        // Deteksi otomatis jika AI menggunakan abjad a,b,c alih-alih 1,2,3
+                        if (matchOl[1].match(/^[a-z]$/)) listStyleType = 'lower-alpha';
+                        else if (matchOl[1].match(/^[A-Z]$/)) listStyleType = 'upper-alpha';
+                        else listStyleType = 'decimal';
+                    }
+                    
                     listType = 'ol';
-                    if (!currentList) currentList = [];
-                    currentList.push(matchOl[2].trim());
+                    currentList.push({ text: parseInlineMarkdown(matchOl[2].trim()) });
                     return;
                 }
 
+                // PARAGRAF BIASA
                 flushList(); flushTable();
-                contentArray.push({ text: txt, fontSize: 11, alignment: 'justify', color: '#334155', lineHeight: 1.4, margin: [0, 0, 0, 8] });
+                contentArray.push({ 
+                    text: parseInlineMarkdown(txt), 
+                    fontSize: 11, 
+                    alignment: 'justify', 
+                    color: '#334155', 
+                    lineHeight: 1.4, 
+                    margin: [0, 0, 0, 8] 
+                });
             });
 
             flushList(); flushTable();
             return contentArray;
         }
 
-        // 5. FUNGSI RENDER PDF A5 (DENGAN FETCH FONT DINAMIS)
+        // 5. FUNGSI RENDER PDF A5
         window.generatePDFA5 = async () => {
             showLoading("Menyiapkan Aset & Mengunduh Font Estetik...");
 
@@ -322,7 +381,6 @@
                 
                 const filePoster = document.getElementById('b_poster').files[0];
 
-                // Fetch paralel agar cepat: Logo, Poster, dan File Font dengan nama VariableFont
                 const [base64Logo, base64Poster, fontGaramondReg, fontGaramondItalic, fontPlayfairReg] = await Promise.all([
                     getBase64ImageFromUrl(LOGO_CA),
                     filePoster ? getBase64FromFile(filePoster) : null,
@@ -437,7 +495,7 @@
                     },
 
                     content: pdfContent,
-                    defaultStyle: { font: 'Garamond' } // SET DEFAULT FONT GARAMOND
+                    defaultStyle: { font: 'Garamond' }
                 };
 
                 pdfMake.createPdf(docDefinition).download(`Guidebook_${judul.replace(/\s+/g,'_')}.pdf`);
