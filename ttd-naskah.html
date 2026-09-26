@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tanda Tangan Digital - CASE Cendekia Aksara</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root { --primary: #003366; --gold: #d4af37; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+        .card { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 24px; }
+        .brand { text-align: center; margin-bottom: 18px; }
+        .brand h1 { font-family: 'Aleo', serif; font-size: 1.15rem; color: var(--primary); margin: 8px 0 2px; }
+        .brand p { font-size: 0.78rem; color: #64748b; margin: 0; }
+        .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 18px; font-size: 0.85rem; }
+        .info-box b { color: var(--primary); }
+        .desktop-hint { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 18px; text-align: center; }
+        .desktop-hint img { margin: 10px auto; display: block; border-radius: 8px; }
+        .signature-wrapper { border: 2px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; padding: 10px; text-align: center; }
+        canvas#signature-pad { border: 1px solid #e2e8f0; background: #fff; width: 100%; height: 200px; touch-action: none; border-radius: 8px; }
+        .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+        .btn-clear { flex: 1; background: #fee2e2; color: #dc2626; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: 'Poppins'; }
+        .btn-submit { flex: 2; background: linear-gradient(135deg, var(--primary), #00122e); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: 'Poppins'; }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+        .success-box { text-align: center; padding: 30px 10px; }
+        .success-box i { font-size: 3rem; color: #16a34a; margin-bottom: 14px; }
+        .loading-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: #f1f5f9; z-index: 999; display:flex; justify-content:center; align-items:center; flex-direction:column; }
+    </style>
+</head>
+<body>
+
+    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-2x" style="color:var(--primary); margin-bottom:12px;"></i><p>Memuat sesi tanda tangan...</p></div>
+
+    <div class="card" id="main-card" style="display:none;">
+        <div class="brand">
+            <i class="fa-solid fa-signature" style="font-size:1.6rem; color:var(--gold);"></i>
+            <h1>CASE — Cendekia Aksara Sign Elektronik</h1>
+            <p>Tanda tangan digital untuk MOU Penerbitan Naskah</p>
+        </div>
+
+        <div class="info-box" id="info-box"></div>
+
+        <div class="desktop-hint" id="desktop-hint" style="display:none;">
+            <p style="font-size:0.85rem; margin:0; color:#1e40af;"><i class="fa-solid fa-mobile-screen-button"></i> Untuk kualitas tanda tangan terbaik, pindai kode QR ini menggunakan HP Anda:</p>
+            <div id="qr-self"></div>
+            <p style="font-size:0.75rem; color:#64748b; margin:0;">Atau tetap gunakan kolom tanda tangan di bawah ini.</p>
+        </div>
+
+        <div class="signature-wrapper">
+            <canvas id="signature-pad"></canvas>
+        </div>
+        <div class="btn-row">
+            <button class="btn-clear" onclick="signaturePad.clear()">Hapus</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitTtd()"><i class="fa-solid fa-check"></i> Simpan Tanda Tangan</button>
+        </div>
+    </div>
+
+    <div class="card" id="success-card" style="display:none;">
+        <div class="success-box">
+            <i class="fa-solid fa-circle-check"></i>
+            <h2 style="font-family:'Aleo',serif; color:var(--primary); margin:0 0 8px;">Tanda Tangan Tersimpan</h2>
+            <p style="font-size:0.9rem; color:#64748b;">Terima kasih. Anda dapat kembali ke perangkat sebelumnya untuk melanjutkan proses penerbitan MOU.</p>
+        </div>
+    </div>
+
+    <div class="card" id="error-card" style="display:none;">
+        <div class="success-box">
+            <i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i>
+            <h2 style="font-family:'Aleo',serif; color:#dc2626; margin:0 0 8px;">Sesi Tidak Ditemukan</h2>
+            <p style="font-size:0.9rem; color:#64748b;">Tautan tanda tangan ini tidak valid atau sudah tidak berlaku. Mohon minta tautan baru dari admin.</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "/js/firebase-config.js";
+        import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const params = new URLSearchParams(location.search);
+        const sessionId = params.get('id');
+        const pihak = params.get('pihak') || 'penerbit';
+
+        let signaturePad;
+
+        function generateQrDataUrl(text, size = 180) {
+            return new Promise((resolve) => {
+                const holder = document.createElement('div');
+                new QRCode(holder, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+                setTimeout(() => {
+                    const c = holder.querySelector('canvas'); const im = holder.querySelector('img');
+                    resolve(c ? c.toDataURL('image/png') : (im ? im.src : null));
+                }, 150);
+            });
+        }
+
+        function isMobileDevice() {
+            return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        function resizeCanvas() {
+            const canvas = document.getElementById('signature-pad');
+            const w = canvas.offsetWidth, h = canvas.offsetHeight;
+            if (!w || !h) return;
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = w * ratio; canvas.height = h * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+        }
+
+        async function init() {
+            if (!sessionId) { showError(); return; }
+            let snap;
+            try { snap = await getDoc(doc(db, 'naskah_ttd_sesi', sessionId)); }
+            catch (e) { showError(); return; }
+
+            if (!snap.exists()) { showError(); return; }
+            const d = snap.data();
+
+            if (d.status === 'signed') {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('success-card').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('info-box').innerHTML =
+                `<b>Naskah:</b> ${escapeHtml(d.judul_naskah || '-')}<br>
+                 <b>Pihak Penandatangan:</b> ${pihak === 'penerbit' ? 'Penerbit' : 'Penulis'}<br>
+                 <b>Nama:</b> ${escapeHtml(d.nama || '-')}${d.jabatan ? ' — ' + escapeHtml(d.jabatan) : ''}`;
+
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('main-card').style.display = 'block';
+
+            const canvas = document.getElementById('signature-pad');
+            signaturePad = new SignaturePad(canvas, { penColor: 'rgb(15, 23, 42)' });
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            if (!isMobileDevice()) {
+                document.getElementById('desktop-hint').style.display = 'block';
+                const qrUrl = await generateQrDataUrl(location.href, 170);
+                document.getElementById('qr-self').innerHTML = `<img src="${qrUrl}" style="width:150px;height:150px;">`;
+            }
+        }
+
+        function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function showError() { document.getElementById('loader').style.display = 'none'; document.getElementById('error-card').style.display = 'block'; }
+
+        window.submitTtd = async () => {
+            if (!signaturePad || signaturePad.isEmpty()) { Swal.fire('Belum Ada Tanda Tangan', 'Silakan tanda tangan terlebih dahulu di kolom yang tersedia.', 'warning'); return; }
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+            try {
+                const dataUrl = signaturePad.toDataURL('image/png');
+                await updateDoc(doc(db, 'naskah_ttd_sesi', sessionId), { status: 'signed', ttd: dataUrl, signed_at: serverTimestamp() });
+                document.getElementById('main-card').style.display = 'none';
+                document.getElementById('success-card').style.display = 'block';
+            } catch (e) {
+                Swal.fire('Gagal', 'Tanda tangan tidak dapat disimpan. Periksa koneksi internet Anda.', 'error');
+                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Simpan Tanda Tangan';
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>
