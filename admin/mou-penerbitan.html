@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MOU Penerbitan Naskah - Cendekia Aksara</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root { --primary: #003366; --gold: #d4af37; --bg-color: #f1f5f9; --text-dark: #1e293b; }
+        * { box-sizing: border-box; outline: none; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-dark); margin: 0; padding-top: 60px; }
+        .app-wrapper { width: 100%; max-width: 1000px; margin: 0 auto; background-color: white; min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,0.1); }
+
+        .top-navbar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 1000px; z-index: 1000; background: #001f3f; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 3px solid var(--gold); }
+        .nav-title { font-family: 'Aleo', serif; font-size: 1.05rem; color: white; margin: 0; }
+
+        .tabs-container { display: flex; background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: transparent; font-family: 'Poppins'; font-weight: 600; font-size: 0.9rem; color: #64748b; cursor: pointer; transition: 0.3s; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: white; }
+        .tab-btn i { margin-right: 6px; }
+
+        .tab-content { display: none; padding: 20px; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .form-group { flex: 1; min-width: 250px; display: flex; flex-direction: column; margin-bottom: 15px; }
+        .form-group label { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+        .form-control { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Poppins'; font-size: 0.9rem; background: #f8fafc; width: 100%; }
+        .form-control:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
+        textarea.form-control { resize: vertical; min-height: 90px; }
+        .section-divider { border-bottom: 2px dashed #cbd5e1; margin: 25px 0 15px 0; padding-bottom: 5px; font-family: 'Aleo', serif; color: var(--primary); font-size: 1.15rem; }
+
+        .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
+        .radio-card { flex: 1; min-width: 150px; border: 2px solid #e2e8f0; border-radius: 10px; padding: 16px 12px; text-align: center; cursor: pointer; transition: 0.3s; background: #f8fafc; }
+        .radio-card input { display: none; }
+        .radio-card i { font-size: 1.3rem; color: #64748b; }
+        .radio-card:hover { border-color: #94a3b8; }
+        .radio-card.selected { border-color: var(--primary); background: #e0f2fe; }
+        .radio-card.selected i { color: var(--primary); }
+        .klas-title { font-weight: 700; margin-top: 8px; font-size: 0.95rem; }
+        .klas-sub { font-size: 0.7rem; color: #64748b; margin-top: 3px; }
+
+        .skema-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .warning-text { color: #dc2626; font-size: 0.75rem; margin-top: 4px; display: none; }
+
+        .btn-draft { background: #fef08a; color: #854d0e; border: 1px solid #fde047; padding: 14px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; margin-bottom: 12px; display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Poppins'; transition: 0.3s; }
+        .btn-draft:hover { background: #fde047; }
+        .btn-generic { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; padding: 14px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Poppins'; transition: 0.3s; }
+        .btn-generic:hover { background: #ddd6fe; }
+        .btn-final { background: linear-gradient(135deg, var(--primary), #00122e); color: white; border: none; padding: 16px; border-radius: 8px; font-weight: 600; width: 100%; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Poppins'; box-shadow: 0 4px 15px rgba(0, 51, 102, 0.3); }
+        .btn-final:disabled, .btn-draft:disabled, .btn-generic:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .table-responsive { overflow-x: auto; }
+        table.arsip-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.82rem; }
+        .arsip-table th, .arsip-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .arsip-table th { background: #f1f5f9; font-weight: 600; color: var(--primary); }
+        .btn-arsip-dl { background: #e2e8f0; color: #334155; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+        .btn-arsip-dl:hover { background: var(--primary); color: white; }
+
+        .signature-wrapper { border: 2px dashed #cbd5e1; border-radius: 8px; background: white; padding: 10px; text-align: center; }
+        canvas#signature-pad { border: 1px solid #e2e8f0; background: #f8fafc; width: 100%; height: 140px; cursor: crosshair; }
+
+        .ttd-party { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+        .ttd-party h4 { margin: 0 0 10px; font-family: 'Aleo', serif; color: var(--primary); font-size: 1rem; }
+        .btn-qr { background: #0369a1; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-family: 'Poppins'; cursor: pointer; font-weight: 600; font-size: 0.82rem; }
+        .btn-qr:hover { background: #075985; }
+        .qr-box { min-height: 30px; margin: 10px 0; }
+        .qr-box img { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px; background: #fff; }
+        .status-text { font-size: 0.82rem; font-weight: 600; }
+        .link-text { word-break: break-all; font-size: 0.72rem; margin-top: 4px; }
+
+        #hidden-canvas { position: absolute; visibility: hidden; z-index: -9999; }
+        .loading-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: white; z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+    <canvas id="hidden-canvas"></canvas>
+    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-3x" style="color:var(--primary); margin-bottom:15px;"></i><h3>Menyiapkan Sistem MOU Penerbitan...</h3></div>
+
+    <header class="top-navbar">
+        <div class="nav-title"><i class="fa-solid fa-book-medical"></i> MOU Penerbitan Naskah/Buku</div>
+    </header>
+
+    <div class="app-wrapper">
+
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchTab('tab-form', this)"><i class="fa-solid fa-pen-to-square"></i> 1. Data & Klasifikasi</button>
+            <button class="tab-btn" onclick="switchTab('tab-preview', this)"><i class="fa-solid fa-file-signature"></i> 2. Draft & Tanda Tangan</button>
+            <button class="tab-btn" onclick="switchTab('tab-arsip', this); loadArsip();"><i class="fa-solid fa-folder-open"></i> 3. Arsip Data</button>
+        </div>
+
+        <!-- TAB 1 -->
+        <div id="tab-form" class="tab-content active">
+            <div class="section-divider">Klasifikasi Penerbitan</div>
+            <div class="radio-group">
+                <label class="radio-card selected" id="opt-gratis" onclick="selectKlasifikasi('gratis')">
+                    <input type="radio" name="klasifikasi" value="gratis" checked>
+                    <i class="fa-solid fa-gift"></i>
+                    <div class="klas-title">Gratis</div>
+                    <div class="klas-sub">Rp 0 • Capaian jual 3 eks / Rp250rb</div>
+                </label>
+                <label class="radio-card" id="opt-reguler" onclick="selectKlasifikasi('reguler')">
+                    <input type="radio" name="klasifikasi" value="reguler">
+                    <i class="fa-solid fa-book"></i>
+                    <div class="klas-title">Reguler</div>
+                    <div class="klas-sub">Maks. Rp450rb • 5 eksemplar</div>
+                </label>
+                <label class="radio-card" id="opt-express" onclick="selectKlasifikasi('express')">
+                    <input type="radio" name="klasifikasi" value="express">
+                    <i class="fa-solid fa-bolt"></i>
+                    <div class="klas-title">Express</div>
+                    <div class="klas-sub">Rp750rb • 7 eksemplar</div>
+                </label>
+            </div>
+            <div id="skema-info" class="skema-box"></div>
+
+            <div class="section-divider">Data Naskah</div>
+            <div class="form-row">
+                <div class="form-group"><label>Judul Naskah / Buku</label><input type="text" id="judul_naskah" class="form-control" placeholder="Judul naskah yang akan diterbitkan"></div>
+                <div class="form-group"><label>Tanggal Kesepakatan</label><input type="date" id="mou_tanggal" class="form-control"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Jumlah Halaman Naskah</label>
+                    <input type="number" id="jumlah_halaman" class="form-control" min="1" placeholder="Contoh: 120" oninput="cekHalaman()">
+                    <small class="warning-text" id="halaman-warning"></small>
+                </div>
+            </div>
+
+            <div class="section-divider">Identitas Penulis</div>
+            <div class="form-row">
+                <div class="form-group"><label>Nama Penulis</label><input type="text" id="penulis_nama" class="form-control" placeholder="Nama lengkap penulis"></div>
+                <div class="form-group"><label>No. WhatsApp / Email Penulis</label><input type="text" id="penulis_kontak" class="form-control" placeholder="Untuk pengiriman tautan tanda tangan"></div>
+            </div>
+            <div class="form-group"><label>Alamat Penulis</label><input type="text" id="penulis_alamat" class="form-control" placeholder="Alamat lengkap penulis"></div>
+
+            <div class="section-divider">Identitas Pihak Pertama (Penerbit)</div>
+            <div class="form-row">
+                <div class="form-group"><label>Nama Perwakilan</label><input type="text" id="p1_nama" class="form-control" value="Mukhamad Bayu Aji Tolafudin"></div>
+                <div class="form-group"><label>Jabatan</label><input type="text" id="p1_jabatan" class="form-control" value="Ketua Pembina Literasi"></div>
+            </div>
+
+            <button class="btn-final" style="margin-top:10px;" onclick="switchTab('tab-preview', document.querySelectorAll('.tab-btn')[1])">Lanjut ke Draft & Tanda Tangan <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+
+        <!-- TAB 2 -->
+        <div id="tab-preview" class="tab-content">
+
+            <button type="button" class="btn-generic" onclick="generatePDF('generic')">
+                <i class="fa-solid fa-book-open-reader"></i> Unduh Draft Umum MOU (Untuk Dibaca Penulis)
+            </button>
+
+            <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <h4 style="margin:0 0 8px 0; color:#b45309;"><i class="fa-solid fa-circle-info"></i> Draft Personal</h4>
+                <p style="font-size:0.82rem; margin:0; color:#92400e;">Menampilkan isian Tab 1. Kolom yang masih kosong otomatis ditandai <b><span style="color:red;">[ BELUM DIISI ]</span></b> agar mudah ditinjau sebelum tanda tangan.</p>
+            </div>
+            <button type="button" class="btn-draft" onclick="generatePDF('draft')">
+                <i class="fa-solid fa-file-pen"></i> Unduh Draft Personal (Data Terisi)
+            </button>
+
+            <div class="section-divider">Tanda Tangan Digital (CASE)</div>
+
+            <div class="ttd-party">
+                <h4><i class="fa-solid fa-building"></i> Pihak Pertama (Penerbit)</h4>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad"></canvas>
+                    <button type="button" onclick="signaturePad.clear(); cekTombolFinal();" style="background:#fee2e2; color:#dc2626; border:none; padding:5px 10px; border-radius:4px; font-size:0.78rem; margin-top:10px; cursor:pointer;">Hapus Tanda Tangan</button>
+                </div>
+                <p style="font-size:0.75rem; color:#64748b; margin:10px 0 6px;">Atau tanda tangani lewat HP agar hasil lebih rapi:</p>
+                <button type="button" class="btn-qr" onclick="buatSesiTtd('penerbit')"><i class="fa-solid fa-qrcode"></i> Buat QR Tanda Tangan via HP</button>
+                <div class="qr-box" id="qr-penerbit"></div>
+                <div class="status-text" id="status-penerbit"></div>
+                <div class="link-text" id="link-penerbit"></div>
+            </div>
+
+            <div class="ttd-party">
+                <h4><i class="fa-solid fa-feather-pointed"></i> Pihak Kedua (Penulis)</h4>
+                <p style="font-size:0.78rem; color:#64748b; margin:0 0 10px;">Penulis menandatangani dokumen dari jarak jauh melalui tautan/QR berikut. Bagikan QR atau tautan ini kepada penulis (mis. via WhatsApp).</p>
+                <button type="button" class="btn-qr" onclick="buatSesiTtd('penulis')"><i class="fa-solid fa-qrcode"></i> Buat Tautan/QR Tanda Tangan Penulis</button>
+                <div class="qr-box" id="qr-penulis"></div>
+                <div class="status-text" id="status-penulis"></div>
+                <div class="link-text" id="link-penulis"></div>
+            </div>
+
+            <button type="button" class="btn-final" id="btn-final" disabled onclick="generatePDF('final')">
+                <i class="fa-solid fa-file-circle-check"></i> Terbitkan MOU Final & Simpan ke Arsip
+            </button>
+        </div>
+
+        <!-- TAB 3 -->
+        <div id="tab-arsip" class="tab-content">
+            <h3 style="margin-top:0; color:var(--primary);"><i class="fa-solid fa-server"></i> Arsip MOU Penerbitan Naskah</h3>
+            <p style="font-size:0.85rem;">Daftar MOU penerbitan yang telah diterbitkan (final). Dokumen dapat diunduh ulang kapan saja lengkap dengan tanda tangan dan QR verifikasi.</p>
+            <div class="table-responsive">
+                <table class="arsip-table" id="table-arsip">
+                    <thead><tr><th>No. Surat</th><th>Tanggal</th><th>Penulis</th><th>Judul Naskah</th><th>Klasifikasi</th><th>Aksi</th></tr></thead>
+                    <tbody id="arsip-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { db, checkAuth } from "/js/firebase-config.js";
+        import { collection, doc, setDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { SKEMA, ROMAWI_BULAN, parseTanggal, buildDocDef } from "/js/naskah-mou-pdf.js";
+
+        // =====================================================
+        // UI: TAB & KLASIFIKASI
+        // =====================================================
+        window.switchTab = function (tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+            if (tabId === 'tab-preview') setTimeout(resizeCanvas, 200);
+        };
+
+        function renderSkemaInfo(key) {
+            const S = SKEMA[key];
+            let html = `<label style="font-size:0.85rem; font-weight:bold; color:#1e3a5f;"><i class="fa-solid fa-circle-info"></i> Ringkasan Skema ${S.label}</label>`;
+            html += `<p style="font-size:0.78rem; margin:6px 0 0;">Biaya: <b>${S.biayaText}</b></p>`;
+            html += `<p style="font-size:0.78rem; margin:2px 0 0;">Eksemplar untuk Penulis: <b>${S.eksemplarText}</b></p>`;
+            html += `<p style="font-size:0.78rem; margin:2px 0 0;">Batas maksimal halaman naskah: <b>200 halaman</b></p>`;
+            if (key === 'gratis') html += `<p style="font-size:0.78rem; margin:6px 0 0; color:#b45309;"><b>Syarat capaian:</b> Buku wajib terjual minimal 3 eksemplar atau setara Rp 250.000 dalam 6 bulan sejak terbit.</p>`;
+            document.getElementById('skema-info').innerHTML = html;
+        }
+
+        window.selectKlasifikasi = function (key) {
+            document.querySelectorAll('.radio-card').forEach(el => el.classList.remove('selected'));
+            document.getElementById('opt-' + key).classList.add('selected');
+            const radio = document.querySelector(`input[name="klasifikasi"][value="${key}"]`);
+            if (radio) radio.checked = true;
+            renderSkemaInfo(key);
+        };
+        renderSkemaInfo('gratis');
+
+        window.cekHalaman = () => {
+            const v = parseInt(document.getElementById('jumlah_halaman').value || '0', 10);
+            const warn = document.getElementById('halaman-warning');
+            if (v > 200) { warn.style.display = 'block'; warn.textContent = 'Melebihi batas maksimal 200 halaman. Akan dikenakan penyesuaian biaya tambahan sesuai Pasal 3 ayat (2).'; }
+            else warn.style.display = 'none';
+        };
+
+        // =====================================================
+        // TANDA TANGAN LANGSUNG (KANVAS) — PENERBIT
+        // =====================================================
+        const canvas = document.getElementById('signature-pad');
+        window.signaturePad = new SignaturePad(canvas, { penColor: 'rgb(15, 23, 42)' });
+        signaturePad.addEventListener('endStroke', () => cekTombolFinal());
+
+        function resizeCanvas() {
+            const w = canvas.offsetWidth, h = canvas.offsetHeight;
+            if (!w || !h) return;
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const data = signaturePad.toData();
+            canvas.width = w * ratio; canvas.height = h * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            signaturePad.clear();
+            if (data.length) signaturePad.fromData(data);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // =====================================================
+        // ASET (LOGO, CAP, FONT)
+        // =====================================================
+        const LOGO_CA = 'https://i.imgur.com/5Srjyo4.png';
+        const CAP_CA = 'https://i.imgur.com/YvrNYRw.png';
+        const globalAssets = {};
+
+        async function getFontBase64(url) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const blob = await res.blob();
+                return await new Promise((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(r.result.split(',')[1]); r.readAsDataURL(blob); });
+            } catch (e) { return null; }
+        }
+        function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image(); img.crossOrigin = 'Anonymous';
+                img.onload = () => { const hc = document.getElementById('hidden-canvas'); hc.width = img.width; hc.height = img.height; hc.getContext('2d').drawImage(img, 0, 0); resolve(hc.toDataURL('image/png')); };
+                img.onerror = () => resolve(null); img.src = url;
+            });
+        }
+        function registerFonts() {
+            if (globalAssets.tnrR) {
+                pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
+                pdfMake.fonts = { TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' } };
+            }
+        }
+
+        const todayStr = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+
+        const initApp = async () => {
+            try {
+                document.getElementById('mou_tanggal').value = todayStr();
+                const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
+                    getBase64Image(LOGO_CA), getBase64Image(CAP_CA),
+                    getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'),
+                    getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
+                ]);
+                globalAssets.logo = logo; globalAssets.cap = cap;
+                globalAssets.tnrR = tnrR; globalAssets.tnrB = tnrB; globalAssets.tnrI = tnrI; globalAssets.tnrBI = tnrBI;
+            } finally { document.getElementById('loader').style.display = 'none'; }
+        };
+        if (document.readyState === 'complete') initApp(); else window.addEventListener('load', initApp);
+
+        // =====================================================
+        // QR CODE GENERATOR
+        // =====================================================
+        function generateQrDataUrl(text, size = 240) {
+            return new Promise((resolve) => {
+                const holder = document.createElement('div');
+                holder.style.display = 'none';
+                document.body.appendChild(holder);
+                new QRCode(holder, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+                setTimeout(() => {
+                    const canvasEl = holder.querySelector('canvas');
+                    const imgEl = holder.querySelector('img');
+                    const url = canvasEl ? canvasEl.toDataURL('image/png') : (imgEl ? imgEl.src : null);
+                    document.body.removeChild(holder);
+                    resolve(url);
+                }, 150);
+            });
+        }
+
+        // =====================================================
+        // SESI TANDA TANGAN VIA HP (QR)
+        // =====================================================
+        let ttdPenerbitData = null, ttdPenulisData = null;
+        let unsubPenerbit = null, unsubPenulis = null;
+
+        window.buatSesiTtd = async (pihak) => {
+            const judul = document.getElementById('judul_naskah').value.trim();
+            if (!judul) { Swal.fire('Data Kurang', 'Isi Judul Naskah pada Tab 1 terlebih dahulu.', 'warning'); return; }
+
+            const ref = doc(collection(db, 'naskah_ttd_sesi'));
+            const info = pihak === 'penerbit'
+                ? { pihak, nama: document.getElementById('p1_nama').value.trim(), jabatan: document.getElementById('p1_jabatan').value.trim() }
+                : { pihak, nama: document.getElementById('penulis_nama').value.trim(), jabatan: 'Penulis' };
+
+            try { await setDoc(ref, { ...info, judul_naskah: judul, status: 'pending', ttd: null, created_at: serverTimestamp() }); }
+            catch (e) { Swal.fire('Gagal', 'Tidak dapat membuat sesi tanda tangan. Periksa koneksi.', 'error'); return; }
+
+            const url = `${location.origin}/ttd-naskah.html?id=${ref.id}&pihak=${pihak}`;
+            const qrUrl = await generateQrDataUrl(url, 200);
+
+            const elImg = document.getElementById(pihak === 'penerbit' ? 'qr-penerbit' : 'qr-penulis');
+            const elStatus = document.getElementById(pihak === 'penerbit' ? 'status-penerbit' : 'status-penulis');
+            const elLink = document.getElementById(pihak === 'penerbit' ? 'link-penerbit' : 'link-penulis');
+
+            elImg.innerHTML = `<img src="${qrUrl}" style="width:150px;height:150px;">`;
+            elLink.innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+            elStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menunggu tanda tangan...';
+
+            if (pihak === 'penerbit' && unsubPenerbit) unsubPenerbit();
+            if (pihak === 'penulis' && unsubPenulis) unsubPenulis();
+
+            const unsub = onSnapshot(ref, (snap) => {
+                const d = snap.data();
+                if (d && d.status === 'signed' && d.ttd) {
+                    if (pihak === 'penerbit') ttdPenerbitData = d.ttd; else ttdPenulisData = d.ttd;
+                    elStatus.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#16a34a;"></i> Tanda tangan diterima';
+                    elImg.innerHTML = `<img src="${d.ttd}" style="max-width:150px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;">`;
+                    cekTombolFinal();
+                }
+            });
+            if (pihak === 'penerbit') unsubPenerbit = unsub; else unsubPenulis = unsub;
+        };
+
+        window.cekTombolFinal = function () {
+            const punyaPenerbit = !signaturePad.isEmpty() || !!ttdPenerbitData;
+            const punyaPenulis = !!ttdPenulisData;
+            document.getElementById('btn-final').disabled = !(punyaPenerbit && punyaPenulis);
+        };
+
+        // =====================================================
+        // NOMOR SURAT OTOMATIS
+        // =====================================================
+        async function nextNomorSurat(tahun, kode, bulanRomawi) {
+            try {
+                const snap = await getDocs(query(collection(db, 'arsip_mou_naskah'), where('tahun', '==', tahun)));
+                const seq = String(snap.size + 1).padStart(3, '0');
+                return `${seq}/PN-${kode}/CA/${bulanRomawi}/${tahun}`;
+            } catch (e) {
+                return `${String(Math.floor(Math.random() * 900) + 100)}/PN-${kode}/CA/${bulanRomawi}/${tahun}`;
+            }
+        }
+
+        // =====================================================
+        // GENERATOR PDF (draft / generic / final)
+        // =====================================================
+        window.generatePDF = async (mode) => {
+            const klasifikasi = document.querySelector('input[name="klasifikasi"]:checked').value;
+
+            if (mode === 'generic') {
+                registerFonts();
+                const docDef = buildDocDef({ klasifikasi }, { isDraft: false, isGeneric: true, assets: globalAssets });
+                pdfMake.createPdf(docDef).download(`DRAFT_UMUM_MOU_Penerbitan_${SKEMA[klasifikasi].label.replace(/\s+/g, '_')}.pdf`);
+                return;
+            }
+
+            const dataMOU = {
+                klasifikasi,
+                judul_naskah: document.getElementById('judul_naskah').value.trim(),
+                penulis_nama: document.getElementById('penulis_nama').value.trim(),
+                penulis_alamat: document.getElementById('penulis_alamat').value.trim(),
+                penulis_kontak: document.getElementById('penulis_kontak').value.trim(),
+                jumlah_halaman: parseInt(document.getElementById('jumlah_halaman').value || '0', 10) || null,
+                tanggal: document.getElementById('mou_tanggal').value,
+                p1_nama: document.getElementById('p1_nama').value.trim(),
+                p1_jabatan: document.getElementById('p1_jabatan').value.trim()
+            };
+
+            if (mode === 'draft') {
+                registerFonts();
+                const docDef = buildDocDef(dataMOU, { isDraft: true, isGeneric: false, assets: globalAssets });
+                pdfMake.createPdf(docDef).download(`DRAFT_MOU_Naskah_${(dataMOU.penulis_nama || 'Penulis').replace(/[^\w-]+/g, '_')}.pdf`);
+                return;
+            }
+
+            // mode === 'final'
+            const wajib = [
+                ['judul_naskah', 'Judul Naskah'], ['penulis_nama', 'Nama Penulis'], ['penulis_alamat', 'Alamat Penulis'],
+                ['tanggal', 'Tanggal Kesepakatan'], ['p1_nama', 'Nama Perwakilan Penerbit'], ['p1_jabatan', 'Jabatan Perwakilan Penerbit']
+            ].filter(([k]) => !String(dataMOU[k] || '').trim()).map(([, l]) => l);
+            if (!dataMOU.jumlah_halaman) wajib.push('Jumlah Halaman Naskah');
+
+            const ttdPenerbitFinal = !signaturePad.isEmpty() ? signaturePad.toDataURL('image/png') : ttdPenerbitData;
+            if (!ttdPenerbitFinal) wajib.push('Tanda Tangan Penerbit');
+            if (!ttdPenulisData) wajib.push('Tanda Tangan Penulis');
+
+            if (wajib.length) {
+                Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', html: 'Lengkapi hal berikut sebelum menerbitkan MOU final:<ul style="text-align:left;margin-top:10px;">' + wajib.map(l => `<li>${l}</li>`).join('') + '</ul>' });
+                return;
+            }
+
+            const btn = document.getElementById('btn-final');
+            const oriHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menerbitkan...'; btn.disabled = true;
+
+            try {
+                const tgl = parseTanggal(dataMOU.tanggal);
+                const tahun = String(tgl.getFullYear());
+                const bulanRomawi = ROMAWI_BULAN[tgl.getMonth()];
+                const nomorSurat = await nextNomorSurat(tahun, SKEMA[klasifikasi].kode, bulanRomawi);
+
+                const arsipRef = doc(collection(db, 'arsip_mou_naskah'));
+                const verifUrl = `${location.origin}/verifikasi-naskah.html?id=${arsipRef.id}`;
+                const qrUrl = await generateQrDataUrl(verifUrl, 240);
+
+                const fullData = { ...dataMOU, nomor_surat: nomorSurat, tahun, ttd_penerbit: ttdPenerbitFinal, ttd_penulis: ttdPenulisData };
+
+                registerFonts();
+                const docDef = buildDocDef(fullData, { isDraft: false, isGeneric: false, qrVerifikasiDataUrl: qrUrl, assets: globalAssets });
+
+                pdfMake.createPdf(docDef).download(`FINAL_MOU_Naskah_${dataMOU.penulis_nama.replace(/[^\w-]+/g, '_')}.pdf`, async () => {
+                    try { await setDoc(arsipRef, { ...fullData, created_at: serverTimestamp() }); } catch (e) { console.error(e); }
+                    Swal.fire('Sukses', 'MOU Penerbitan Naskah telah diterbitkan dan tersimpan di Arsip.', 'success').then(() => {
+                        resetForm(); switchTab('tab-arsip', document.querySelectorAll('.tab-btn')[2]); loadArsip();
+                    });
+                });
+            } catch (err) {
+                Swal.fire('Gagal', 'Terjadi kesalahan sistem: ' + err.message, 'error');
+            } finally { btn.innerHTML = oriHtml; btn.disabled = false; }
+        };
+
+        // =====================================================
+        // RESET FORM
+        // =====================================================
+        window.resetForm = () => {
+            ['judul_naskah', 'penulis_nama', 'penulis_alamat', 'penulis_kontak', 'jumlah_halaman'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('mou_tanggal').value = todayStr();
+            selectKlasifikasi('gratis');
+            signaturePad.clear();
+            ttdPenerbitData = null; ttdPenulisData = null;
+            document.getElementById('qr-penerbit').innerHTML = ''; document.getElementById('qr-penulis').innerHTML = '';
+            document.getElementById('status-penerbit').innerHTML = ''; document.getElementById('status-penulis').innerHTML = '';
+            document.getElementById('link-penerbit').innerHTML = ''; document.getElementById('link-penulis').innerHTML = '';
+            cekTombolFinal();
+        };
+
+        // =====================================================
+        // ARSIP
+        // =====================================================
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        let arsipCache = [];
+
+        window.loadArsip = async () => {
+            const tbody = document.getElementById('arsip-body');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Memuat Data Arsip...</td></tr>';
+            let rows = [];
+            try {
+                const q = query(collection(db, 'arsip_mou_naskah'), orderBy('created_at', 'desc'));
+                const snap = await getDocs(q);
+                rows = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+            } catch (e) { rows = []; }
+            arsipCache = rows;
+            tbody.innerHTML = rows.length ? rows.map((r, i) => {
+                const d = r.data;
+                return `<tr><td>${esc(d.nomor_surat)}</td><td>${esc(d.tanggal)}</td><td>${esc(d.penulis_nama)}</td><td>${esc(d.judul_naskah)}</td><td>${esc(SKEMA[d.klasifikasi] ? SKEMA[d.klasifikasi].label : d.klasifikasi)}</td><td><button class="btn-arsip-dl" onclick="cetakUlang(${i})"><i class="fa-solid fa-download"></i> Unduh</button></td></tr>`;
+            }).join('') : '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Belum ada arsip MOU Penerbitan yang diterbitkan.</td></tr>';
+        };
+
+        window.cetakUlang = async (i) => {
+            const item = arsipCache[i];
+            if (!item) return;
+            Swal.fire({ title: 'Menyiapkan PDF...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+            try {
+                const verifUrl = `${location.origin}/verifikasi-naskah.html?id=${item.id}`;
+                const qrUrl = await generateQrDataUrl(verifUrl, 240);
+                registerFonts();
+                const docDef = buildDocDef(item.data, { isDraft: false, isGeneric: false, qrVerifikasiDataUrl: qrUrl, assets: globalAssets });
+                pdfMake.createPdf(docDef).download(`FINAL_MOU_Naskah_${(item.data.penulis_nama || 'Penulis').replace(/[^\w-]+/g, '_')}.pdf`);
+                Swal.close();
+            } catch (e) { Swal.fire('Gagal', 'Terjadi kesalahan saat membuka arsip.', 'error'); }
+        };
+    </script>
+</body>
+</html>
