@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Verifikasi Dokumen - CASE Cendekia Aksara</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root { --primary: #003366; --gold: #d4af37; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+        .card { max-width: 520px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); padding: 26px; }
+        .brand { text-align: center; margin-bottom: 18px; }
+        .brand h1 { font-family: 'Aleo', serif; font-size: 1.15rem; color: var(--primary); margin: 8px 0 2px; }
+        .status-pill { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #166534; font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 20px; margin: 0 auto 18px; }
+        .status-pill.invalid { background: #fee2e2; color: #b91c1c; }
+        .info-table { width: 100%; font-size: 0.85rem; border-collapse: collapse; margin-bottom: 20px; }
+        .info-table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        .info-table td:first-child { color: #64748b; width: 40%; }
+        .info-table td:last-child { font-weight: 600; }
+        .btn-download { width: 100%; background: linear-gradient(135deg, var(--primary), #00122e); color: #fff; border: none; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: 'Poppins'; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .footer-note { text-align: center; font-size: 0.72rem; color: #94a3b8; margin-top: 16px; }
+        .loading-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: #f1f5f9; z-index: 999; display:flex; justify-content:center; align-items:center; flex-direction:column; }
+        .center { text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="loading-screen" id="loader"><i class="fa-solid fa-circle-notch fa-spin fa-2x" style="color:var(--primary); margin-bottom:12px;"></i><p>Memeriksa keaslian dokumen...</p></div>
+
+    <div class="card" id="valid-card" style="display:none;">
+        <div class="brand">
+            <i class="fa-solid fa-shield-halved" style="font-size:1.6rem; color:var(--gold);"></i>
+            <h1>Verifikasi Dokumen CASE</h1>
+        </div>
+        <div class="center"><span class="status-pill"><i class="fa-solid fa-circle-check"></i> Dokumen Sah &amp; Ditandatangani Elektronik</span></div>
+
+        <table class="info-table">
+            <tr><td>Nomor Surat</td><td id="v-nomor"></td></tr>
+            <tr><td>Judul Naskah</td><td id="v-judul"></td></tr>
+            <tr><td>Nama Penulis</td><td id="v-penulis"></td></tr>
+            <tr><td>Klasifikasi Penerbitan</td><td id="v-klasifikasi"></td></tr>
+            <tr><td>Tanggal Kesepakatan</td><td id="v-tanggal"></td></tr>
+        </table>
+
+        <button class="btn-download" id="btn-unduh"><i class="fa-solid fa-download"></i> Unduh Salinan Resmi (PDF)</button>
+        <p class="footer-note">Dokumen ini merupakan salinan yang sah dan telah ditandatangani secara elektronik melalui CASE (Cendekia Aksara Sign Elektronik).</p>
+    </div>
+
+    <div class="card" id="invalid-card" style="display:none;">
+        <div class="brand"><i class="fa-solid fa-shield-halved" style="font-size:1.6rem; color:#94a3b8;"></i><h1>Verifikasi Dokumen CASE</h1></div>
+        <div class="center"><span class="status-pill invalid"><i class="fa-solid fa-circle-xmark"></i> Dokumen Tidak Ditemukan</span></div>
+        <p class="center" style="font-size:0.85rem; color:#64748b;">Tautan verifikasi ini tidak valid atau dokumen telah dihapus dari arsip.</p>
+    </div>
+
+    <script type="module">
+        import { db } from "/js/firebase-config.js";
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { SKEMA, buildDocDef } from "/js/naskah-mou-pdf.js";
+
+        const params = new URLSearchParams(location.search);
+        const docId = params.get('id');
+        const globalAssets = {};
+
+        function generateQrDataUrl(text, size = 240) {
+            return new Promise((resolve) => {
+                const holder = document.createElement('div');
+                new QRCode(holder, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+                setTimeout(() => {
+                    const c = holder.querySelector('canvas'); const im = holder.querySelector('img');
+                    resolve(c ? c.toDataURL('image/png') : (im ? im.src : null));
+                }, 150);
+            });
+        }
+
+        async function getFontBase64(url) {
+            try { const res = await fetch(url); if (!res.ok) return null; const blob = await res.blob(); return await new Promise(r => { const fr = new FileReader(); fr.onloadend = () => r(fr.result.split(',')[1]); fr.readAsDataURL(blob); }); }
+            catch (e) { return null; }
+        }
+        function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image(); img.crossOrigin = 'Anonymous';
+                img.onload = () => { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); resolve(c.toDataURL('image/png')); };
+                img.onerror = () => resolve(null); img.src = url;
+            });
+        }
+        function registerFonts() {
+            if (globalAssets.tnrR) {
+                pdfMake.vfs = { ...pdfMake.vfs, 'times.ttf': globalAssets.tnrR, 'timesbd.ttf': globalAssets.tnrB, 'timesi.ttf': globalAssets.tnrI, 'timesbi.ttf': globalAssets.tnrBI };
+                pdfMake.fonts = { TimesNewRoman: { normal: 'times.ttf', bold: 'timesbd.ttf', italics: 'timesi.ttf', bolditalics: 'timesbi.ttf' } };
+            }
+        }
+
+        function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+        async function init() {
+            if (!docId) { showInvalid(); return; }
+            let snap;
+            try { snap = await getDoc(doc(db, 'arsip_mou_naskah', docId)); }
+            catch (e) { showInvalid(); return; }
+            if (!snap.exists()) { showInvalid(); return; }
+
+            const data = snap.data();
+            document.getElementById('v-nomor').textContent = data.nomor_surat || '-';
+            document.getElementById('v-judul').textContent = data.judul_naskah || '-';
+            document.getElementById('v-penulis').textContent = data.penulis_nama || '-';
+            document.getElementById('v-klasifikasi').textContent = SKEMA[data.klasifikasi] ? SKEMA[data.klasifikasi].label : (data.klasifikasi || '-');
+            document.getElementById('v-tanggal').textContent = data.tanggal || '-';
+
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('valid-card').style.display = 'block';
+
+            const [logo, cap, tnrR, tnrB, tnrI, tnrBI] = await Promise.all([
+                getBase64Image('https://i.imgur.com/5Srjyo4.png'), getBase64Image('https://i.imgur.com/YvrNYRw.png'),
+                getFontBase64('/fonts/times.ttf'), getFontBase64('/fonts/timesbd.ttf'), getFontBase64('/fonts/timesi.ttf'), getFontBase64('/fonts/timesbi.ttf')
+            ]);
+            globalAssets.logo = logo; globalAssets.cap = cap;
+            globalAssets.tnrR = tnrR; globalAssets.tnrB = tnrB; globalAssets.tnrI = tnrI; globalAssets.tnrBI = tnrBI;
+
+            document.getElementById('btn-unduh').onclick = async () => {
+                const btn = document.getElementById('btn-unduh');
+                const ori = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan PDF...'; btn.disabled = true;
+                try {
+                    const qrUrl = await generateQrDataUrl(location.href, 240);
+                    registerFonts();
+                    const docDef = buildDocDef(data, { isDraft: false, isGeneric: false, qrVerifikasiDataUrl: qrUrl, assets: globalAssets });
+                    pdfMake.createPdf(docDef).download(`FINAL_MOU_Naskah_${(data.penulis_nama || 'Penulis').replace(/[^\w-]+/g, '_')}.pdf`);
+                } catch (e) { Swal.fire('Gagal', 'Terjadi kesalahan saat menyiapkan PDF.', 'error'); }
+                finally { btn.innerHTML = ori; btn.disabled = false; }
+            };
+        }
+
+        function showInvalid() { document.getElementById('loader').style.display = 'none'; document.getElementById('invalid-card').style.display = 'block'; }
+        init();
+    </script>
+</body>
+</html>
