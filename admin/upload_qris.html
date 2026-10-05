@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload QRIS - Cendekia Aksara</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        :root { --navy: #003366; --gold: #d97706; --bg: #f4f6f9; }
+        body { margin: 0; background: var(--bg); font-family: 'Outfit', sans-serif; color: #334155; padding: 20px; }
+        .wrap { max-width: 720px; margin: 0 auto; }
+
+        .head { background: linear-gradient(135deg, #001f3f, var(--navy)); color: #fff; border-radius: 20px; padding: 24px 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+        .head h1 { margin: 0; font-family: 'Playfair Display', serif; font-size: 1.5rem; }
+        .head p { margin: 4px 0 0; color: #cbd5e1; font-size: .9rem; }
+        .back { color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.35); padding: 9px 16px; border-radius: 50px; font-size: .85rem; font-weight: 600; }
+        .back:hover { background: #fff; color: var(--navy); }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #fff; border: 1px solid #eef2f6; border-radius: 20px; padding: 22px; }
+        .card h2 { margin: 0 0 14px; font-size: 1rem; color: var(--navy); }
+
+        .frame { aspect-ratio: 1 / 1; border: 2px dashed #cbd5e1; border-radius: 14px; display: flex; align-items: center; justify-content: center; text-align: center; color: #94a3b8; font-size: .9rem; overflow: hidden; background: #f8fafc; padding: 10px; }
+        .frame img { width: 100%; height: 100%; object-fit: contain; }
+
+        input[type=file] { display: none; }
+        .btn { display: flex; width: 100%; justify-content: center; align-items: center; gap: 8px; padding: 13px; border: 0; border-radius: 12px; font: 700 .95rem 'Outfit', sans-serif; cursor: pointer; margin-top: 12px; transition: .2s; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-pick { background: #fff; border: 2px solid var(--gold); color: var(--gold); }
+        .btn-save { background: var(--navy); color: #fff; }
+
+        .note { font-size: .82rem; color: #64748b; margin: 10px 0 0; line-height: 1.5; }
+        .msg { margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-size: .88rem; display: none; line-height: 1.5; }
+        .msg.ok { display: block; background: #dcfce7; color: #14532d; }
+        .msg.err { display: block; background: #fee2e2; color: #7f1d1d; }
+        .meta { font-size: .8rem; color: #64748b; margin-top: 10px; }
+
+        @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } body { padding: 12px; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="head">
+        <div>
+            <h1>Upload QRIS</h1>
+            <p>Gambar ini tampil otomatis di halaman Keuangan siswa.</p>
+        </div>
+        <a class="back" href="/dashboard/index.html"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2>QRIS yang sedang aktif</h2>
+            <div class="frame" id="current-frame">Memuat...</div>
+            <div class="meta" id="current-meta"></div>
+        </div>
+
+        <div class="card">
+            <h2>Ganti dengan gambar baru</h2>
+            <div class="frame" id="preview-frame">Belum ada gambar dipilih</div>
+            <input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+            <button class="btn btn-pick" id="btn-pick"><i class="fa-solid fa-image"></i> Pilih gambar QRIS</button>
+            <button class="btn btn-save" id="btn-save" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Simpan QRIS</button>
+            <p class="note">Format PNG, JPG, atau WebP. Gambar otomatis dikecilkan agar muat di database, dengan kualitas tetap tajam untuk dipindai.</p>
+            <div class="msg" id="msg"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // Sesuaikan path ini kalau folder js kamu berbeda
+    import { db, checkAuth } from "../js/firebase-config.js";
+    import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const QRIS_REF = doc(db, "settings", "qris");
+    const MAX_SIDE = 900;          // sisi terpanjang (px)
+    const MAX_CHARS = 900000;      // batas aman dokumen Firestore (1 MB)
+
+    const $ = (id) => document.getElementById(id);
+    let admin = null;
+    let pendingDataUrl = null;
+
+    function show(type, text) {
+        const m = $("msg");
+        m.className = "msg " + type;
+        m.textContent = text;
+    }
+
+    function imgTag(src) {
+        const img = document.createElement("img");
+        img.src = src; img.alt = "QRIS";
+        return img;
+    }
+
+    async function loadCurrent() {
+        const frame = $("current-frame");
+        try {
+            const snap = await getDoc(QRIS_REF);
+            if (snap.exists() && snap.data().image) {
+                frame.replaceChildren(imgTag(snap.data().image));
+                const t = snap.data().updatedAt;
+                $("current-meta").textContent = t && t.toDate
+                    ? "Terakhir diperbarui: " + t.toDate().toLocaleString("id-ID")
+                    : "";
+            } else {
+                frame.textContent = "Belum ada QRIS yang diupload";
+            }
+        } catch (e) {
+            frame.textContent = "Gagal memuat QRIS";
+        }
+    }
+
+    // Kecilkan gambar + ubah ke JPEG supaya ukurannya aman
+    function compress(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error("File tidak bisa dibaca."));
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("File bukan gambar yang valid."));
+                img.onload = () => {
+                    const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+                    const canvas = document.createElement("canvas");
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext("2d");
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    let q = 0.92, out = canvas.toDataURL("image/jpeg", q);
+                    while (out.length > MAX_CHARS && q > 0.4) {
+                        q -= 0.08;
+                        out = canvas.toDataURL("image/jpeg", q);
+                    }
+                    if (out.length > MAX_CHARS) return reject(new Error("Gambar terlalu besar. Pakai gambar yang lebih kecil."));
+                    resolve(out);
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    $("btn-pick").addEventListener("click", () => $("file").click());
+
+    $("file").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        $("msg").className = "msg";
+        $("btn-save").disabled = true;
+        try {
+            pendingDataUrl = await compress(file);
+            $("preview-frame").replaceChildren(imgTag(pendingDataUrl));
+            $("btn-save").disabled = false;
+        } catch (err) {
+            pendingDataUrl = null;
+            show("err", err.message);
+        }
+    });
+
+    $("btn-save").addEventListener("click", async () => {
+        if (!pendingDataUrl) return;
+        const btn = $("btn-save");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...';
+        try {
+            await setDoc(QRIS_REF, {
+                image: pendingDataUrl,
+                updatedAt: serverTimestamp(),
+                updatedBy: admin.uid
+            });
+            show("ok", "QRIS berhasil disimpan. Halaman Keuangan siswa sekarang memakai gambar ini.");
+            pendingDataUrl = null;
+            $("file").value = "";
+            $("preview-frame").textContent = "Belum ada gambar dipilih";
+            await loadCurrent();
+        } catch (err) {
+            show("err", "Gagal menyimpan. Pastikan akunmu admin dan aturan Firestore mengizinkan tulis ke settings/qris.");
+            btn.disabled = false;
+        }
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Simpan QRIS';
+    });
+
+    (async () => {
+        // Ganti 'admin' kalau nama role di platformmu berbeda
+        admin = await checkAuth("admin");
+        if (admin) loadCurrent();
+    })();
+</script>
+</body>
+</html>
