@@ -74,7 +74,7 @@ export default async function handler(req, res) {
                 4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.
                 `;
 
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
                 const result = await model.generateContent({
                     contents: [{ role: "user", parts: [{ text: promptText }] }],
                     generationConfig: { temperature: 0.5, responseMimeType: "application/json" },
