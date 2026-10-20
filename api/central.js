@@ -10,12 +10,12 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Inisialisasi Klien (Jika Key tersedia)
-const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
+const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: '[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)' }) : null;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Konfigurasi Model Utama Sakelar
-const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions'; // Asumsi endpoint chat completion standar
-const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; // Bisa diubah ke 'deepseek-v4-pro' atau 'glm-5.2'
+const SAKELAR_URL = '[https://api.sakelar.web.id/v1/chat/completions](https://api.sakelar.web.id/v1/chat/completions)';
+const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; 
 
 // ==========================================
 // 2. FUNGSI UTILITIES
@@ -35,10 +35,30 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+// FUNGSI BARU: Pengekstrak JSON Anti-Gagal
+const extractJSON = (text) => {
+    try {
+        // 1. Coba parse langsung (kondisi ideal)
+        return JSON.parse(text.replace(/```json/gi, '').replace(/```/g, '').trim());
+    } catch (e) {
+        // 2. Jika gagal karena ada teks pengantar, gunakan Regex untuk mengambil bagian { ... } saja
+        console.warn("Gagal parse langsung, mencoba ekstraksi regex...", text);
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+            try {
+                return JSON.parse(match[0]);
+            } catch (err2) {
+                console.error("Gagal parse regex:", match[0]);
+                throw new Error("JSON terdeteksi tapi strukturnya rusak (malformed).");
+            }
+        }
+        throw new Error("Tidak ada struktur JSON yang ditemukan dalam respons AI.");
+    }
+};
+
 // ==========================================
 // 3. FUNGSI MULTI-TIER FALLBACK AI ENGINE
 // ==========================================
-// Fungsi ini mencoba Sakelar -> Groq -> Gemini secara berurutan
 async function generateWithFallback(systemPrompt, userPrompt, temperature, isJsonMode = false) {
     let lastError = "";
 
@@ -59,8 +79,9 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                         { role: "user", content: userPrompt }
                     ],
                     temperature: temperature,
-                    // Tambahkan format JSON jika didukung oleh API Sakelar
-                    // response_format: isJsonMode ? { type: "json_object" } : { type: "text" } 
+                    // Opsional: Beberapa API Sakelar mungkin tidak mendungkung response_format
+                    // Jika error HTTP 400 di Sakelar terjadi, hapus baris response_format di bawah ini
+                    response_format: isJsonMode ? { type: "json_object" } : { type: "text" } 
                 })
             });
 
@@ -103,9 +124,8 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
     if (genAI) {
         try {
             console.log("Mencoba Gemini API...");
-            // Gemini menggunakan format gabungan prompt yang sedikit berbeda
             const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
-            const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" }); // Update ke model stabil
+            const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" }); 
             
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
@@ -131,7 +151,6 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
 // 4. MAIN HANDLER
 // ==========================================
 export default async function handler(req, res) {
-    // ATUR CORS UNTUK SEMUA REQUEST
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*'); 
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
@@ -168,25 +187,27 @@ Instruksi Tugas: "${instruction}"
 Rubrik & Unsur Penilaian: "${rubric}"
 Karya Siswa: "${answer}"
 
-Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
+Kamu WAJIB mengembalikan output HANYA dalam satu buah objek JSON tanpa teks pengantar apa pun.
+Format JSON yang diminta:
+{
+  "score": (angka bulat 0-100),
+  "feedback": "(string HTML dengan tag <b>, <i>, <br>)"
+}
+
 Ketentuan Feedback:
-1. Mulailah dengan sapaan hangat "Halo, ${studentName}!" lalu apresiasi spesifik. JANGAN panggil "Teman-teman".
+1. Mulailah dengan sapaan hangat "Halo, ${studentName}!" lalu apresiasi spesifik.
 2. Wajib gunakan "Aku" (mentor) dan "Kamu" (siswa).
 3. Tulis mengalir dalam paragraf (jangan pakai poin-poin angka): Analisis gaya, temuan typo/PUEBI, contoh perbaikan, dan motivasi penutup.
-4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
+4. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                // Panggil Multi-Tier AI (JSON Mode = true)
                 let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.5, true);
                 
-                // Coba parse JSON (jika response berupa string)
                 try {
-                    // Terkadang model mengembalikan markdown code block ```json ... ```
-                    rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    const finalResult = JSON.parse(rawResponse);
+                    const finalResult = extractJSON(rawResponse);
                     return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
                 } catch (parseError) {
-                    console.error("Gagal parse JSON dari AI:", rawResponse);
-                    throw new Error("Format JSON dari AI tidak valid.");
+                    console.error("Gagal parse JSON final. Raw response AI:", rawResponse);
+                    throw new Error("AI tidak memberikan JSON yang valid.");
                 }
             }
 
@@ -208,23 +229,27 @@ Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.`;
 Instruksi Penugasan: "${instruction}"
 Jawaban Siswa: "${answer}"
 
-Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
+Kamu WAJIB mengembalikan output HANYA dalam satu buah objek JSON tanpa teks pengantar apa pun.
+Format JSON yang diminta:
+{
+  "score": (angka bulat 0-100),
+  "feedback": "(string HTML dengan tag <b>, <i>, <br>)"
+}
+
 Ketentuan Feedback:
 1. Sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
-2. Gunakan "Aku" dan "Kamu". Jangan "Anda" atau "Saya". Jangan kaku/birokratis.
+2. Gunakan "Aku" dan "Kamu". Jangan "Anda" atau "Saya".
 3. Tulis mengalir dalam paragraf (tanpa poin-poin): Analisis Kesalahan, Koreksi/Contoh benar, dan Pujian/Apresiasi.
-4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
+4. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                // Panggil Multi-Tier AI (JSON Mode = true)
                 let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.4, true);
                 
                 try {
-                    rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
-                    const finalResult = JSON.parse(rawResponse);
+                    const finalResult = extractJSON(rawResponse);
                     return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
                 } catch (parseError) {
-                    console.error("Gagal parse JSON dari AI:", rawResponse);
-                    throw new Error("Format JSON dari AI tidak valid.");
+                    console.error("Gagal parse JSON final. Raw response AI:", rawResponse);
+                    throw new Error("AI tidak memberikan JSON yang valid.");
                 }
             }
 
@@ -242,7 +267,6 @@ Ketentuan Feedback:
                 const systemPrompt = `Kamu adalah editor artikel profesional. Keluarkan HANYA teks murni (termasuk tag HTML jika diminta) TANPA penjelasan tambahan.`;
                 const userPrompt = `Judul: ${title || 'Tanpa Judul'}\n\n${customInstruction}\n\nTEKS:\n"""\n${text}\n"""\nKeluarkan murni HTML.`;
 
-                // Panggil Multi-Tier AI (JSON Mode = false)
                 let textResponse = await generateWithFallback(systemPrompt, userPrompt, instruction ? 0.7 : 0.1, false);
                 textResponse = textResponse.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
@@ -257,7 +281,7 @@ Ketentuan Feedback:
         console.error("API Central Error Breakdown:", error);
         return res.status(500).json({ 
             score: 0, 
-            feedback: "Sistem server pusat mengalami gangguan internal. Semua AI sedang sibuk atau error. Silakan coba beberapa saat lagi.",
+            feedback: "Sistem mengalami gangguan saat memproses dari AI. Silakan coba beberapa saat lagi.",
             error: error.message 
         });
     }
