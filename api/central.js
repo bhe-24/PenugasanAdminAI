@@ -2,15 +2,24 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-// 1. INISIALISASI GROQ AI
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
-
-// 2. INISIALISASI GEMINI AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// 3. INISIALISASI SAKELAR API (TAMBAHAN BARU)
+// ==========================================
+// 1. INISIALISASI ENVIRONMENT VARIABLES
+// ==========================================
 const SAKELAR_API_KEY = process.env.SAKELAR_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Inisialisasi Klien (Jika Key tersedia)
+const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+// Konfigurasi Model Utama Sakelar
+const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions'; // Asumsi endpoint chat completion standar
+const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; // Bisa diubah ke 'deepseek-v4-pro' atau 'glm-5.2'
+
+// ==========================================
+// 2. FUNGSI UTILITIES
+// ==========================================
 
 // Fungsi Pembersih Teks Universal
 const sanitizeText = (text) => {
@@ -18,7 +27,7 @@ const sanitizeText = (text) => {
     return text.replace(/<[^>]*>?/gm, '').trim(); 
 };
 
-// Filter Keamanan Universal (Dilonggarkan untuk keperluan edukasi/koreksi fiksi)
+// Filter Keamanan Gemini Universal
 const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -26,6 +35,101 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+// ==========================================
+// 3. FUNGSI MULTI-TIER FALLBACK AI ENGINE
+// ==========================================
+// Fungsi ini mencoba Sakelar -> Groq -> Gemini secara berurutan
+async function generateWithFallback(systemPrompt, userPrompt, temperature, isJsonMode = false) {
+    let lastError = "";
+
+    // TIER 1: SAKELAR API (UTAMA)
+    if (SAKELAR_API_KEY) {
+        try {
+            console.log("Mencoba Sakelar API...");
+            const response = await fetch(SAKELAR_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SAKELAR_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: SAKELAR_DEFAULT_MODEL,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt }
+                    ],
+                    temperature: temperature,
+                    // Tambahkan format JSON jika didukung oleh API Sakelar
+                    // response_format: isJsonMode ? { type: "json_object" } : { type: "text" } 
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Sakelar API Berhasil!");
+                return data.choices[0]?.message?.content || "";
+            } else {
+                const errData = await response.text();
+                throw new Error(`Sakelar HTTP Error ${response.status}: ${errData}`);
+            }
+        } catch (error) {
+            console.warn("Sakelar API Gagal, beralih ke Groq...", error.message);
+            lastError = `Sakelar: ${error.message}`;
+        }
+    }
+
+    // TIER 2: GROQ API (FALLBACK 1)
+    if (groq) {
+        try {
+            console.log("Mencoba Groq API...");
+            const completion = await groq.chat.completions.create({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: temperature,
+                response_format: isJsonMode ? { type: "json_object" } : { type: "text" }
+            });
+            console.log("Groq API Berhasil!");
+            return completion.choices[0]?.message?.content || "";
+        } catch (error) {
+            console.warn("Groq API Gagal, beralih ke Gemini...", error.message);
+            lastError += ` | Groq: ${error.message}`;
+        }
+    }
+
+    // TIER 3: GEMINI API (FALLBACK 2 / TERAKHIR)
+    if (genAI) {
+        try {
+            console.log("Mencoba Gemini API...");
+            // Gemini menggunakan format gabungan prompt yang sedikit berbeda
+            const combinedPrompt = `${systemPrompt}\n\n${userPrompt}`;
+            const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" }); // Update ke model stabil
+            
+            const result = await model.generateContent({
+                contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
+                generationConfig: { 
+                    temperature: temperature, 
+                    responseMimeType: isJsonMode ? "application/json" : "text/plain" 
+                },
+                safetySettings: safetySettings
+            });
+            console.log("Gemini API Berhasil!");
+            return result.response.text();
+        } catch (error) {
+            console.error("Gemini API Gagal.", error.message);
+            lastError += ` | Gemini: ${error.message}`;
+            throw new Error(`Semua AI Engine Gagal. Detail: ${lastError}`);
+        }
+    }
+
+    throw new Error("Tidak ada API Key AI yang dikonfigurasi.");
+}
+
+// ==========================================
+// 4. MAIN HANDLER
+// ==========================================
 export default async function handler(req, res) {
     // ATUR CORS UNTUK SEMUA REQUEST
     res.setHeader('Access-Control-Allow-Credentials', true);
@@ -36,20 +140,16 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        // TANGKAP PERINTAH 'action' (Bisa dari Body POST atau Query GET)
         const action = req.body?.action || req.query?.action;
 
         if (!action) {
             return res.status(400).json({ error: "Parameter 'action' tidak ditemukan." });
         }
 
-        // ==========================================
-        // SWITCH CASE: TERMINAL PUSAT API
-        // ==========================================
         switch (action) {
 
             // ---------------------------------------------------------
-            // [A] KOREKSI UJIAN (Asal file: api/grade.js)
+            // [A] KOREKSI UJIAN
             // ---------------------------------------------------------
             case 'grade-ujian': {
                 let { instruction, rubric, answer, studentName } = req.body;
@@ -60,36 +160,38 @@ export default async function handler(req, res) {
                 rubric = sanitizeText(rubric) || 'Nilai rentang 0-100 dengan mempertimbangkan: Gagasan, Struktur, Tanda Baca, Diksi, Typo, dan Gaya Penulisan.';
                 studentName = studentName && studentName !== 'undefined' ? studentName : 'Penulis';
 
-                const promptText = `
-                Peran: Anda adalah seorang Mentor Penulisan Kreatif dan Editor Fiksi yang ramah, asyik, objektif, dan suportif.
-                Tugas: Mengoreksi karya siswa dengan gaya bahasa yang ringan, kasual, dan sangat akrab.
+                const systemPrompt = `Peran: Anda adalah seorang Mentor Penulisan Kreatif dan Editor Fiksi yang ramah, asyik, objektif, dan suportif.
+Tugas: Mengoreksi karya siswa dengan gaya bahasa yang ringan, kasual, dan sangat akrab.`;
 
-                Informasi Siswa: Nama: "${studentName}"
-                Instruksi Tugas: "${instruction}"
-                Rubrik & Unsur Penilaian: "${rubric}"
-                Karya Siswa: "${answer}"
+                const userPrompt = `Informasi Siswa: Nama: "${studentName}"
+Instruksi Tugas: "${instruction}"
+Rubrik & Unsur Penilaian: "${rubric}"
+Karya Siswa: "${answer}"
 
-                Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
-                Ketentuan Feedback:
-                1. Mulailah dengan sapaan hangat "Halo, ${studentName}!" lalu apresiasi spesifik. JANGAN panggil "Teman-teman".
-                2. Wajib gunakan "Aku" (mentor) dan "Kamu" (siswa).
-                3. Tulis mengalir dalam paragraf (jangan pakai poin-poin angka): Analisis gaya, temuan typo/PUEBI, contoh perbaikan, dan motivasi penutup.
-                4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.
-                `;
+Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
+Ketentuan Feedback:
+1. Mulailah dengan sapaan hangat "Halo, ${studentName}!" lalu apresiasi spesifik. JANGAN panggil "Teman-teman".
+2. Wajib gunakan "Aku" (mentor) dan "Kamu" (siswa).
+3. Tulis mengalir dalam paragraf (jangan pakai poin-poin angka): Analisis gaya, temuan typo/PUEBI, contoh perbaikan, dan motivasi penutup.
+4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
-                const result = await model.generateContent({
-                    contents: [{ role: "user", parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: 0.5, responseMimeType: "application/json" },
-                    safetySettings: safetySettings
-                });
-
-                const finalResult = JSON.parse(result.response.text());
-                return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
+                // Panggil Multi-Tier AI (JSON Mode = true)
+                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.5, true);
+                
+                // Coba parse JSON (jika response berupa string)
+                try {
+                    // Terkadang model mengembalikan markdown code block ```json ... ```
+                    rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    const finalResult = JSON.parse(rawResponse);
+                    return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
+                } catch (parseError) {
+                    console.error("Gagal parse JSON dari AI:", rawResponse);
+                    throw new Error("Format JSON dari AI tidak valid.");
+                }
             }
 
             // ---------------------------------------------------------
-            // [B] KOREKSI PENUGASAN (Asal file: api/grade2.js)
+            // [B] KOREKSI PENUGASAN
             // ---------------------------------------------------------
             case 'grade-tugas': {
                 let { studentName, instruction, answer } = req.body;
@@ -99,39 +201,37 @@ export default async function handler(req, res) {
                 instruction = sanitizeText(instruction) || 'Kerjakan tugas dengan baik, jujur, dan perhatikan kaidah penulisan.';
                 studentName = studentName && studentName !== 'undefined' ? studentName : 'Siswa';
 
-                const promptText = `
-                Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
-                Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.
+                const systemPrompt = `Peran: Kamu adalah teman belajar yang pintar dan asik (bukan guru yang kaku).
+Tugas: Nilai jawaban temanmu (siswa) berdasarkan instruksi penugasan.`;
 
-                Informasi Siswa: Nama: "${studentName}"
-                Instruksi Penugasan: "${instruction}"
-                Jawaban Siswa: "${answer}"
+                const userPrompt = `Informasi Siswa: Nama: "${studentName}"
+Instruksi Penugasan: "${instruction}"
+Jawaban Siswa: "${answer}"
 
-                Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
-                Ketentuan Feedback:
-                1. Sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
-                2. Gunakan "Aku" dan "Kamu". Jangan "Anda" atau "Saya". Jangan kaku/birokratis.
-                3. Tulis mengalir dalam paragraf (tanpa poin-poin): Analisis Kesalahan, Koreksi/Contoh benar, dan Pujian/Apresiasi.
-                4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.
-                `;
+Tolong berikan output HANYA dalam format JSON valid: { "score": (angka bulat 0-100), "feedback": "(string HTML)" }
+Ketentuan Feedback:
+1. Sapaan hangat "Halo, ${studentName}!" atau "Selamat Pagi/Siang/Sore, ${studentName}!".
+2. Gunakan "Aku" dan "Kamu". Jangan "Anda" atau "Saya". Jangan kaku/birokratis.
+3. Tulis mengalir dalam paragraf (tanpa poin-poin): Analisis Kesalahan, Koreksi/Contoh benar, dan Pujian/Apresiasi.
+4. GUNAKAN tag HTML <b>, <i>, dan <br>. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-                const result = await model.generateContent({
-                    contents: [{ role: "user", parts: [{ text: promptText }] }],
-                    generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
-                    safetySettings: safetySettings
-                });
-
-                const finalResult = JSON.parse(result.response.text());
-                return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
+                // Panggil Multi-Tier AI (JSON Mode = true)
+                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.4, true);
+                
+                try {
+                    rawResponse = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+                    const finalResult = JSON.parse(rawResponse);
+                    return res.status(200).json({ score: finalResult.score, feedback: finalResult.feedback });
+                } catch (parseError) {
+                    console.error("Gagal parse JSON dari AI:", rawResponse);
+                    throw new Error("Format JSON dari AI tidak valid.");
+                }
             }
 
             // ---------------------------------------------------------
-            // [C] EDIT ARTIKEL / KARYA TULIS (Via Groq)
+            // [C] EDIT ARTIKEL / KARYA TULIS
             // ---------------------------------------------------------
             case 'edit-artikel': {
-                if (!groq) return res.status(500).json({ error: 'Groq API Key belum dikonfigurasi.' });
-                
                 const { text, title, instruction } = req.body;
                 if (!text) return res.status(400).json({ error: 'Teks kosong.' });
 
@@ -139,64 +239,14 @@ export default async function handler(req, res) {
                     ? `INSTRUKSI KHUSUS:\n"${instruction}"`
                     : `INSTRUKSI UMUM: Rapikan ejaan, perbaiki typo, pastikan kalimat mengalir.`;
 
-                const promptText = `Judul: ${title || 'Tanpa Judul'}\n\n${customInstruction}\n\nTEKS:\n"""\n${text}\n"""\nKeluarkan murni HTML.`;
+                const systemPrompt = `Kamu adalah editor artikel profesional. Keluarkan HANYA teks murni (termasuk tag HTML jika diminta) TANPA penjelasan tambahan.`;
+                const userPrompt = `Judul: ${title || 'Tanpa Judul'}\n\n${customInstruction}\n\nTEKS:\n"""\n${text}\n"""\nKeluarkan murni HTML.`;
 
-                const completion = await groq.chat.completions.create({
-                    model: 'llama-3.3-70b-versatile',
-                    messages: [{ role: "user", content: promptText }],
-                    temperature: instruction ? 0.7 : 0.1,
-                });
-                
-                let textResponse = completion.choices[0]?.message?.content || "";
+                // Panggil Multi-Tier AI (JSON Mode = false)
+                let textResponse = await generateWithFallback(systemPrompt, userPrompt, instruction ? 0.7 : 0.1, false);
                 textResponse = textResponse.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
                 return res.status(200).json({ result: textResponse });
-            }
-
-            // ---------------------------------------------------------
-            // [D] SAKELAR API (TAMBAHAN BARU)
-            // ---------------------------------------------------------
-            case 'sakelar-api': {
-                if (!SAKELAR_API_KEY) return res.status(500).json({ error: 'Sakelar API Key belum dikonfigurasi di Vercel.' });
-                
-                // Ambil endpoint spesifik atau parameter dari request client
-                // Contoh endpoint: 'api/v1/user' atau kosong jika langsung nembak URL utama
-                const { endpoint = '', method = 'POST', payload } = req.body;
-                
-                // Gabungkan Base URL dengan endpoint (jika ada)
-                const sakelarUrl = `https://api.sakelar.web.id/${endpoint}`.replace(/\/$/, ""); 
-
-                const fetchOptions = {
-                    method: method,
-                    headers: {
-                        'Authorization': `Bearer ${SAKELAR_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
-                };
-
-                // Jika bukan method GET dan ada payload (body), tambahkan ke options
-                if (method !== 'GET' && payload) {
-                    fetchOptions.body = JSON.stringify(payload);
-                }
-
-                // Jalankan Fetch ke Sakelar
-                const response = await fetch(sakelarUrl, fetchOptions);
-                
-                // Deteksi apakah response dari Sakelar itu JSON atau Text biasa
-                const contentType = response.headers.get("content-type");
-                let data;
-                if (contentType && contentType.includes("application/json")) {
-                    data = await response.json();
-                } else {
-                    data = await response.text();
-                }
-
-                if (!response.ok) {
-                    return res.status(response.status).json({ error: 'Error dari API Sakelar', details: data });
-                }
-
-                // Kirim hasil dari Sakelar kembali ke Frontend/Client
-                return res.status(200).json({ result: data });
             }
 
             default:
@@ -207,7 +257,7 @@ export default async function handler(req, res) {
         console.error("API Central Error Breakdown:", error);
         return res.status(500).json({ 
             score: 0, 
-            feedback: "Sistem server pusat mengalami gangguan internal. Silakan coba beberapa saat lagi.",
+            feedback: "Sistem server pusat mengalami gangguan internal. Semua AI sedang sibuk atau error. Silakan coba beberapa saat lagi.",
             error: error.message 
         });
     }
