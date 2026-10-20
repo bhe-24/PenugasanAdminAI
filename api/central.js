@@ -42,7 +42,7 @@ const extractJSON = (text) => {
         return JSON.parse(text.replace(/```json/gi, '').replace(/```/g, '').trim());
     } catch (e) {
         // 2. Jika gagal karena ada teks pengantar, gunakan Regex untuk mengambil bagian { ... } saja
-        console.warn("Gagal parse langsung, mencoba ekstraksi regex...", text);
+        console.warn("Gagal parse langsung, mencoba ekstraksi regex...");
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
             try {
@@ -78,29 +78,37 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                         { role: "system", content: systemPrompt },
                         { role: "user", content: userPrompt }
                     ],
-                    temperature: temperature,
-                    // Hilangkan response_format untuk meminimalisir error dari proxy
+                    temperature: temperature
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                console.log("Sakelar API Berhasil!");
                 
+                let resultText = "";
                 // Deteksi gaya response: OpenAI style (choices) vs Anthropic style (content)
                 if (data.choices && data.choices.length > 0) {
-                     return data.choices[0]?.message?.content || "";
+                     resultText = data.choices[0]?.message?.content || "";
                 } else if (data.content && data.content.length > 0) {
-                     return data.content[0]?.text || ""; 
+                     resultText = data.content[0]?.text || ""; 
                 } else {
                      throw new Error("Struktur balasan API Sakelar tidak dikenali.");
                 }
+
+                // DETEKSI PENOLAKAN SAKELAR (CONTENT FILTER / HTTP 400 MESSAGE INSIDE 200 OK)
+                if (resultText.includes("Request rejected by AI provider") || resultText.includes("HTTP 400")) {
+                    throw new Error("Prompt ditolak oleh filter keamanan Sakelar API.");
+                }
+
+                console.log("Sakelar API Berhasil!");
+                return resultText;
+
             } else {
                 const errData = await response.text();
                 throw new Error(`Sakelar HTTP Error ${response.status}: ${errData}`);
             }
         } catch (error) {
-            console.warn("Sakelar API Gagal, beralih ke Groq...", error.message);
+            console.warn("Sakelar API Gagal/Ditolak, BERALIH KE GROQ...", error.message);
             lastError = `Sakelar: ${error.message}`;
         }
     }
@@ -121,7 +129,7 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
             console.log("Groq API Berhasil!");
             return completion.choices[0]?.message?.content || "";
         } catch (error) {
-            console.warn("Groq API Gagal, beralih ke Gemini...", error.message);
+            console.warn("Groq API Gagal, BERALIH KE GEMINI...", error.message);
             lastError += ` | Groq: ${error.message}`;
         }
     }
