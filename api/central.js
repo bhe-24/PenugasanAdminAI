@@ -10,11 +10,11 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Inisialisasi Klien (Jika Key tersedia)
-const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: '[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)' }) : null;
+const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 // Konfigurasi Model Utama Sakelar
-const SAKELAR_URL = '[https://api.sakelar.web.id/v1/chat/completions](https://api.sakelar.web.id/v1/chat/completions)';
+const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions';
 const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; 
 
 // ==========================================
@@ -79,16 +79,22 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                         { role: "user", content: userPrompt }
                     ],
                     temperature: temperature,
-                    // Opsional: Beberapa API Sakelar mungkin tidak mendungkung response_format
-                    // Jika error HTTP 400 di Sakelar terjadi, hapus baris response_format di bawah ini
-                    response_format: isJsonMode ? { type: "json_object" } : { type: "text" } 
+                    // Hilangkan response_format untuk meminimalisir error dari proxy
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
                 console.log("Sakelar API Berhasil!");
-                return data.choices[0]?.message?.content || "";
+                
+                // Deteksi gaya response: OpenAI style (choices) vs Anthropic style (content)
+                if (data.choices && data.choices.length > 0) {
+                     return data.choices[0]?.message?.content || "";
+                } else if (data.content && data.content.length > 0) {
+                     return data.content[0]?.text || ""; 
+                } else {
+                     throw new Error("Struktur balasan API Sakelar tidak dikenali.");
+                }
             } else {
                 const errData = await response.text();
                 throw new Error(`Sakelar HTTP Error ${response.status}: ${errData}`);
