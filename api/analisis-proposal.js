@@ -1,22 +1,42 @@
+// File: api/mentor.js
 import OpenAI from 'openai';
 
-// Inisialisasi OpenRouter API
-const openrouter = new OpenAI({
+// ---------------------------------------------------------
+// 1. INISIALISASI KLIEN API
+// ---------------------------------------------------------
+
+// Klien Groq (UTAMA) - Langsung ke server Groq
+const groq = process.env.GROQ_API_KEY ? new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+}) : null;
+
+// Klien OpenRouter (CADANGAN TERAKHIR)
+const openrouter = process.env.OPENROUTER_API_KEY ? new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: 'https://openrouter.ai/api/v1',
     defaultHeaders: {
-        'HTTP-Referer': 'https://edu-cendekia.my.id', // URL Web untuk identifikasi OpenRouter
+        'HTTP-Referer': 'https://edu-cendekia.my.id', 
         'X-Title': 'Cendekia Aksara AI Mentor'
     }
-});
+}) : null;
 
-// DAFTAR MODEL GRATIS OPENROUTER (Sesuai Ketersediaan Terbaru)
-const FREE_MODELS = [
-    'nvidia/nemotron-3-ultra-550b-a55b:free', // Prioritas 1: Paling cerdas & detail
-    'nvidia/nemotron-3.5-lightning:free',     // Prioritas 2: Cepat dan kritis
-    'z-ai/glm-5.2:free',                      // Prioritas 3: Analisis teks solid
-    'thinkingmachines/inkling:free',          // Prioritas 4: Alternatif
-    'google/gemma-4-26b-a4b-it:free'          // Prioritas 5: Cadangan terakhir
+// ---------------------------------------------------------
+// 2. DAFTAR MODEL
+// ---------------------------------------------------------
+
+// DAFTAR MODEL GROQ (PRIORITAS UTAMA - Langsung dari console Groq milikmu)
+const GROQ_MODELS = [
+    'qwen/qwen3.8-27b',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'openai/gpt-oss-safeguard-20b'
+];
+
+// DAFTAR MODEL OPENROUTER (HANYA CADANGAN JIKA GROQ DOWN TOTAL)
+const OPENROUTER_MODELS = [
+    'nvidia/nemotron-3-ultra-550b-a55b:free', 
+    'google/gemma-4-26b-a4b-it:free'
 ];
 
 export default async function handler(req, res) {
@@ -86,40 +106,74 @@ Ketentuan Review (SANGAT KETAT):
         let textResponse = "";
         let modelUsed = "";
         let lastError = null;
+        let isSuccess = false;
 
-        // SISTEM AUTO-FALLBACK: Mencoba model 1 per 1 jika ada yang error / limit
-        for (const model of FREE_MODELS) {
-            try {
-                const completion = await openrouter.chat.completions.create({
-                    model: model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Kamu adalah editor penerbitan novel profesional. Taati instruksi roleplay dengan ketat dan patuhi seluruh format aturan review tanpa terkecuali.'
-                        },
-                        {
-                            role: 'user',
-                            content: promptText
-                        }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 2500
-                });
+        // ========================================================
+        // EKSEKUSI TIER 1: GROQ SEBAGAI UTAMA
+        // ========================================================
+        if (groq) {
+            for (const model of GROQ_MODELS) {
+                try {
+                    console.log(`Mencoba Groq (Utama) dengan model: ${model}...`);
+                    const completion = await groq.chat.completions.create({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: 'Kamu adalah editor penerbitan novel profesional. Taati instruksi roleplay dengan ketat dan patuhi seluruh format aturan review tanpa terkecuali.' },
+                            { role: 'user', content: promptText }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 2500
+                    });
 
-                textResponse = completion.choices[0]?.message?.content || "";
-                if (textResponse.trim()) {
-                    modelUsed = model;
-                    break; // Berhasil dapat jawaban, hentikan loop
+                    textResponse = completion.choices[0]?.message?.content || "";
+                    if (textResponse.trim()) {
+                        modelUsed = `Groq - ${model}`;
+                        isSuccess = true;
+                        break; 
+                    }
+                } catch (err) {
+                    console.warn(`Groq gagal memanggil ${model}:`, err.message);
+                    lastError = err;
                 }
-            } catch (err) {
-                console.warn(`Gagal memanggil model ${model}:`, err.message);
-                lastError = err;
-                // Lanjut coba model berikutnya di array FREE_MODELS
+            }
+        } else {
+            console.warn("GROQ_API_KEY tidak ditemukan. Melewati Tier 1...");
+        }
+
+        // ========================================================
+        // EKSEKUSI TIER 2: OPENROUTER (HANYA JIKA GROQ GAGAL TOTAL)
+        // ========================================================
+        if (!isSuccess && openrouter) {
+            console.warn("Semua model Groq gagal/tidak tersedia. Beralih ke OpenRouter (Cadangan)...");
+            for (const model of OPENROUTER_MODELS) {
+                try {
+                    console.log(`Mencoba OpenRouter dengan model: ${model}...`);
+                    const completion = await openrouter.chat.completions.create({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: 'Kamu adalah editor penerbitan novel profesional. Taati instruksi roleplay dengan ketat dan patuhi seluruh format aturan review tanpa terkecuali.' },
+                            { role: 'user', content: promptText }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 2500
+                    });
+
+                    textResponse = completion.choices[0]?.message?.content || "";
+                    if (textResponse.trim()) {
+                        modelUsed = `OpenRouter - ${model}`;
+                        isSuccess = true;
+                        break;
+                    }
+                } catch (err) {
+                    console.warn(`OpenRouter gagal memanggil ${model}:`, err.message);
+                    lastError = err;
+                }
             }
         }
 
-        if (!textResponse && lastError) {
-            throw new Error(`Semua model AI cadangan sedang sibuk. Detail: ${lastError.message}`);
+        // Jika semua API (Groq dan OpenRouter) hancur berantakan
+        if (!isSuccess) {
+            throw new Error(`Semua AI Engine utama dan cadangan gagal. Error Terakhir: ${lastError?.message || "Tidak ada respon dari server"}`);
         }
 
         // Bersihkan karakter bintang jika AI tetap mengeluarkannya
@@ -132,7 +186,7 @@ Ketentuan Review (SANGAT KETAT):
         });
 
     } catch (error) {
-        console.error("AI Error (OpenRouter):", error);
+        console.error("AI System Error:", error);
         res.status(200).json({ 
             analisis_teks: `⚠ TERJADI KENDALA PADA SERVER AI:\n\nDetail Error: ${error.message}` 
         });
