@@ -9,6 +9,9 @@ const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https:/
 // 2. INISIALISASI GEMINI AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// 3. INISIALISASI SAKELAR API (TAMBAHAN BARU)
+const SAKELAR_API_KEY = process.env.SAKELAR_API_KEY;
+
 // Fungsi Pembersih Teks Universal
 const sanitizeText = (text) => {
     if (!text) return '';
@@ -148,6 +151,52 @@ export default async function handler(req, res) {
                 textResponse = textResponse.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
                 return res.status(200).json({ result: textResponse });
+            }
+
+            // ---------------------------------------------------------
+            // [D] SAKELAR API (TAMBAHAN BARU)
+            // ---------------------------------------------------------
+            case 'sakelar-api': {
+                if (!SAKELAR_API_KEY) return res.status(500).json({ error: 'Sakelar API Key belum dikonfigurasi di Vercel.' });
+                
+                // Ambil endpoint spesifik atau parameter dari request client
+                // Contoh endpoint: 'api/v1/user' atau kosong jika langsung nembak URL utama
+                const { endpoint = '', method = 'POST', payload } = req.body;
+                
+                // Gabungkan Base URL dengan endpoint (jika ada)
+                const sakelarUrl = `https://api.sakelar.web.id/${endpoint}`.replace(/\/$/, ""); 
+
+                const fetchOptions = {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${SAKELAR_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                // Jika bukan method GET dan ada payload (body), tambahkan ke options
+                if (method !== 'GET' && payload) {
+                    fetchOptions.body = JSON.stringify(payload);
+                }
+
+                // Jalankan Fetch ke Sakelar
+                const response = await fetch(sakelarUrl, fetchOptions);
+                
+                // Deteksi apakah response dari Sakelar itu JSON atau Text biasa
+                const contentType = response.headers.get("content-type");
+                let data;
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    data = await response.text();
+                }
+
+                if (!response.ok) {
+                    return res.status(response.status).json({ error: 'Error dari API Sakelar', details: data });
+                }
+
+                // Kirim hasil dari Sakelar kembali ke Frontend/Client
+                return res.status(200).json({ result: data });
             }
 
             default:
