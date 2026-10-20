@@ -17,17 +17,18 @@ const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions';
 const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; 
 
+// Model Groq disesuaikan menggunakan Qwen sesuai permintaan
+const GROQ_DEFAULT_MODEL = 'qwen-2.5-32b'; 
+
 // ==========================================
 // 2. FUNGSI UTILITIES
 // ==========================================
 
-// Fungsi Pembersih Teks Universal
 const sanitizeText = (text) => {
     if (!text) return '';
     return text.replace(/<[^>]*>?/gm, '').trim(); 
 };
 
-// Filter Keamanan Gemini Universal
 const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -35,13 +36,10 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
-// FUNGSI BARU: Pengekstrak JSON Anti-Gagal
 const extractJSON = (text) => {
     try {
-        // 1. Coba parse langsung (kondisi ideal)
         return JSON.parse(text.replace(/```json/gi, '').replace(/```/g, '').trim());
     } catch (e) {
-        // 2. Jika gagal karena ada teks pengantar, gunakan Regex untuk mengambil bagian { ... } saja
         console.warn("Gagal parse langsung, mencoba ekstraksi regex...");
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
@@ -58,12 +56,13 @@ const extractJSON = (text) => {
 
 // ==========================================
 // 3. FUNGSI MULTI-TIER FALLBACK AI ENGINE
+// Parameter `skipSakelar` ditambahkan untuk melindungi saldomu!
 // ==========================================
-async function generateWithFallback(systemPrompt, userPrompt, temperature, isJsonMode = false) {
+async function generateWithFallback(systemPrompt, userPrompt, temperature, isJsonMode = false, skipSakelar = false) {
     let lastError = "";
 
-    // TIER 1: SAKELAR API (UTAMA)
-    if (SAKELAR_API_KEY) {
+    // TIER 1: SAKELAR API (Hanya jalan jika skipSakelar = false)
+    if (SAKELAR_API_KEY && !skipSakelar) {
         try {
             console.log("Mencoba Sakelar API...");
             const response = await fetch(SAKELAR_URL, {
@@ -84,9 +83,8 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
 
             if (response.ok) {
                 const data = await response.json();
-                
                 let resultText = "";
-                // Deteksi gaya response: OpenAI style (choices) vs Anthropic style (content)
+                
                 if (data.choices && data.choices.length > 0) {
                      resultText = data.choices[0]?.message?.content || "";
                 } else if (data.content && data.content.length > 0) {
@@ -95,14 +93,12 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                      throw new Error("Struktur balasan API Sakelar tidak dikenali.");
                 }
 
-                // DETEKSI PENOLAKAN SAKELAR (CONTENT FILTER / HTTP 400 MESSAGE INSIDE 200 OK)
                 if (resultText.includes("Request rejected by AI provider") || resultText.includes("HTTP 400")) {
                     throw new Error("Prompt ditolak oleh filter keamanan Sakelar API.");
                 }
 
                 console.log("Sakelar API Berhasil!");
                 return resultText;
-
             } else {
                 const errData = await response.text();
                 throw new Error(`Sakelar HTTP Error ${response.status}: ${errData}`);
@@ -111,14 +107,16 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
             console.warn("Sakelar API Gagal/Ditolak, BERALIH KE GROQ...", error.message);
             lastError = `Sakelar: ${error.message}`;
         }
+    } else if (skipSakelar) {
+        console.log("Sakelar API dilewati secara sengaja (bypass) untuk menghemat token keamanan.");
     }
 
     // TIER 2: GROQ API (FALLBACK 1)
     if (groq) {
         try {
-            console.log("Mencoba Groq API...");
+            console.log(`Mencoba Groq API dengan model ${GROQ_DEFAULT_MODEL}...`);
             const completion = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
+                model: GROQ_DEFAULT_MODEL, // Menggunakan Qwen
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
@@ -214,7 +212,9 @@ Ketentuan Feedback:
 3. Tulis mengalir dalam paragraf (jangan pakai poin-poin angka): Analisis gaya, temuan typo/PUEBI, contoh perbaikan, dan motivasi penutup.
 4. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.5, true);
+                // CATATAN PENTING:
+                // Parameter terakhir diubah menjadi 'true' -> Artinya Skip Sakelar khusus untuk fitur ini agar hemat saldo!
+                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.5, true, true);
                 
                 try {
                     const finalResult = extractJSON(rawResponse);
@@ -256,7 +256,8 @@ Ketentuan Feedback:
 3. Tulis mengalir dalam paragraf (tanpa poin-poin): Analisis Kesalahan, Koreksi/Contoh benar, dan Pujian/Apresiasi.
 4. DILARANG KERAS MENGGUNAKAN MARKDOWN.`;
 
-                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.4, true);
+                // Ini juga di-skip (dijadikan 'true' di akhir) untuk hemat saldo
+                let rawResponse = await generateWithFallback(systemPrompt, userPrompt, 0.4, true, true);
                 
                 try {
                     const finalResult = extractJSON(rawResponse);
@@ -281,7 +282,9 @@ Ketentuan Feedback:
                 const systemPrompt = `Kamu adalah editor artikel profesional. Keluarkan HANYA teks murni (termasuk tag HTML jika diminta) TANPA penjelasan tambahan.`;
                 const userPrompt = `Judul: ${title || 'Tanpa Judul'}\n\n${customInstruction}\n\nTEKS:\n"""\n${text}\n"""\nKeluarkan murni HTML.`;
 
-                let textResponse = await generateWithFallback(systemPrompt, userPrompt, instruction ? 0.7 : 0.1, false);
+                // Untuk Edit Artikel, Sakelar tetap dipakai (karena bukan fiksi aneh-aneh biasanya aman)
+                // skipSakelar diset 'false' (atau dihapus karena false defaultnya)
+                let textResponse = await generateWithFallback(systemPrompt, userPrompt, instruction ? 0.7 : 0.1, false, false);
                 textResponse = textResponse.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
 
                 return res.status(200).json({ result: textResponse });
