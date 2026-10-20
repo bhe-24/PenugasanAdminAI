@@ -18,7 +18,7 @@ const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions';
 const SAKELAR_DEFAULT_MODEL = 'claude-opus-5'; 
 
 // Model Groq disesuaikan menggunakan Qwen sesuai permintaan
-const GROQ_DEFAULT_MODEL = 'qwen-2.5-32b'; 
+const GROQ_DEFAULT_MODEL = 'qwen/qwen3.8-27b'; 
 
 // ==========================================
 // 2. FUNGSI UTILITIES
