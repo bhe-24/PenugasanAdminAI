@@ -1,7 +1,9 @@
 // api/instagram-publish.js
 // Dipanggil bertahap dari halaman admin (tiap langkah singkat -> aman dari batas waktu Vercel).
 // action: config | createChild | createSingle | createCarousel | status | publish
-const { admin, init, httpErr, requireAdmin, getToken, igUserId, graph } = require('./_ig');
+
+// PERBAIKAN 1: Menggunakan 'import' dan menambahkan ekstensi '.js'
+import { admin, init, httpErr, requireAdmin, getToken, igUserId, graph } from './_ig.js';
 
 function checkImageUrl(url) {
   const cloud = process.env.CLOUDINARY_CLOUD_NAME;
@@ -16,7 +18,8 @@ function cleanCaption(c) {
   return c.trim().slice(0, 2200);
 }
 
-module.exports = async function handler(req, res) {
+// PERBAIKAN 2: Menggunakan 'export default'
+export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') throw httpErr(405, 'Gunakan metode POST.');
     const user = await requireAdmin(req);
