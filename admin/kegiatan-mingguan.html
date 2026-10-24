@@ -98,6 +98,7 @@
         .btn-sm.gray { background: #f1f5f9; color: #475569; } .btn-sm.gray:hover { background: #e2e8f0; }
         .btn-sm.ig { background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); color: white; } .btn-sm.ig:hover { filter: brightness(1.1); }
         .btn-sm.red { background: #fee2e2; color: #991b1b; } .btn-sm.red:hover { background: #fecaca; }
+        .btn-sm.igauto { background:#003366; color:#fff; } .btn-sm.igauto:hover { background:#00122e; }
 
         /* KARYA TERKUMPUL GRID */
         .filter-area { display: flex; gap: 14px; margin-bottom: 22px; align-items: flex-end; background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
@@ -438,6 +439,7 @@
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
         import { collection, addDoc, getDocs, doc, updateDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         let allEvents = [];
         let allSubmissions = [];
@@ -856,6 +858,8 @@
                             <div class="kc-actions">
                                 <button class="btn-sm gray" onclick="navigator.clipboard.writeText(submissionsMap['${sub.id}'].content); Swal.fire({title:'Tersalin!', timer:1000, showConfirmButton:false})"><i class="fa-regular fa-copy"></i> Salin</button>
                                 <button class="btn-sm ig" onclick="handlePromptPoster('${sub.id}', '${evType}')"><i class="fa-brands fa-instagram"></i> IG Post Karya</button>
+                                <button class="btn-sm igauto" onclick="postKaryaToInstagram('${sub.id}', '${evType}')"><i class="fa-solid fa-paper-plane"></i> ${sub.igPermalink ? 'Posting Ulang' : 'Posting Otomatis'}</button>
+                                ${sub.igPermalink ? `<a class="btn-sm blue" href="${sub.igPermalink}" target="_blank" rel="noopener" style="text-decoration:none;"><i class="fa-solid fa-link"></i> Lihat Post</a>` : ''}
                             </div>
                         </div>
                     `;
@@ -1020,6 +1024,232 @@
                 loadingScreen.classList.remove('active');
             }
         };
+
+        // ============================================================================
+        // POSTING OTOMATIS KE INSTAGRAM
+        // ============================================================================
+        const IG_MAX_SLIDES = 10;
+        let igConfigCache = null;
+        let igBusy = false;
+
+        function igEscape(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        async function igApi(action, payload = {}) {
+            const user = getAuth().currentUser;
+            if (!user) throw new Error('Sesi login tidak ditemukan. Muat ulang halaman lalu login lagi.');
+            const res = await fetch('/api/instagram-publish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await user.getIdToken() },
+                body: JSON.stringify({ action, ...payload })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Server error (${res.status})`);
+            return data;
+        }
+
+        async function igWaitReady(id, maxTry = 30) {
+            for (let i = 0; i < maxTry; i++) {
+                const s = await igApi('status', { id });
+                if (s.status_code === 'FINISHED') return;
+                if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') {
+                    throw new Error(`Instagram menolak media (${s.status_code}). ${s.status || ''}`);
+                }
+                await new Promise(r => setTimeout(r, 2000));
+            }
+            throw new Error('Instagram terlalu lama memproses media. Coba lagi beberapa menit lagi.');
+        }
+
+        // Render tiap slide -> JPEG 1080x1350 (render 2x lalu diperkecil agar tajam), maks 8 MB
+        async function igRenderSlideBlobs(author, title, slides, eventType, themeType, truncated, onProgress) {
+            await document.fonts.ready;
+            const template = document.getElementById('poster-karya');
+            template.className = 'poster-wrapper';
+            template.classList.add(`theme-${themeType}`);
+            await ensureLogoReady(document.getElementById('pk-logo-img'));
+
+            document.getElementById('pk-author').innerText = author;
+            document.getElementById('pk-event').innerText = eventType;
+
+            const total = slides.length;
+            const blobs = [];
+
+            for (let i = 0; i < total; i++) {
+                onProgress(i + 1, total);
+
+                if (i === 0 && title && title !== '-') {
+                    document.getElementById('pk-title-area').style.display = 'block';
+                    const pkTitle = document.getElementById('pk-title');
+                    pkTitle.innerText = title;
+                    const tLen = title.length;
+                    pkTitle.style.fontSize = tLen <= 25 ? '80px' : tLen <= 50 ? '65px' : tLen <= 80 ? '50px' : '40px';
+                } else {
+                    document.getElementById('pk-title-area').style.display = 'none';
+                }
+
+                document.getElementById('pk-content').innerText = slides[i];
+
+                if (total === 1) document.getElementById('pk-page').innerText = 'Cendekia Aksara';
+                else if (i === total - 1 && !truncated) document.getElementById('pk-page').innerText = 'Tamat.';
+                else document.getElementById('pk-page').innerText = `Slide ${i + 1}/${total} 👉`;
+
+                await waitForAllImagesIn(template);
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+                const big = await html2canvas(template, { scale: 2, useCORS: true, backgroundColor: null });
+
+                const out = document.createElement('canvas');
+                out.width = 1080; out.height = 1350;
+                const ctx = out.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 1080, 1350);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(big, 0, 0, 1080, 1350);
+
+                let blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.92));
+                if (blob && blob.size > 7.5 * 1024 * 1024) {
+                    blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.8));
+                }
+                if (!blob) throw new Error('Gagal membuat gambar JPEG.');
+                blobs.push(blob);
+            }
+            return blobs;
+        }
+
+        async function igUploadToCloudinary(blob, cfg, name) {
+            const fd = new FormData();
+            fd.append('file', blob, name + '.jpg');
+            fd.append('upload_preset', cfg.uploadPreset);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`, { method: 'POST', body: fd });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.secure_url) throw new Error('Cloudinary: ' + (data.error?.message || res.status));
+            return data.secure_url;
+        }
+
+        window.postKaryaToInstagram = async (id, evType) => {
+            if (igBusy) return;
+            const sub = window.submissionsMap[id];
+            if (!sub) return;
+
+            const author = sub.studentName || 'Anonim';
+            const title = sub.title || '-';
+            const eventId = document.getElementById('filter-event').value;
+
+            if (sub.igPermalink) {
+                const again = await Swal.fire({
+                    icon: 'question', title: 'Sudah pernah diposting',
+                    text: 'Karya ini sudah tayang di Instagram. Posting lagi sebagai postingan baru?',
+                    showCancelButton: true, confirmButtonText: 'Ya, posting lagi', cancelButtonText: 'Batal'
+                });
+                if (!again.isConfirmed) return;
+            }
+
+            // 1) Tema
+            const themeRes = await Swal.fire({
+                title: 'Posting ke Instagram', text: 'Pilih tema poster',
+                showDenyButton: true, showCancelButton: true,
+                confirmButtonText: 'Tema Navy', denyButtonText: 'Tema Mustard', cancelButtonText: 'Batal',
+                confirmButtonColor: '#003366', denyButtonColor: '#d4a017'
+            });
+            if (themeRes.isDismissed) return;
+            const theme = themeRes.isConfirmed ? 'navy' : 'mustard';
+
+            // 2) Pecah slide (maks 10)
+            let slides = chunkText((sub.content || '').replace(/\\n/g, '\n'), 260, 650);
+            let truncated = false;
+            if (slides.length > IG_MAX_SLIDES) {
+                const c = await Swal.fire({
+                    icon: 'warning', title: 'Karya terlalu panjang',
+                    html: `Karya ini menjadi <b>${slides.length} slide</b>, sedangkan Instagram maksimal ${IG_MAX_SLIDES}.<br>Posting ${IG_MAX_SLIDES} slide pertama saja?`,
+                    showCancelButton: true, confirmButtonText: `Ya, ${IG_MAX_SLIDES} slide pertama`, cancelButtonText: 'Batal'
+                });
+                if (!c.isConfirmed) return;
+                slides = slides.slice(0, IG_MAX_SLIDES);
+                truncated = true;
+            }
+
+            // 3) Caption (bisa diedit)
+            const judulFix = (title && title !== '-') ? title : 'Karya Tanpa Judul';
+            const defaultCaption = `Karya Hebat dari Sobat Aksara! 🌟\n\nJudul: "${judulFix}"\nOleh: ${author}\nEvent: ${evType}\n\nKarya yang sangat menginspirasi! Jangan lupa berikan dukungan kalian untuk ${author} di kolom komentar ya! Teruslah berkarya dan menyalakan lentera literasi. ✍️✨\n\n#CendekiaAksara #KaryaSiswa #SastraIndonesia #PenulisMuda`;
+
+            const capRes = await Swal.fire({
+                title: 'Caption Instagram',
+                html: `<p style="font-size:0.85rem;color:#64748b;margin:0 0 10px;">Postingan akan <b>langsung tayang</b> di akun Instagram (${slides.length} slide). Periksa caption dulu.</p>
+                       <textarea id="igCaption" style="width:100%;height:190px;padding:10px;border-radius:8px;border:1px solid #ccc;font-family:'Poppins',sans-serif;font-size:0.85rem;resize:none;">${igEscape(defaultCaption)}</textarea>`,
+                showCancelButton: true, confirmButtonText: `<i class="fa-solid fa-paper-plane"></i> Posting ${slides.length} slide`,
+                cancelButtonText: 'Batal', confirmButtonColor: '#003366',
+                preConfirm: () => {
+                    const v = document.getElementById('igCaption').value.trim();
+                    if (!v) { Swal.showValidationMessage('Caption tidak boleh kosong'); return false; }
+                    if (v.length > 2200) { Swal.showValidationMessage(`Caption ${v.length} karakter, maksimal 2200`); return false; }
+                    return v;
+                }
+            });
+            if (!capRes.isConfirmed) return;
+            const caption = capRes.value;
+
+            // 4) Proses
+            igBusy = true;
+            const setMsg = (m) => { document.getElementById('loading-msg').innerText = m; };
+            document.getElementById('loading-icon').className = 'fa-solid fa-spinner fa-spin';
+            document.getElementById('loading-title').innerText = 'Memposting ke Instagram...';
+            showLoading('Menyiapkan koneksi...');
+
+            try {
+                if (!igConfigCache) igConfigCache = await igApi('config');
+
+                const blobs = await igRenderSlideBlobs(author, title, slides, evType, theme, truncated,
+                    (i, n) => setMsg(`Merender slide ${i} dari ${n} (HD)...`));
+
+                const urls = [];
+                for (let i = 0; i < blobs.length; i++) {
+                    setMsg(`Mengunggah slide ${i + 1} dari ${blobs.length}...`);
+                    urls.push(await igUploadToCloudinary(blobs[i], igConfigCache, `ig_${id}_${Date.now()}_${i + 1}`));
+                }
+
+                let creationId;
+                if (urls.length === 1) {
+                    setMsg('Menyiapkan postingan...');
+                    creationId = (await igApi('createSingle', { imageUrl: urls[0], caption })).id;
+                    await igWaitReady(creationId);
+                } else {
+                    const childIds = [];
+                    for (let i = 0; i < urls.length; i++) {
+                        setMsg(`Menyerahkan slide ${i + 1} dari ${urls.length} ke Instagram...`);
+                        childIds.push((await igApi('createChild', { imageUrl: urls[i] })).id);
+                    }
+                    setMsg('Menunggu Instagram memproses slide...');
+                    for (const cid of childIds) await igWaitReady(cid);
+
+                    setMsg('Menyusun carousel...');
+                    creationId = (await igApi('createCarousel', { children: childIds, caption })).id;
+                    await igWaitReady(creationId);
+                }
+
+                setMsg('Menayangkan ke Instagram...');
+                const pub = await igApi('publish', { creationId, submissionId: id, eventId, author, title });
+
+                hideLoading();
+                igBusy = false;
+                sub.igPermalink = pub.permalink || '';
+                await Swal.fire({
+                    icon: 'success', title: 'Berhasil tayang di Instagram!',
+                    html: pub.permalink
+                        ? `<a href="${pub.permalink}" target="_blank" rel="noopener" style="color:#003366;font-weight:600;">Buka postingan</a>`
+                        : 'Postingan sudah tayang.',
+                    confirmButtonColor: '#003366'
+                });
+                loadSubmissions();
+            } catch (err) {
+                console.error(err);
+                hideLoading();
+                igBusy = false;
+                Swal.fire('Gagal posting', err.message, 'error');
+            }
+        };
+        // ============================================================================
 
         // EKSPOR WORD LAMA (DIPERTAHANKAN)
         window.exportToWord = () => {
