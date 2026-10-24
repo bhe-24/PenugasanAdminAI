@@ -1,5 +1,7 @@
 // api/_ig.js — helper bersama (awalan "_" = tidak dijadikan endpoint oleh Vercel)
-const admin = require('firebase-admin');
+
+// PERBAIKAN 1: Menggunakan import
+import admin from 'firebase-admin';
 
 const API_VERSION = () => process.env.IG_API_VERSION || 'v26.0';
 
@@ -86,4 +88,5 @@ async function graph(method, path, params, token) {
   return data;
 }
 
-module.exports = { admin, init, httpErr, requireAdmin, getToken, igUserId, graph };
+// PERBAIKAN 2: Menggunakan export
+export { admin, init, httpErr, requireAdmin, getToken, igUserId, graph };
