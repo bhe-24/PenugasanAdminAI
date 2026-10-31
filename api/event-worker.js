@@ -1,7 +1,10 @@
 // api/event-worker.js
 // Dipanggil terjadwal (cron). Memposting SATU karya dari antrean `event_antrean` per pemanggilan,
-// tanpa butuh login admin atau halaman terbuka. Memakai helper yang sama  instagram-publish.js.
-// Auth: header "Authorization: Bearer <CRON_SECRET>" (Vercel Cron mengirimnya otomatis bila CRON_SECRET diisi).
+// tanpa butuh login admin atau halaman terbuka. Memakai helper yang sama dengan instagram-publish.js.
+// Dua mode:
+//  1) Cron/batch: header "Authorization: Bearer <CRON_SECRET>" -> memproses antrean (cadangan).
+//  2) Langsung dari event.html: POST { id } tanpa secret -> hanya memposting SATU dokumen berstatus 'antre'
+//     milik id itu, dengan validasi dan kuota server yang sama (tidak bisa resume yang macet).
 
 import { admin, init, httpErr, getToken, igUserId, graph } from './_ig.js';
 
@@ -32,7 +35,10 @@ async function waitReady(id, token, tries = 12) {
 export default async function handler(req, res) {
   try {
     const secret = process.env.CRON_SECRET;
-    if (!secret || req.headers.authorization !== `Bearer ${secret}`) throw httpErr(401, 'Tidak berwenang.');
+    const isCron = !!secret && req.headers.authorization === `Bearer ${secret}`;
+    const rawId = req.body?.id ?? req.query?.id;
+    const onlyId = (!isCron && typeof rawId === 'string' && /^[A-Za-z0-9]{10,40}$/.test(rawId)) ? rawId : null;
+    if (!isCron && !onlyId) throw httpErr(401, 'Tidak berwenang.');
 
     const fs = init().firestore();
     const FV = admin.firestore.FieldValue;
@@ -44,7 +50,9 @@ export default async function handler(req, res) {
     postedSnap.forEach(d => { postedToday += Number(d.data().slideCount) || 0; });
 
     // Kandidat: antre / macet, jadwal sudah tiba, urut paling lama
-    const snap = await fs.collection('event_antrean').where('status', 'in', ['antre', 'memposting']).get();
+    const snap = onlyId
+      ? { docs: [await fs.collection('event_antrean').doc(onlyId).get()].filter(x => x.exists && x.data().status === 'antre') }
+      : await fs.collection('event_antrean').where('status', 'in', ['antre', 'memposting']).get();
     const candidates = snap.docs
       .filter(d => (d.data().jadwalTayang || '9999') <= today)
       .sort((a, b) => String(a.data().jadwalTayang).localeCompare(String(b.data().jadwalTayang)) ||
@@ -58,7 +66,7 @@ export default async function handler(req, res) {
       // Klaim dokumen agar tidak diproses dua kali
       const d = await fs.runTransaction(async tx => {
         const s = await tx.get(ref), x = s.data();
-        const stale = x.status === 'memposting' && Date.now() - (x.claimedAt?.toMillis?.() || 0) > STALE_MS;
+        const stale = isCron && x.status === 'memposting' && Date.now() - (x.claimedAt?.toMillis?.() || 0) > STALE_MS;
         if (x.status !== 'antre' && !stale) return null;
         tx.update(ref, { status: 'memposting', claimedAt: FV.serverTimestamp() });
         return x;
