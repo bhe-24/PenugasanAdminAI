@@ -145,7 +145,16 @@ import { db } from "./js/firebase-config.js";
 import { collection, addDoc, getDocs, getDoc, doc, updateDoc, serverTimestamp, query, where, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const DAILY_LIMIT = 50, MAX_SLIDES = 10, REVIEW_DELAY = 5;
-const CLOUD = { cloudName: 'ISI_CLOUD_NAME', uploadPreset: 'ISI_UPLOAD_PRESET' }; // unsigned preset Cloudinary
+let CLOUD = null; // dimuat dari /api/event-config (diambil dari environment Vercel yang sama dengan halaman admin)
+async function getCloud() {
+  if (!CLOUD) {
+    const r = await fetch('/api/event-config');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.cloudName || !d.uploadPreset) throw new Error(d.error || 'Konfigurasi unggah gambar belum siap.');
+    CLOUD = d;
+  }
+  return CLOUD;
+}
 const LOGO = 'https://i.imgur.com/5Srjyo4.png';
 const PALETTES = [
   { c1:'#001f3f', c2:'#0b4a7d', ac:'#facc15', soft:'#bae6fd' },
@@ -263,8 +272,9 @@ async function renderSlides(author, title, slides, evTitle, evType) {
   return blobs;
 }
 async function uploadBlob(blob, name) {
-  const fd = new FormData(); fd.append('file', blob, name + '.jpg'); fd.append('upload_preset', CLOUD.uploadPreset);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD.cloudName}/image/upload`, { method: 'POST', body: fd });
+  const cfg = await getCloud();
+  const fd = new FormData(); fd.append('file', blob, name + '.jpg'); fd.append('upload_preset', cfg.uploadPreset);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`, { method: 'POST', body: fd });
   const d = await res.json().catch(() => ({}));
   if (!res.ok || !d.secure_url) throw new Error('Unggah gambar gagal: ' + (d.error?.message || res.status));
   return d.secure_url;
