@@ -1,6 +1,6 @@
 // api/event-worker.js
 // Dipanggil terjadwal (cron). Memposting SATU karya dari antrean `event_antrean` per pemanggilan,
-// tanpa butuh login admin atau halaman terbuka. Memakai helper yang sama dengan instagram-publish.js.
+// tanpa butuh login admin atau halaman terbuka. Memakai helper yang sama  instagram-publish.js.
 // Auth: header "Authorization: Bearer <CRON_SECRET>" (Vercel Cron mengirimnya otomatis bila CRON_SECRET diisi).
 
 import { admin, init, httpErr, getToken, igUserId, graph } from './_ig.js';
