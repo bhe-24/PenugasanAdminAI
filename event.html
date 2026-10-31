@@ -51,6 +51,12 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);background
 .res.no{background:#fef2f2;border:1px solid #fecaca}
 .res.rv{background:#fffbeb;border:1px solid #fde68a}
 .res h3{margin:0 0 6px;font:700 1.1rem 'Aleo',serif}
+.mine{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;margin-bottom:10px;flex-wrap:wrap}
+.mine b{display:block;font-size:.92rem}
+.mine small{color:var(--mute);font-size:.8rem}
+.mine .st{font-size:.76rem;font-weight:700;padding:5px 12px;border-radius:50px;white-space:nowrap}
+.st.w{background:#fef9c3;color:#854d0e}.st.p{background:#e0f2fe;color:#075985}.st.g{background:#dcfce7;color:var(--ok)}.st.x{background:#fee2e2;color:var(--bad)}
+.mine a{color:var(--navy);font-weight:600;font-size:.84rem}
 [hidden]{display:none!important}
 
 /* ===== POSTER 1080x1350 (di luar layar, dirender html2canvas) ===== */
@@ -101,19 +107,20 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);background
     <div class="row"><span id="qTxt">Memuat kuota...</span><span>Maks. 50 slide per hari</span></div>
     <ul class="rules">
       <li>Setiap karya disunting dan diseleksi otomatis sebelum tayang. Karya yang belum layak dikembalikan kepadamu beserta catatannya.</li>
-      <li>Satu karya maksimal 10 slide. Kalau kuota hari ini penuh, karyamu otomatis tayang di hari berikutnya.</li>
-      <li>Setelah naskah masuk antrean, kamu boleh menutup halaman ini. Posting berjalan sendiri.</li>
+      <li>Satu karya maksimal 2 slide (sekitar 600 karakter). Kalau kuota hari ini habis, form ditutup dan dibuka lagi besok.</li>
+      <li>Karya yang lolos langsung diposting ke Instagram oleh sistem. Jangan tutup halaman sampai proses selesai.</li>
     </ul>
   </section>
 
   <section class="card" id="formCard">
     <h2>Tulis karyamu</h2>
+    <div class="res no" id="fullMsg" hidden><h3>Kuota hari ini sudah habis</h3>Form ditutup sementara. Datang lagi besok untuk mengirim karyamu.</div>
     <label for="fName">Nama penulis</label>
     <input id="fName" maxlength="60" placeholder="Nama lengkap atau nama pena" autocomplete="name">
     <label for="fTitle">Judul (boleh dikosongkan)</label>
     <input id="fTitle" maxlength="100" placeholder="Judul karya">
     <label for="fText">Isi karya</label>
-    <textarea id="fText" maxlength="4000" placeholder="Tulis atau tempel karyamu di sini..."></textarea>
+    <textarea id="fText" maxlength="800" placeholder="Tulis atau tempel karyamu di sini..."></textarea>
     <div class="row"><span id="cnt">0 kata · 0 karakter</span><span id="est">Perkiraan 0 slide</span></div>
     <button class="btn" id="btnSend"><i class="fa-solid fa-paper-plane"></i> Kirim karya</button>
   </section>
@@ -124,12 +131,19 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);background
       <li><span class="ic"><i class="fa-solid fa-inbox"></i></span><div><b>Naskah diterima</b><small>Menunggu sebentar sebelum disunting</small></div></li>
       <li><span class="ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span><div><b>Seleksi dan penyuntingan</b><small>Ejaan dan kelayakan tayang diperiksa</small></div></li>
       <li><span class="ic"><i class="fa-solid fa-image"></i></span><div><b>Menyusun poster</b><small>Slide dirender dan diunggah</small></div></li>
-      <li><span class="ic"><i class="fa-brands fa-instagram"></i></span><div><b>Masuk antrean Instagram</b><small>Jadwal tayang ditentukan</small></div></li>
+      <li><span class="ic"><i class="fa-brands fa-instagram"></i></span><div><b>Masuk antrean Instagram</b><small>Kuota hari ini dipesan</small></div></li>
+      <li><span class="ic"><i class="fa-solid fa-circle-check"></i></span><div><b>Tayang di Instagram</b><small>Diposting otomatis oleh sistem</small></div></li>
     </ul>
-    <div class="row warn" id="keep">Jangan tutup halaman sampai langkah ke-4 selesai (sekitar 20-40 detik).</div>
+    <div class="row warn" id="keep">Jangan tutup halaman sampai semua langkah selesai (sekitar 30-60 detik).</div>
   </section>
 
   <section class="card" id="resCard" hidden></section>
+
+  <section class="card" id="mineCard" hidden>
+    <h2>Status karyamu</h2>
+    <div id="mineList"></div>
+    <div class="row"><span>Diperbarui otomatis tiap 20 detik. Daftar ini tersimpan di perangkat ini.</span></div>
+  </section>
 </main>
 
 <!-- POSTER (tersembunyi) -->
@@ -144,7 +158,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gold);background
 import { db } from "./js/firebase-config.js";
 import { collection, addDoc, getDocs, getDoc, doc, updateDoc, serverTimestamp, query, where, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const DAILY_LIMIT = 50, MAX_SLIDES = 10, REVIEW_DELAY = 5;
+const DAILY_LIMIT = 50, MAX_SLIDES = 2, REVIEW_DELAY = 5;
 let CLOUD = null; // dimuat dari /api/event-config (diambil dari environment Vercel yang sama dengan halaman admin)
 async function getCloud() {
   if (!CLOUD) {
@@ -192,25 +206,40 @@ function chunkText(text, firstMax = 220, restMax = 420) {
 }
 
 // ---------- Kuota ----------
+let quotaLeft = DAILY_LIMIT;
+function applyQuotaState() {
+  const full = quotaLeft < 1;
+  $('fullMsg').hidden = !full;
+  ['fName', 'fTitle', 'fText'].forEach(id => $(id).disabled = full);
+  $('btnSend').disabled = full || !current || busy;
+}
 async function loadQuota() {
   try {
     const s = await getDoc(doc(db, 'ig_quota', dateKey()));
     const used = s.exists() ? (s.data().slides || 0) : 0;
+    quotaLeft = Math.max(0, DAILY_LIMIT - used);
     $('qBar').style.width = Math.min(100, used / DAILY_LIMIT * 100) + '%';
-    $('qTxt').textContent = used >= DAILY_LIMIT ? 'Kuota hari ini penuh. Karyamu akan tayang besok.' : `Sisa ${DAILY_LIMIT - used} dari ${DAILY_LIMIT} slide hari ini`;
+    $('qTxt').textContent = quotaLeft ? `Sisa ${quotaLeft} dari ${DAILY_LIMIT} slide hari ini` : 'Kuota hari ini sudah habis.';
   } catch { $('qTxt').textContent = 'Kuota belum bisa dimuat.'; }
+  applyQuotaState();
 }
 async function reserveSlides(n) {
-  for (let d = 0; d < 14; d++) {
-    const key = dateKey(d), ref = doc(db, 'ig_quota', key);
-    const ok = await runTransaction(db, async tx => {
-      const s = await tx.get(ref), used = s.exists() ? (s.data().slides || 0) : 0;
-      if (used + n > DAILY_LIMIT) return false;
-      tx.set(ref, { slides: used + n }, { merge: true }); return true;
+  const key = dateKey(), ref = doc(db, 'ig_quota', key);
+  const ok = await runTransaction(db, async tx => {
+    const s = await tx.get(ref), used = s.exists() ? (s.data().slides || 0) : 0;
+    if (used + n > DAILY_LIMIT) return false;
+    tx.set(ref, { slides: used + n }, { merge: true }); return true;
+  });
+  if (!ok) { loadQuota(); throw new Error('Kuota tayang hari ini sudah habis. Coba lagi besok.'); }
+  return key;
+}
+async function releaseSlides(key, n) {
+  try {
+    await runTransaction(db, async tx => {
+      const ref = doc(db, 'ig_quota', key), s = await tx.get(ref);
+      tx.set(ref, { slides: Math.max(0, (s.data()?.slides || 0) - n) }, { merge: true });
     });
-    if (ok) return key;
-  }
-  throw new Error('Kuota 14 hari ke depan penuh. Coba lagi nanti.');
+  } catch {}
 }
 
 // ---------- Event ----------
@@ -227,7 +256,7 @@ async function loadEvents() {
 }
 function pickEvent() {
   current = events.find(e => e.id === $('evSel').value) || null;
-  $('btnSend').disabled = !current;
+  applyQuotaState();
   $('evBox').innerHTML = current
     ? `<span class="tag">${esc(current.tipe)}</span><b>${esc(current.judul)}</b>${esc(current.deskripsi)}<br><small>Tenggat: ${esc(current.deadline)}</small>`
     : 'Belum ada event yang dibuka. Cek lagi nanti.';
@@ -301,6 +330,7 @@ $('btnSend').onclick = async () => {
   if (name.length < 2) return alert('Isi nama penulis dulu ya.');
   if (content.length < 20) return alert('Karyamu masih terlalu singkat untuk dikirim.');
   if (chunkText(content).length > MAX_SLIDES) return alert(`Karyamu lebih dari ${MAX_SLIDES} slide. Ringkas dulu agar muat di Instagram.`);
+  if (quotaLeft < chunkText(content).length) return alert('Sisa kuota hari ini tidak cukup untuk karyamu. Coba lagi besok.');
 
   busy = true; $('btnSend').disabled = true;
   $('resCard').hidden = true; $('progCard').hidden = false; $('keep').hidden = false;
@@ -309,7 +339,7 @@ $('btnSend').onclick = async () => {
   const warnLeave = e => { e.preventDefault(); e.returnValue = ''; };
   window.addEventListener('beforeunload', warnLeave);
 
-  let ref, step = 0;
+  let ref, step = 0, reservedKey = null, reservedN = 0;
   try {
     // 1. Simpan naskah mentah lebih dulu agar tidak hilang
     setStep(0, 'on');
@@ -344,7 +374,8 @@ $('btnSend').onclick = async () => {
     step = 2; setStep(2, 'on');
     const finalTitle = r.title || title, finalText = r.content || content;
     const slides = chunkText(finalText);
-    if (slides.length > MAX_SLIDES) throw new Error('Karya melebihi 10 slide setelah disunting.');
+    if (slides.length > MAX_SLIDES) throw new Error(`Karya melebihi ${MAX_SLIDES} slide setelah disunting.`);
+    reservedKey = await reserveSlides(slides.length); reservedN = slides.length;
     const blobs = await renderSlides(name, finalTitle, slides, current.judul, current.tipe);
     const urls = [];
     for (let i = 0; i < blobs.length; i++) { setStep(2, 'on', `Mengunggah slide ${i + 1} dari ${blobs.length}...`); urls.push(await uploadBlob(blobs[i], `ev_${ref.id}_${i + 1}`)); }
@@ -352,29 +383,79 @@ $('btnSend').onclick = async () => {
 
     // 4. Antrean + kuota
     step = 3; setStep(3, 'on');
-    const jadwal = await reserveSlides(urls.length);
+    const jadwal = reservedKey;
     const caption = `Karya Hebat dari Sobat Aksara! 🌟\n\nJudul: "${finalTitle || 'Tanpa Judul'}"\nOleh: ${name}\nEvent: ${current.tipe}\n\nJangan lupa berikan dukungan untuk ${name} di kolom komentar ya! Teruslah berkarya dan menyalakan lentera literasi. ✍️✨\n\n#CendekiaAksara #KaryaSiswa #SastraIndonesia #PenulisMuda`;
     await updateDoc(ref, { status: 'antre', aiSkor: r.skor, aiFeedback: r.feedback, title: finalTitle, contentFinal: finalText,
       slideUrls: urls, slideCount: urls.length, caption, jadwalTayang: jadwal, queuedAt: serverTimestamp() });
+    reservedKey = null; // kuota resmi terpakai oleh karya yang antre
     await addDoc(collection(db, 'weekly_submissions'), { eventId: current.id, studentName: name, title: finalTitle, content: finalText,
       createdAt: serverTimestamp(), antreanId: ref.id, fromEvent: true });
     setStep(3, 'done', 'Jadwal tayang: ' + prettyDate(jadwal));
+    saveMine([{ id: ref.id, title: finalTitle || 'Tanpa judul' }, ...getMine().filter(x => x.id !== ref.id)]);
+    refreshMine();
+    // 5. Langsung diposting (cron tetap jadi cadangan bila langkah ini gagal / timeout)
+    step = 4; setStep(4, 'on', 'Memposting ke Instagram...');
+    let posted = null;
+    try {
+      const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 58000);
+      const pr = await fetch('/api/event-worker', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ref.id }), signal: ctl.signal });
+      clearTimeout(tm);
+      const pj = await pr.json().catch(() => ({}));
+      if (pr.ok && pj.posted) posted = pj;
+    } catch {}
+    setStep(4, 'done', posted ? 'Sudah tayang' : 'Aman di antrean, sistem akan memostingnya sebentar lagi');
+    refreshMine();
     $('keep').hidden = true;
-    showResult('ok', 'Karyamu lolos dan masuk antrean!',
-      `<p>Slide: <b>${urls.length}</b> · Jadwal tayang: <b>${esc(prettyDate(jadwal))}</b>.</p><p>${esc(r.feedback)}</p><p>Kamu sudah boleh menutup halaman ini. Posting ke Instagram berjalan otomatis.</p>`);
+    showResult('ok', posted ? 'Karyamu sudah tayang di Instagram!' : 'Karyamu lolos dan masuk antrean!',
+      `<p>Slide: <b>${urls.length}</b>.${posted?.permalink ? ` <a href="${esc(posted.permalink)}" target="_blank" rel="noopener">Lihat postingan</a>` : ''}</p><p>${esc(r.feedback)}</p><p>${posted ? 'Terima kasih sudah berkarya!' : 'Postingan belum sempat tayang saat ini, tetapi karyamu aman di antrean dan akan diposting otomatis sebentar lagi. Pantau di “Status karyamu” di bawah. Halaman ini boleh ditutup.'}</p>`);
     $('fTitle').value = ''; $('fText').value = ''; updateCount(); loadQuota();
   } catch (err) {
     console.error(err);
+    if (reservedKey) releaseSlides(reservedKey, reservedN);
     if (ref) updateDoc(ref, { status: 'gagal', error: String(err.message || err) }).catch(() => {});
     setStep(step, 'fail', 'Terhenti');
     showResult('no', 'Proses terhenti', `<p>${esc(err.message)}</p><p>Naskahmu masih ada di kolom tulis. Coba kirim lagi sebentar lagi.</p>`);
   } finally {
     window.removeEventListener('beforeunload', warnLeave);
-    busy = false; $('btnSend').disabled = !current;
+    busy = false; applyQuotaState();
   }
 };
 
-loadEvents(); loadQuota(); updateCount();
+// ---------- Status karya (agar siswa tahu kapan tayang) ----------
+const MINE_KEY = 'event_mine';
+const getMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY) || '[]'); } catch { return []; } };
+const saveMine = l => { try { localStorage.setItem(MINE_KEY, JSON.stringify(l.slice(0, 10))); } catch {} };
+let mineTimer = null;
+
+async function refreshMine() {
+  const list = getMine();
+  $('mineCard').hidden = !list.length;
+  if (!list.length) return;
+  let pending = false, html = '';
+  for (const it of list) {
+    let st = 'w', label = 'Memuat...', extra = '';
+    try {
+      const s = await getDoc(doc(db, 'event_antrean', it.id));
+      if (!s.exists()) continue;
+      const d = s.data();
+      if (d.status === 'tayang') {
+        st = 'g'; label = 'Sudah tayang';
+        extra = d.igPermalink ? `<a href="${esc(d.igPermalink)}" target="_blank" rel="noopener">Lihat di Instagram</a>` : '';
+      } else if (d.status === 'memposting') { st = 'p'; label = 'Sedang diposting'; pending = true; }
+      else if (d.status === 'antre') { st = 'w'; label = 'Menunggu giliran'; extra = `<small>Jadwal: ${esc(prettyDate(d.jadwalTayang))}</small>`; pending = true; }
+      else if (d.status === 'direview') { st = 'w'; label = 'Sedang diseleksi'; pending = true; }
+      else if (d.status === 'gagal_posting' || d.status === 'ditolak_sistem' || d.status === 'gagal') { st = 'x'; label = 'Terkendala, ditangani admin'; }
+      else { st = 'x'; label = d.status; }
+    } catch { label = 'Status belum bisa dimuat'; }
+    html += `<div class="mine"><div><b>${esc(it.title)}</b>${extra}</div><span class="st ${st}">${label}</span></div>`;
+  }
+  $('mineList').innerHTML = html;
+  if (pending && !mineTimer) mineTimer = setInterval(refreshMine, 20000);
+  if (!pending && mineTimer) { clearInterval(mineTimer); mineTimer = null; }
+}
+
+loadEvents(); loadQuota(); updateCount(); refreshMine();
 </script>
 </body>
 </html>
