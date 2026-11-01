@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Library untuk menggambar QR dari string QRIS (dipakai bila gateway tidak memberi URL gambar) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         /* RESET & GLOBAL */
@@ -188,11 +190,9 @@
             <p id="qris-title" style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">-</p>
             <p id="qris-amount" style="font-size:1.5rem; font-weight:800; color:#1e293b; margin:0 0 15px 0;">Rp -</p>
 
-            <!-- Gambar QRIS dimuat otomatis dari Firestore (settings/qris). Upload lewat admin/upload_qris.html -->
-            <img id="qris-img" alt="QRIS" style="display:none; width:100%; max-width:260px; border-radius:12px; margin:0 auto 15px;">
-            <p id="qris-missing" style="display:none; color:#b91c1c; font-size:0.85rem; margin-bottom:15px;">
-                QRIS belum tersedia. Hubungi admin.
-            </p>
+            <!-- QR dibuat otomatis oleh gateway lewat /api/qris?action=create -->
+            <div id="qris-box" style="display:flex; justify-content:center; margin-bottom:10px;"></div>
+            <p id="qris-timer" style="font-size:0.85rem; font-weight:700; color:#b45309; margin:0 0 15px;"></p>
 
             <p class="modal-p" style="font-size:0.85rem; margin-bottom: 15px; font-weight: 600; color: #d97706;">
                 Transfer TEPAT sesuai nominal di atas.<br>Verifikasi otomatis dalam 1 menit.
@@ -221,7 +221,8 @@
 
     <script type="module">
         import { db, checkAuth } from "./js/firebase-config.js";
-        import { collection, query, where, getDocs, doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // ============================================================
         // TOMBOL KEMBALI DINAMIS
@@ -246,7 +247,8 @@
         let currentUser = null;
         let unsubscribePayment = null;   // satu listener pembayaran saja
         let paymentHandled = false;      // cegah notifikasi/reload ganda
-        let qrisLoaded = false;
+        let timerId = null;              // hitung mundur kedaluwarsa QR
+        let pollId = null;               // cek status berkala (cadangan webhook)
 
         const DENDA_PCT_PER_MINGGU = 0.10;
         const MASA_TENGGANG_MS = 7 * 24 * 60 * 60 * 1000;
@@ -271,28 +273,13 @@
             return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
         }
 
-        // ============================================================
-        // QRIS: dimuat dari Firestore (settings/qris)
-        // ============================================================
-        async function loadQRIS() {
-            if (qrisLoaded) return;
-            const img = $('qris-img');
-            const missing = $('qris-missing');
-            try {
-                const snap = await getDoc(doc(db, 'settings', 'qris'));
-                if (snap.exists() && snap.data().image) {
-                    img.src = snap.data().image;
-                    img.style.display = 'block';
-                    missing.style.display = 'none';
-                    qrisLoaded = true;
-                    return;
-                }
-            } catch (e) {
-                console.error('Gagal memuat QRIS:', e);
-            }
-            img.style.display = 'none';
-            missing.style.display = 'block';
-        }
+        // Apakah ada invoice QRIS yang masih berlaku dan menunggu pembayaran?
+        const isWaiting = (u, sem) => {
+            const w = sem < 3
+                ? (u.paymentStatus === 'waiting' && u.statusPembayaran !== 'Lunas')
+                : u.sem3_paymentStatus === 'waiting';
+            return !!(w && u.pendingInvoice && u.pendingInvoice.expiresAtMs > Date.now());
+        };
 
         // ============================================================
         // MODAL
@@ -308,6 +295,7 @@
         };
 
         window.closeAllModals = () => {
+            clearInterval(timerId);
             document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
         };
 
@@ -317,15 +305,39 @@
         });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllModals(); });
 
-        function openQrisModal(amount, label) {
-            $('qris-amount').innerText = rupiah(amount);
-            $('qris-title').innerText = label + " (+ Kode Unik)";
+        // Tampilkan QR dari gateway + hitung mundur kedaluwarsa
+        function openQrisModal(inv) {
+            $('qris-amount').innerText = rupiah(inv.amount);
+            $('qris-title').innerText = inv.label || 'Tagihan';
+
+            const box = $('qris-box');
+            box.innerHTML = '';
+            if (inv.qrImage) {
+                const img = new Image();
+                img.src = inv.qrImage;
+                img.alt = 'QRIS';
+                img.style.cssText = 'width:100%; max-width:260px; border-radius:12px;';
+                box.appendChild(img);
+            } else if (inv.qrString) {
+                new QRCode(box, { text: inv.qrString, width: 240, height: 240 });
+            }
+
+            clearInterval(timerId);
+            const tick = () => {
+                const s = Math.max(0, Math.floor((inv.expiresAtMs - Date.now()) / 1000));
+                $('qris-timer').innerText = s
+                    ? `Berlaku ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+                    : 'QR kedaluwarsa. Tutup lalu buat ulang.';
+                if (!s) clearInterval(timerId);
+            };
+            tick();
+            timerId = setInterval(tick, 1000);
             $('modal-qris').classList.add('active');
-            loadQRIS(); // coba lagi kalau sebelumnya gagal
         }
 
         // ============================================================
         // LISTENER PEMBAYARAN (satu listener, tidak dobel)
+        // Status diubah oleh server (webhook gateway), halaman hanya memantau.
         // ============================================================
         function isPaymentVerified(data, sem) {
             if (!data) return false;
@@ -333,7 +345,22 @@
             return data.sem3_paymentStatus === 'verified' || (data.sem3_paymentStatus == null && !!data.sem3_status);
         }
 
+        // Cadangan webhook: minta server mengecek status ke gateway tiap 10 detik
+        function startPolling() {
+            clearInterval(pollId);
+            pollId = setInterval(async () => {
+                const inv = currentUser && currentUser.pendingInvoice;
+                if (paymentHandled || document.hidden) return;
+                if (!inv || inv.expiresAtMs < Date.now()) { clearInterval(pollId); return; }
+                try {
+                    const token = await getAuth().currentUser.getIdToken();
+                    await fetch('/api/qris?action=check', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+                } catch (e) { /* diam: listener Firestore tetap jalan */ }
+            }, 10000);
+        }
+
         function watchPayment(sem) {
+            startPolling();
             if (unsubscribePayment) unsubscribePayment();
             unsubscribePayment = onSnapshot(doc(db, "users", currentUser.uid), (docSnap) => {
                 if (isPaymentVerified(docSnap.data(), sem)) {
@@ -346,81 +373,51 @@
         function handlePaymentSuccess() {
             if (paymentHandled) return;
             paymentHandled = true;
+            clearInterval(pollId);
             closeAllModals();
             showCustomModal('success', 'Berhasil', 'PEMBAYARAN BERHASIL TERDETEKSI! Halaman akan diperbarui.');
             setTimeout(() => { location.reload(); }, 2500);
         }
 
         // ============================================================
-        // MULAI PEMBAYARAN
+        // MULAI PEMBAYARAN (via API server -> gateway QRIS)
+        // Nominal dihitung di server; browser hanya mengirim "tahap".
         // ============================================================
-        function kodeUnik() { return Math.floor(Math.random() * 500) + 1; }
-
-        window.showQRIS = async (amount, label) => {
+        async function startPayment(stage) {
             $('modal-loading').classList.add('active');
-            const finalAmount = amount + kodeUnik();
             try {
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    paymentStatus: 'waiting',
-                    pendingAmount: finalAmount
+                const token = await getAuth().currentUser.getIdToken();
+                const r = await fetch('/api/qris?action=create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                    body: JSON.stringify({ stage })
                 });
-                currentUser.paymentStatus = 'waiting';
-                currentUser.pendingAmount = finalAmount;
+                const inv = await r.json();
+                if (!r.ok) throw new Error(inv.error || 'Gagal membuat tagihan');
+
+                const sem = getSem(currentUser);
+                currentUser.pendingInvoice = inv;
+                currentUser[sem < 3 ? 'paymentStatus' : 'sem3_paymentStatus'] = 'waiting';
 
                 $('modal-loading').classList.remove('active');
-                openQrisModal(finalAmount, label);
+                openQrisModal(inv);
                 setWaitingUI();
-                $('amount-display').innerText = rupiah(finalAmount);
-                watchPayment(getSem(currentUser));
+                $('amount-display').innerText = rupiah(inv.amount);
+                watchPayment(sem);
             } catch (e) {
                 console.error(e);
                 $('modal-loading').classList.remove('active');
-                showCustomModal('error', 'Gagal', 'Gagal mengaktifkan sistem pembayaran.');
+                showCustomModal('error', 'Gagal', e.message || 'Gagal mengaktifkan sistem pembayaran.');
             }
-        };
+        }
 
-        window.showQRIS3 = async (amount, label, stage) => {
-            $('modal-loading').classList.add('active');
-            const finalAmount = amount + kodeUnik();
-            try {
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    sem3_paymentStatus: 'waiting',
-                    sem3_pendingAmount: finalAmount,
-                    sem3_pendingStage: stage
-                });
-                currentUser.sem3_paymentStatus = 'waiting';
-                currentUser.sem3_pendingAmount = finalAmount;
-                currentUser.sem3_pendingStage = stage;
+        // Nama fungsi lama dipertahankan agar tombol di renderData tidak perlu diubah
+        window.showQRIS = () => startPayment('ujian');
+        window.showQRIS3 = (amount, label, stage) => startPayment(stage);
 
-                $('modal-loading').classList.remove('active');
-                openQrisModal(finalAmount, label);
-                setWaitingUI();
-                $('amount-display').innerText = rupiah(finalAmount);
-                watchPayment(getSem(currentUser));
-            } catch (e) {
-                console.error(e);
-                $('modal-loading').classList.remove('active');
-                showCustomModal('error', 'Gagal', 'Gagal mengaktifkan sistem pembayaran.');
-            }
-        };
-
-        // Buka ulang QRIS tanpa menulis ke Firestore (kode unik tidak berubah)
+        // Buka ulang QR yang masih berlaku (tanpa membuat transaksi baru)
         window.reopenPendingPayment = () => {
-            const sem = getSem(currentUser);
-            let amount = 0;
-            let label = 'Tagihan';
-
-            if (sem < 3) {
-                amount = currentUser.pendingAmount || 0;
-                label = 'Uang Ujian';
-            } else {
-                amount = currentUser.sem3_pendingAmount || 0;
-                const stage = currentUser.sem3_pendingStage || '';
-                if (stage === 'cicilan1') label = 'Cicilan Tahap 1 (50%)';
-                else if (stage === 'cicilan2') label = 'Pelunasan Cicilan Tahap 2';
-                else label = 'Lunas Penuh';
-            }
-            openQrisModal(amount, label);
+            if (currentUser && currentUser.pendingInvoice) openQrisModal(currentUser.pendingInvoice);
         };
 
         // ============================================================
@@ -455,7 +452,6 @@
             $('st-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
 
             const status = user.statusPembayaran;
-            const paymentStatus = user.paymentStatus;
 
             const badge = $('status-badge');
             const amountEl = $('amount-display');
@@ -467,15 +463,9 @@
 
             // ---------- Semester 1-2: uang ujian ----------
             if (sem < 3) {
-                if (paymentStatus === 'waiting' && status !== 'Lunas') {
+                if (isWaiting(user, sem)) {
                     setWaitingUI();
-                    // Tampilkan nominal yang benar-benar harus ditransfer (sudah termasuk kode unik)
-                    if (user.pendingAmount) {
-                        amountEl.innerText = rupiah(user.pendingAmount);
-                    } else {
-                        const snapW = await getDocs(query(collection(db, 'exams'), where('status', '==', 'active')));
-                        amountEl.innerText = rupiah(snapW.size * 1000);
-                    }
+                    amountEl.innerText = rupiah(user.pendingInvoice.amount);
                     return;
                 }
 
@@ -506,9 +496,9 @@
             const BIAYA_CICILAN = 37725;
             const sem3Status = user.sem3_status || 'belum';
 
-            if (user.sem3_paymentStatus === 'waiting') {
+            if (isWaiting(user, sem)) {
                 setWaitingUI();
-                amountEl.innerText = rupiah(user.sem3_pendingAmount);
+                amountEl.innerText = rupiah(user.pendingInvoice.amount);
                 return;
             }
 
@@ -576,7 +566,6 @@
             if (!currentUser) return;
 
             const sem = getSem(currentUser);
-            loadQRIS();
 
             try {
                 await renderData(currentUser, sem);
@@ -590,9 +579,7 @@
             }
 
             // Kalau sedang menunggu verifikasi, pantau sampai terverifikasi
-            const waitingSem12 = sem < 3 && currentUser.paymentStatus === 'waiting' && currentUser.statusPembayaran !== 'Lunas';
-            const waitingSem3 = sem >= 3 && currentUser.sem3_paymentStatus === 'waiting';
-            if (waitingSem12 || waitingSem3) watchPayment(sem);
+            if (isWaiting(currentUser, sem)) watchPayment(sem);
         })();
     </script>
 </body>
