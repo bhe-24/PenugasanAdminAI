@@ -12,36 +12,39 @@ const TS = admin.firestore.Timestamp, FV = admin.firestore.FieldValue;
 const BIAYA_LUNAS = 75450, BIAYA_CICILAN = 37725, DENDA = 0.10, MINGGU = 7 * 864e5;
 const CICILAN2_HARI = 30; // ASUMSI: jatuh tempo cicilan 2 = 30 hari setelah cicilan 1. Sesuaikan.
 
-/* ===== ADAPTER KASKUY — path & nama field PLACEHOLDER, cocokkan dengan dokumentasi ===== */
-const GW = {
-  base: process.env.KASKUY_BASE_URL,
-  createPath: '/GANTI_PATH_BUAT_TRANSAKSI',
-  statusPath: (id) => `/GANTI_PATH_CEK_STATUS/${id}`,
-};
+/* ===== ADAPTER KASKUY (API v1) ===== */
+const GW_BASE = (process.env.KASKUY_BASE_URL || 'https://qris.kaskuy.com/api/v1').replace(/\/$/, '');
+
 async function gw(path, opt = {}) {
-  const r = await fetch(GW.base + path, {
+  const r = await fetch(GW_BASE + path, {
     ...opt,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.KASKUY_API_KEY}`, ...(opt.headers || {}) },
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.message || `Gateway error ${r.status}`);
-  return j;
+  if (!r.ok || j.success === false) throw new Error((j.error && j.error.message) || `Gateway error ${r.status}`);
+  return j.data;
 }
-async function gwCreate({ orderId, amount }) {
-  const j = await gw(GW.createPath, { method: 'POST', body: JSON.stringify({ order_id: orderId, amount }) });
-  const d = j.data || j;
+
+// POST /payments  (Idempotency-Key wajib; invoice unik per merchant)
+async function gwCreate({ orderId, amount, description }) {
+  const d = await gw('/payments', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': orderId },
+    body: JSON.stringify({ invoice: orderId, amount, description, expires_in: 1800 }), // 30 menit
+  });
   return {
-    gatewayId: String(d.id || d.transaction_id),
+    gatewayId: d.payment_id,
     qrString: d.qr_string || null,
-    qrImage: d.qr_url || d.qr_image || null,
-    amount: Number(d.total_amount || d.amount || amount),
-    expiresAtMs: d.expired_at ? new Date(d.expired_at).getTime() : Date.now() + 30 * 60000,
+    qrImage: d.qr_url || null,
+    amount: Number(d.total_amount),                  // sudah termasuk kode unik dari gateway
+    expiresAtMs: new Date(d.expires_at).getTime(),
   };
 }
-async function gwStatus(gatewayId) {
-  const j = await gw(GW.statusPath(gatewayId));
-  const d = j.data || j;
-  return { paid: ['paid', 'success', 'settlement'].includes(String(d.status).toLowerCase()), amount: Number(d.total_amount || d.amount) };
+
+// GET /payments/{payment_id}  -> PENDING | PAID | EXPIRED | FAILED
+async function gwStatus(paymentId) {
+  const d = await gw('/payments/' + encodeURIComponent(paymentId));
+  return { status: d.status, paid: d.status === 'PAID', amount: Number(d.total_amount) };
 }
 
 /* ===== util ===== */
@@ -85,7 +88,7 @@ async function handleCreate(req, res, raw) {
   }
 
   const orderId = `CA-${uid.slice(0, 6)}-${Date.now()}`;
-  const inv = await gwCreate({ orderId, amount });
+  const inv = await gwCreate({ orderId, amount, description: label });
   const rec = { orderId, gatewayId: inv.gatewayId, stage, baseAmount: amount, amount: inv.amount,
                 qrImage: inv.qrImage, qrString: inv.qrString, expiresAtMs: inv.expiresAtMs, label };
 
@@ -97,26 +100,15 @@ async function handleCreate(req, res, raw) {
   res.json({ label, amount: inv.amount, qrImage: inv.qrImage, qrString: inv.qrString, expiresAtMs: inv.expiresAtMs });
 }
 
-/* ===== action: webhook ===== */
-async function handleWebhook(req, res, raw) {
-  const secret = process.env.KASKUY_WEBHOOK_SECRET;
-  if (secret) { // nama header & algoritma: sesuaikan dokumentasi Kaskuy
-    const sig = String(req.headers['x-signature'] || '');
-    const exp = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-    if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp)))
-      return res.status(401).json({ error: 'bad signature' });
-  }
-  const body = JSON.parse(raw || '{}');
-  const orderId = (body.data || body).order_id;
-  if (!orderId) return res.status(400).json({ error: 'order_id kosong' });
-
+/* ===== settle: tandai lunas (idempoten, selalu konfirmasi ke gateway) ===== */
+async function settle(orderId) {
   const pRef = db.doc('payments/' + orderId);
   const p = (await pRef.get()).data();
-  if (!p) return res.status(404).json({ error: 'order tidak dikenal' });
-  if (p.status === 'paid') return res.json({ ok: true });
+  if (!p) return { error: 'order tidak dikenal', code: 404 };
+  if (p.status === 'paid') return { paid: true };
 
-  const st = await gwStatus(p.gatewayId); // konfirmasi ulang ke gateway
-  if (!st.paid || (Number.isFinite(st.amount) && st.amount !== p.amount)) return res.json({ ok: true, ignored: true });
+  const st = await gwStatus(p.gatewayId);
+  if (!st.paid || (Number.isFinite(st.amount) && st.amount !== p.amount)) return { paid: false, status: st.status };
 
   await db.runTransaction(async (t) => {
     const uRef = db.doc('users/' + p.uid);
@@ -140,7 +132,45 @@ async function handleWebhook(req, res, raw) {
     t.update(pRef, { status: 'paid', paidAt: FV.serverTimestamp() });
     t.update(uRef, upd);
   });
+  return { paid: true };
+}
+
+/* ===== action: webhook (dipanggil Kaskuy) ===== */
+async function handleWebhook(req, res, raw) {
+  // Tanda tangan: format belum ada di dokumentasi yang kita punya. Biarkan KASKUY_WEBHOOK_SECRET
+  // kosong sampai format pastinya diketahui; keamanan tetap terjaga karena settle() selalu cek ulang ke API.
+  const secret = process.env.KASKUY_WEBHOOK_SECRET;
+  if (secret) {
+    const sig = String(req.headers['x-signature'] || '');
+    const exp = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+    if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp)))
+      return res.status(401).json({ error: 'bad signature' });
+  }
+  const body = JSON.parse(raw || '{}');
+  const d = body.data || body;
+  let orderId = d.invoice || d.order_id;
+  if (!orderId && d.payment_id) {
+    const q = await db.collection('payments').where('gatewayId', '==', d.payment_id).limit(1).get();
+    if (!q.empty) orderId = q.docs[0].id;
+  }
+  if (!orderId) return res.status(400).json({ error: 'invoice/payment_id kosong' });
+  const r = await settle(orderId);
+  if (r.error) return res.status(r.code).json({ error: r.error });
   res.json({ ok: true });
+}
+
+/* ===== action: check (dipanggil halaman tiap 10 dtk sebagai cadangan webhook) ===== */
+const lastCheck = new Map();
+async function handleCheck(req, res) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const { uid } = await admin.auth().verifyIdToken(token);
+  if (Date.now() - (lastCheck.get(uid) || 0) < 8000) return res.json({ paid: false, throttled: true });
+  lastCheck.set(uid, Date.now());
+  const u = (await db.doc('users/' + uid).get()).data();
+  const p = u && u.pendingInvoice;
+  if (!p) return res.json({ paid: false });
+  const r = await settle(p.orderId);
+  res.json({ paid: !!r.paid, status: r.status || null });
 }
 
 /* ===== router ===== */
@@ -150,6 +180,7 @@ module.exports = async (req, res) => {
     const raw = await readRaw(req);
     const action = new URL(req.url, 'http://x').searchParams.get('action');
     if (action === 'create') return await handleCreate(req, res, raw);
+    if (action === 'check') return await handleCheck(req, res);
     if (action === 'webhook') return await handleWebhook(req, res, raw);
     res.status(400).json({ error: 'action tidak dikenal' });
   } catch (e) {
