@@ -1,4 +1,3 @@
-// File: api/central.js
 import OpenAI from 'openai';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { GoogleGenAI } from '@google/genai';
