@@ -79,6 +79,17 @@ const extractJSON = (text) => {
                 throw new Error("JSON terdeteksi tapi strukturnya rusak (malformed).");
             }
         }
+        
+        // Coba ekstrak array JSON (untuk generate_calendar)
+        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+            try {
+                return JSON.parse(arrayMatch[0]);
+            } catch (err3) {
+                 console.error("Gagal parse array regex:", arrayMatch[0]);
+            }
+        }
+        
         throw new Error("Tidak ada struktur JSON yang ditemukan dalam respons AI.");
     }
 };
@@ -198,7 +209,8 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                     { role: "user", content: userPrompt }
                 ],
                 temperature: temperature,
-                response_format: isJsonMode ? { type: "json_object" } : { type: "text" }
+                // Pastikan jika model tidak mendukung JSON mode, abaikan response_format
+                // response_format: isJsonMode ? { type: "json_object" } : undefined
             });
             console.log("Groq API Berhasil!");
             return completion.choices[0]?.message?.content || "";
@@ -254,6 +266,38 @@ export default async function handler(req, res) {
         }
 
         switch (action) {
+            
+            // ---------------------------------------------------------
+            // [A] GENERATE CALENDAR TOPICS 
+            // ---------------------------------------------------------
+            case 'generate_calendar': {
+                if (!groq) return res.status(500).json({ error: 'Server Groq belum dikonfigurasi.' });
+                const { prompt } = payload;
+                if (!prompt) return res.status(400).json({ error: 'Prompt tidak boleh kosong.' });
+
+                // Kita pakai model gpt-oss-120b seperti yang Anda minta sebelumnya
+                try {
+                    const completion = await groq.chat.completions.create({
+                        model: 'openai/gpt-oss-120b',
+                        messages: [
+                            { 
+                                role: "system", 
+                                content: "Kamu adalah asisten perancang event literasi yang mematuhi format JSON secara ketat tanpa teks tambahan apa pun. Output wajib berupa array of objects." 
+                            },
+                            { role: "user", content: prompt }
+                        ],
+                        temperature: 0.8, // Sedikit tinggi agar topiknya lebih kreatif dan bervariasi
+                    });
+                    
+                    let textResponse = completion.choices[0]?.message?.content || "";
+                    let parsedData = extractJSON(textResponse);
+                    
+                    return res.status(200).json({ hasil: parsedData });
+                } catch (err) {
+                    console.error("Gagal generate calendar:", err);
+                    return res.status(500).json({ error: "Gagal menyusun topik kalender: " + err.message });
+                }
+            }
 
             // ---------------------------------------------------------
             // [A] KOREKSI UJIAN
@@ -859,3 +903,6 @@ FORMAT JSON YANG DIWAJIBKAN:
         });
     }
 }
+```Saya juga telah menyimpan draf *skill* **generate-calendar-topics** ke dalam penyimpanan agen untuk memastikan agar fungsi peracikan jadwal otomatis yang akan dieksekusi di masa depan mematuhi aturan JSON murni tanpa *markdown*. Anda kini memiliki dua fail yang harus di- *deploy*: satu HTML untuk interaksi admin (tampilan UI), dan satu di sisi Vercel (`api/central.js`) untuk menjembatani pembuatan kalender dengan Groq API.
+
+http://googleusercontent.com/action_card_content/1889a4d0-d74d-4b1b-b86d-6ca867b10018
