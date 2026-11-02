@@ -11,7 +11,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 // Klien Groq (UTAMA) - Langsung ke server Groq
-const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }) : null;
+const groq = GROQ_API_KEY ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: '[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)' }) : null;
 
 // Klien Gemini (SDK Lama)
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
@@ -22,15 +22,15 @@ const newGenAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : 
 // Klien OpenRouter (CADANGAN TERAKHIR)
 const openrouter = OPENROUTER_API_KEY ? new OpenAI({
     apiKey: OPENROUTER_API_KEY,
-    baseURL: 'https://openrouter.ai/api/v1',
+    baseURL: '[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)',
     defaultHeaders: {
-        'HTTP-Referer': 'https://edu-cendekia.my.id', 
+        'HTTP-Referer': '[https://edu-cendekia.my.id](https://edu-cendekia.my.id)', 
         'X-Title': 'Cendekia Aksara AI Mentor'
     }
 }) : null;
 
 // Konfigurasi Model Utama Sakelar
-const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions';
+const SAKELAR_URL = '[https://api.sakelar.web.id/v1/chat/completions](https://api.sakelar.web.id/v1/chat/completions)';
 const SAKELAR_DEFAULT_MODEL = 'claude-opus-5';
 
 // Model Groq
@@ -207,9 +207,7 @@ async function generateWithFallback(systemPrompt, userPrompt, temperature, isJso
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
                 ],
-                temperature: temperature,
-                // Pastikan jika model tidak mendukung JSON mode, abaikan response_format
-                // response_format: isJsonMode ? { type: "json_object" } : undefined
+                temperature: temperature
             });
             console.log("Groq API Berhasil!");
             return completion.choices[0]?.message?.content || "";
@@ -274,7 +272,6 @@ export default async function handler(req, res) {
                 const { prompt } = payload;
                 if (!prompt) return res.status(400).json({ error: 'Prompt tidak boleh kosong.' });
 
-                // Kita pakai model gpt-oss-120b seperti yang Anda minta sebelumnya
                 try {
                     const completion = await groq.chat.completions.create({
                         model: 'openai/gpt-oss-120b',
@@ -285,7 +282,7 @@ export default async function handler(req, res) {
                             },
                             { role: "user", content: prompt }
                         ],
-                        temperature: 0.8, // Sedikit tinggi agar topiknya lebih kreatif dan bervariasi
+                        temperature: 0.8, 
                     });
                     
                     let textResponse = completion.choices[0]?.message?.content || "";
@@ -299,7 +296,7 @@ export default async function handler(req, res) {
             }
 
             // ---------------------------------------------------------
-            // [A] KOREKSI UJIAN
+            // [B] KOREKSI UJIAN
             // ---------------------------------------------------------
             case 'grade-ujian': {
                 let { instruction, rubric, answer, studentName } = payload;
@@ -343,7 +340,7 @@ Ketentuan Feedback:
             }
 
             // ---------------------------------------------------------
-            // [B] KOREKSI PENUGASAN
+            // [C] KOREKSI PENUGASAN
             // ---------------------------------------------------------
             case 'grade-tugas': {
                 let { studentName, instruction, answer } = payload;
@@ -385,7 +382,7 @@ Ketentuan Feedback:
             }
 
             // ---------------------------------------------------------
-            // [C] EDIT ARTIKEL / KARYA TULIS
+            // [D] EDIT ARTIKEL / KARYA TULIS
             // ---------------------------------------------------------
             case 'edit-artikel': {
                 const { text, title, instruction } = payload;
@@ -405,7 +402,7 @@ Ketentuan Feedback:
             }
 
             // ---------------------------------------------------------
-            // [D] SELEKSI & PENYUNTINGAN KARYA EVENT
+            // [E] SELEKSI & PENYUNTINGAN KARYA EVENT
             // ---------------------------------------------------------
             case 'review-event-karya': {
                 let { studentName, title, content, eventTitle, eventType, eventDescription } = payload;
@@ -499,7 +496,7 @@ Ketentuan feedback:
             }
 
             // ---------------------------------------------------------
-            // [E] PENJURIAN / PERANKINGAN KARYA EVENT
+            // [F] PENJURIAN / PERANKINGAN KARYA EVENT
             // ---------------------------------------------------------
             case 'rank-karya-event': {
                 let { eventName, karya, total } = payload;
@@ -586,7 +583,7 @@ Ketentuan Output (SANGAT KETAT):
             }
 
             // ---------------------------------------------------------
-            // [F] EVALUASI PROGRES & FINAL NASKAH (STUDIO MENULIS)
+            // [G] EVALUASI PROGRES & FINAL NASKAH (STUDIO MENULIS)
             // ---------------------------------------------------------
             case 'evaluasi-naskah-studio': {
                 if (!newGenAI) return res.status(500).json({ error: 'SDK GoogleGenAI belum dikonfigurasi.' });
@@ -721,7 +718,7 @@ Skor Kerapian Bahasa PUEBI dan Teknis: [angka]/100
             }
 
             // ---------------------------------------------------------
-            // [G] REVIEW PROPOSAL / MENTOR 
+            // [H] REVIEW PROPOSAL / MENTOR 
             // ---------------------------------------------------------
             case 'review-proposal': {
                 if (!payload.judul || !payload.studentName) {
@@ -846,7 +843,7 @@ Ketentuan Review (SANGAT KETAT):
             }
 
             // ---------------------------------------------------------
-            // [H] GENERATE BUKU PANDUAN / GUIDEBOOK
+            // [I] GENERATE BUKU PANDUAN / GUIDEBOOK
             // ---------------------------------------------------------
             case 'generate-guidebook': {
                 const { judul_event, info_mentah } = payload;
@@ -902,6 +899,3 @@ FORMAT JSON YANG DIWAJIBKAN:
         });
     }
 }
-```Saya juga telah menyimpan draf *skill* **generate-calendar-topics** ke dalam penyimpanan agen untuk memastikan agar fungsi peracikan jadwal otomatis yang akan dieksekusi di masa depan mematuhi aturan JSON murni tanpa *markdown*. Anda kini memiliki dua fail yang harus di- *deploy*: satu HTML untuk interaksi admin (tampilan UI), dan satu di sisi Vercel (`api/central.js`) untuk menjembatani pembuatan kalender dengan Groq API.
-
-http://googleusercontent.com/action_card_content/1889a4d0-d74d-4b1b-b86d-6ca867b10018
