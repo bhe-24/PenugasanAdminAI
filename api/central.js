@@ -22,15 +22,15 @@ const newGenAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : 
 // Klien OpenRouter (CADANGAN TERAKHIR)
 const openrouter = OPENROUTER_API_KEY ? new OpenAI({
     apiKey: OPENROUTER_API_KEY,
-    baseURL: '[https://openrouter.ai/api/v1](https://openrouter.ai/api/v1)',
+    baseURL: 'https://openrouter.ai/api/v1',
     defaultHeaders: {
-        'HTTP-Referer': '[https://edu-cendekia.my.id](https://edu-cendekia.my.id)', 
+        'HTTP-Referer': 'https://edu-cendekia.my.id', 
         'X-Title': 'Cendekia Aksara AI Mentor'
     }
 }) : null;
 
 // Konfigurasi Model Utama Sakelar
-const SAKELAR_URL = '[https://api.sakelar.web.id/v1/chat/completions](https://api.sakelar.web.id/v1/chat/completions)';
+const SAKELAR_URL = 'https://api.sakelar.web.id/v1/chat/completions';
 const SAKELAR_DEFAULT_MODEL = 'claude-opus-5';
 
 // Model Groq
@@ -273,13 +273,19 @@ export default async function handler(req, res) {
                 if (!prompt) return res.status(400).json({ error: 'Prompt tidak boleh kosong.' });
 
                 try {
+                    const systemPrompt = `Kamu adalah asisten perancang event literasi yang super kreatif. 
+Tugasmu meracik topik menulis yang sangat puitis, kontekstual, dan mudah dipahami.
+Patuhi aturan ini dengan KETAT:
+1. Output WAJIB berupa JSON Array murni tanpa markdown \`\`\`json.
+2. Setiap item WAJIB memiliki 2 key: "judul" dan "deskripsi".
+3. "judul" harus puitis/estetik (misal: "Kelam Hujan", "Secangkir Kenangan").
+4. "deskripsi" WAJIB HANYA 1 KALIMAT yang merupakan prompt menulis langsung (misal: "Tuliskan pedihnya perpisahan dikala hujan turun dengan deras.").
+5. Jangan pernah mengulang tema yang sama.`;
+
                     const completion = await groq.chat.completions.create({
                         model: 'openai/gpt-oss-120b',
                         messages: [
-                            { 
-                                role: "system", 
-                                content: "Kamu adalah asisten perancang event literasi yang mematuhi format JSON secara ketat tanpa teks tambahan apa pun. Output wajib berupa array of objects." 
-                            },
+                            { role: "system", content: systemPrompt },
                             { role: "user", content: prompt }
                         ],
                         temperature: 0.8, 
@@ -738,7 +744,7 @@ Skor Kerapian Bahasa PUEBI dan Teknis: [angka]/100
                 }
 
                 const promptText = `
-Peran: Kamu adalah "Mentor Cendekia", Editor Akuisisi Novel yang KRITIS, TEGAS, dan GALAK -- tapi tetap profesional dan selalu memberi arahan yang jelas dan actionable, bukan cuma marah-marah tanpa solusi. Sesekali selipkan sindiran kecil kalau ada bagian yang jelas-jelas lemah atau klise, supaya penulis paham dan "kena", tapi jangan sampai merendahkan atau menyerang pribadi. Gunakan bahasa "Aku" dan "Kamu", gaul, tajam, to the point.
+Peran: Kamu adalah "Mentor Cendekia", Editor Akuisisi Novel yang KRITIS, TEGAS, dan GALAK -- tapi tetap profesional dan selalu memberi arahan yang jelas dan actionable, bukan cuma marah-marah tanpa solusi. Sesekali selipkan sindiran kecil kalau ada bagian yang jelas-jelas lemah atau klise, supaya penulis paham dan "kena", tapi jangan sampai merendahkan atau menyerang pribadi. Gunakan bahasa "Aku" dan "Kamu", gaul, tajam, to point.
 
 Tugas: Evaluasi proposal naskah "${payload.judul}" karya "${payload.studentName}".${konteksRevisi}
 
