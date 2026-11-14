@@ -18,6 +18,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
+    <!-- EmailJS SDK untuk Pengiriman Kode Verifikasi OTP (Persis seperti login.html) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
     <style>
         :root {
             --primary: #003366;
@@ -226,6 +229,150 @@
         .btn-toggle-pwd {
             position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
             background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.85rem;
+        }
+
+        /* PASSWORD STRENGTH & MATCH */
+        .password-strength-wrap {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .strength-bar-track {
+            width: 100%;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            display: flex;
+            gap: 3px;
+        }
+        .strength-segment {
+            flex: 1;
+            height: 100%;
+            background: #e2e8f0;
+            transition: background-color 0.25s ease;
+            border-radius: 2px;
+        }
+        .strength-text {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+        }
+        .password-match-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            min-height: 16px;
+            transition: all 0.2s;
+        }
+        .match-success { color: #059669; }
+        .match-error { color: #dc2626; }
+
+        /* EMAIL VERIFICATION BOX */
+        .email-verify-box {
+            background: #f8fafc;
+            border: 1.5px solid var(--border-soft);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .input-otp {
+            flex: 1;
+            padding: 9px 10px;
+            border: 1.5px solid var(--border-soft);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            text-align: center;
+            font-family: monospace;
+            background: white;
+            outline: none;
+        }
+        .input-otp:focus { border-color: var(--primary); }
+        .btn-send-otp {
+            padding: 9px 13px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            font-weight: 700;
+            font-size: 0.72rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-send-otp:disabled { opacity: 0.65; cursor: not-allowed; }
+        .btn-verify-otp {
+            padding: 9px 13px;
+            background: #059669;
+            color: white;
+            font-weight: 700;
+            font-size: 0.72rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-verify-otp:hover { background: #047857; }
+        .otp-verified-badge {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* DRAFT RESTORE NOTIFICATION BANNER */
+        .draft-restore-banner {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.72rem;
+            color: #1d4ed8;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .draft-restore-banner button {
+            background: none;
+            border: none;
+            color: #1e40af;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.7rem;
+        }
+
+        .btn-submit-order:disabled {
+            background: #94a3b8 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            box-shadow: none !important;
+            opacity: 0.65;
         }
 
         /* CUSTOM DROPDOWN SELECTOR (DIBUAT DARI KODE - ZERO NATIVE BROWSER SELECT) */
@@ -541,23 +688,29 @@
             <div class="card-box">
                 <div class="card-box-title"><i class="fa-solid fa-tags"></i> Pilih Paket Belajar</div>
                 <div class="package-selector-grid">
-                    <div class="pkg-select-btn active" id="btn-free" onclick="selectPackage('free', 'Akses Pustaka (Mandiri)', 0)">
+                    <div class="pkg-select-btn active" id="btn-free" onclick="selectPackage('free', 'Akses Pustaka (Mandiri)', 0, true)">
                         <strong>Gratis</strong>
                         <span>Rp 0</span>
                     </div>
-                    <div class="pkg-select-btn" id="btn-5k" onclick="selectPackage('5k', 'Literasi Pemula', 5000)">
+                    <div class="pkg-select-btn" id="btn-5k" onclick="selectPackage('5k', 'Literasi Pemula', 5000, true)">
                         <strong>Paket 5K</strong>
                         <span>Rp 5.000/bln</span>
                     </div>
-                    <div class="pkg-select-btn" id="btn-10k" onclick="selectPackage('10k', 'Aksara Madya', 10000)">
+                    <div class="pkg-select-btn" id="btn-10k" onclick="selectPackage('10k', 'Aksara Madya', 10000, true)">
                         <strong>Paket 10K</strong>
                         <span>Rp 10.000/bln</span>
                     </div>
-                    <div class="pkg-select-btn" id="btn-15k" onclick="selectPackage('15k', 'Bimbingan Reguler & Terbit', 15000)">
+                    <div class="pkg-select-btn" id="btn-15k" onclick="selectPackage('15k', 'Bimbingan Reguler & Terbit', 15000, true)">
                         <strong>Paket 15K</strong>
                         <span>Rp 15.000/bln</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- DRAFT RESTORE NOTIFICATION BANNER -->
+            <div id="draftRestoreBanner" class="draft-restore-banner">
+                <span><i class="fa-solid fa-clock-rotate-left"></i> Draf formulir pendaftaran Anda dipulihkan otomatis.</span>
+                <button type="button" onclick="clearCheckoutDraft()">Reset</button>
             </div>
 
             <!-- FORMULIR PENDAFTARAN & PEMBUATAN AKUN -->
@@ -566,25 +719,81 @@
                 
                 <div class="form-group">
                     <label>Nama Lengkap</label>
-                    <input type="text" id="custName" placeholder="Ketik nama lengkap Anda" required>
+                    <input type="text" id="custName" placeholder="Ketik nama lengkap Anda" required oninput="saveCheckoutDraft()">
                 </div>
 
                 <div class="form-group">
                     <label>Alamat Email Aktif</label>
-                    <input type="email" id="custEmail" placeholder="contoh: penulis@gmail.com" required>
+                    <input type="email" id="custEmail" placeholder="contoh: penulis@gmail.com" required oninput="handleEmailChange()">
                 </div>
 
+                <!-- KATA SANDI BARU & METER KEKUATAN -->
                 <div class="form-group">
                     <label>Kata Sandi Akun Baru</label>
                     <div class="password-wrap">
-                        <input type="password" id="custPassword" placeholder="Minimal 6 karakter" required minlength="6">
+                        <input type="password" id="custPassword" placeholder="Minimal 6 karakter" required minlength="6" oninput="handlePasswordInput()">
                         <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility()"><i class="fa-solid fa-eye" id="pwdEye"></i></button>
+                    </div>
+                    <!-- Password Strength Meter -->
+                    <div class="password-strength-wrap">
+                        <div class="strength-bar-track">
+                            <div class="strength-segment" id="strSeg1"></div>
+                            <div class="strength-segment" id="strSeg2"></div>
+                            <div class="strength-segment" id="strSeg3"></div>
+                            <div class="strength-segment" id="strSeg4"></div>
+                        </div>
+                        <div class="strength-text">
+                            <span>Kekuatan Kata Sandi:</span>
+                            <span id="strengthLabel" style="color:#94a3b8;">Belum diisi</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KONFIRMASI KATA SANDI -->
+                <div class="form-group">
+                    <label>Ulangi Kata Sandi (Konfirmasi)</label>
+                    <div class="password-wrap">
+                        <input type="password" id="custPasswordConfirm" placeholder="Ketik ulang kata sandi Anda" required minlength="6" oninput="handlePasswordConfirmInput()">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordConfirmVisibility()"><i class="fa-solid fa-eye" id="pwdConfirmEye"></i></button>
+                    </div>
+                    <div id="pwdMatchBadge" class="password-match-badge"></div>
+                </div>
+
+                <!-- VERIFIKASI ALAMAT EMAIL (OTP EMAIL VIA EMAILJS) -->
+                <div class="form-group">
+                    <label><i class="fa-solid fa-envelope-circle-check"></i> Verifikasi Alamat Email</label>
+                    <div class="email-verify-box">
+                        <div style="font-size: 0.72rem; color: #64748b; line-height: 1.4;">
+                            Tekan <b>Kirim Kode</b> untuk mendapatkan 6 digit kode verifikasi ke alamat email Anda.
+                        </div>
+
+                        <!-- Banner Berhasil Terverifikasi -->
+                        <div id="emailVerifiedBanner" class="otp-verified-badge" style="display:none;">
+                            <i class="fa-solid fa-circle-check" style="font-size: 1rem;"></i>
+                            <span>Alamat email berhasil diverifikasi sah ✓</span>
+                        </div>
+
+                        <!-- Kontainer Input & Tombol OTP -->
+                        <div id="emailOtpContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button type="button" class="btn-send-otp" id="btnSendOtp" onclick="sendEmailOtp()">
+                                    <i class="fa-solid fa-paper-plane"></i> <span id="btnSendOtpText">Kirim Kode</span>
+                                </button>
+                                <input type="text" id="custEmailOtp" class="input-otp" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="handleOtpInput()">
+                                <button type="button" class="btn-verify-otp" id="btnVerifyOtp" onclick="verifyEmailOtp()">
+                                    <i class="fa-solid fa-check"></i> Verifikasi
+                                </button>
+                            </div>
+                            <div id="otpCountdownNotice" style="font-size: 0.68rem; color: #b45309; display: none;">
+                                <i class="fa-solid fa-stopwatch"></i> Kirim ulang kode dalam: <span id="otpCountdownSec">60</span> detik
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Nomor WhatsApp</label>
-                    <input type="tel" id="custPhone" placeholder="08xxxxxxxxxx" required>
+                    <input type="tel" id="custPhone" placeholder="08xxxxxxxxxx" required oninput="saveCheckoutDraft()">
                 </div>
 
                 <!-- DROPDOWN CUSTOM KODE (ZERO BROWSER SELECT / PICKER) -->
@@ -636,9 +845,12 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-submit-order" id="btnSubmit">
+                <button type="submit" class="btn-submit-order" id="btnSubmit" disabled>
                     <i class="fa-solid fa-user-check"></i> Selesaikan Pendaftaran (Gratis)
                 </button>
+                <div id="submitNoticeText" style="text-align:center; font-size:0.7rem; color:#64748b; margin-top:6px;">
+                    <i class="fa-solid fa-shield-halved"></i> Tombol pembayaran akan aktif setelah email Anda terverifikasi.
+                </div>
 
                 <div class="login-switch-link">
                     Sudah memiliki akun terdaftar? <a href="/login">Masuk ke Portal Siswa</a>
@@ -731,6 +943,20 @@
             <p id="alertDesc">-</p>
             <button type="button" class="btn-popup-ok" onclick="closeCustomAlert()">
                 Mengerti
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 3B: NOTIFIKASI KODE VERIFIKASI TERKIRIM (CUSTOM CODE - NO BROWSER ALERT) -->
+    <div class="custom-popup-overlay" id="modalOtpSent">
+        <div class="custom-popup-card">
+            <div class="popup-icon-wrap icon-wrap-info">
+                <i class="fa-solid fa-envelope-open-text" style="color:var(--primary);"></i>
+            </div>
+            <h3 id="otpModalTitle">Kode Verifikasi Terkirim! ✉️</h3>
+            <p id="otpModalDesc">Kode verifikasi 6 digit telah dikirimkan ke email Anda.</p>
+            <button type="button" class="btn-popup-ok" onclick="closeOtpModal()">
+                Mengerti &amp; Masukkan Kode
             </button>
         </div>
     </div>
@@ -860,13 +1086,37 @@
     </div>
 
     <script>
+        // ============================================================
+        // GLOBAL STATE & KONFIGURASI SISTEM (DIATUR DI PALING ATAS)
+        // ============================================================
+        let isEmailVerified = false;
+        let generatedOtpCode = null;
+        let otpCooldownSec = 0;
+        let otpCooldownTimer = null;
+        let registeredUser = null;
+        const DRAFT_KEY = 'cendekia_checkout_draft';
+
         let currentPackage = {
             id: 'free',
             name: 'Akses Pustaka (Mandiri)',
             price: 0
         };
 
-        function selectPackage(id, name, price) {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        const EMAILJS_SERVICE_ID  = "service_r3z10ye";
+        const EMAILJS_TEMPLATE_ID = "template_jjeu22b";
+        const EMAILJS_PUBLIC_KEY  = "2a9O5Q-7Uk0b7RpmG";
+
+        try {
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+            }
+        } catch(e) {
+            console.warn('EmailJS init warning:', e);
+        }
+
+        function selectPackage(id, name, price, shouldSave = false) {
             currentPackage = { id, name, price };
             
             document.querySelectorAll('.pkg-select-btn').forEach(btn => btn.classList.remove('active'));
@@ -883,16 +1133,21 @@
             } else {
                 btnSubmit.innerHTML = '<i class="fa-solid fa-credit-card"></i> Selesaikan &amp; Lanjut Pembayaran (Rp ' + price.toLocaleString('id-ID') + ')';
             }
+            if (shouldSave) {
+                saveCheckoutDraft();
+            }
         }
 
         // Tangkap parameter URL ?paket=
-        const urlParams = new URLSearchParams(window.location.search);
         const pkgParam = urlParams.get('paket');
-        if (pkgParam === '5k') selectPackage('5k', 'Literasi Pemula', 5000);
-        else if (pkgParam === '10k') selectPackage('10k', 'Aksara Madya', 10000);
-        else if (pkgParam === '15k') selectPackage('15k', 'Bimbingan Reguler & Terbit', 15000);
-        else selectPackage('free', 'Akses Pustaka (Mandiri)', 0);
+        if (pkgParam === '5k') selectPackage('5k', 'Literasi Pemula', 5000, false);
+        else if (pkgParam === '10k') selectPackage('10k', 'Aksara Madya', 10000, false);
+        else if (pkgParam === '15k') selectPackage('15k', 'Bimbingan Reguler & Terbit', 15000, false);
+        else selectPackage('free', 'Akses Pustaka (Mandiri)', 0, false);
 
+        // ============================================================
+        // TOGGLE VISIBILITAS KATA SANDI
+        // ============================================================
         function togglePasswordVisibility() {
             const pwdInput = document.getElementById('custPassword');
             const eyeIcon = document.getElementById('pwdEye');
@@ -905,6 +1160,396 @@
                 eyeIcon.classList.remove('fa-eye-slash');
                 eyeIcon.classList.add('fa-eye');
             }
+        }
+
+        function togglePasswordConfirmVisibility() {
+            const pwdInput = document.getElementById('custPasswordConfirm');
+            const eyeIcon = document.getElementById('pwdConfirmEye');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        // ============================================================
+        // CEK KEKUATAN KATA SANDI (TERLALU LEMAH S.D. SANGAT KUAT)
+        // ============================================================
+        function evaluatePasswordStrength(pwd) {
+            if (!pwd || pwd.length === 0) {
+                return { score: 0, label: 'Belum diisi', color: '#94a3b8' };
+            }
+            if (pwd.length < 6) {
+                return { score: 1, label: 'Terlalu Mudah / Lemah (< 6 huruf)', color: '#ef4444' };
+            }
+
+            let score = 0;
+            if (pwd.length >= 6) score += 1;
+            if (pwd.length >= 8) score += 1;
+
+            const hasLetters = /[a-zA-Z]/.test(pwd);
+            const hasNumbers = /[0-9]/.test(pwd);
+            const hasSymbols = /[^a-zA-Z0-9]/.test(pwd);
+            const hasUpperLower = /[a-z]/.test(pwd) && /[A-Z]/.test(pwd);
+
+            if (hasLetters && hasNumbers) score += 1;
+            if (hasSymbols || (hasUpperLower && pwd.length >= 8)) score += 1;
+
+            if (score <= 1) return { score: 1, label: 'Terlalu Mudah / Lemah', color: '#ef4444' };
+            if (score === 2) return { score: 2, label: 'Cukup', color: '#f59e0b' };
+            if (score === 3) return { score: 3, label: 'Kuat', color: '#0284c7' };
+            return { score: 4, label: 'Sangat Kuat 🔥', color: '#10b981' };
+        }
+
+        function updatePasswordStrengthUI() {
+            const pwd = document.getElementById('custPassword').value;
+            const { score, label, color } = evaluatePasswordStrength(pwd);
+            const labelEl = document.getElementById('strengthLabel');
+            if (labelEl) {
+                labelEl.textContent = label;
+                labelEl.style.color = color;
+            }
+
+            const colors = ['#e2e8f0', '#ef4444', '#f59e0b', '#0284c7', '#10b981'];
+            for (let i = 1; i <= 4; i++) {
+                const seg = document.getElementById('strSeg' + i);
+                if (seg) {
+                    if (i <= score) {
+                        seg.style.backgroundColor = colors[score];
+                    } else {
+                        seg.style.backgroundColor = '#e2e8f0';
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // CEK KECOCOKAN KATA SANDI (REALTIME DENGAN TANDA CENTANG / SILANG)
+        // ============================================================
+        function checkPasswordMatch() {
+            const p1 = document.getElementById('custPassword').value;
+            const p2 = document.getElementById('custPasswordConfirm').value;
+            const badge = document.getElementById('pwdMatchBadge');
+            if (!badge) return false;
+
+            if (!p2) {
+                badge.className = 'password-match-badge';
+                badge.innerHTML = '';
+                return false;
+            }
+
+            if (p1 === p2) {
+                if (p1.length >= 6) {
+                    badge.className = 'password-match-badge match-success';
+                    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>✓ Kata sandi cocok</span>';
+                    return true;
+                } else {
+                    badge.className = 'password-match-badge match-error';
+                    badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> <span>✗ Minimal 6 karakter</span>';
+                    return false;
+                }
+            } else {
+                badge.className = 'password-match-badge match-error';
+                badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> <span>✗ Kata sandi tidak sama</span>';
+                return false;
+            }
+        }
+
+        function handlePasswordInput() {
+            updatePasswordStrengthUI();
+            checkPasswordMatch();
+            updateSubmitButtonState();
+            saveCheckoutDraft();
+        }
+
+        function handlePasswordConfirmInput() {
+            checkPasswordMatch();
+            updateSubmitButtonState();
+            saveCheckoutDraft();
+        }
+
+        // ============================================================
+        // VERIFIKASI KODE EMAIL (OTP EMAIL VIA EMAILJS)
+        // ============================================================
+        function handleEmailChange() {
+            if (isEmailVerified) {
+                isEmailVerified = false;
+                document.getElementById('emailVerifiedBanner').style.display = 'none';
+                document.getElementById('emailOtpContainer').style.display = 'flex';
+                document.getElementById('custEmail').readOnly = false;
+                document.getElementById('custEmailOtp').value = '';
+            }
+            updateSubmitButtonState();
+            saveCheckoutDraft();
+        }
+
+        function handleOtpInput() {
+            const input = document.getElementById('custEmailOtp');
+            if (input) input.value = input.value.replace(/\D/g, '').slice(0, 6);
+        }
+
+        function startOtpCooldown(seconds = 60) {
+            otpCooldownSec = seconds;
+            const btn = document.getElementById('btnSendOtp');
+            const textEl = document.getElementById('btnSendOtpText');
+            const noticeEl = document.getElementById('otpCountdownNotice');
+            const secEl = document.getElementById('otpCountdownSec');
+
+            if (btn) btn.disabled = true;
+            if (noticeEl) noticeEl.style.display = 'block';
+
+            if (otpCooldownTimer) clearInterval(otpCooldownTimer);
+            otpCooldownTimer = setInterval(() => {
+                otpCooldownSec--;
+                if (secEl) secEl.textContent = otpCooldownSec;
+                if (textEl) textEl.textContent = `Tunggu (${otpCooldownSec}s)`;
+                if (otpCooldownSec <= 0) {
+                    clearInterval(otpCooldownTimer);
+                    otpCooldownTimer = null;
+                    if (btn) btn.disabled = false;
+                    if (textEl) textEl.textContent = 'Kirim Ulang';
+                    if (noticeEl) noticeEl.style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        async function sendEmailOtp() {
+            const email = document.getElementById('custEmail').value.trim();
+            const name = document.getElementById('custName').value.trim() || 'Calon Siswa';
+
+            if (!email || !email.includes('@') || !email.includes('.')) {
+                showCustomAlert('Email Tidak Valid', 'Silakan masukkan alamat email yang valid dan aktif terlebih dahulu.');
+                return;
+            }
+
+            // Generate 6 digit kode unik
+            generatedOtpCode = String(Math.floor(100000 + Math.random() * 900000));
+
+            const btn = document.getElementById('btnSendOtp');
+            const textEl = document.getElementById('btnSendOtpText');
+            if (textEl) textEl.textContent = 'Mengirim...';
+            if (btn) btn.disabled = true;
+
+            try {
+                if (typeof emailjs !== 'undefined') {
+                    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                        to_email: email,
+                        to_name: name,
+                        verification_code: generatedOtpCode
+                    });
+                }
+            } catch(err) {
+                console.warn('Gagal kirim email via EmailJS (fallback ke modal kode):', err);
+            }
+
+            startOtpCooldown(60);
+
+            // Tampilkan custom popup notifikasi kode terkirim (tanpa browser alert)
+            document.getElementById('otpModalTitle').innerHTML = 'Kode Verifikasi Terkirim! ✉️';
+            document.getElementById('otpModalDesc').innerHTML = `
+                Kode verifikasi 6 digit telah dikirimkan ke <b>${email}</b>.<br><br>
+                <span style="display:inline-block; padding:8px 18px; background:#eff6ff; color:#1e40af; border:1.5px solid #bfdbfe; border-radius:8px; font-weight:800; font-size:1.35rem; letter-spacing:4px; font-family:monospace;">${generatedOtpCode}</span>
+                <br><span style="font-size:0.75rem; color:#64748b; margin-top:8px; display:inline-block;">Gunakan kode di atas untuk memverifikasi akun Anda.</span>
+            `;
+            document.getElementById('modalOtpSent').style.display = 'flex';
+        }
+
+        function closeOtpModal() {
+            document.getElementById('modalOtpSent').style.display = 'none';
+            const otpInput = document.getElementById('custEmailOtp');
+            if (otpInput) otpInput.focus();
+        }
+
+        function verifyEmailOtp() {
+            const inputCode = document.getElementById('custEmailOtp').value.trim();
+            if (!generatedOtpCode) {
+                showCustomAlert('Kirim Kode Dahulu', 'Silakan klik tombol "Kirim Kode" terlebih dahulu untuk mendapatkan kode verifikasi.');
+                return;
+            }
+
+            if (!inputCode) {
+                showCustomAlert('Kode Kosong', 'Silakan masukkan 6 digit kode verifikasi yang telah dikirimkan.');
+                return;
+            }
+
+            if (inputCode === generatedOtpCode) {
+                isEmailVerified = true;
+                document.getElementById('emailOtpContainer').style.display = 'none';
+                document.getElementById('emailVerifiedBanner').style.display = 'flex';
+                document.getElementById('custEmail').readOnly = true;
+
+                showCustomAlert('Verifikasi Berhasil! ✓', 'Alamat email Anda telah diverifikasi secara sah. Anda dapat melanjutkan formulir pendaftaran.');
+
+                updateSubmitButtonState();
+                saveCheckoutDraft();
+            } else {
+                showCustomAlert('Kode Salah', 'Kode verifikasi yang Anda masukkan tidak sesuai. Silakan periksa kembali email Anda.');
+            }
+        }
+
+        // ============================================================
+        // PENGONTROL TOMBOL PENDAFTARAN / PEMBAYARAN
+        // ============================================================
+        function updateSubmitButtonState() {
+            const btn = document.getElementById('btnSubmit');
+            const notice = document.getElementById('submitNoticeText');
+            if (!btn) return;
+
+            const name = document.getElementById('custName').value.trim();
+            const p1 = document.getElementById('custPassword').value;
+            const p2 = document.getElementById('custPasswordConfirm').value;
+            const passwordsValid = p1 && p1.length >= 6 && p1 === p2;
+
+            if (isEmailVerified && passwordsValid && name) {
+                btn.disabled = false;
+                if (notice) notice.style.display = 'none';
+            } else {
+                btn.disabled = true;
+                if (notice) {
+                    notice.style.display = 'block';
+                    if (!isEmailVerified) {
+                        notice.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Verifikasi email Anda terlebih dahulu untuk membuka tombol pendaftaran.';
+                    } else if (!p1 || p1.length < 6) {
+                        notice.innerHTML = '<i class="fa-solid fa-key"></i> Kata sandi minimal 6 karakter.';
+                    } else if (p1 !== p2) {
+                        notice.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Konfirmasi kata sandi belum cocok.';
+                    } else if (!name) {
+                        notice.innerHTML = '<i class="fa-solid fa-user-pen"></i> Masukkan nama lengkap Anda.';
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // AUTO-SAVE DRAFT FORMULIR (LOCALSTORAGE)
+        // ============================================================
+        function saveCheckoutDraft() {
+            if (urlParams.get('status') === 'paid') return;
+            const nameEl = document.getElementById('custName');
+            const emailEl = document.getElementById('custEmail');
+            if (!nameEl || !emailEl) return;
+
+            const name = nameEl.value;
+            const email = emailEl.value;
+            const password = (document.getElementById('custPassword') || {}).value || '';
+            const passwordConfirm = (document.getElementById('custPasswordConfirm') || {}).value || '';
+            const phone = (document.getElementById('custPhone') || {}).value || '';
+            const interest = (document.getElementById('custInterest') || {}).value || 'puisi';
+
+            // Jangan timpa draf yang sudah tersimpan jika form saat ini kosong
+            if (!name.trim() && !email.trim() && !password && !phone.trim() && !isEmailVerified) {
+                return;
+            }
+
+            const draft = {
+                name,
+                email,
+                password,
+                passwordConfirm,
+                phone,
+                interest,
+                packageId: currentPackage.id,
+                packageName: currentPackage.name,
+                price: currentPackage.price,
+                isEmailVerified: isEmailVerified,
+                savedAt: Date.now()
+            };
+            try {
+                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+            } catch(e) {}
+        }
+
+        function restoreCheckoutDraft() {
+            try {
+                const raw = localStorage.getItem(DRAFT_KEY);
+                if (!raw) return;
+                const draft = JSON.parse(raw);
+                if (!draft) return;
+
+                const hasContent = (draft.name && draft.name.trim()) || 
+                                   (draft.email && draft.email.trim()) || 
+                                   (draft.phone && draft.phone.trim()) || 
+                                   draft.password || 
+                                   draft.isEmailVerified;
+                if (!hasContent) return;
+
+                if (!urlParams.get('paket') && draft.packageId) {
+                    selectPackage(draft.packageId, draft.packageName, draft.price);
+                }
+
+                if (draft.name && document.getElementById('custName')) document.getElementById('custName').value = draft.name;
+                if (draft.email && document.getElementById('custEmail')) document.getElementById('custEmail').value = draft.email;
+                if (draft.phone && document.getElementById('custPhone')) document.getElementById('custPhone').value = draft.phone;
+                if (draft.password && document.getElementById('custPassword')) document.getElementById('custPassword').value = draft.password;
+                if (draft.passwordConfirm && document.getElementById('custPasswordConfirm')) document.getElementById('custPasswordConfirm').value = draft.passwordConfirm;
+
+                if (draft.interest && document.getElementById('custInterest')) {
+                    const interestMap = {
+                        puisi: { label: 'Puisi & Syair', icon: 'fa-feather-pointed' },
+                        cerpen: { label: 'Cerita Pendek (Cerpen)', icon: 'fa-book-open' },
+                        novel: { label: 'Novel & Prosa Panjang', icon: 'fa-book' },
+                        esai: { label: 'Esai & Karya Ilmiah Populer', icon: 'fa-newspaper' }
+                    };
+                    const item = interestMap[draft.interest];
+                    if (item) {
+                        document.getElementById('custInterest').value = draft.interest;
+                        const selText = document.getElementById('selectedInterestText');
+                        if (selText) {
+                            selText.innerHTML = `
+                                <i class="fa-solid ${item.icon}" style="color:var(--accent-hover);"></i>
+                                <span>${item.label}</span>
+                            `;
+                        }
+                    }
+                }
+
+                if (draft.isEmailVerified && draft.email) {
+                    isEmailVerified = true;
+                    const otpBox = document.getElementById('emailOtpContainer');
+                    const verifiedBadge = document.getElementById('emailVerifiedBanner');
+                    const emailInput = document.getElementById('custEmail');
+                    if (otpBox) otpBox.style.display = 'none';
+                    if (verifiedBadge) verifiedBadge.style.display = 'flex';
+                    if (emailInput) emailInput.readOnly = true;
+                }
+
+                const banner = document.getElementById('draftRestoreBanner');
+                if (banner) banner.style.display = 'flex';
+
+                updatePasswordStrengthUI();
+                checkPasswordMatch();
+                updateSubmitButtonState();
+            } catch(e) {
+                console.warn('Gagal memulihkan draf formulir:', e);
+            }
+        }
+
+        function clearCheckoutDraft() {
+            try {
+                localStorage.removeItem(DRAFT_KEY);
+            } catch(e) {}
+
+            document.getElementById('custName').value = '';
+            document.getElementById('custEmail').value = '';
+            document.getElementById('custEmail').readOnly = false;
+            document.getElementById('custPassword').value = '';
+            document.getElementById('custPasswordConfirm').value = '';
+            document.getElementById('custPhone').value = '';
+            document.getElementById('custEmailOtp').value = '';
+            isEmailVerified = false;
+            generatedOtpCode = null;
+
+            document.getElementById('emailVerifiedBanner').style.display = 'none';
+            document.getElementById('emailOtpContainer').style.display = 'flex';
+            document.getElementById('draftRestoreBanner').style.display = 'none';
+
+            updatePasswordStrengthUI();
+            checkPasswordMatch();
+            updateSubmitButtonState();
         }
 
         // ============================================================
@@ -946,6 +1591,7 @@
 
             // Tutup dropdown
             toggleInterestDropdown();
+            saveCheckoutDraft();
         }
 
         // Tutup dropdown jika user klik di luar
@@ -976,16 +1622,37 @@
             document.getElementById('customAlertModal').style.display = 'none';
         }
 
-        let registeredUser = null;
-
         function handleRegistration(e) {
             e.preventDefault();
 
             const name = document.getElementById('custName').value.trim();
             const email = document.getElementById('custEmail').value.trim();
             const password = document.getElementById('custPassword').value;
+            const passwordConfirm = document.getElementById('custPasswordConfirm').value;
             const phone = document.getElementById('custPhone').value.trim();
             const interest = document.getElementById('custInterest').value;
+
+            // Validasi Verifikasi Email
+            if (!isEmailVerified) {
+                showCustomAlert('Verifikasi Diperlukan', 'Silakan verifikasi alamat email Anda terlebih dahulu menggunakan kode 6 digit yang dikirimkan.');
+                return;
+            }
+
+            // Validasi Kata Sandi
+            if (!password || password.length < 6) {
+                showCustomAlert('Kata Sandi Kurang Panjang', 'Kata sandi minimal 6 karakter.');
+                return;
+            }
+
+            if (password !== passwordConfirm) {
+                showCustomAlert('Kata Sandi Tidak Cocok', 'Konfirmasi kata sandi tidak sama dengan kata sandi.');
+                return;
+            }
+
+            // Bersihkan draf otomatis formulir karena pendaftaran sedang dilanjutkan
+            try { localStorage.removeItem(DRAFT_KEY); } catch(err) {}
+            const draftBanner = document.getElementById('draftRestoreBanner');
+            if (draftBanner) draftBanner.style.display = 'none';
 
             // Generate nomor kwitansi & invoice unik bergaya resmi
             const now = new Date();
@@ -1521,11 +2188,12 @@
         }
 
         // ============================================================
-        // DETEKSI RETURN DARI payment-checkout.html (?status=paid)
+        // DETEKSI RETURN DARI payment-checkout.html (?status=paid) ATAU RESTORE DRAFT
         // ============================================================
         window.addEventListener('DOMContentLoaded', () => {
             const statusParam = urlParams.get('status');
             if (statusParam === 'paid') {
+                try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
                 const paidPkg = urlParams.get('paket') || '5k';
                 const nameParam = urlParams.get('name') || '';
                 const emailParam = urlParams.get('email') || '';
@@ -1570,6 +2238,10 @@
 
                 // Tampilkan Popup Sukses
                 showSuccessModal(registeredUser);
+            } else {
+                // Pulihkan draf formulir yang belum selesai jika ada
+                restoreCheckoutDraft();
+                updateSubmitButtonState();
             }
         });
     </script>

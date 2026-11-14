@@ -280,13 +280,7 @@
         }
         .btn-action-primary:active { transform: scale(0.98); }
 
-        .btn-simulate-success {
-            width: 100%; padding: 11px; border-radius: var(--radius-full);
-            background: #10b981; color: white; font-weight: 700; font-size: 0.78rem;
-            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-            gap: 6px; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
-        }
-        .btn-simulate-success:active { transform: scale(0.98); }
+
 
         .link-cancel {
             text-align: center; margin-top: 10px; font-size: 0.72rem;
@@ -473,10 +467,6 @@
 
                 <button type="button" class="btn-action-primary" onclick="checkPaymentStatusManual()">
                     <i class="fa-solid fa-rotate"></i> Cek Status Pembayaran
-                </button>
-
-                <button type="button" class="btn-simulate-success" onclick="simulatePaymentSuccess()">
-                    <i class="fa-solid fa-bolt"></i> Simulasi Bayar Berhasil (Instant Verifikasi)
                 </button>
 
                 <div class="link-cancel">
@@ -694,15 +684,45 @@
             }, 10000);
         }
 
-        function checkPaymentStatusManual() {
+        async function checkPaymentStatusManual() {
             if (isPaymentDone) {
                 handleSuccessVerification();
                 return;
             }
 
-            // Modal info custom (bukan browser alert)
+            const btnCheck = document.querySelector('.btn-action-primary');
+            const origHtml = btnCheck ? btnCheck.innerHTML : '';
+            if (btnCheck) {
+                btnCheck.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Memeriksa Gateway...';
+                btnCheck.disabled = true;
+            }
+
+            try {
+                const r = await fetch('/api/qris?action=check-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: invoiceNo })
+                });
+                if (r.ok) {
+                    const d = await r.json();
+                    if (d.paid) {
+                        if (btnCheck) { btnCheck.innerHTML = origHtml; btnCheck.disabled = false; }
+                        handleSuccessVerification();
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.warn('Manual check error:', e);
+            }
+
+            if (btnCheck) {
+                btnCheck.innerHTML = origHtml;
+                btnCheck.disabled = false;
+            }
+
+            // Modal info mutasi belum terdeteksi (tanpa simulasi)
             document.getElementById('infoTitle').textContent = 'Pengecekan Gateway QRIS';
-            document.getElementById('infoMsg').textContent = 'Sistem sedang mencocokkan mutasi QRIS sebesar Rp ' + totalAmount.toLocaleString('id-ID') + ' (termasuk kode unik: ' + uniqueCode + ') dari bank/e-wallet Anda. Jika baru saja transfer, mohon tunggu beberapa detik atau gunakan tombol Simulasi di bawah.';
+            document.getElementById('infoMsg').textContent = 'Sistem belum mendeteksi mutasi masuk untuk nominal tepat Rp ' + totalAmount.toLocaleString('id-ID') + ' (Kode Unik: ' + uniqueCode + '). Pastikan Anda telah menyelesaikan pembayaran pada aplikasi perbankan atau e-wallet Anda.';
             document.getElementById('modalCustomInfo').style.display = 'flex';
         }
 
@@ -742,16 +762,13 @@
             localStorage.setItem('user_status', 'registered');
             localStorage.setItem('user_package', packageId);
             localStorage.setItem('checkout_payment_status', 'paid');
+            localStorage.removeItem('cendekia_checkout_draft');
 
             // Tampilkan custom success modal
             document.getElementById('successMsg').innerHTML = `
                 Pembayaran sebesar <b>Rp ${totalAmount.toLocaleString('id-ID')}</b> (Kode Unik: <b>${uniqueCode}</b>) untuk <b>${packageName}</b> telah berhasil diverifikasi otomatis oleh QRIS Gateway.<br><br>Kuitansi pembayaran resmi telah diterbitkan.
             `;
             document.getElementById('modalPaymentSuccess').style.display = 'flex';
-        }
-
-        function simulatePaymentSuccess() {
-            handleSuccessVerification();
         }
 
         function proceedToReceipt() {
