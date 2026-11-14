@@ -31,6 +31,11 @@ const CendekiaApp = (function () {
         role: 'siswa',
         semester: 1,
         tier: 'Member Free',
+        photoURL: '',
+        noHp: '',
+        tanggalLahir: '',
+        alamat: '',
+        bioSingkat: '',
         xp: 45,
         level: 1,
         levelTitle: 'Penulis Pemula 🌱',
@@ -76,6 +81,11 @@ const CendekiaApp = (function () {
                     defaultUser.name = l.name || defaultUser.name;
                     defaultUser.email = l.email || defaultUser.email;
                     defaultUser.semester = parseInt(l.semester) || defaultUser.semester;
+                    defaultUser.photoURL = l.photoURL || defaultUser.photoURL;
+                    defaultUser.noHp = l.noHp || defaultUser.noHp;
+                    defaultUser.tanggalLahir = l.tanggalLahir || defaultUser.tanggalLahir;
+                    defaultUser.alamat = l.alamat || defaultUser.alamat;
+                    defaultUser.bioSingkat = l.bioSingkat || defaultUser.bioSingkat;
                 }
             } catch (e) {}
             user = defaultUser;
@@ -482,6 +492,18 @@ const CendekiaApp = (function () {
         // Streak
         const streakEls = document.querySelectorAll('[data-bind="userStreak"]');
         streakEls.forEach(el => el.textContent = user.streak);
+
+        // Photo / Avatar
+        const photoEls = document.querySelectorAll('[data-bind="userPhoto"]');
+        photoEls.forEach(img => {
+            const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Siswa')}&background=003366&color=fff&size=200`;
+            img.src = avatarUrl;
+            img.style.display = 'block';
+            if (img.parentElement) {
+                const icon = img.parentElement.querySelector('.default-avatar-icon');
+                if (icon) icon.style.display = 'none';
+            }
+        });
     }
 
     // 11. INIT ENGINE
