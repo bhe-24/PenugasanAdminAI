@@ -240,6 +240,25 @@
                 <p>Jelajahi karya sastra inspiratif dan tingkatkan wawasan literasi mandirimu kapan saja tanpa batas.</p>
             </div>
 
+            <!-- KARTU RUANG KELAS & DASHBOARD TERHUBUNG SESUAI SEMESTER -->
+            <div class="class-portal-card" id="classPortalCard" style="background: linear-gradient(135deg, #002b53 0%, #001830 100%); border-radius: var(--radius-md); padding: 16px 18px; color: white; border: 1.5px solid var(--accent); box-shadow: 0 4px 16px rgba(0, 51, 102, 0.15); display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(212, 175, 55, 0.15); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--accent); flex-shrink: 0;">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.65rem; font-weight: 700; color: var(--accent); margin-bottom: 3px;" id="classBadge">
+                            <i class="fa-solid fa-graduation-cap"></i> <span id="classBadgeText">Siswa Semester 1</span>
+                        </div>
+                        <h3 style="font-size: 0.95rem; font-weight: 800; margin: 0; color: white;" id="classTitle">Ruang Kelas &amp; Presensi</h3>
+                        <p style="font-size: 0.7rem; color: #cbd5e1; margin: 2px 0 0 0;" id="classDesc">Akses ruang kelas interaktif &amp; presensi harian.</p>
+                    </div>
+                </div>
+                <a href="/dashboard/index.html" id="btnEnterClass" style="background: var(--accent); color: #001f3f; padding: 8px 14px; border-radius: var(--radius-full); font-size: 0.74rem; font-weight: 800; text-decoration: none; display: flex; align-items: center; gap: 5px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);">
+                    <span>Masuk</span> <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+
             <!-- MENU BELAJAR MANDIRI GRATIS (MENGARAH KE HALAMAN INTERNAL mem-free/) -->
             <section>
                 <div class="section-title">Modul Mandiri & Referensi</div>
@@ -321,9 +340,13 @@
                 <i class="fa-solid fa-compass"></i>
                 <span>Panduan</span>
             </a>
-            <a href="/mem-free/profil.html" class="nav-item">
+            <a href="/dashboard/index.html" id="navClassItem" class="nav-item">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <span>Kelas</span>
+            </a>
+            <a href="/mem-free/profil.html" class="nav-item" id="navProfileItem">
                 <i class="fa-solid fa-user"></i>
-                <span>Akun</span>
+                <span>Profil</span>
             </a>
         </nav>
 
@@ -351,17 +374,6 @@
             history.pushState(null, null, location.href);
         };
 
-        // Muat nama user jika ada di sesi
-        try {
-            const rawUser = localStorage.getItem('cendekia_user');
-            if (rawUser) {
-                const u = JSON.parse(rawUser);
-                if (u && u.name) {
-                    document.getElementById('userGreeting').innerHTML = `Halo, ${u.name}! 📖`;
-                }
-            }
-        } catch(e) {}
-
         function showLogoutModal() {
             document.getElementById('modalLogout').style.display = 'flex';
         }
@@ -373,10 +385,87 @@
         function executeLogout() {
             localStorage.removeItem('cendekia_user');
             localStorage.removeItem('user_status');
+            localStorage.removeItem('user_semester');
             localStorage.removeItem('user_package');
             localStorage.removeItem('checkout_payment_status');
             window.location.replace('/home/');
         }
+
+        // FUNGSI PENYESUAIAN RUANG KELAS & DASHBOARD SESUAI SEMESTER SISWA
+        function syncStudentSemester(sem, name) {
+            const semesterNum = parseInt(sem) || 1;
+            const isSemester3Plus = semesterNum >= 3;
+            const targetUrl = isSemester3Plus ? '/dashboard/inkubasi.html' : '/dashboard/index.html';
+
+            // Update Link Navigasi Bawah "Kelas"
+            const navClass = document.getElementById('navClassItem');
+            if (navClass) {
+                navClass.href = targetUrl;
+            }
+
+            // Update Kartu Portal Kelas di Halaman Utama
+            const btnEnter = document.getElementById('btnEnterClass');
+            const classBadgeText = document.getElementById('classBadgeText');
+            const classTitle = document.getElementById('classTitle');
+            const classDesc = document.getElementById('classDesc');
+
+            if (btnEnter) btnEnter.href = targetUrl;
+
+            if (isSemester3Plus) {
+                if (classBadgeText) classBadgeText.innerHTML = `<i class="fa-solid fa-feather-pointed"></i> Penulis Semester ${semesterNum}`;
+                if (classTitle) classTitle.textContent = "Studio Inkubasi Naskah";
+                if (classDesc) classDesc.textContent = "Akses target kata, bab naskah buku, dan kurasi terbit.";
+            } else {
+                if (classBadgeText) classBadgeText.innerHTML = `<i class="fa-solid fa-graduation-cap"></i> Siswa Semester ${semesterNum}`;
+                if (classTitle) classTitle.textContent = "Ruang Kelas & Presensi";
+                if (classDesc) classDesc.textContent = "Akses materi kelas interaktif, tugas, & presensi harian.";
+            }
+
+            if (name) {
+                const greetingEl = document.getElementById('userGreeting');
+                if (greetingEl) greetingEl.innerHTML = `Selamat Datang, ${name}! 📖`;
+            }
+        }
+
+        // 1. Eksekusi cepat dari LocalStorage saat halaman dimuat
+        try {
+            const rawUser = localStorage.getItem('cendekia_user');
+            let savedSem = localStorage.getItem('user_semester') || 1;
+            let savedName = '';
+            if (rawUser) {
+                const u = JSON.parse(rawUser);
+                if (u.name) savedName = u.name;
+                if (u.semester) savedSem = u.semester;
+            }
+            syncStudentSemester(savedSem, savedName);
+        } catch(e) {
+            syncStudentSemester(1, '');
+        }
+    </script>
+
+    <!-- SINKRONISASI REALTIME DENGAN FIREBASE JIKA PENGGUNA TERHUBUNG -->
+    <script type="module">
+        import { auth, db } from "/js/firebase-config.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const snap = await getDoc(doc(db, "users", user.uid));
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        const semester = parseInt(data.semester) || 1;
+                        const name = data.name || user.displayName || 'Siswa Cendekia';
+                        
+                        localStorage.setItem('user_semester', semester);
+                        syncStudentSemester(semester, name);
+                    }
+                } catch(err) {
+                    console.warn("Gagal menyinkronkan status semester dari Firestore:", err);
+                }
+            }
+        });
     </script>
 
 </body>

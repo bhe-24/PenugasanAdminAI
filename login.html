@@ -581,38 +581,12 @@
                             <a class="forgot-link" id="to-forgot">Lupa kata sandi?</a>
                             <button type="submit" class="btn"><i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem</button>
                         </form>
-                        <p class="toggle-auth" id="to-register">Belum menjadi anggota? <b>Daftar Sekarang</b></p>
-                    </div>
-                    
-                    <!-- 2. FORM REGISTER -->
-                    <div id="register-form-container" class="hidden">
-                        <div class="form-brand-header">
-                            <div class="form-brand-icon">
-                                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia">
-                            </div>
-                            <h3>Daftar Anggota</h3>
-                            <p class="subtitle">Mulai perjalanan karyamu bersama Cendekia Aksara.</p>
+                        <div style="margin-top: 18px; text-align: center;">
+                            <a href="/checkout.html" class="toggle-auth" id="to-register" style="text-decoration: none; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+                                <span>Belum memiliki akun terdaftar?</span>
+                                <b style="color: var(--primary); text-decoration: underline;">Daftar Siswa Baru di Sini</b>
+                            </a>
                         </div>
-
-                        <form id="register-form">
-                            <div class="form-group">
-                                <label for="reg-name"><i class="fa-solid fa-user"></i> Nama Lengkap</label>
-                                <input type="text" id="reg-name" placeholder="Masukkan nama lengkap" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="reg-email"><i class="fa-solid fa-envelope"></i> Alamat Email</label>
-                                <input type="email" id="reg-email" placeholder="contoh: nama@email.com" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="reg-pass"><i class="fa-solid fa-lock"></i> Buat Kata Sandi</label>
-                                <div class="input-wrap">
-                                    <input type="password" id="reg-pass" placeholder="Minimal 6 karakter" required minlength="6">
-                                    <i class="fa-solid fa-eye toggle-password" onclick="togglePass('reg-pass', this)"></i>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-register"><i class="fa-solid fa-user-plus"></i> Daftar Akun Baru</button>
-                        </form>
-                        <p class="toggle-auth" id="to-login">Sudah memiliki akun? <b>Masuk Sistem</b></p>
                     </div>
 
                     <!-- 3. FORM VERIFIKASI KODE (via EmailJS) -->
@@ -845,10 +819,29 @@
 
         function routeUser(data, email) {
             const role = data.role || 'siswa';
-            const semester = parseInt(data.semester) || 1;
             if (role === 'admin' || email === ADMIN_EMAIL) return 'admin/index.html';
             if (role === 'pengajar' || email.endsWith('@ac.id')) return 'pengajar/index.html';
-            return semester >= 3 ? 'dashboard/inkubasi.html' : 'dashboard/index.html';
+            // Siswa / Anggota langsung diarahkan ke portal Ruang Belajar Mandiri (Member Free)
+            return 'mem-free/index.html';
+        }
+
+        function persistUserSession(user, data) {
+            try {
+                localStorage.setItem('cendekia_user', JSON.stringify({
+                    uid: user.uid,
+                    name: data.name || user.displayName || 'Siswa Cendekia',
+                    email: user.email,
+                    role: data.role || 'siswa',
+                    semester: parseInt(data.semester) || 1,
+                    ips: data.ips || 0,
+                    status: data.status || 'active',
+                    packageId: data.packageId || 'free',
+                    packageName: data.packageName || 'Akses Pustaka (Mandiri)'
+                }));
+                localStorage.setItem('user_status', 'registered');
+                localStorage.setItem('user_semester', data.semester || 1);
+                localStorage.setItem('user_package', data.packageId || 'free');
+            } catch(e) {}
         }
 
         function resolveInitialRole(email) {
@@ -866,26 +859,56 @@
         const forgotForm  = document.getElementById('forgot-form-container');
 
         function goToVerify(email) {
-            loginForm.classList.add('hidden');
-            regForm.classList.add('hidden');
-            forgotForm.classList.add('hidden');
-            verifyForm.classList.remove('hidden');
+            if (loginForm) loginForm.classList.add('hidden');
+            if (regForm) regForm.classList.add('hidden');
+            if (forgotForm) forgotForm.classList.add('hidden');
+            if (verifyForm) verifyForm.classList.remove('hidden');
             document.getElementById('verify-code').value = '';
             document.getElementById('verify-email-display').textContent = email || '';
         }
 
-        document.getElementById('to-register').onclick = () => { loginForm.classList.add('hidden'); verifyForm.classList.add('hidden'); regForm.classList.remove('hidden'); generateCaptcha(); };
-        document.getElementById('to-login').onclick    = () => { regForm.classList.add('hidden'); verifyForm.classList.add('hidden'); loginForm.classList.remove('hidden'); generateCaptcha(); };
-        document.getElementById('to-forgot').onclick   = () => { loginForm.classList.add('hidden'); verifyForm.classList.add('hidden'); forgotForm.classList.remove('hidden'); };
-        document.getElementById('back-to-login-from-forgot').onclick = () => { forgotForm.classList.add('hidden'); loginForm.classList.remove('hidden'); };
+        const toRegEl = document.getElementById('to-register');
+        if (toRegEl) {
+            toRegEl.onclick = (e) => {
+                e.preventDefault();
+                window.location.href = '/checkout.html';
+            };
+        }
+        const toLoginEl = document.getElementById('to-login');
+        if (toLoginEl) {
+            toLoginEl.onclick = () => {
+                if (regForm) regForm.classList.add('hidden');
+                if (verifyForm) verifyForm.classList.add('hidden');
+                if (loginForm) loginForm.classList.remove('hidden');
+                generateCaptcha();
+            };
+        }
+        const toForgotEl = document.getElementById('to-forgot');
+        if (toForgotEl) {
+            toForgotEl.onclick = () => {
+                if (loginForm) loginForm.classList.add('hidden');
+                if (verifyForm) verifyForm.classList.add('hidden');
+                if (forgotForm) forgotForm.classList.remove('hidden');
+            };
+        }
+        const backLoginForgot = document.getElementById('back-to-login-from-forgot');
+        if (backLoginForgot) {
+            backLoginForgot.onclick = () => {
+                if (forgotForm) forgotForm.classList.add('hidden');
+                if (loginForm) loginForm.classList.remove('hidden');
+            };
+        }
 
-        document.getElementById('back-to-login-from-verify').onclick = async () => {
-            isRegistering = false;
-            try { await signOut(auth); } catch (e) { /* abaikan */ }
-            verifyForm.classList.add('hidden');
-            loginForm.classList.remove('hidden');
-            generateCaptcha();
-        };
+        const backLoginVerify = document.getElementById('back-to-login-from-verify');
+        if (backLoginVerify) {
+            backLoginVerify.onclick = async () => {
+                isRegistering = false;
+                try { await signOut(auth); } catch (e) { /* abaikan */ }
+                if (verifyForm) verifyForm.classList.add('hidden');
+                if (loginForm) loginForm.classList.remove('hidden');
+                generateCaptcha();
+            };
+        }
 
 
         // ==========================================
@@ -921,11 +944,13 @@
                             await setDoc(doc(db, 'users', user.uid), { role: 'pengajar' }, { merge: true });
                             data.role = 'pengajar';
                         }
+                        persistUserSession(user, data);
                         window.location.href = routeUser(data, user.email);
                     } else {
                         const role = resolveInitialRole(user.email);
                         const newData = { name: user.displayName || 'Pengguna', email: user.email, role, semester: 1, ips: 0, status: 'active', emailVerified: true, createdAt: new Date().toISOString() };
                         await setDoc(doc(db, 'users', user.uid), newData);
+                        persistUserSession(user, newData);
                         window.location.href = routeUser(newData, user.email);
                     }
                 } catch (e) {
@@ -995,6 +1020,7 @@
                 showLoading('Memasuki Sistem...');
                 await ActivityLogger.logLogin(user.uid, data.name || 'User', user.email);
                 isLoggingIn = false;
+                persistUserSession(user, data);
                 window.location.href = routeUser(data, user.email);
 
             } catch (error) {
@@ -1011,77 +1037,15 @@
         };
 
         // ==========================================
-        // 2. REGISTER (KIRIM KODE VERIFIKASI VIA EMAILJS)
+        // 2. REGISTER (DIALIHKAN KE CHECKOUT.HTML)
         // ==========================================
-        document.getElementById('register-form').onsubmit = async (e) => {
-            e.preventDefault();
-            
-            const name  = document.getElementById('reg-name').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const pass  = document.getElementById('reg-pass').value;
-            
-            // BLOKIR PENDAFTARAN PUBLIK UNTUK EMAIL @AC.ID
-            if (email.endsWith('@ac.id')) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Akses Ditolak',
-                    text: 'Email dengan domain korporat (@ac.id) tidak dapat didaftarkan secara publik. Silakan hubungi Administrator.',
-                    confirmButtonColor: '#dc3545'
-                });
-                return;
-            }
-
-            showLoading('Mendaftarkan Identitas...');
-            isRegistering = true; // kunci onAuthStateChanged selama proses daftar + verifikasi
-            const role = resolveInitialRole(email);
-
-            try {
-                // 1. Buat Akun Firebase
-                const cred = await createUserWithEmailAndPassword(auth, email, pass);
-
-                // 2. Buat kode verifikasi 6 digit + masa berlaku 15 menit
-                const code = generateVerificationCode();
-                const expiry = getCodeExpiry(15);
-
-                // 3. Simpan Data + kode verifikasi ke Firestore
-                await setDoc(doc(db, 'users', cred.user.uid), {
-                    name, email, role,
-                    semester: 1, ips: 0, status: 'active',
-                    emailVerified: false,
-                    verificationCode: code,
-                    codeExpiry: expiry,
-                    createdAt: new Date().toISOString()
-                });
-
-                // 4. KIRIM KODE VERIFIKASI VIA EMAILJS
-                try {
-                    await sendVerificationEmail(email, name, code);
-                } catch (mailErr) {
-                    console.error('Gagal mengirim email verifikasi:', mailErr);
-                    // Tetap lanjut ke halaman verifikasi; user bisa pakai tombol "Kirim Ulang"
-                }
-
-                hideLoading();
-
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Satu Langkah Lagi!',
-                    html: `Kami telah mengirimkan kode verifikasi 6 digit ke email <b>${email}</b>.<br><br>Silakan masukkan kode tersebut di halaman berikutnya untuk mengaktifkan akun Anda.<br><br><span style="color:#dc3545; font-weight:bold;">TIPS:</span> Periksa folder <b>SPAM/JUNK</b> jika kode belum muncul di Kotak Masuk.`,
-                    confirmButtonColor: '#0f766e',
-                    confirmButtonText: 'Masukkan Kode'
-                }).then(() => {
-                    document.getElementById('register-form').reset();
-                    goToVerify(email);
-                });
-
-            } catch (err) {
-                isRegistering = false;
-                hideLoading();
-                let errorMsg = err.message;
-                if (err.code === 'auth/email-already-in-use') errorMsg = 'Email ini sudah terdaftar. Silakan masuk (login).';
-                Swal.fire({ icon: 'error', title: 'Gagal Mendaftar', text: errorMsg, confirmButtonColor: '#dc3545' });
-            }
-        };
+        const regFormElem = document.getElementById('register-form');
+        if (regFormElem) {
+            regFormElem.onsubmit = async (e) => {
+                e.preventDefault();
+                window.location.href = '/checkout.html';
+            };
+        }
 
         // ==========================================
         // 3. VERIFIKASI KODE
@@ -1146,6 +1110,7 @@
 
                 isRegistering = false;
                 hideLoading();
+                persistUserSession(user, data);
                 Swal.fire({
                     icon: 'success',
                     title: 'Verifikasi Berhasil!',
