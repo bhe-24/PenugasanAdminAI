@@ -58,28 +58,29 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 100vh;
-            overflow-x: hidden;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .mobile-app-wrapper {
             width: 100%;
             max-width: 430px;
-            min-height: 100vh;
+            height: 100vh;
             background-color: var(--bg-page);
             position: relative;
             display: flex;
             flex-direction: column;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
             padding-top: 72px;
-            padding-bottom: 96px;
-            overflow-x: hidden;
+            padding-bottom: 68px;
         }
 
         @media (min-width: 480px) {
-            body { padding: 24px 16px; }
+            body { padding: 24px 16px; height: auto; align-items: flex-start; }
             .mobile-app-wrapper {
-                min-height: 900px;
+                height: 90vh;
+                max-height: 900px;
                 border-radius: 36px;
                 border: 8px solid #1e293b;
                 box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -90,6 +91,13 @@
                 max-width: 414px;
                 border-top-left-radius: 32px;
                 border-top-right-radius: 32px;
+            }
+            .bottom-nav {
+                bottom: 24px;
+                border-bottom-left-radius: 32px;
+                border-bottom-right-radius: 32px;
+                width: calc(100% - 32px);
+                max-width: 414px;
             }
         }
 
@@ -151,27 +159,33 @@
         /* --- SWIPEABLE CONTAINER & SLIDING TRACK (BISA DIGESER LANGSUNG & KLIK NAVIGASI) --- */
         .swipe-viewport {
             width: 100%;
+            flex: 1;
             overflow: hidden;
             position: relative;
-            touch-action: pan-y pinch-zoom;
-            flex: 1;
+            touch-action: pan-y;
+            min-height: 0;
             }
         .swipe-track {
             display: flex;
             width: 500%; /* 5 Tab Views */
+            height: 100%;
             transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
             will-change: transform;
             align-items: flex-start;
         }
         .tab-pane {
             width: 20%; /* 100% of viewport width */
+            height: 100%;
             flex-shrink: 0;
-            padding: 16px 18px 0;
+            padding: 16px 18px 32px;
             display: flex;
             flex-direction: column;
             gap: 18px;
             box-sizing: border-box;
-            min-height: calc(100vh - 165px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
         }
 
         /* Navigasi geser langsung (tanpa bulat-bulat) */
@@ -847,7 +861,7 @@
                             </div>
                         </div>
 
-                        <button type="button" class="btn-login-submit" onclick="handleLoginSubmit()">
+                        <button type="button" class="btn-login-submit" id="btnLoginSubmit" onclick="handleLoginSubmit()">
                             <i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk ke Portal Siswa
                         </button>
 
@@ -952,16 +966,9 @@
                 history.replaceState(null, null, '#' + tabNames[index]);
             } catch(e) {}
 
-            // Sesuaikan tinggi container dengan tab aktif secara dinamis
+            // Scroll tab pane aktif ke paling atas
             const activePane = document.getElementById('pane-' + index);
-            if (activePane && viewport) {
-                setTimeout(() => {
-                    viewport.style.height = activePane.offsetHeight + 'px';
-                }, 60);
-            }
-
-            // Scroll ke atas dengan lembut
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (activePane) activePane.scrollTop = 0;
         };
 
         // ============================================================
@@ -976,9 +983,14 @@
         let isHorizontal = null;
 
         function handleTouchStart(e) {
-            // Abaikan geser jika menyentuh input form, button, atau dropdown
+            // Abaikan geser jika menyentuh input form, button, dropdown, atau filter scroll horizontal
             const tag = e.target.tagName;
             if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(tag) || e.target.closest('.custom-dropdown-wrap')) {
+                return;
+            }
+            // Jika menyentuh area scroll horizontal (filter chips), jangan intercept
+            if (e.target.closest('.filter-tags-scroll')) {
+                isSwiping = false;
                 return;
             }
 
@@ -1034,9 +1046,7 @@
                 } else {
                     goToTab(currentTabIndex);
                 }
-            } else {
-                goToTab(currentTabIndex);
-            }
+                }
             isHorizontal = null;
         }
 
@@ -1152,6 +1162,27 @@
                 return;
             }
 
+            const btn = document.getElementById('btnLoginSubmit');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...';
+            }
+
+            // Firebase Auth akan menangani login — lihat script module di bawah
+            window._firebaseLoginResolve = function(user, pkg) {
+                const destination = pkg === '5k' ? '/mem-5k/' : (pkg === '15k' || pkg === 'pro') ? '/mem-pro/' : '/mem-free/';
+                window.location.replace(destination);
+            };
+            window._firebaseLoginReject = function(msg) {
+                showHomeAlert('Login Gagal', msg || 'Email atau kata sandi salah. Coba lagi.');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk ke Akun';
+                }
+            };
+            window.dispatchEvent(new CustomEvent('cendekia:doLogin', { detail: { email, pwd } }));
+        }
+
             // Periksa jika sudah ada akun terdaftar
             const stored = localStorage.getItem('cendekia_user');
             if (stored) {
@@ -1198,13 +1229,7 @@
             if (idx !== -1) {
                 goToTab(idx);
             } else {
-                setTimeout(() => {
-                    const activePane = document.getElementById('pane-0');
-                    if (activePane && viewport) {
-                        viewport.style.height = activePane.offsetHeight + 'px';
-                    }
-                }, 100);
-            }
+                }
 
             // Periksa jika sudah login
             try {
@@ -1228,10 +1253,11 @@
         });
     </script>
 
-    <!-- FIREBASE SYNC STATUS PENGUMUMAN -->
+    <!-- FIREBASE AUTH + FIRESTORE + PENGUMUMAN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0", 
@@ -1244,9 +1270,55 @@
 
         try {
             const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
             const db = getFirestore(app);
-            const settingRef = doc(db, 'settings', 'beranda');
 
+            // ── Auto-route jika sudah login ──
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // Sudah ada sesi Firebase — arahkan ke ruang belajar
+                    try {
+                        const snap = await getDoc(doc(db, 'users', user.uid));
+                        const pkg = snap.exists() ? (snap.data().paket || 'free') : 'free';
+                        const authBtn = document.getElementById('headerAuthBtn');
+                        const navAcc = document.getElementById('navAccountText');
+                        if (navAcc) navAcc.textContent = 'Portal';
+                        if (authBtn) {
+                            authBtn.innerHTML = '<i class="fa-solid fa-circle-user"></i> <span>Ruang Belajar</span>';
+                            authBtn.onclick = () => {
+                                const dest = pkg === '5k' ? '/mem-5k/' : (pkg === '15k' || pkg === 'pro') ? '/mem-pro/' : '/mem-free/';
+                                window.location.replace(dest);
+                            };
+                        }
+                    } catch(e) {}
+                }
+            });
+
+            // ── Handle login event dari form ──
+            window.addEventListener('cendekia:doLogin', async (ev) => {
+                const { email, pwd } = ev.detail;
+                try {
+                    const cred = await signInWithEmailAndPassword(auth, email, pwd);
+                    const user = cred.user;
+                    // Ambil data paket dari Firestore
+                    let pkg = 'free';
+                    try {
+                        const snap = await getDoc(doc(db, 'users', user.uid));
+                        if (snap.exists()) pkg = snap.data().paket || 'free';
+                    } catch(e) {}
+                    if (window._firebaseLoginResolve) window._firebaseLoginResolve(user, pkg);
+                } catch(err) {
+                    let msg = 'Email atau kata sandi tidak valid. Coba lagi.';
+                    if (err.code === 'auth/user-not-found') msg = 'Akun dengan email ini belum terdaftar.';
+                    else if (err.code === 'auth/wrong-password') msg = 'Kata sandi salah. Periksa kembali.';
+                    else if (err.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan. Coba beberapa saat lagi.';
+                    else if (err.code === 'auth/invalid-email') msg = 'Format email tidak valid.';
+                    if (window._firebaseLoginReject) window._firebaseLoginReject(msg);
+                }
+            });
+
+            // ── Sync pengumuman dari Firestore ──
+            const settingRef = doc(db, 'settings', 'beranda');
             onSnapshot(settingRef, (snap) => {
                 if (snap.exists()) {
                     const data = snap.data();
@@ -1263,7 +1335,7 @@
                     }
                 }
             });
-        } catch(e) {}
+        } catch(e) { console.warn('Firebase init error:', e); }
     </script>
 
 </body>
