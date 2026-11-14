@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Teka-Teki Aksara - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .crossword-grid {
+            display: grid; grid-template-columns: repeat(5, 42px); justify-content: center;
+            gap: 4px; margin: 18px 0;
+        }
+        .cw-cell {
+            width: 42px; height: 42px; border: 1.5px solid var(--border-medium);
+            background: white; border-radius: 6px; text-align: center; font-size: 1.1rem;
+            font-weight: 800; color: var(--primary); text-transform: uppercase;
+        }
+        .cw-cell:focus { border-color: var(--warning); outline: none; background: #fffdf5; }
+        .cw-cell.blocked { background: #1e293b; border-color: #0f172a; pointer-events: none; }
+        .clue-list-card {
+            background: #f8fafc; border-radius: var(--radius-sm); padding: 12px;
+            font-size: 0.72rem; text-align: left; line-height: 1.4; border: 1px solid var(--border-soft);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="puzzle" style="width:18px; height:18px; color:#b45309;"></i> Teka-Teki Aksara
+                    </h1>
+                    <div class="header-brand-sub">Mini Teka-Teki Silang Sastra</div>
+                </div>
+            </div>
+            <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); text-align:center;">
+                <div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin-bottom:4px;">
+                    Isi Kotak TTS di Bawah:
+                </div>
+                
+                <!-- GRID 5x5 TTS -->
+                <div class="crossword-grid" id="cwGrid"></div>
+
+                <div class="clue-list-card">
+                    <strong style="color:var(--primary); display:block; margin-bottom:4px;">Mendatar:</strong>
+                    <div>1. <b>(Baris 1)</b> Rangkaian bunyi akhir pada larik puisi (4 Huruf: R I M A)</div>
+                    <div style="margin-top:4px;">2. <b>(Baris 3)</b> Karangan pendek prosa fiksi (6 Huruf: C E R P E N - disingkat)</div>
+                    <strong style="color:var(--primary); display:block; margin:8px 0 4px;">Menurun:</strong>
+                    <div>1. <b>(Kolom 1)</b> Bentuk sastra penuh irama dan bait (5 Huruf)</div>
+                </div>
+
+                <button type="button" class="btn-primary-challenge" style="margin-top:14px; width:100%;" onclick="validateTTS()">
+                    Periksa Jawaban TTS
+                </button>
+
+                <div id="ttsFeedback" style="margin-top:12px; display:none; padding:10px; border-radius:var(--radius-sm); font-size:0.74rem;"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        // Layout 5x5 Matrix
+        // R I M A _
+        // P _ _ _ _
+        // U _ _ _ _
+        // I _ _ _ _
+        // S _ _ _ _
+        const gridAnswers = [
+            ['R','I','M','A','#'],
+            ['A','#','#','#','#'],
+            ['S','#','#','#','#'],
+            ['A','#','#','#','#'],
+            ['#','#','#','#','#']
+        ];
+
+        function renderTTS() {
+            const container = document.getElementById('cwGrid');
+            container.innerHTML = '';
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const input = document.createElement('input');
+                    input.maxLength = 1;
+                    input.className = 'cw-cell';
+                    input.dataset.r = r;
+                    input.dataset.c = c;
+
+                    if (gridAnswers[r][c] === '#') {
+                        input.classList.add('blocked');
+                    } else {
+                        input.oninput = (e) => {
+                            e.target.value = e.target.value.toUpperCase();
+                        };
+                    }
+                    container.appendChild(input);
+                }
+            }
+        }
+
+        function validateTTS() {
+            const inputs = document.querySelectorAll('.cw-cell:not(.blocked)');
+            let allCorrect = true;
+
+            inputs.forEach(inp => {
+                const r = inp.dataset.r;
+                const c = inp.dataset.c;
+                if (inp.value.toUpperCase() !== gridAnswers[r][c]) {
+                    allCorrect = false;
+                }
+            });
+
+            const fb = document.getElementById('ttsFeedback');
+            fb.style.display = 'block';
+
+            if (allCorrect) {
+                fb.style.background = '#ecfdf5';
+                fb.style.color = '#065f46';
+                fb.innerHTML = '<strong>Jawaban Benar! 🎉</strong> Kamu berhasil memecahkan Teka-Teki Aksara (+30 XP).';
+                CendekiaApp.addXP(30, 'Teka-Teki Aksara Selesai');
+                document.getElementById('gameScore').textContent = '30';
+            } else {
+                fb.style.background = '#fef2f2';
+                fb.style.color = '#991b1b';
+                fb.innerHTML = 'Ada beberapa huruf yang belum sesuai. Cek kembali petunjuk mendatar dan menurun.';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            renderTTS();
+        });
+    </script>
+</body>
+</html>

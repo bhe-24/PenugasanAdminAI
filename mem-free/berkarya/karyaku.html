@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Karyaku - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .filter-chip-row {
+            display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px;
+            scrollbar-width: none;
+        }
+        .filter-chip-row::-webkit-scrollbar { display: none; }
+        .filter-chip {
+            padding: 5px 12px; border-radius: var(--radius-full); font-size: 0.68rem; font-weight: 700;
+            background: white; border: 1px solid var(--border-soft); color: var(--text-muted); cursor: pointer;
+            white-space: nowrap; transition: all 0.2s;
+        }
+        .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .work-card-item {
+            background: white; border-radius: var(--radius-md); padding: 14px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/berkarya.html" class="btn-header-back" title="Kembali">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="library" style="width:18px; height:18px; color:#db2777;"></i> Karyaku
+                    </h1>
+                    <div class="header-brand-sub">Arsip Naskah &amp; Draf Pribadi</div>
+                </div>
+            </div>
+            <a href="/mem-free/berkarya/ruang-menulis.html" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; width:auto; text-decoration:none;">
+                <i data-lucide="plus" style="width:13px; height:13px;"></i> Naskah Baru
+            </a>
+        </header>
+
+        <main class="app-body">
+
+            <!-- FILTER GENRE -->
+            <div class="filter-chip-row">
+                <button type="button" class="filter-chip active" onclick="filterWorks('all', this)">Semua Karya</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('cerpen', this)">Cerpen</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('puisi', this)">Puisi</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('novel', this)">Novel</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('artikel', this)">Artikel</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('drama', this)">Drama</button>
+            </div>
+
+            <!-- LIST KARYA -->
+            <div id="worksListContainer"></div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        let currentFilter = 'all';
+
+        function renderWorks() {
+            const allWorks = CendekiaApp.getWorks();
+            const container = document.getElementById('worksListContainer');
+            container.innerHTML = '';
+
+            const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => (w.genre || 'cerpen') === currentFilter);
+
+            if (!filtered || filtered.length === 0) {
+                container.innerHTML = `
+                    <div style="background:white; border-radius:var(--radius-md); padding:28px 16px; border:1px dashed var(--border-medium); text-align:center;">
+                        <i data-lucide="book-open" style="width:36px; height:36px; color:var(--text-light); margin-bottom:8px;"></i>
+                        <strong style="font-size:0.9rem; color:var(--primary); display:block;">Belum Ada Naskah Tersimpan</strong>
+                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 14px;">Mulai tuangkan tulisanmu di Ruang Menulis sekarang.</p>
+                        <a href="/mem-free/berkarya/ruang-menulis.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none;">
+                            Tulis Karya Pertama
+                        </a>
+                    </div>
+                `;
+            } else {
+                filtered.forEach(w => {
+                    const item = document.createElement('div');
+                    item.className = 'work-card-item';
+                    item.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
+                            <div style="width:40px; height:40px; border-radius:10px; background:#fff8e7; color:#b89124; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i data-lucide="${w.genre === 'puisi' ? 'feather' : 'file-text'}" style="width:20px; height:20px;"></i>
+                            </div>
+                            <div style="overflow:hidden;">
+                                <strong style="font-size:0.86rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${w.title || 'Naskah Tanpa Judul'}</strong>
+                                <span style="font-size:0.68rem; color:var(--text-muted);">${(w.genre || 'cerpen').toUpperCase()} &bull; ${w.words || 0} Kata</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            <a href="/mem-free/berkarya/ruang-menulis.html?id=${w.id}" class="btn-modal-secondary" style="padding:6px 10px; font-size:0.68rem; text-decoration:none;">
+                                Buka
+                            </a>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function filterWorks(genre, btn) {
+            currentFilter = genre;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            renderWorks();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('berkarya');
+            renderWorks();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tebak Kata - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .word-box-row {
+            display: flex; justify-content: center; gap: 8px; margin: 20px 0;
+        }
+        .word-cell {
+            width: 44px; height: 48px; border-radius: var(--radius-sm); border: 2px solid var(--border-medium);
+            display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800;
+            color: var(--primary); background: #f8fafc; text-transform: uppercase;
+        }
+        .word-cell.filled {
+            border-color: var(--secondary); background: #f0f9ff;
+        }
+        .letter-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 14px;
+        }
+        .letter-key {
+            padding: 10px 0; text-align: center; border-radius: var(--radius-xs); border: 1px solid var(--border-soft);
+            background: white; font-weight: 800; font-size: 0.88rem; color: var(--text-dark); cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.15s;
+        }
+        .letter-key:hover { background: #f1f5f9; border-color: var(--secondary); }
+        .letter-key.used { opacity: 0.3; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="text-search" style="width:18px; height:18px; color:var(--secondary);"></i> Tebak Kata
+                    </h1>
+                    <div class="header-brand-sub">Tebak Kosakata Indah Bahasa Indonesia</div>
+                </div>
+            </div>
+            <div style="background:#e0f2fe; color:#0284c7; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div style="background:white; border-radius:var(--radius-md); padding:18px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-bottom:8px;">
+                    Petunjuk Makna (KBBI):
+                </div>
+                <div id="clueText" style="font-size:0.88rem; font-weight:800; color:var(--primary); line-height:1.45; min-height:42px;">
+                    "Keadaan langit merah keemasan saat matahari terbenam menjelang malam hari."
+                </div>
+
+                <div class="word-box-row" id="wordCells"></div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.7rem; color:var(--text-muted); margin-bottom:6px;">
+                    <span>Pilih Huruf:</span>
+                    <span>Sisa Percobaan: <b id="triesLeft" style="color:#dc2626;">5</b></span>
+                </div>
+
+                <div class="letter-grid" id="letterGrid"></div>
+
+                <div id="gameFeedback" style="margin-top:14px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.76rem; line-height:1.4;"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        const words = [
+            { word: "SENJA", clue: "Waktu setengah gelap sesudah matahari terbenam; kerap menjadi metafora kerinduan para sastrawan." },
+            { word: "AKSARA", clue: "Sistem lambang atau grafem berupa huruf yang digunakan untuk menulis bahasa." },
+            { word: "LARIK", clue: "Susunan kata-kata yang membentuk satu baris dalam karya puisi." },
+            { word: "DIKSI", clue: "Pilihan kata yang tepat dan selaras dalam pengungkapan gagasan agar memberi efek estetik." }
+        ];
+
+        let currentWordIdx = 0;
+        let score = 0;
+        let guessedLetters = [];
+        let wrongTries = 0;
+        const maxWrong = 5;
+
+        function initGame() {
+            const target = words[currentWordIdx];
+            document.getElementById('clueText').textContent = `"${target.clue}"`;
+            guessedLetters = [];
+            wrongTries = 0;
+            document.getElementById('triesLeft').textContent = maxWrong - wrongTries;
+            document.getElementById('gameFeedback').style.display = 'none';
+
+            renderWord();
+            renderKeyboard();
+        }
+
+        function renderWord() {
+            const target = words[currentWordIdx].word;
+            const container = document.getElementById('wordCells');
+            container.innerHTML = '';
+            let complete = true;
+
+            for (let char of target) {
+                const cell = document.createElement('div');
+                cell.className = 'word-cell';
+                if (guessedLetters.includes(char)) {
+                    cell.textContent = char;
+                    cell.classList.add('filled');
+                } else {
+                    cell.textContent = '';
+                    complete = false;
+                }
+                container.appendChild(cell);
+            }
+
+            if (complete) {
+                handleWin();
+            }
+        }
+
+        function renderKeyboard() {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const grid = document.getElementById('letterGrid');
+            grid.innerHTML = '';
+
+            for (let char of alphabet) {
+                const key = document.createElement('button');
+                key.type = 'button';
+                key.className = 'letter-key';
+                key.textContent = char;
+                key.onclick = () => pickLetter(char, key);
+                grid.appendChild(key);
+            }
+        }
+
+        function pickLetter(char, keyBtn) {
+            keyBtn.classList.add('used');
+            const target = words[currentWordIdx].word;
+
+            if (target.includes(char)) {
+                guessedLetters.push(char);
+                renderWord();
+            } else {
+                wrongTries++;
+                document.getElementById('triesLeft').textContent = maxWrong - wrongTries;
+                if (wrongTries >= maxWrong) {
+                    handleLose();
+                }
+            }
+        }
+
+        function handleWin() {
+            score += 25;
+            document.getElementById('gameScore').textContent = score;
+            CendekiaApp.addXP(25, 'Tebak Kata Berhasil');
+            const fb = document.getElementById('gameFeedback');
+            fb.style.display = 'block';
+            fb.style.background = '#ecfdf5';
+            fb.style.color = '#065f46';
+            fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Kata yang dimaksud adalah <b>${words[currentWordIdx].word}</b>.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextWord()">Kata Berikutnya &rarr;</button>`;
+        }
+
+        function handleLose() {
+            const fb = document.getElementById('gameFeedback');
+            fb.style.display = 'block';
+            fb.style.background = '#fef2f2';
+            fb.style.color = '#991b1b';
+            fb.innerHTML = `<strong>Percobaan Habis!</strong> Kata yang benar adalah <b>${words[currentWordIdx].word}</b>.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextWord()">Lanjut Kata Lain &rarr;</button>`;
+        }
+
+        function nextWord() {
+            currentWordIdx = (currentWordIdx + 1) % words.length;
+            initGame();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            initGame();
+        });
+    </script>
+</body>
+</html>

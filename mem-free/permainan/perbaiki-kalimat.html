@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Perbaiki Kalimat - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .err-sentence-box {
+            background: #fef2f2; border: 1.5px dashed #dc2626; border-radius: var(--radius-md);
+            padding: 14px; font-size: 0.84rem; color: #991b1b; line-height: 1.45; margin: 12px 0 16px;
+            font-weight: 700;
+        }
+        .fix-opt-btn {
+            display: block; width: 100%; text-align: left; padding: 12px;
+            border-radius: var(--radius-sm); border: 1.5px solid var(--border-soft);
+            background: white; font-size: 0.76rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .fix-opt-btn:hover { border-color: #4f46e5; background: #eef2ff; }
+        .fix-opt-btn.correct { background: #ecfdf5; border-color: #059669; color: #065f46; font-weight: 800; }
+        .fix-opt-btn.wrong { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="spell-check" style="width:18px; height:18px; color:#4f46e5;"></i> Perbaiki Kalimat
+                    </h1>
+                    <div class="header-brand-sub">Eliminasi Kerancuan &amp; Pleonasme</div>
+                </div>
+            </div>
+            <div style="background:#e0e7ff; color:#4f46e5; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Kalimat Bermasalah (Tidak Efektif):</div>
+                <div class="err-sentence-box" id="errText">
+                    "Semua para siswa-siswa berkumpul bersama-sama agar supaya dapat mendengar pengumuman."
+                </div>
+
+                <div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin-bottom:8px;">
+                    Pilih bentuk perbaikan kalimat yang paling efektif &amp; baku:
+                </div>
+
+                <div id="fixOptions"></div>
+
+                <div id="feedbackBox" style="margin-top:12px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.74rem; line-height:1.45;"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        const exercises = [
+            {
+                err: "Semua para siswa-siswa berkumpul bersama-sama agar supaya dapat mendengar pengumuman.",
+                options: [
+                    "Para siswa berkumpul agar dapat mendengar pengumuman.",
+                    "Semua para siswa berkumpul bersama agar supaya mendengar pengumuman.",
+                    "Siswa-siswa sekalian berkumpul agar supaya mendengar pengumuman."
+                ],
+                correct: 0,
+                exp: "Kalimat asli mengandung pemborosan kata (pleonasme) berlebih: 'semua para siswa-siswa' dan 'agar supaya'. Bentuk paling efektif dan hemat adalah: 'Para siswa berkumpul agar dapat mendengar pengumuman'."
+            },
+            {
+                err: "Buku itu saya sudah membacanya sampai selesai kemarin lusa.",
+                options: [
+                    "Buku itu saya sudah baca sampai selesai kemarin lusa.",
+                    "Buku itu sudah saya baca sampai selesai kemarin lusa.",
+                    "Sudah saya membaca buku itu sampai selesai kemarin lusa."
+                ],
+                correct: 1,
+                exp: "Bentuk pasif diri persona pertama yang baku adalah predikat mendahului objek persona: 'sudah saya baca', bukan 'saya sudah membacanya'."
+            }
+        ];
+
+        let eIndex = 0;
+        let score = 0;
+
+        function loadExercise() {
+            const item = exercises[eIndex];
+            document.getElementById('errText').textContent = `"${item.err}"`;
+            document.getElementById('feedbackBox').style.display = 'none';
+
+            const container = document.getElementById('fixOptions');
+            container.innerHTML = '';
+
+            item.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'fix-opt-btn';
+                btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                btn.onclick = () => submitFix(idx, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function submitFix(chosenIdx, btn) {
+            const item = exercises[eIndex];
+            const buttons = document.querySelectorAll('.fix-opt-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            const fb = document.getElementById('feedbackBox');
+            fb.style.display = 'block';
+
+            if (chosenIdx === item.correct) {
+                btn.classList.add('correct');
+                score += 20;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(20, 'Perbaikan Kalimat Tepat');
+                fb.style.background = '#ecfdf5';
+                fb.style.color = '#065f46';
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> ${item.exp}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextExercise()">Soal Berikutnya &rarr;</button>`;
+            } else {
+                btn.classList.add('wrong');
+                buttons[item.correct].classList.add('correct');
+                fb.style.background = '#fef2f2';
+                fb.style.color = '#991b1b';
+                fb.innerHTML = `Kurang tepat. ${item.exp}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextExercise()">Lanjut &rarr;</button>`;
+            }
+        }
+
+        function nextExercise() {
+            eIndex = (eIndex + 1) % exercises.length;
+            loadExercise();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            loadExercise();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Susun Kata - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .slot-container {
+            display: flex; justify-content: center; gap: 8px; margin: 16px 0; min-height: 48px;
+        }
+        .slot-box {
+            width: 42px; height: 48px; border-radius: var(--radius-sm); border: 2px dashed #059669;
+            background: #f0fdf4; display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; font-weight: 800; color: #065f46; cursor: pointer;
+        }
+        .tiles-container {
+            display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 16px 0;
+        }
+        .tile-btn {
+            width: 42px; height: 48px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-medium);
+            background: white; font-size: 1.25rem; font-weight: 800; color: var(--primary);
+            box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.15s;
+        }
+        .tile-btn:active { transform: scale(0.95); }
+        .tile-btn.used { visibility: hidden; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="combine" style="width:18px; height:18px; color:#059669;"></i> Susun Kata
+                    </h1>
+                    <div class="header-brand-sub">Rangkai Huruf Acak Menjadi Diksi</div>
+                </div>
+            </div>
+            <div style="background:#d1fae5; color:#059669; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div style="background:white; border-radius:var(--radius-md); padding:18px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); text-align:center;">
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Petunjuk Definisi:</div>
+                <div id="scrambleClue" style="font-size:0.86rem; font-weight:800; color:var(--primary); margin:6px 0 14px;">
+                    "Penyelidikan atau peninjauan kritis terhadap suatu naskah karya sastra."
+                </div>
+
+                <!-- KOTAK HASIL SUSUNAN -->
+                <div class="slot-container" id="slotRow"></div>
+
+                <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:8px;">Ketuk huruf di bawah untuk menyusun:</div>
+                <div class="tiles-container" id="tileRow"></div>
+
+                <div style="display:flex; gap:10px; margin-top:14px;">
+                    <button type="button" class="btn-modal-secondary" onclick="resetSlots()">
+                        <i data-lucide="rotate-ccw" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Atur Ulang
+                    </button>
+                    <button type="button" class="btn-primary-challenge" style="flex:1;" onclick="checkSolution()">
+                        Periksa Jawaban
+                    </button>
+                </div>
+
+                <div id="resultFeedback" style="margin-top:12px; display:none; padding:10px; border-radius:var(--radius-sm); font-size:0.74rem;"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        const puzzles = [
+            { word: "KRITIK", clue: "Penyelidikan atau peninjauan kritis terhadap suatu naskah karya sastra." },
+            { word: "PROLOG", clue: "Bagian pengantar atau pendahuluan naskah cerita fiksi maupun naskah drama." },
+            { word: "AMANAT", clue: "Pesan moral atau gagasan luhur yang hendak disampaikan pengarang kepada pembaca." }
+        ];
+
+        let pIndex = 0;
+        let score = 0;
+        let currentTarget = "";
+        let currentPlaced = [];
+        let scrambledLetters = [];
+
+        function loadPuzzle() {
+            const p = puzzles[pIndex];
+            currentTarget = p.word;
+            document.getElementById('scrambleClue').textContent = `"${p.clue}"`;
+            document.getElementById('resultFeedback').style.display = 'none';
+
+            // Acak huruf
+            scrambledLetters = currentTarget.split('').sort(() => Math.random() - 0.5);
+            currentPlaced = [];
+
+            renderSlots();
+            renderTiles();
+        }
+
+        function renderSlots() {
+            const slotRow = document.getElementById('slotRow');
+            slotRow.innerHTML = '';
+            for (let i = 0; i < currentTarget.length; i++) {
+                const box = document.createElement('div');
+                box.className = 'slot-box';
+                box.textContent = currentPlaced[i] ? currentPlaced[i].char : '';
+                box.onclick = () => removePlaced(i);
+                slotRow.appendChild(box);
+            }
+        }
+
+        function renderTiles() {
+            const tileRow = document.getElementById('tileRow');
+            tileRow.innerHTML = '';
+            scrambledLetters.forEach((char, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'tile-btn';
+                btn.id = 'tile_' + idx;
+                btn.textContent = char;
+                btn.onclick = () => placeChar(char, idx);
+                tileRow.appendChild(btn);
+            });
+        }
+
+        function placeChar(char, tileIdx) {
+            if (currentPlaced.length < currentTarget.length) {
+                currentPlaced.push({ char, tileIdx });
+                document.getElementById('tile_' + tileIdx).classList.add('used');
+                renderSlots();
+            }
+        }
+
+        function removePlaced(slotIdx) {
+            if (currentPlaced[slotIdx]) {
+                const item = currentPlaced.splice(slotIdx, 1)[0];
+                document.getElementById('tile_' + item.tileIdx).classList.remove('used');
+                renderSlots();
+            }
+        }
+
+        function resetSlots() {
+            currentPlaced = [];
+            document.querySelectorAll('.tile-btn').forEach(b => b.classList.remove('used'));
+            renderSlots();
+        }
+
+        function checkSolution() {
+            const userStr = currentPlaced.map(p => p.char).join('');
+            const fb = document.getElementById('resultFeedback');
+            fb.style.display = 'block';
+
+            if (userStr === currentTarget) {
+                score += 20;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(20, 'Susun Kata Tepat');
+                fb.style.background = '#ecfdf5';
+                fb.style.color = '#065f46';
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Kata yang tersusun adalah <b>${currentTarget}</b>.<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextPuzzle()">Soal Berikutnya &rarr;</button>`;
+            } else {
+                fb.style.background = '#fef2f2';
+                fb.style.color = '#991b1b';
+                fb.innerHTML = `Susunan kata belum tepat. Coba ketuk huruf yang keliru untuk membatalkannya.`;
+            }
+        }
+
+        function nextPuzzle() {
+            pIndex = (pIndex + 1) % puzzles.length;
+            loadPuzzle();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            loadPuzzle();
+        });
+    </script>
+</body>
+</html>

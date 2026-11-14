@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tantangan Harian - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .mission-tab-row {
+            display: flex; background: #e2e8f0; padding: 4px; border-radius: var(--radius-full);
+            gap: 4px; margin-bottom: 14px;
+        }
+        .mission-tab {
+            flex: 1; text-align: center; padding: 8px 4px; border-radius: var(--radius-full);
+            font-size: 0.72rem; font-weight: 700; color: var(--text-muted); cursor: pointer;
+            border: none; background: transparent; transition: all 0.2s;
+        }
+        .mission-tab.active {
+            background: white; color: var(--primary); font-weight: 800; box-shadow: var(--shadow-sm);
+        }
+        .challenge-card-item {
+            background: white; border-radius: var(--radius-md); padding: 14px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 10px;
+        }
+        .challenge-card-item.completed {
+            border-color: #059669; background: #f0fdf4;
+        }
+        .cal-week-row {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; margin: 12px 0;
+        }
+        .cal-day-cell {
+            padding: 8px 2px; border-radius: var(--radius-sm); background: #f8fafc;
+            border: 1px solid var(--border-soft); font-size: 0.68rem; font-weight: 700;
+        }
+        .cal-day-cell.active-streak {
+            background: #fff8e7; border-color: var(--accent); color: #b45309;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/index.html" class="btn-header-back" title="Kembali">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="target" style="width:18px; height:18px; color:var(--danger);"></i> Tantangan Harian
+                    </h1>
+                    <div class="header-brand-sub">Misi Literasi, Streak, &amp; XP</div>
+                </div>
+            </div>
+            <span class="badge-tier-free">
+                <i data-lucide="flame" style="width:12px; height:12px; color:#f59e0b;"></i> <span data-bind="userStreak">3</span> Hari
+            </span>
+        </header>
+
+        <main class="app-body">
+
+            <!-- KALENDER AKTIVITAS / STREAK TRACKER -->
+            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:0.86rem; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="calendar" style="width:16px; height:16px; color:var(--accent-dark);"></i> Kalender Keaktifan Pekan Ini
+                    </strong>
+                    <span style="font-size:0.7rem; font-weight:800; color:#059669;">Api Menyala 🔥</span>
+                </div>
+
+                <div class="cal-week-row">
+                    <div class="cal-day-cell active-streak">Sen<br>✓</div>
+                    <div class="cal-day-cell active-streak">Sel<br>✓</div>
+                    <div class="cal-day-cell active-streak">Rab<br>✓</div>
+                    <div class="cal-day-cell active-streak" style="box-shadow:0 0 0 2px var(--accent);">Kam<br>🔥</div>
+                    <div class="cal-day-cell">Jum<br>-</div>
+                    <div class="cal-day-cell">Sab<br>-</div>
+                    <div class="cal-day-cell">Min<br>-</div>
+                </div>
+                <div style="font-size:0.68rem; color:var(--text-muted); text-align:center;">
+                    Terus selesaikan minimal 1 tantangan tiap hari untuk memelihara nyala apimu!
+                </div>
+            </div>
+
+            <!-- TABS KATEGORI MISI -->
+            <section>
+                <div class="mission-tab-row">
+                    <button type="button" class="mission-tab active" onclick="switchMissionTab('harian', this)">Misi Harian</button>
+                    <button type="button" class="mission-tab" onclick="switchMissionTab('mingguan', this)">Misi Mingguan</button>
+                    <button type="button" class="mission-tab" onclick="switchMissionTab('kejutan', this)">Misi Kejutan</button>
+                </div>
+
+                <div id="missionListContainer"></div>
+            </section>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        let currentTab = 'harian';
+
+        const weeklyMissions = [
+            {
+                id: 'wm_1',
+                badge: 'Misi Mingguan',
+                title: 'Koleksi 1.000 Kata Pekan Ini',
+                desc: 'Tuliskan total 1.000 kata karya di Ruang Menulis atau Novel.',
+                rewardXp: 100,
+                link: '/mem-free/berkarya/ruang-menulis.html',
+                completed: false
+            },
+            {
+                id: 'wm_2',
+                badge: 'Misi Mingguan',
+                title: 'Juara 3 Jenis Permainan',
+                desc: 'Selesaikan Tebak Kata, Kuis Pintar, dan Susun Kata.',
+                rewardXp: 80,
+                link: '/mem-free/bermain.html',
+                completed: false
+            }
+        ];
+
+        const surpriseMissions = [
+            {
+                id: 'sm_1',
+                badge: 'Misi Kejutan ⚡',
+                title: 'Eksperimen Diksi Langka',
+                desc: 'Temukan dan gunakan kata arkais langka di Laboratorium Puisi.',
+                rewardXp: 50,
+                link: '/mem-free/berkreasi/eksperimen-puisi.html',
+                completed: false
+            }
+        ];
+
+        function renderMissions() {
+            const container = document.getElementById('missionListContainer');
+            container.innerHTML = '';
+
+            let list = [];
+            if (currentTab === 'harian') {
+                list = CendekiaApp.getDailyChallenges();
+            } else if (currentTab === 'mingguan') {
+                list = weeklyMissions;
+            } else {
+                list = surpriseMissions;
+            }
+
+            list.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'challenge-card-item' + (m.completed ? ' completed' : '');
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.65rem; font-weight:800; background:${m.completed ? '#d1fae5' : '#fff7ed'}; color:${m.completed ? '#065f46' : '#c2410c'}; padding:2px 8px; border-radius:var(--radius-full);">
+                            ${m.badge}
+                        </span>
+                        <span style="font-size:0.72rem; font-weight:800; color:var(--accent-dark);">
+                            <i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +${m.rewardXp} XP
+                        </span>
+                    </div>
+                    <strong style="font-size:0.88rem; color:var(--primary); display:block; margin-bottom:4px;">${m.title}</strong>
+                    <p style="font-size:0.72rem; color:var(--text-body); margin-bottom:12px; line-height:1.4;">${m.desc}</p>
+                    <div style="display:flex; gap:8px;">
+                        ${m.completed ? `
+                            <span style="font-size:0.72rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:4px;">
+                                <i data-lucide="check-circle" style="width:14px; height:14px;"></i> Tantangan Telah Diselesaikan
+                            </span>
+                        ` : `
+                            <a href="${m.link}" class="btn-primary-challenge" style="padding:7px 14px; font-size:0.72rem; text-decoration:none;">
+                                Kerjakan Misi Ini <i data-lucide="arrow-right" style="width:12px; height:12px;"></i>
+                            </a>
+                        `}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function switchMissionTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.mission-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderMissions();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('beranda');
+            renderMissions();
+        });
+    </script>
+</body>
+</html>

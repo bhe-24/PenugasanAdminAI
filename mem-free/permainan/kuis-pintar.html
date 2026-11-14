@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kuis Pintar - Member Free Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .quiz-card {
+            background: white; border-radius: var(--radius-md); padding: 18px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        }
+        .question-meta {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin-bottom: 12px;
+        }
+        .question-text {
+            font-size: 0.96rem; font-weight: 800; color: var(--primary);
+            line-height: 1.45; margin-bottom: 16px;
+        }
+        .ans-btn {
+            display: block; width: 100%; text-align: left; padding: 12px 14px;
+            border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);
+            background: #ffffff; font-size: 0.8rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+        }
+        .ans-btn:hover { border-color: var(--purple); background: #faf5ff; }
+        .ans-btn.correct { background: #ecfdf5; border-color: #059669; color: #065f46; font-weight: 800; }
+        .ans-btn.wrong { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
+        .explanation-box {
+            background: #f8fafc; border: 1px solid var(--border-soft); border-radius: var(--radius-md);
+            padding: 12px; font-size: 0.74rem; color: var(--text-body); line-height: 1.45;
+            margin-top: 14px; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <!-- HEADER -->
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="brain" style="width:18px; height:18px; color:var(--purple);"></i> Kuis Pintar
+                    </h1>
+                    <div class="header-brand-sub">Wawasan Sastra &amp; Bahasa Indonesia</div>
+                </div>
+            </div>
+            <div id="gameScorePill" style="background:#ede9fe; color:#7c3aed; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="currentScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div class="quiz-card" id="quizBox">
+                <div class="question-meta">
+                    <span>Pertanyaan <span id="qIndex">1</span> dari <span id="qTotal">3</span></span>
+                    <span style="color:var(--accent-dark);"><i data-lucide="award" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> +10 XP</span>
+                </div>
+                <div class="question-text" id="qText">Memuat pertanyaan...</div>
+                
+                <div id="answersContainer"></div>
+
+                <div class="explanation-box" id="explanationBox">
+                    <strong style="color:var(--primary); display:block; margin-bottom:4px;">
+                        <i data-lucide="info" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Pembahasan Jawaban:
+                    </strong>
+                    <span id="explanationText"></span>
+                    <button type="button" id="btnNext" class="btn-primary-challenge" style="margin-top:10px;" onclick="nextQuestion()">
+                        Soal Berikutnya <i data-lucide="arrow-right" style="width:14px; height:14px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- HASIL KUIS -->
+            <div class="quiz-card" id="resultBox" style="display:none; text-align:center;">
+                <div style="width:64px; height:64px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.8rem;">
+                    <i data-lucide="trophy" style="width:32px; height:32px;"></i>
+                </div>
+                <h3 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Luar Biasa!</h3>
+                <p style="font-size:0.76rem; color:var(--text-muted); margin-bottom:14px;">Kamu telah menyelesaikan Kuis Pintar Literasi.</p>
+                <div style="background:#f8fafc; border-radius:var(--radius-md); padding:12px; margin-bottom:16px; font-size:0.84rem; font-weight:800; color:var(--primary);">
+                    Skor Akhir: <span id="finalScore" style="color:var(--purple); font-size:1.2rem;">0</span> / 30<br>
+                    <span style="font-size:0.72rem; color:var(--accent-dark);">+30 XP telah ditambahkan ke akunmu!</span>
+                </div>
+                <button type="button" class="btn-primary-challenge" onclick="restartQuiz()">
+                    <i data-lucide="rotate-ccw" style="width:15px; height:15px;"></i> Main Lagi
+                </button>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-free/central.js"></script>
+    <script>
+        const questions = [
+            {
+                q: "Siapakah sastrawan Indonesia pelopor Angkatan '45 yang terkenal dengan puisinya berjudul 'Aku'?",
+                options: ["Chairil Anwar", "Sapardi Djoko Damono", "WS Rendra", "Pramoedya Ananta Toer"],
+                answer: 0,
+                exp: "Chairil Anwar adalah penyair terkemuka pelopor Angkatan '45. Puisinya yang berjudul 'Aku' diciptakan pada tahun 1943 dan menjadi tonggak modernitas puisi Indonesia."
+            },
+            {
+                q: "Manakah penulisan kata serapan yang baku menurut Kamus Besar Bahasa Indonesia (KBBI)?",
+                options: ["Resiko", "Risiko", "Riziko", "Resico"],
+                answer: 1,
+                exp: "Bentuk baku dari kata ini dalam KBBI adalah 'risiko' (menggunakan huruf i), bukan 'resiko'."
+            },
+            {
+                q: "Majas yang membandingkan benda mati seolah-olah memiliki sifat dan perilaku manusia hidup disebut...",
+                options: ["Metafora", "Hiperbola", "Personifikasi", "Litotes"],
+                answer: 2,
+                exp: "Majas personifikasi melekatkan karakteristik insani kepada objek tak bernyawa, misalnya: 'Angin malam berbisik di telingaku'."
+            }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+        let answered = false;
+
+        function loadQuestion() {
+            answered = false;
+            const q = questions[currentIndex];
+            document.getElementById('qIndex').textContent = currentIndex + 1;
+            document.getElementById('qTotal').textContent = questions.length;
+            document.getElementById('qText').textContent = q.q;
+            document.getElementById('explanationBox').style.display = 'none';
+
+            const container = document.getElementById('answersContainer');
+            container.innerHTML = '';
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ans-btn';
+                btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
+                btn.onclick = () => selectAnswer(idx, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectAnswer(selectedIdx, btn) {
+            if (answered) return;
+            answered = true;
+            const q = questions[currentIndex];
+            const buttons = document.querySelectorAll('.ans-btn');
+
+            buttons.forEach(b => b.disabled = true);
+
+            if (selectedIdx === q.answer) {
+                btn.classList.add('correct');
+                score += 10;
+                document.getElementById('currentScore').textContent = score;
+                CendekiaApp.addXP(10, 'Jawaban Benar Kuis Pintar');
+            } else {
+                btn.classList.add('wrong');
+                buttons[q.answer].classList.add('correct');
+            }
+
+            document.getElementById('explanationText').textContent = q.exp;
+            document.getElementById('explanationBox').style.display = 'block';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < questions.length) {
+                loadQuestion();
+            } else {
+                document.getElementById('quizBox').style.display = 'none';
+                document.getElementById('resultBox').style.display = 'block';
+                document.getElementById('finalScore').textContent = score;
+                CendekiaApp.completeChallenge('tc_2');
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        function restartQuiz() {
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('currentScore').textContent = '0';
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('quizBox').style.display = 'block';
+            loadQuestion();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            loadQuestion();
+        });
+    </script>
+</body>
+</html>
