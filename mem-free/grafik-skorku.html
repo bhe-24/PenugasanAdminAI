@@ -81,7 +81,18 @@
                         <span class="hero-title-badge" style="justify-content:flex-end;">
                             <i data-lucide="sparkles" style="width:12px; height:12px;"></i> <span data-bind="userLevelTitle">Penulis Pemula 🌱</span>
                         </span>
-                        <span style="font-size:0.68rem; color:#cbd5e1;" id="myNationalRankText">Peringkat #1 Nasional</span>
+                        <span style="font-size:0.68rem; color:#cbd5e1;" id="myNationalRankText">Peringkat #1</span>
+                    </div>
+                </div>
+
+                <!-- PROGRESS XP & LEVEL (SELARAS DENGAN BERANDA) -->
+                <div class="hero-xp-section" style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.15);">
+                    <div class="hero-xp-meta">
+                        <span>Level <b data-bind="userLevel">1</b></span>
+                        <span><b data-bind="userXp">0</b> / <span data-bind="userMaxXp">100</span> XP</span>
+                    </div>
+                    <div class="hero-xp-bar-bg">
+                        <div class="hero-xp-bar-fill" data-bind="xpProgressPercent" style="width: 0%;"></div>
                     </div>
                 </div>
             </div>
@@ -236,18 +247,23 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        // RENDER BARIS LEADERBOARD: [Peringkat] -> [Foto Profil] -> [Nama Siswa] -> [Baru XP]
+        // RENDER BARIS LEADERBOARD: 5 TERATAS + BARIS KE-6 AKUN SENDIRI
         function renderLeaderboardRows(users) {
             const container = document.getElementById('leaderboardList');
+            const currentUser = CendekiaApp.getUser();
             let html = '';
 
-            users.forEach(u => {
+            // 1. Tampilkan hanya 5 teratas
+            const top5 = users.slice(0, 5);
+
+            top5.forEach(u => {
                 let badgeClass = '';
                 if (u.rank === 1) badgeClass = 'rank-1';
                 else if (u.rank === 2) badgeClass = 'rank-2';
                 else if (u.rank === 3) badgeClass = 'rank-3';
 
-                const avatarUrl = u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'Siswa')}&background=003366&color=fff&size=100`;
+                const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'Siswa')}&background=003366&color=fff&size=100`;
+                const avatarUrl = u.photoURL || fallbackAvatar;
                 
                 let displayName = u.name;
                 if (u.isCurrentUser && isPrivate) {
@@ -262,7 +278,7 @@
                             
                             <!-- 2. SEBELAHNYA: PROFIL (FOTO LINGKARAN) -->
                             <div class="rank-avatar">
-                                <img src="${avatarUrl}" alt="${displayName}">
+                                <img src="${avatarUrl}" alt="${displayName}" onerror="this.onerror=null; this.src='${fallbackAvatar}';">
                             </div>
 
                             <!-- 3. NAMA SISWA & KETERANGAN -->
@@ -282,7 +298,64 @@
                 `;
             });
 
+            // 2. Baris ke-6: Posisi Peringkat Akunnya Sendiri
+            const myEntry = users.find(u => u.isCurrentUser) || {
+                rank: users.length > 0 ? users.length + 1 : 1,
+                name: currentUser.name || 'Siswa Cendekia',
+                photoURL: currentUser.photoURL || '',
+                levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
+                semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member Free',
+                xp: currentUser.xp || 0,
+                isCurrentUser: true
+            };
+
+            const myFallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(myEntry.name || 'Siswa')}&background=003366&color=fff&size=100`;
+            const myAvatarUrl = myEntry.photoURL || myFallbackAvatar;
+            let myDisplayName = myEntry.name;
+            if (isPrivate) {
+                myDisplayName = `Penulis Anonim #${myEntry.rank}`;
+            }
+
+            let myBadgeClass = '';
+            if (myEntry.rank === 1) myBadgeClass = 'rank-1';
+            else if (myEntry.rank === 2) myBadgeClass = 'rank-2';
+            else if (myEntry.rank === 3) myBadgeClass = 'rank-3';
+
+            html += `
+                <div style="margin-top:12px; padding-top:10px; border-top:2px dashed #cbd5e1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.68rem; color:var(--text-muted); font-weight:700;">
+                        <span style="color:var(--accent-dark);"><i data-lucide="user-check" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Baris ke-6 (Peringkat Akun Kamu)</span>
+                        <span>Posisi Saat Ini</span>
+                    </div>
+                    <div class="leaderboard-row my-rank" style="border: 2px solid var(--accent); background:#fffdf5;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <!-- 1. PERINGKAT (NOMOR) -->
+                            <span class="rank-badge ${myBadgeClass}">${myEntry.rank}</span>
+                            
+                            <!-- 2. SEBELAHNYA: PROFIL (FOTO LINGKARAN) -->
+                            <div class="rank-avatar">
+                                <img src="${myAvatarUrl}" alt="${myDisplayName}" onerror="this.onerror=null; this.src='${myFallbackAvatar}';">
+                            </div>
+
+                            <!-- 3. NAMA SISWA & KETERANGAN -->
+                            <div style="min-width:0;">
+                                <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${myDisplayName} <span style="font-size:0.7rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>
+                                </strong>
+                                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">
+                                    ${myEntry.levelTitle || 'Penulis Pemula 🌱'} &bull; ${myEntry.semester || 'Member Free'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 4. BARU XP (DI KANAN) -->
+                        <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px;">${myEntry.xp} XP</strong>
+                    </div>
+                </div>
+            `;
+
             container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
         }
 
         function togglePrivacy(cb) {

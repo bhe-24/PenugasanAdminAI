@@ -23,12 +23,12 @@ const CendekiaApp = (function () {
         { level: 5, title: 'Mahaguru Literasi 👑', minXp: 1000, maxXp: 2500 }
     ];
 
-    // DEFAULT USER
+    // DEFAULT USER (Bersih tanpa data dummy)
     const defaultUser = {
         uid: 'guest_' + Math.random().toString(36).substring(2, 9),
         name: 'Siswa Cendekia',
         username: 'cendekia_muda',
-        email: 'member@cendekia.id',
+        email: '',
         role: 'siswa',
         semester: 1,
         tier: 'Member Free',
@@ -37,19 +37,19 @@ const CendekiaApp = (function () {
         tanggalLahir: '',
         alamat: '',
         bioSingkat: '',
-        xp: 45,
+        xp: 0,
         level: 1,
         levelTitle: 'Penulis Pemula 🌱',
-        streak: 3,
+        streak: 1,
         lastActiveDate: new Date().toISOString().split('T')[0],
         privacyRank: true, // true: tampil nama asli, false: anonim
-        badges: ['badge_first_step', 'badge_reading_lover'],
+        badges: [],
         stats: {
-            quizCompleted: 4,
-            gamesCompleted: 6,
-            materialsLearned: 5,
-            worksCreated: 2,
-            ideasArchived: 3
+            quizCompleted: 0,
+            gamesCompleted: 0,
+            materialsLearned: 0,
+            worksCreated: 0,
+            ideasArchived: 0
         }
     };
 
@@ -74,27 +74,41 @@ const CendekiaApp = (function () {
         } catch (e) {}
 
         if (!user) {
-            // Ambil dari sesi login Firebase/login.html jika ada
-            try {
-                const legacy = localStorage.getItem('cendekia_user');
-                if (legacy) {
-                    const l = JSON.parse(legacy);
-                    defaultUser.name = l.name || defaultUser.name;
-                    defaultUser.email = l.email || defaultUser.email;
-                    defaultUser.semester = parseInt(l.semester) || defaultUser.semester;
-                    defaultUser.photoURL = l.photoURL || defaultUser.photoURL;
-                    defaultUser.noHp = l.noHp || defaultUser.noHp;
-                    defaultUser.tanggalLahir = l.tanggalLahir || defaultUser.tanggalLahir;
-                    defaultUser.alamat = l.alamat || defaultUser.alamat;
-                    defaultUser.bioSingkat = l.bioSingkat || defaultUser.bioSingkat;
-                }
-            } catch (e) {}
-            user = defaultUser;
-            saveUser(user);
+            user = { ...defaultUser };
         }
+
+        // Sinkronkan selalu data profil dari sesi login/cendekia_user jika ada
+        try {
+            const legacy = localStorage.getItem('cendekia_user');
+            if (legacy) {
+                const l = JSON.parse(legacy);
+                if (l.name && (!user.name || user.name === 'Siswa Cendekia')) user.name = l.name;
+                if (l.email && !user.email) user.email = l.email;
+                if (l.photoURL && (!user.photoURL || user.photoURL !== l.photoURL)) user.photoURL = l.photoURL;
+                if (l.semester && !user.semester) user.semester = parseInt(l.semester) || 1;
+                if (l.noHp && !user.noHp) user.noHp = l.noHp;
+                if (l.tanggalLahir && !user.tanggalLahir) user.tanggalLahir = l.tanggalLahir;
+                if (l.alamat && !user.alamat) user.alamat = l.alamat;
+                if (l.bioSingkat && !user.bioSingkat) user.bioSingkat = l.bioSingkat;
+                if (typeof l.xp === 'number' && l.xp > (user.xp || 0)) user.xp = l.xp;
+            }
+        } catch (e) {}
 
         // Hitung streak otomatis
         checkStreak(user);
+
+        // Selaraskan Level & Title dengan XP aktual secara presisi
+        const currentXp = user.xp || 0;
+        user.level = 1;
+        user.levelTitle = LEVELS[0].title;
+        for (let i = LEVELS.length - 1; i >= 0; i--) {
+            if (currentXp >= LEVELS[i].minXp) {
+                user.level = LEVELS[i].level;
+                user.levelTitle = LEVELS[i].title;
+                break;
+            }
+        }
+
         return user;
     }
 
@@ -246,57 +260,51 @@ const CendekiaApp = (function () {
         }
     }
 
-    // 5. TANTANGAN HARIAN SISTEM
+    // 5. TANTANGAN HARIAN SISTEM (BERBASIS POOL HARIAN ASLI TANPA DUMMY)
     function getDailyChallenges() {
         const today = new Date().toISOString().split('T')[0];
-        let saved = null;
+        let savedPool = null;
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_CHALLENGES);
-            if (raw) saved = JSON.parse(raw);
+            const raw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
+            if (raw) savedPool = JSON.parse(raw);
         } catch (e) {}
 
-        if (!saved || saved.date !== today) {
-            // Generate Tantangan Harian Baru
-            saved = {
-                date: today,
-                list: [
-                    {
-                        id: 'tc_1',
-                        type: 'pengetahuan',
-                        badge: 'Misi Pengetahuan',
-                        title: 'Jelajahi Diksi Bahasa Indonesia Baku',
-                        desc: 'Pelajari 1 materi ejaan & kosakata di bagian Pengetahuan Umum.',
-                        rewardXp: 20,
-                        link: '/mem-free/pengetahuan-umum.html',
-                        completed: false
-                    },
-                    {
-                        id: 'tc_2',
-                        type: 'permainan',
-                        badge: 'Misi Permainan',
-                        title: 'Tantangan Tebak Kata Cendekia',
-                        desc: 'Selesaikan 1 ronde permainan Tebak Kata atau Susun Kata dengan tuntas.',
-                        rewardXp: 25,
-                        link: '/mem-free/permainan/tebak-kata.html',
-                        completed: false
-                    },
-                    {
-                        id: 'tc_3',
-                        type: 'berkarya',
-                        badge: 'Misi Kreatif',
-                        title: 'Goreskan Paragraf Pertama',
-                        desc: 'Tuliskan minimal 50 kata di Ruang Menulis atau Eksperimen Puisi.',
-                        rewardXp: 30,
-                        link: '/mem-free/berkarya/ruang-menulis.html',
-                        completed: false
-                    }
-                ]
-            };
-            try {
-                localStorage.setItem(STORAGE_KEY_CHALLENGES, JSON.stringify(saved));
-            } catch (e) {}
+        // Jika belum ada pool latihan harian yang digenerate dari admin/bahan ajar
+        if (!savedPool || !savedPool.games || Object.keys(savedPool.games).length === 0) {
+            return [];
         }
-        return saved.list;
+
+        const gameCatalog = {
+            'kuis-pintar': { title: 'Tantangan Kuis Pintar Literasi', desc: 'Jawab 5 pertanyaan literasi pilihan ganda berbasis bahan ajar hari ini.', badge: 'Misi Kuis', xp: 25, link: '/mem-free/permainan/kuis-pintar.html' },
+            'tebak-kata': { title: 'Tantangan Tebak Kata Cendekia', desc: 'Pecahkan teka-teki kata dengan petunjuk materi literasi.', badge: 'Misi Kata', xp: 20, link: '/mem-free/permainan/tebak-kata.html' },
+            'susun-kata': { title: 'Tantangan Susun Kata Bermakna', desc: 'Rangkai huruf acak menjadi istilah baku bahasa Indonesia.', badge: 'Misi Aksara', xp: 20, link: '/mem-free/permainan/susun-kata.html' },
+            'teka-teki': { title: 'Tantangan Teka-Teki Aksara', desc: 'Selesaikan teka-teki silang aksara bertema bahan ajar.', badge: 'Misi Teka-Teki', xp: 25, link: '/mem-free/permainan/teka-teki.html' },
+            'tebak-sastra': { title: 'Tantangan Tebak Sastra & Majas', desc: 'Uji wawasan sastramu tentang gaya bahasa dan kutipan penting.', badge: 'Misi Sastra', xp: 25, link: '/mem-free/permainan/tebak-sastra.html' },
+            'sambung-cerita': { title: 'Tantangan Sambung Cerita Kreatif', desc: 'Lanjutkan narasi pembuka bahan ajar dengan imajinasimu.', badge: 'Misi Cerita', xp: 30, link: '/mem-free/permainan/sambung-cerita.html' },
+            'perbaiki-kalimat': { title: 'Tantangan Perbaiki Kalimat & EYD', desc: 'Koreksi kalimat tidak baku menjadi susunan kata yang sempurna.', badge: 'Misi Bahasa', xp: 25, link: '/mem-free/permainan/perbaiki-kalimat.html' },
+            'tantangan-cepat': { title: 'Tantangan Cepat Refleks Kata', desc: 'Jawab kuis kilat sebelum waktu habis.', badge: 'Misi Cepat', xp: 35, link: '/mem-free/permainan/tantangan-cepat.html' }
+        };
+
+        const list = [];
+        let completedMap = {};
+        try {
+            completedMap = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + today) || '{}');
+        } catch (e) {}
+
+        Object.keys(savedPool.games).forEach(gameKey => {
+            const meta = gameCatalog[gameKey] || { title: `Tantangan ${gameKey}`, desc: 'Selesaikan latihan hari ini.', badge: 'Misi Harian', xp: 25, link: `/mem-free/permainan/${gameKey}.html` };
+            list.push({
+                id: 'ch_' + gameKey,
+                badge: meta.badge,
+                title: meta.title,
+                desc: meta.desc,
+                rewardXp: meta.xp,
+                link: meta.link,
+                completed: !!completedMap['ch_' + gameKey]
+            });
+        });
+
+        return list;
     }
 
     function completeChallenge(id) {
@@ -500,7 +508,7 @@ const CendekiaApp = (function () {
         const progressEls = document.querySelectorAll('[data-bind="xpProgressPercent"]');
         const xpInCurrentLevel = user.xp - currentLvlConfig.minXp;
         const totalXpInLevel = currentLvlConfig.maxXp - currentLvlConfig.minXp;
-        const percent = Math.min(100, Math.max(10, Math.round((xpInCurrentLevel / totalXpInLevel) * 100)));
+        const percent = Math.min(100, Math.max(0, Math.round((xpInCurrentLevel / totalXpInLevel) * 100)));
         progressEls.forEach(el => {
             el.style.width = percent + '%';
         });
@@ -515,11 +523,72 @@ const CendekiaApp = (function () {
             const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Siswa')}&background=003366&color=fff&size=200`;
             img.src = avatarUrl;
             img.style.display = 'block';
+            img.onerror = function() {
+                this.onerror = null;
+                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Siswa')}&background=003366&color=fff&size=200`;
+            };
             if (img.parentElement) {
                 const icon = img.parentElement.querySelector('.default-avatar-icon');
                 if (icon) icon.style.display = 'none';
             }
         });
+    }
+
+    // Sinkronisasi Sesi Firebase & Firestore Otomatis
+    async function syncWithFirebaseUser() {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb || !fb.auth) return;
+
+            const authModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            authModule.onAuthStateChanged(fb.auth, async (authUser) => {
+                if (authUser) {
+                    let updated = false;
+                    let currentUser = getUser();
+
+                    if (authUser.photoURL && (!currentUser.photoURL || currentUser.photoURL !== authUser.photoURL)) {
+                        currentUser.photoURL = authUser.photoURL;
+                        updated = true;
+                    }
+                    if (authUser.displayName && (!currentUser.name || currentUser.name === 'Siswa Cendekia')) {
+                        currentUser.name = authUser.displayName;
+                        updated = true;
+                    }
+
+                    try {
+                        const snap = await fb.getDoc(fb.doc(fb.db, "users", authUser.uid));
+                        if (snap.exists()) {
+                            const d = snap.data();
+                            if (d.photoURL && (!currentUser.photoURL || currentUser.photoURL !== d.photoURL)) {
+                                currentUser.photoURL = d.photoURL;
+                                updated = true;
+                            }
+                            if (d.name && (!currentUser.name || currentUser.name === 'Siswa Cendekia')) {
+                                currentUser.name = d.name;
+                                updated = true;
+                            }
+                            if (typeof d.xp === 'number' && d.xp > (currentUser.xp || 0)) {
+                                currentUser.xp = d.xp;
+                                updated = true;
+                            }
+                            if (d.semester) {
+                                currentUser.semester = parseInt(d.semester) || currentUser.semester;
+                                updated = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[Cendekia Central] Sync firestore doc warn:', e);
+                    }
+
+                    if (updated) {
+                        saveUser(currentUser);
+                        updateDOMStats();
+                    }
+                }
+            });
+        } catch (err) {
+            console.warn('[Cendekia Central] Auth listener warn:', err);
+        }
     }
 
     // 11. FIREBASE BRIDGE, BAHAN AJAR, & GENERATOR SOAL 24 JAM
@@ -824,6 +893,7 @@ const CendekiaApp = (function () {
         if (window.lucide) {
             lucide.createIcons();
         }
+        syncWithFirebaseUser();
     }
 
     return {
