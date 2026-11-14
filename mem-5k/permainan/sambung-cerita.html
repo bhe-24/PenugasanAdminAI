@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sambung Cerita - Member 5K Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-5k/central.css">
+
+    <style>
+        .story-stream {
+            background: white; border-radius: var(--radius-md); padding: 18px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        }
+        .story-node {
+            background: #fdf2f8; border-left: 3px solid #db2777; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+            padding: 14px; font-size: 0.82rem; color: #831843; line-height: 1.6; margin-bottom: 12px;
+        }
+        .branch-choice {
+            display: block; width: 100%; text-align: left; padding: 12px 14px;
+            border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);
+            background: #ffffff; font-size: 0.78rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 10px; cursor: pointer; transition: all 0.2s; line-height: 1.45;
+        }
+        .branch-choice:hover { border-color: #db2777; background: #fdf2f8; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <!-- HEADER -->
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-5k/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="book-text" style="width:18px; height:18px; color:#db2777;"></i> Sambung Cerita
+                    </h1>
+                    <div class="header-brand-sub" id="ceritaSubMeta">Latihan Sinkron 24 Jam</div>
+                </div>
+            </div>
+            <div style="background:#fce7f3; color:#db2777; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <!-- LOADING STATE -->
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Sambung Cerita...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+                </div>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Cerita Belum Tersedia</h3>
+                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
+                </p>
+                <a href="/mem-5k/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
+                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
+                </a>
+            </div>
+
+            <!-- GAME CONTAINER -->
+            <div class="story-stream" id="gameContainer" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-bottom:10px;">
+                    <span id="themeBadge">Tema: ...</span>
+                    <span style="color:#db2777;"><i data-lucide="sparkles" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +15 XP</span>
+                </div>
+
+                <div id="storyLog"></div>
+
+                <div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin:14px 0 8px;">
+                    Bagaimana kelanjutan kisah yang kamu pilih?
+                </div>
+
+                <div id="branchOptions"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-5k/central.js"></script>
+    <script>
+        let storyHooks = [];
+        let curIdx = 0;
+        let score = 0;
+
+        async function initGameEngine() {
+            const loadingState = document.getElementById('gameLoadingState');
+            const emptyState = document.getElementById('gameEmptyState');
+            const gameContainer = document.getElementById('gameContainer');
+            const loadingSub = document.getElementById('loadingSubtitle');
+
+            await CendekiaApp.ensureDailyGame('sambung_cerita', {
+                onLoading: (msg) => {
+                    loadingState.style.display = 'block';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    if (loadingSub) loadingSub.textContent = msg;
+                },
+                onNoMaterials: (reason) => {
+                    loadingState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('emptyReason').textContent = reason;
+                    if (window.lucide) lucide.createIcons();
+                },
+                onReady: (gameStories, poolMeta) => {
+                    loadingState.style.display = 'none';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'block';
+
+                    storyHooks = gameStories || [];
+
+                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
+                    document.getElementById('ceritaSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+
+                    loadCurrentStory();
+                }
+            });
+        }
+
+        function loadCurrentStory() {
+            if (!storyHooks || storyHooks.length === 0) return;
+            const cur = storyHooks[curIdx];
+            document.getElementById('themeBadge').textContent = `Tema: ${cur.theme || 'Petualangan Literasi'}`;
+
+            const log = document.getElementById('storyLog');
+            log.innerHTML = `
+                <div class="story-node">
+                    "${cur.prompt || 'Di sebuah ruang sunyi, kata-kata mulai membentuk jembatan menuju dunia yang baru...'}"
+                </div>
+            `;
+
+            const opt = document.getElementById('branchOptions');
+            const guidance = cur.guidance || 'Kembangkan kelanjutan babak ini';
+            opt.innerHTML = `
+                <button type="button" class="branch-choice" onclick="chooseBranch(1)">
+                    <b>Pilihan 1:</b> Melanjutkan aksi dengan pendekatan dramatis sesuai petunjuk: "${guidance}".
+                </button>
+                <button type="button" class="branch-choice" onclick="chooseBranch(2)">
+                    <b>Pilihan 2:</b> Mengambil sudut pandang misteri dan mengungkap rahasia tersembunyi.
+                </button>
+            `;
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function chooseBranch(choice) {
+            const log = document.getElementById('storyLog');
+            const opt = document.getElementById('branchOptions');
+            score += 15;
+            document.getElementById('gameScore').textContent = score;
+            CendekiaApp.addXP(15, 'Sambung Cerita Kreatif');
+
+            if (choice === 1) {
+                log.innerHTML += `
+                    <div class="story-node" style="border-color:#059669; background:#ecfdf5; color:#065f46;">
+                        <b>Langkahmu:</b> Kamu memilih jalur dramatis. Setiap kalimat yang kamu rangkai menambah ketegangan dan membuat pembaca terhanyut ke dalam konflik cerita.
+                    </div>
+                `;
+            } else {
+                log.innerHTML += `
+                    <div class="story-node" style="border-color:#b45309; background:#fffdf5; color:#92400e;">
+                        <b>Langkahmu:</b> Kamu memilih misteri. Di balik tabir kabut, seberkas petunjuk baru terungkap, memantik rasa penasaran yang mendalam.
+                    </div>
+                `;
+            }
+
+            opt.innerHTML = `
+                <div style="padding:12px; background:#f0fdf4; border-radius:var(--radius-sm); color:#065f46; font-size:0.75rem; text-align:center;">
+                    <strong>Babak Cerita Berhasil Diselesaikan! 🎉</strong><br>
+                    Kamu mendapatkan +15 XP kreativitas narasi.<br><br>
+                    <button type="button" class="btn-primary-challenge" style="width:100%;" onclick="nextStory()">
+                        Lanjut ke Cerita Berikutnya &rarr;
+                    </button>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function nextStory() {
+            curIdx++;
+            if (curIdx < storyHooks.length) {
+                loadCurrentStory();
+            } else {
+                const opt = document.getElementById('branchOptions');
+                opt.innerHTML = `
+                    <div style="padding:14px; background:#f0fdf4; border-radius:var(--radius-sm); color:#166534; font-size:0.78rem; text-align:center;">
+                        <strong>Luar Biasa! Seluruh Rangkaian Cerita Selesai! 🏆</strong><br>
+                        Skor Akhir: <b>${score}</b>. Daya imajinasimu sangat mengagumkan!
+                    </div>
+                `;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            initGameEngine();
+        });
+    </script>
+</body>
+</html>

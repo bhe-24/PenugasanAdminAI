@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tebak Sastra - Member 5K Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-5k/central.css">
+
+    <style>
+        .quote-box {
+            background: #f8fafc; border-radius: var(--radius-md); padding: 16px;
+            font-size: 0.82rem; font-style: italic; color: #1e293b; line-height: 1.6;
+            border-left: 3px solid #059669; margin: 14px 0 16px;
+        }
+        .ans-btn {
+            display: block; width: 100%; text-align: left; padding: 11px 14px;
+            border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);
+            background: #ffffff; font-size: 0.8rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .ans-btn:hover { border-color: #059669; background: #ecfdf5; }
+        .ans-btn.correct { background: #ecfdf5; border-color: #059669; color: #065f46; font-weight: 800; }
+        .ans-btn.wrong { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <!-- HEADER -->
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-5k/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="book-open" style="width:18px; height:18px; color:#059669;"></i> Tebak Sastra
+                    </h1>
+                    <div class="header-brand-sub" id="sastraSubMeta">Latihan Sinkron 24 Jam</div>
+                </div>
+            </div>
+            <div style="background:#ecfdf5; color:#059669; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <!-- LOADING STATE -->
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Tebak Sastra Harian...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+                </div>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Soal Sastra Belum Tersedia</h3>
+                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
+                </p>
+                <a href="/mem-5k/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
+                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
+                </a>
+            </div>
+
+            <!-- GAME CONTAINER -->
+            <div id="gameContainer" style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
+                    <span>Babak <span id="roundIdx">1</span> dari <span id="roundTotal">5</span></span>
+                    <span style="color:#059669;"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
+                </div>
+
+                <div class="quote-box" id="quoteText">...</div>
+
+                <div style="font-size:0.8rem; font-weight:800; color:var(--primary); margin-bottom:12px;" id="sastraQuestion">
+                    Pertanyaan: ...
+                </div>
+
+                <div id="authorOptions"></div>
+
+                <div id="sastraFeedback" style="margin-top:14px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.76rem; line-height:1.45;"></div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-5k/central.js"></script>
+    <script>
+        let sastraRounds = [];
+        let rIndex = 0;
+        let score = 0;
+
+        async function initGameEngine() {
+            const loadingState = document.getElementById('gameLoadingState');
+            const emptyState = document.getElementById('gameEmptyState');
+            const gameContainer = document.getElementById('gameContainer');
+            const loadingSub = document.getElementById('loadingSubtitle');
+
+            await CendekiaApp.ensureDailyGame('tebak_sastra', {
+                onLoading: (msg) => {
+                    loadingState.style.display = 'block';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    if (loadingSub) loadingSub.textContent = msg;
+                },
+                onNoMaterials: (reason) => {
+                    loadingState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('emptyReason').textContent = reason;
+                    if (window.lucide) lucide.createIcons();
+                },
+                onReady: (gameRounds, poolMeta) => {
+                    loadingState.style.display = 'none';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'block';
+
+                    sastraRounds = gameRounds || [];
+
+                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
+                    document.getElementById('sastraSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+
+                    loadRound();
+                }
+            });
+        }
+
+        function loadRound() {
+            if (!sastraRounds || sastraRounds.length === 0) return;
+            const cur = sastraRounds[rIndex];
+            document.getElementById('roundIdx').textContent = rIndex + 1;
+            document.getElementById('roundTotal').textContent = sastraRounds.length;
+            document.getElementById('quoteText').textContent = `"${cur.quote || ''}"`;
+            document.getElementById('sastraQuestion').textContent = cur.question || 'Siapakah tokoh sastra atau apa makna kutipan tersebut?';
+            document.getElementById('sastraFeedback').style.display = 'none';
+
+            const container = document.getElementById('authorOptions');
+            container.innerHTML = '';
+
+            const opts = cur.options || [];
+            opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ans-btn';
+                btn.textContent = opt;
+                btn.onclick = () => answerSastra(idx, btn);
+                container.appendChild(btn);
+            });
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function answerSastra(choiceIdx, btn) {
+            const cur = sastraRounds[rIndex];
+            const correctIdx = cur.answer !== undefined ? cur.answer : (cur.answerIndex || 0);
+            const buttons = document.querySelectorAll('.ans-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            const fb = document.getElementById('sastraFeedback');
+            fb.style.display = 'block';
+
+            if (choiceIdx === correctIdx) {
+                btn.classList.add('correct');
+                score += 20;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(20, 'Tebak Sastra Tepat');
+                fb.style.background = '#ecfdf5';
+                fb.style.color = '#065f46';
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> ${cur.desc || cur.explanation || ''}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextRound()">Kutipan Berikutnya &rarr;</button>`;
+            } else {
+                btn.classList.add('wrong');
+                if (buttons[correctIdx]) buttons[correctIdx].classList.add('correct');
+                fb.style.background = '#fef2f2';
+                fb.style.color = '#991b1b';
+                fb.innerHTML = `Kurang tepat. ${cur.desc || cur.explanation || ''}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextRound()">Lanjut &rarr;</button>`;
+            }
+        }
+
+        function nextRound() {
+            rIndex++;
+            if (rIndex < sastraRounds.length) {
+                loadRound();
+            } else {
+                const fb = document.getElementById('sastraFeedback');
+                fb.style.background = '#f0fdf4';
+                fb.style.color = '#166534';
+                fb.innerHTML = `<strong>Selamat! Seluruh Babak Sastra Selesai! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            initGameEngine();
+        });
+    </script>
+</body>
+</html>

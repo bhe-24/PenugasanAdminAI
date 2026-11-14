@@ -987,6 +987,101 @@ Ketentuan Review (SANGAT KETAT):
             }
 
             // ---------------------------------------------------------
+            // [MEMBER 5K] MENTOR AI LITERASI & KURASI SASTRA
+            // ---------------------------------------------------------
+            case 'mentor-consultation':
+            case 'mentor_consultation': {
+                if (!groq && !genAI && !openrouter) {
+                    return res.status(500).json({ error: 'Server AI belum dikonfigurasi.' });
+                }
+
+                const { message, history = [], topic = 'umum', userName = 'Siswa Cendekia' } = payload;
+                if (!message || message.trim() === '') {
+                    return res.status(400).json({ error: 'Pesan konsultasi tidak boleh kosong.' });
+                }
+
+                const systemInstruction = `Kamu adalah "Mentor Sastra Cendekia", seorang kurator literasi dan pembimbing penulisan resmi di platform Cendekia Aksara untuk Member 5K.
+Tugas utamamu adalah mendampingi ${userName} dalam belajar menulis, memperbaiki karya sastra (puisi, cerpen, pantun, esai, dongeng), memeriksa kaidah EYD V, memperkaya kosakata & diksi, serta merancang karakter atau alur cerita.
+
+Pedoman Sikap & Gaya Komunikasi:
+1. Ramah, hangat, menyemangati, bijak, dan sangat menghargai proses kreatif pengguna.
+2. Berikan kritik konstruktif yang konkret: jangan hanya memuji atau menyalahkan, melainkan berikan CONTOH kalimat alternatif yang lebih memikat atau diksi puitis yang tepat.
+3. Jelaskan alasan kaidah (misal perbedaan "di-" sebagai imbuhan vs kata depan, majas metafora, atau efektivitas dialog).
+4. Gunakan format Markdown yang rapi (bullet points, bold, quote) agar nyaman dibaca di smartphone.
+5. Pertahankan fokus pada topik literasi, kepenulisan kreatif, apresiasi sastra, dan tata bahasa Indonesia.`;
+
+                const messages = [
+                    { role: "system", content: systemInstruction }
+                ];
+
+                // Tambahkan riwayat chat jika ada (maksimal 8 pesan terakhir)
+                if (Array.isArray(history) && history.length > 0) {
+                    const recent = history.slice(-8);
+                    recent.forEach(h => {
+                        if (h.role && h.content) {
+                            messages.push({
+                                role: h.role === 'user' ? 'user' : 'assistant',
+                                content: String(h.content).substring(0, 2000)
+                            });
+                        }
+                    });
+                }
+
+                // Tambahkan pesan pengguna terkini
+                messages.push({ role: "user", content: message });
+
+                let replyText = "";
+
+                // Coba Groq
+                if (groq) {
+                    try {
+                        const completion = await groq.chat.completions.create({
+                            model: 'openai/gpt-oss-120b',
+                            messages: messages,
+                            temperature: 0.7,
+                            max_tokens: 1500
+                        });
+                        replyText = completion.choices[0]?.message?.content || "";
+                    } catch (groqErr) {
+                        console.warn("Groq gpt-oss-120b gagal, coba qwen/qwen3.8-27b:", groqErr.message);
+                        try {
+                            const completion2 = await groq.chat.completions.create({
+                                model: 'qwen/qwen3.8-27b',
+                                messages: messages,
+                                temperature: 0.7,
+                                max_tokens: 1500
+                            });
+                            replyText = completion2.choices[0]?.message?.content || "";
+                        } catch (groqErr2) {
+                            console.warn("Groq qwen gagal, fallback ke Gemini/OpenRouter:", groqErr2.message);
+                        }
+                    }
+                }
+
+                // Fallback Gemini jika Groq belum berhasil
+                if (!replyText && genAI) {
+                    try {
+                        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings });
+                        const fullPrompt = `${systemInstruction}\n\nPercakapan sebelumnya:\n${messages.slice(1).map(m => `${m.role === 'user' ? 'User' : 'Mentor'}: ${m.content}`).join('\n')}`;
+                        const result = await model.generateContent(fullPrompt);
+                        replyText = result.response.text();
+                    } catch (geminiErr) {
+                        console.warn("Gemini fallback gagal:", geminiErr.message);
+                    }
+                }
+
+                if (!replyText) {
+                    replyText = `Halo ${userName}! Terima kasih sudah berkonsultasi seputar kepenulisan. Secara umum dalam menulis karya sastra, penting untuk memperhatikan kekuatan impresi pembuka, kedalaman diksi, dan ketepatan penerapan ejaan EYD V. Silakan ketik pertanyaan atau cuplikan naskahmu kembali agar dapat kita diskusikan lebih mendalam!`;
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    reply: replyText,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // ---------------------------------------------------------
             // [I] GENERATE BUKU PANDUAN / GUIDEBOOK
             // ---------------------------------------------------------
             case 'generate-guidebook': {

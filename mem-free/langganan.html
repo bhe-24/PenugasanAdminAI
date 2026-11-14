@@ -240,16 +240,19 @@
                 <i data-lucide="crown" style="width:38px; height:38px; color:#d97706;"></i>
             </div>
             <div style="font-size:0.7rem; font-weight:800; color:#15803d; text-transform:uppercase;">Pembayaran Diverifikasi Lunas</div>
-            <h3 class="modal-title" style="color:var(--primary); margin:4px 0 8px;">Selamat Datang di <span id="succTierName">Member Pro</span>! 🎉</h3>
-            <p class="modal-desc" style="font-size:0.75rem; color:var(--text-muted); line-height:1.45; margin-bottom:14px;">
-                Upgrade keanggotaan berhasil tanpa perlu mendaftar ulang. Akses bimbingan kelas, kurator, dan materi resmi telah aktif di akun Anda.
+            <h3 class="modal-title" style="color:var(--primary); margin:4px 0 8px;">Selamat Datang di <span id="succTierName">Member 5K</span>! 🎉</h3>
+            <p class="modal-desc" style="font-size:0.75rem; color:var(--text-muted); line-height:1.45; margin-bottom:12px;">
+                Upgrade keanggotaan berhasil tanpa perlu mendaftar ulang. Seluruh fasilitas paket resmi Anda telah aktif seketika.
             </p>
+            <div id="succRedirectNote" style="font-size:0.72rem; color:#0284c7; font-weight:700; background:#f0f9ff; border:1px solid #bae6fd; padding:6px 10px; border-radius:8px; margin-bottom:12px;">
+                Mengalihkan ke beranda Anda dalam 2 detik...
+            </div>
             <div style="display:flex; flex-direction:column; gap:8px;">
-                <a href="#" id="btnDownloadKwitansi" target="_blank" class="btn-primary-challenge" style="background:#0284c7; padding:9px; font-size:0.75rem; text-decoration:none;">
-                    <i data-lucide="file-text" style="width:15px; height:15px;"></i> Lihat &amp; Unduh Kwitansi Resmi (PDF)
+                <a href="/mem-5k/index.html" id="btnEnterPortal" class="btn-primary-challenge" style="background:#0284c7; padding:10px; font-size:0.8rem; text-decoration:none;">
+                    <i data-lucide="arrow-right-circle" style="width:16px; height:16px;"></i> Masuk ke Portal Member 5K Sekarang &rarr;
                 </a>
-                <a href="/mem-free/dashboard-kelas.html" class="btn-primary-challenge" style="background:linear-gradient(135deg, #003366, #001f3f); border:1px solid var(--accent); padding:9px; font-size:0.75rem; text-decoration:none;">
-                    <i data-lucide="school" style="width:15px; height:15px;"></i> Buka Ruang Kelas Resmi
+                <a href="#" id="btnDownloadKwitansi" target="_blank" class="btn-modal-secondary" style="padding:9px; font-size:0.75rem; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <i data-lucide="file-text" style="width:15px; height:15px;"></i> Unduh Kwitansi Resmi (PDF)
                 </a>
                 <a href="/mem-free/profil.html" class="btn-modal-secondary" style="padding:8px; font-size:0.72rem; text-decoration:none; text-align:center;">
                     Lihat Profil &amp; Riwayat Transaksi
@@ -428,10 +431,17 @@
                 // 3. Tambahkan XP Bonus Upgrade (+100 XP)
                 CendekiaApp.addXP(100, `Upgrade Sukses ke ${currentPackage.name}`);
 
-                // 4. Siapkan URL Kwitansi Resmi
+                // 4. Siapkan URL Kwitansi Resmi & Target Redirect Portal
                 const kwitansiUrl = `/kwitansi.html?invoice=${encodeURIComponent(currentInvoice)}&name=${encodeURIComponent(user.name || 'Siswa Cendekia')}&email=${encodeURIComponent(user.email || '')}&paket=${encodeURIComponent(currentPackage.id)}&amount=${currentTotal}&unique=${currentUnique}`;
                 document.getElementById('btnDownloadKwitansi').href = kwitansiUrl;
                 document.getElementById('succTierName').textContent = currentPackage.name;
+
+                const redirectTarget = currentPackage.id === '5k' ? '/mem-5k/index.html' : '/mem-free/dashboard-kelas.html';
+                const btnEnterPortal = document.getElementById('btnEnterPortal');
+                if (btnEnterPortal) {
+                    btnEnterPortal.href = redirectTarget;
+                    btnEnterPortal.innerHTML = `<i data-lucide="arrow-right-circle" style="width:16px; height:16px;"></i> Masuk ke Portal ${currentPackage.name} Sekarang &rarr;`;
+                }
 
                 // 5. Tutup Modal Bayar & Buka Modal Sukses
                 closeUpgradeModal();
@@ -440,6 +450,20 @@
                 btn.innerHTML = '<i data-lucide="check-circle" style="width:16px; height:16px;"></i> Saya Sudah Bayar / Cek Otomatis';
                 updateActiveTierUI();
                 if (window.lucide) lucide.createIcons();
+
+                // 6. Redirect otomatis langsung ke portal tujuan (tanpa data dummy)
+                let countdown = 3;
+                const redirectNote = document.getElementById('succRedirectNote');
+                const cdTimer = setInterval(() => {
+                    countdown--;
+                    if (redirectNote) {
+                        redirectNote.textContent = `Mengalihkan ke portal ${currentPackage.name} dalam ${countdown} detik...`;
+                    }
+                    if (countdown <= 0) {
+                        clearInterval(cdTimer);
+                        window.location.href = redirectTarget;
+                    }
+                }, 1000);
             }, 1200);
         }
 

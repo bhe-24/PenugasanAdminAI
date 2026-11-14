@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Grafik Skorku &amp; Leaderboard - Member 5K Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-5k/central.css">
+
+    <style>
+        .stat-grid-4 {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;
+        }
+        .stat-box-small {
+            background: white; border-radius: var(--radius-md); padding: 12px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        }
+        .leaderboard-row {
+            display: flex; align-items: center; justify-content: space-between; padding: 10px 12px;
+            border-radius: var(--radius-sm); background: white; border: 1px solid var(--border-soft);
+            margin-bottom: 8px; font-size: 0.76rem; transition: all 0.2s;
+        }
+        .leaderboard-row.my-rank {
+            background: #fffdf5; border-color: var(--accent); box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
+        }
+        .rank-badge {
+            width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-weight: 800; font-size: 0.75rem; flex-shrink: 0;
+            background: #f1f5f9; color: var(--text-dark);
+        }
+        .rank-1 { background: #fef08a; color: #854d0e; border: 1px solid #facc15; }
+        .rank-2 { background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+        .rank-3 { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+
+        .rank-avatar {
+            width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+            flex-shrink: 0; border: 1.5px solid var(--accent); background: #e2e8f0;
+        }
+        .rank-avatar img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-5k/index.html" class="btn-header-back" title="Kembali">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="chart-no-axes-combined" style="width:18px; height:18px; color:var(--primary);"></i> Grafik Skorku
+                    </h1>
+                    <div class="header-brand-sub">Analitik Perkembangan &amp; Peringkat</div>
+                </div>
+            </div>
+            <div style="background:#e0f2fe; color:#0284c7; font-size:0.7rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Level <span data-bind="userLevel">1</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <!-- TOTAL XP HERO -->
+            <div class="user-hero-card" style="padding:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:0.7rem; color:var(--accent);">Akumulasi Pencapaian:</span>
+                        <h2 style="font-size:1.4rem; font-weight:800; color:white;"><span data-bind="userXp">0</span> XP</h2>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="hero-title-badge" style="justify-content:flex-end;">
+                            <i data-lucide="sparkles" style="width:12px; height:12px;"></i> <span data-bind="userLevelTitle">Penulis Pemula 🌱</span>
+                        </span>
+                        <span style="font-size:0.68rem; color:#cbd5e1;" id="myNationalRankText">Peringkat #1</span>
+                    </div>
+                </div>
+
+                <!-- PROGRESS XP & LEVEL (SELARAS DENGAN BERANDA) -->
+                <div class="hero-xp-section" style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.15);">
+                    <div class="hero-xp-meta">
+                        <span>Level <b data-bind="userLevel">1</b></span>
+                        <span><b data-bind="userXp">0</b> / <span data-bind="userMaxXp">100</span> XP</span>
+                    </div>
+                    <div class="hero-xp-bar-bg">
+                        <div class="hero-xp-bar-fill" data-bind="xpProgressPercent" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 STATISTIK UTAMA (DATA NYATA DARI AKTIVITAS USER) -->
+            <section>
+                <div class="stat-grid-4">
+                    <div class="stat-box-small">
+                        <div style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <i data-lucide="help-circle" style="width:14px; height:14px; color:#0284c7;"></i> Kuis Selesai
+                        </div>
+                        <strong style="font-size:1.15rem; color:var(--primary); display:block; margin-top:4px;" id="statQuizCount">0</strong>
+                    </div>
+
+                    <div class="stat-box-small">
+                        <div style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <i data-lucide="gamepad-2" style="width:14px; height:14px; color:#7c3aed;"></i> Game Selesai
+                        </div>
+                        <strong style="font-size:1.15rem; color:var(--primary); display:block; margin-top:4px;" id="statGamesCount">0</strong>
+                    </div>
+
+                    <div class="stat-box-small">
+                        <div style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <i data-lucide="book-open" style="width:14px; height:14px; color:#b45309;"></i> Modul Dibaca
+                        </div>
+                        <strong style="font-size:1.15rem; color:var(--primary); display:block; margin-top:4px;" id="statMaterialsCount">0</strong>
+                    </div>
+
+                    <div class="stat-box-small">
+                        <div style="font-size:0.68rem; color:var(--text-muted); display:flex; align-items:center; gap:4px;">
+                            <i data-lucide="feather" style="width:14px; height:14px; color:#059669;"></i> Karya Dibuat
+                        </div>
+                        <strong style="font-size:1.15rem; color:var(--primary); display:block; margin-top:4px;" id="statWorksCount">0</strong>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LEADERBOARD REAL-TIME DENGAN DATA DATABASE NYATA (TANPA DUMMY) -->
+            <section>
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i data-lucide="trophy"></i> Peringkat Cendekia Aksara
+                    </h2>
+                    <label style="font-size:0.66rem; color:var(--text-muted); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                        <input type="checkbox" id="privacyToggle" onchange="togglePrivacy(this)"> Samarkan Namaku
+                    </label>
+                </div>
+
+                <!-- DAFTAR PERINGKAT ASLI DARI DATABASE -->
+                <div id="leaderboardList">
+                    <div id="leaderboardLoading" style="text-align:center; padding:30px 16px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                        <i data-lucide="loader" style="width:24px; height:24px; animation:spin 1s linear infinite; margin-bottom:8px; color:var(--primary);"></i>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Memuat peringkat real-time anggota Cendekia...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- LENCANA PENCAPAIAN LENGKAP (6 LENCANA SISTEM NYATA) -->
+            <section id="lencana">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i data-lucide="medal"></i> Koleksi 6 Lencana Literasi
+                    </h2>
+                    <span style="font-size:0.68rem; font-weight:800; color:var(--accent-dark);" id="badgeCountText">0/6 Terbuka</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;" id="badgesGrid">
+                    <!-- Dinamis via renderBadgesGrid() -->
+                </div>
+            </section>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-5k/central.js"></script>
+    <script>
+        let cachedLeaderboard = [];
+        let isPrivate = false;
+
+        async function loadRealLeaderboard() {
+            const container = document.getElementById('leaderboardList');
+            const currentUser = CendekiaApp.getUser();
+
+            try {
+                const users = await CendekiaApp.getLeaderboardUsers();
+                cachedLeaderboard = users;
+
+                if (!users || users.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:30px 16px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                            <i data-lucide="trophy" style="width:36px; height:36px; color:#d4af37; margin:0 auto 8px;"></i>
+                            <h3 style="font-size:0.9rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Belum Ada Anggota di Peringkat</h3>
+                            <p style="font-size:0.74rem; color:var(--text-muted); line-height:1.4;">
+                                Belum ada data anggota yang mengumpulkan skor. Selesaikan latihan harian untuk menjadi yang pertama di papan peringkat!
+                            </p>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                    return;
+                }
+
+                renderLeaderboardRows(users);
+
+                // Update peringkat nasional saya di hero banner
+                const myEntry = users.find(u => u.isCurrentUser);
+                if (myEntry) {
+                    document.getElementById('myNationalRankText').textContent = `Peringkat #${myEntry.rank} Nasional`;
+                }
+            } catch (err) {
+                console.error("Gagal memuat leaderboard:", err);
+                container.innerHTML = `
+                    <div style="text-align:center; padding:20px; background:white; border-radius:var(--radius-md); border:1px solid #fee2e2; color:#ef4444; font-size:0.75rem;">
+                        Gagal memuat peringkat: ${err.message}
+                    </div>
+                `;
+            }
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // RENDER BARIS LEADERBOARD: 5 TERATAS + BARIS KE-6 AKUN SENDIRI
+        function renderLeaderboardRows(users) {
+            const container = document.getElementById('leaderboardList');
+            const currentUser = CendekiaApp.getUser();
+            let html = '';
+
+            // 1. Tampilkan hanya 5 teratas
+            const top5 = users.slice(0, 5);
+
+            top5.forEach(u => {
+                let badgeClass = '';
+                if (u.rank === 1) badgeClass = 'rank-1';
+                else if (u.rank === 2) badgeClass = 'rank-2';
+                else if (u.rank === 3) badgeClass = 'rank-3';
+
+                const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'Siswa')}&background=003366&color=fff&size=100`;
+                const avatarUrl = u.photoURL || fallbackAvatar;
+                
+                let displayName = u.name;
+                if (u.isCurrentUser && isPrivate) {
+                    displayName = `Penulis Anonim #${u.rank}`;
+                }
+
+                html += `
+                    <div class="leaderboard-row ${u.isCurrentUser ? 'my-rank' : ''}">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <!-- 1. PERINGKAT (NOMOR) -->
+                            <span class="rank-badge ${badgeClass}">${u.rank}</span>
+                            
+                            <!-- 2. SEBELAHNYA: PROFIL (FOTO LINGKARAN) -->
+                            <div class="rank-avatar">
+                                <img src="${avatarUrl}" alt="${displayName}" onerror="this.onerror=null; this.src='${fallbackAvatar}';">
+                            </div>
+
+                            <!-- 3. NAMA SISWA & KETERANGAN -->
+                            <div style="min-width:0;">
+                                <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${displayName} ${u.isCurrentUser ? '<span style="font-size:0.7rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>' : ''}
+                                </strong>
+                                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">
+                                    ${u.levelTitle || 'Penulis Pemula 🌱'} &bull; ${u.semester || 'Member Free'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 4. BARU XP (DI KANAN) -->
+                        <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px;">${u.xp} XP</strong>
+                    </div>
+                `;
+            });
+
+            // 2. Baris ke-6: Posisi Peringkat Akunnya Sendiri
+            const myEntry = users.find(u => u.isCurrentUser) || {
+                rank: users.length > 0 ? users.length + 1 : 1,
+                name: currentUser.name || 'Siswa Cendekia',
+                photoURL: currentUser.photoURL || '',
+                levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
+                semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member Free',
+                xp: currentUser.xp || 0,
+                isCurrentUser: true
+            };
+
+            const myFallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(myEntry.name || 'Siswa')}&background=003366&color=fff&size=100`;
+            const myAvatarUrl = myEntry.photoURL || myFallbackAvatar;
+            let myDisplayName = myEntry.name;
+            if (isPrivate) {
+                myDisplayName = `Penulis Anonim #${myEntry.rank}`;
+            }
+
+            let myBadgeClass = '';
+            if (myEntry.rank === 1) myBadgeClass = 'rank-1';
+            else if (myEntry.rank === 2) myBadgeClass = 'rank-2';
+            else if (myEntry.rank === 3) myBadgeClass = 'rank-3';
+
+            html += `
+                <div style="margin-top:12px; padding-top:10px; border-top:2px dashed #cbd5e1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.68rem; color:var(--text-muted); font-weight:700;">
+                        <span style="color:var(--accent-dark);"><i data-lucide="user-check" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Baris ke-6 (Peringkat Akun Kamu)</span>
+                        <span>Posisi Saat Ini</span>
+                    </div>
+                    <div class="leaderboard-row my-rank" style="border: 2px solid var(--accent); background:#fffdf5;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <!-- 1. PERINGKAT (NOMOR) -->
+                            <span class="rank-badge ${myBadgeClass}">${myEntry.rank}</span>
+                            
+                            <!-- 2. SEBELAHNYA: PROFIL (FOTO LINGKARAN) -->
+                            <div class="rank-avatar">
+                                <img src="${myAvatarUrl}" alt="${myDisplayName}" onerror="this.onerror=null; this.src='${myFallbackAvatar}';">
+                            </div>
+
+                            <!-- 3. NAMA SISWA & KETERANGAN -->
+                            <div style="min-width:0;">
+                                <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${myDisplayName} <span style="font-size:0.7rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>
+                                </strong>
+                                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">
+                                    ${myEntry.levelTitle || 'Penulis Pemula 🌱'} &bull; ${myEntry.semester || 'Member Free'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 4. BARU XP (DI KANAN) -->
+                        <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px;">${myEntry.xp} XP</strong>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function togglePrivacy(cb) {
+            isPrivate = cb.checked;
+            if (cachedLeaderboard && cachedLeaderboard.length > 0) {
+                renderLeaderboardRows(cachedLeaderboard);
+            }
+        }
+
+        // RENDER 6 LENCANA PENCAPAIAN SISTEM DENGAN PROGRESS NYATA
+        function renderBadgesGrid() {
+            const container = document.getElementById('badgesGrid');
+            if (!container) return;
+            const user = CendekiaApp.getUser();
+            const badges = CendekiaApp.BADGE_CATALOG;
+            const userBadges = Array.isArray(user.badges) ? user.badges : [];
+            
+            let unlockedCount = 0;
+            let html = '';
+
+            Object.keys(badges).forEach(key => {
+                const b = badges[key];
+                const isUnlocked = userBadges.includes(b.id);
+                const prog = b.progress ? b.progress(user) : 0;
+                const target = b.target || 1;
+                const unit = b.unit || 'Aktivitas';
+
+                if (isUnlocked) unlockedCount++;
+
+                html += `
+                    <div class="stat-box-small" style="text-align:center; position:relative; overflow:hidden; border: 1.5px solid ${isUnlocked ? 'var(--accent)' : '#e2e8f0'}; background:${isUnlocked ? '#fffdf5' : '#f8fafc'}; padding:14px 10px;">
+                        <div style="width:44px; height:44px; border-radius:50%; background:${isUnlocked ? '#fef3c7' : '#e2e8f0'}; color:${isUnlocked ? '#b45309' : '#94a3b8'}; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; border: 1.5px solid ${isUnlocked ? '#fde68a' : '#cbd5e1'};">
+                            <i data-lucide="${b.icon}" style="width:22px; height:22px;"></i>
+                        </div>
+                        <strong style="font-size:0.82rem; color:${isUnlocked ? 'var(--primary)' : 'var(--text-muted)'}; display:block; margin-bottom:2px;">
+                            ${b.name} ${isUnlocked ? '🏅' : ''}
+                        </strong>
+                        <span style="font-size:0.65rem; color:${isUnlocked ? 'var(--accent-dark)' : 'var(--text-muted)'}; display:block; line-height:1.3; margin-bottom:8px;">
+                            ${b.desc}
+                        </span>
+                        <div>
+                            ${isUnlocked ? `
+                                <span style="font-size:0.62rem; font-weight:800; background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:var(--radius-full); display:inline-flex; align-items:center; gap:3px;">
+                                    <i data-lucide="check-circle" style="width:11px; height:11px;"></i> Terbuka
+                                </span>
+                            ` : `
+                                <span style="font-size:0.62rem; font-weight:700; background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:var(--radius-full); display:inline-flex; align-items:center; gap:3px;">
+                                    <i data-lucide="lock" style="width:11px; height:11px;"></i> Progress: ${prog}/${target} ${unit}
+                                </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            const countEl = document.getElementById('badgeCountText');
+            if (countEl) countEl.textContent = `${unlockedCount}/6 Terbuka`;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('beranda');
+
+            const u = CendekiaApp.getUser();
+            const works = CendekiaApp.getWorks();
+
+            // Set statistik aktual pengguna
+            document.getElementById('statQuizCount').textContent = u.stats?.quizCompleted || 0;
+            document.getElementById('statGamesCount').textContent = u.stats?.gamesCompleted || 0;
+            document.getElementById('statMaterialsCount').textContent = u.stats?.materialsLearned || 0;
+            document.getElementById('statWorksCount').textContent = works.length;
+
+            renderBadgesGrid();
+            loadRealLeaderboard();
+        });
+    </script>
+</body>
+</html>
