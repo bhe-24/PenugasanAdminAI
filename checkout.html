@@ -14,9 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Aleo:wght@700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- PDF Generation Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF Generation Libraries (Vector-based pdfMake, NO Canvas) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <style>
         :root {
@@ -381,7 +381,7 @@
             padding: 12px;
         }
         .receipt-modal-container {
-            width: 100%; max-width: 440px; height: 92vh; background: #3b4252;
+            width: 100%; max-width: 580px; height: 92vh; background: #3b4252;
             border-radius: var(--radius-lg); box-shadow: 0 25px 60px rgba(0,0,0,0.6);
             display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid var(--accent);
         }
@@ -413,14 +413,11 @@
         /* ================= STYLE PERSIS kwitansi.html (A4 KOP SURAT) ================= */
         .paper { 
             background: white; 
-            width: 100%; max-width: 400px;
-            padding: 18px 16px; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.4); 
+            width: 100%; max-width: 520px;
+            padding: 22px 20px; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.4); 
             position: relative; color: #1a1a1a; 
-            display: flex; flex-direction: column; border-radius: 4px;
+            display: flex; flex-direction: column; border-radius: 6px;
             font-family: 'Merriweather', serif;
-        }
-        @media (min-width: 600px) {
-            .paper { width: 210mm; max-width: 210mm; min-height: 297mm; padding: 16mm 20mm 20mm; }
         }
 
         .paper-watermark {
@@ -446,7 +443,10 @@
         .opening-text b { font-style: normal; color: var(--navy); }
         .section-lead { font-family: sans-serif; font-size: 7.5pt; font-weight: 700; color: var(--navy); margin: 0 0 8px 0; position: relative; z-index: 1; }
 
-        .info-section { width: 100%; margin-bottom: 12px; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+        .info-section { width: 100%; margin-bottom: 12px; position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (max-width: 480px) {
+            .info-section { grid-template-columns: 1fr; }
+        }
         .info-card-box { box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; background: #f8fafc; }
         .col-header { font-family: sans-serif; font-weight: 700; text-transform: uppercase; color: var(--navy); border-bottom: 1.5px solid var(--gold); margin-bottom: 6px; padding-bottom: 4px; font-size: 7.2pt; }
         .info-table { width: 100%; font-size: 7.2pt; font-family: sans-serif; }
@@ -1131,9 +1131,41 @@
             const verifyCode = `CA-${(registeredUser.name || 'USER').substring(0,4).toUpperCase()}-${(registeredUser.createdMs || Date.now()).toString().slice(-6)}`;
             document.getElementById('k-verify').textContent = verifyCode;
 
-            document.getElementById('k-item-name').textContent = `Administrasi Akun: ${registeredUser.packageName}`;
+            const tbody = document.getElementById('k-tbody');
             const priceText = registeredUser.price === 0 ? 'Rp 0 (Gratis)' : 'Rp ' + registeredUser.price.toLocaleString('id-ID');
-            document.getElementById('k-item-nominal').textContent = priceText;
+
+            if (registeredUser.price === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td style="text-align:center;">1</td>
+                        <td>Aktivasi Akun Literasi Mandiri (Akses Pustaka)</td>
+                        <td class="col-price">Rp 0 (Gratis)</td>
+                    </tr>
+                `;
+            } else if (registeredUser.uniqueCode && registeredUser.uniqueCode > 0) {
+                const base = registeredUser.basePrice || (registeredUser.price - registeredUser.uniqueCode);
+                tbody.innerHTML = `
+                    <tr>
+                        <td style="text-align:center;">1</td>
+                        <td>Biaya Pokok Paket: ${registeredUser.packageName}</td>
+                        <td class="col-price">Rp ${base.toLocaleString('id-ID')}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:center;">2</td>
+                        <td>Kode Unik Transaksi Gateway</td>
+                        <td class="col-price">Rp ${registeredUser.uniqueCode.toLocaleString('id-ID')}</td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td style="text-align:center;">1</td>
+                        <td>Administrasi Akun: ${registeredUser.packageName}</td>
+                        <td class="col-price">${priceText}</td>
+                    </tr>
+                `;
+            }
+
             document.getElementById('k-total').textContent = priceText;
             document.getElementById('k-method').textContent = registeredUser.price === 0 ? 'Mandiri (Bebas Biaya)' : (registeredUser.paymentMethod || 'QRIS Digital Otomatis');
 
@@ -1151,41 +1183,313 @@
             document.getElementById('receiptModal').style.display = 'flex';
         }
 
+        // Helper konversi URL gambar ke base64 untuk pdfmake
+        async function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.setAttribute('crossOrigin', 'anonymous');
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch(e) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
+            });
+        }
+
         // ============================================================
-        // UNDUH KWITANSI LANGSUNG SEBAGAI PDF (html2pdf.js - BUKAN WINDOW.PRINT)
-        // KEMUDIAN TRANSISI LOADING DAN REDIRECT KE PORTAL
+        // UNDUH KWITANSI LANGSUNG SEBAGAI PDF DENGAN PDFMAKE (VEKTOR MURNI)
+        // KEMUDIAN TRANSISI LOADING DAN REDIRECT KE RUANG BELAJAR
         // ============================================================
-        function downloadReceiptAndEnterPortal() {
+        async function downloadReceiptAndEnterPortal() {
             const btn = document.getElementById('btnDownloadReceipt');
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghasilkan Dokumen PDF...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan Dokumen PDF...';
             btn.disabled = true;
 
-            const element = document.getElementById('receipt-paper');
-            const safeName = (registeredUser && registeredUser.name ? registeredUser.name : 'Siswa').replace(/[^a-zA-Z0-9]/g, '_');
-            const opt = {
-                margin: 0,
-                filename: `Kwitansi_Resmi_Cendekia_${safeName}_${Date.now()}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+            try {
+                const u = registeredUser || {};
+                const safeName = (u.name || 'Siswa').replace(/[^a-zA-Z0-9]/g, '_');
+                const verifyCode = `CA-${(u.name || 'USER').substring(0,4).toUpperCase()}-${(u.createdMs || Date.now()).toString().slice(-6)}`;
+                const totalFormatted = u.price === 0 ? 'Rp 0' : 'Rp ' + (u.price || 0).toLocaleString('id-ID');
 
-            // Unduh langsung file PDF
-            html2pdf().set(opt).from(element).save().then(() => {
+                // Ambil base64 logo & cap stempel
+                const [logoBase64, stampBase64] = await Promise.all([
+                    getBase64Image('https://i.imgur.com/5Srjyo4.png'),
+                    getBase64Image('https://i.imgur.com/YvrNYRw.png')
+                ]);
+
+                // Buat item rincian tabel
+                const tableBody = [
+                    [
+                        { text: 'NO', style: 'tableHeader', alignment: 'center', width: 30 },
+                        { text: 'KETERANGAN PEMBAYARAN', style: 'tableHeader' },
+                        { text: 'NOMINAL', style: 'tableHeader', alignment: 'right', width: 130 }
+                    ]
+                ];
+
+                if (u.price === 0) {
+                    tableBody.push([
+                        { text: '1', alignment: 'center', style: 'tableCell' },
+                        { text: 'Aktivasi Akun Literasi Mandiri (Akses Pustaka)', style: 'tableCell' },
+                        { text: 'Rp 0 (Gratis)', alignment: 'right', style: 'tableCellBold' }
+                    ]);
+                } else if (u.uniqueCode && u.uniqueCode > 0) {
+                    const base = u.basePrice || (u.price - u.uniqueCode);
+                    tableBody.push([
+                        { text: '1', alignment: 'center', style: 'tableCell' },
+                        { text: 'Biaya Pokok Paket: ' + (u.packageName || 'Paket Belajar'), style: 'tableCell' },
+                        { text: 'Rp ' + base.toLocaleString('id-ID'), alignment: 'right', style: 'tableCellBold' }
+                    ]);
+                    tableBody.push([
+                        { text: '2', alignment: 'center', style: 'tableCell' },
+                        { text: 'Kode Unik Transaksi Gateway', style: 'tableCell' },
+                        { text: 'Rp ' + u.uniqueCode.toLocaleString('id-ID'), alignment: 'right', style: 'tableCellBold' }
+                    ]);
+                } else {
+                    tableBody.push([
+                        { text: '1', alignment: 'center', style: 'tableCell' },
+                        { text: 'Administrasi Akun: ' + (u.packageName || 'Paket Belajar'), style: 'tableCell' },
+                        { text: totalFormatted, alignment: 'right', style: 'tableCellBold' }
+                    ]);
+                }
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageOrientation: 'portrait',
+                    pageMargins: [40, 36, 40, 36],
+                    content: [
+                        // Kop Surat
+                        {
+                            columns: [
+                                logoBase64 ? { image: logoBase64, width: 50, height: 50 } : { text: '[CA]', fontSize: 24, bold: true, color: '#003366', width: 50 },
+                                {
+                                    width: '*',
+                                    margin: [12, 0, 0, 0],
+                                    stack: [
+                                        { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', letterSpacing: 1 },
+                                        { text: 'Komunitas Literasi & Inkubasi Penulis Muda', fontSize: 9.5, color: '#475569', margin: [0, 2, 0, 0] },
+                                        { text: 'Temanggung, Jawa Tengah   |   cendekia.aksara@email.com', fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] }
+                                    ]
+                                }
+                            ]
+                        },
+                        // Divider Line Navy & Gold
+                        {
+                            canvas: [
+                                { type: 'line', x1: 0, y1: 8, x2: 380, y2: 8, lineWidth: 3, lineColor: '#003366' },
+                                { type: 'line', x1: 380, y1: 8, x2: 515, y2: 8, lineWidth: 3, lineColor: '#d4af37' }
+                            ],
+                            margin: [0, 6, 0, 16]
+                        },
+                        // Judul & Ref
+                        {
+                            stack: [
+                                { text: 'KUITANSI PEMBAYARAN RESMI', fontSize: 14, bold: true, color: '#001f3f', alignment: 'center', letterSpacing: 1 },
+                                { text: 'Nomor: ' + (u.receiptNo || '-'), fontSize: 9.5, color: '#475569', alignment: 'center', margin: [0, 3, 0, 14] }
+                            ]
+                        },
+                        // Narasi Pembuka
+                        {
+                            text: 'Dengan ini pihak Cendekia Aksara menyatakan telah menerima pembayaran administrasi dari siswa/peserta yang identitasnya tercantum di bawah ini, sebagaimana rincian yang dilampirkan pada dokumen ini.',
+                            fontSize: 9,
+                            italics: true,
+                            color: '#334155',
+                            lineHeight: 1.4,
+                            margin: [0, 0, 0, 14]
+                        },
+                        // Section: Identitas
+                        {
+                            text: 'IDENTITAS PIHAK TERKAIT',
+                            fontSize: 8.5,
+                            bold: true,
+                            color: '#003366',
+                            margin: [0, 0, 0, 6]
+                        },
+                        {
+                            columns: [
+                                {
+                                    width: '50%',
+                                    margin: [0, 0, 8, 0],
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#f8fafc',
+                                                borderColor: ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                                                stack: [
+                                                    { text: 'DATA SISWA / PENULIS', fontSize: 8, bold: true, color: '#003366', margin: [0, 0, 0, 4] },
+                                                    { text: `Nama: ${u.name || '-'}`, fontSize: 8.5, bold: true, margin: [0, 1, 0, 1] },
+                                                    { text: `Email: ${u.email || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: `Paket: ${u.packageName || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: 'Status: Terverifikasi Sah', fontSize: 8, bold: true, color: '#0f5132', margin: [0, 1, 0, 0] }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                },
+                                {
+                                    width: '50%',
+                                    margin: [8, 0, 0, 0],
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#f8fafc',
+                                                borderColor: ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                                                stack: [
+                                                    { text: 'DOKUMEN PENERBIT', fontSize: 8, bold: true, color: '#003366', margin: [0, 0, 0, 4] },
+                                                    { text: 'Penerbit: Cendekia Aksara', fontSize: 8.5, bold: true, margin: [0, 1, 0, 1] },
+                                                    { text: 'Alamat: Temanggung, Jawa Tengah', fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: `Tanggal: ${u.date || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: 'Verifikasi: Otomatis Gateway', fontSize: 8, color: '#475569', margin: [0, 1, 0, 0] }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                }
+                            ],
+                            margin: [0, 0, 0, 14]
+                        },
+                        // Section: Rincian Pembayaran
+                        {
+                            text: 'RINCIAN PEMBAYARAN',
+                            fontSize: 8.5,
+                            bold: true,
+                            color: '#003366',
+                            margin: [0, 4, 0, 6]
+                        },
+                        {
+                            table: {
+                                headerRows: 1,
+                                widths: [30, '*', 130],
+                                body: tableBody
+                            },
+                            layout: {
+                                hLineWidth: () => 0.5,
+                                vLineWidth: () => 0.5,
+                                hLineColor: () => '#cbd5e1',
+                                vLineColor: () => '#cbd5e1'
+                            },
+                            margin: [0, 0, 0, 10]
+                        },
+                        // Total Box
+                        {
+                            columns: [
+                                { width: '*', text: '' },
+                                {
+                                    width: 240,
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#fffbeb',
+                                                borderColor: ['#fcd34d', '#fcd34d', '#fcd34d', '#fcd34d'],
+                                                stack: [
+                                                    {
+                                                        columns: [
+                                                            { text: 'Metode Pembayaran:', fontSize: 8, color: '#64748b' },
+                                                            { text: u.price === 0 ? 'Mandiri (Bebas Biaya)' : (u.paymentMethod || 'QRIS Digital Otomatis'), fontSize: 8, bold: true, alignment: 'right' }
+                                                        ],
+                                                        margin: [0, 0, 0, 4]
+                                                    },
+                                                    {
+                                                        columns: [
+                                                            { text: 'TOTAL DIBAYAR:', fontSize: 10, bold: true, color: '#003366' },
+                                                            { text: totalFormatted, fontSize: 11, bold: true, color: '#003366', alignment: 'right' }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                }
+                            ],
+                            margin: [0, 0, 0, 16]
+                        },
+                        // Penutup
+                        {
+                            text: 'Kuitansi ini diterbitkan secara otomatis oleh sistem administrasi Cendekia Aksara dan merupakan bukti sah pembayaran. Dokumen ini wajib disimpan sebagai arsip kepesertaan ruang belajar mandiri.',
+                            fontSize: 8,
+                            italics: true,
+                            color: '#475569',
+                            lineHeight: 1.35,
+                            margin: [0, 0, 0, 20]
+                        },
+                        // Tanda Tangan & Verifikasi
+                        {
+                            columns: [
+                                {
+                                    width: '*',
+                                    stack: [
+                                        { text: 'Dokumen ini diterbitkan secara elektronik dan sah tanpa tanda tangan basah untuk keperluan administrasi resmi.', fontSize: 7.5, color: '#64748b', lineHeight: 1.3 },
+                                        { text: 'Kode Verifikasi: ' + verifyCode, fontSize: 8, bold: true, color: '#003366', margin: [0, 4, 0, 0] }
+                                    ]
+                                },
+                                {
+                                    width: 170,
+                                    stack: [
+                                        { text: `Temanggung, ${u.date || '-'}`, fontSize: 8, alignment: 'center' },
+                                        { text: 'Admin Keuangan', fontSize: 8, bold: true, alignment: 'center', margin: [0, 1, 0, 4] },
+                                        stampBase64 ? { image: stampBase64, width: 85, height: 42, alignment: 'center', margin: [0, 0, 0, 0] } : { text: '', height: 35 },
+                                        { text: 'Bendahara Sekolah', fontSize: 8, bold: true, alignment: 'center', decoration: 'underline', margin: [0, 4, 0, 0] }
+                                    ]
+                                }
+                            ]
+                        },
+                        // Footer Bottom
+                        {
+                            text: 'CENDEKIA AKSARA · Komunitas Literasi & Inkubasi Penulis Muda · Temanggung, Jawa Tengah',
+                            fontSize: 7,
+                            color: '#94a3b8',
+                            alignment: 'center',
+                            margin: [0, 20, 0, 0]
+                        }
+                    ],
+                    styles: {
+                        tableHeader: {
+                            fillColor: '#003366',
+                            color: '#ffffff',
+                            fontSize: 8,
+                            bold: true,
+                            margin: [4, 4, 4, 4]
+                        },
+                        tableCell: {
+                            fontSize: 8,
+                            margin: [4, 4, 4, 4]
+                        },
+                        tableCellBold: {
+                            fontSize: 8,
+                            bold: true,
+                            margin: [4, 4, 4, 4]
+                        }
+                    }
+                };
+
+                // Unduh langsung file PDF
+                pdfMake.createPdf(docDefinition).download(`Kwitansi_Resmi_Cendekia_${safeName}_${Date.now()}.pdf`);
+
                 btn.innerHTML = '<i class="fa-solid fa-check"></i> PDF Berhasil Diunduh!';
                 
                 // Transisi layar penuh sebelum masuk ke ruang belajar
                 setTimeout(() => {
                     executePortalTransition();
-                }, 800);
-            }).catch(err => {
+                }, 1000);
+            } catch (err) {
                 console.error('PDF export error:', err);
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
-                showCustomAlert('Informasi', 'Dokumen PDF sedang dialihkan ke penyimpanan Anda. Menuju ke ruang belajar...');
+                showCustomAlert('Informasi', 'Kwitansi sedang dialihkan ke penyimpanan Anda. Menuju ke ruang belajar...');
                 setTimeout(executePortalTransition, 1500);
-            });
+            }
         }
 
         function executePortalTransition() {
@@ -1225,6 +1529,7 @@
                 const emailParam = urlParams.get('email') || '';
                 const invoiceParam = urlParams.get('invoice') || ('INV-CA/' + new Date().getFullYear() + '/' + Math.floor(10000 + Math.random() * 90000));
                 const amountParam = parseInt(urlParams.get('amount')) || (paidPkg === '5k' ? 5000 : paidPkg === '10k' ? 10000 : 15000);
+                const uniqueParam = parseInt(urlParams.get('unique')) || 0;
 
                 let pkgName = 'Literasi Pemula';
                 if (paidPkg === '10k') pkgName = 'Aksara Madya';
@@ -1243,6 +1548,8 @@
                     packageId: paidPkg,
                     packageName: pkgName,
                     price: amountParam,
+                    uniqueCode: uniqueParam,
+                    basePrice: Math.max(0, amountParam - uniqueParam),
                     receiptNo: invoiceParam,
                     status: 'LUNAS',
                     paymentMethod: 'QRIS Digital Otomatis',

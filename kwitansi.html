@@ -3,125 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cetak Kwitansi - Cendekia Aksara</title>
+    <title>Kwitansi Resmi - Cendekia Aksara</title>
     
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+
+    <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Aleo:wght@700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- PDFMake Library (Vector-based PDF, Bukan Canvas / Bukan html2pdf) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <style>
-        :root { --navy: #003366; --navy-dark: #001f3f; --gold: #d4af37; }
-        body { margin: 0; padding: 0; background: #525659; font-family: 'Merriweather', serif; }
-        .toolbar { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: #222; display: flex; align-items: center; justify-content: center; gap: 20px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .btn { padding: 10px 20px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; color: white; font-family: sans-serif; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .btn-back { background: #dc3545; text-decoration: none; }
-        .btn-print { background: #28a745; }
-        
-        .paper-container { 
-            margin-top: 80px; display: flex; justify-content: center; padding-bottom: 50px; 
-            overflow-x: auto;
-            padding-left: 15px; padding-right: 15px;
-        }
-        
-        /* KERTAS A4 -- bergaya kop surat resmi */
-        .paper { 
-            background: white; 
-            width: 210mm; min-height: 297mm;
-            padding: 16mm 20mm 20mm; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.5); 
-            position: relative; color: #1a1a1a; 
-            flex-shrink: 0;
-            display: flex; flex-direction: column;
+        :root {
+            --navy: #003366;
+            --navy-dark: #001f3f;
+            --gold: #d4af37;
+            --gold-hover: #b8902e;
+            --bg-canvas: #3b4252;
+            --border-soft: #e2e8f0;
         }
 
-        /* WATERMARK LOGO SAMAR DI TENGAH KERTAS -- ciri dokumen resmi */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-canvas);
+            font-family: 'Merriweather', serif;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+
+        /* TOOLBAR ATAS STICKY */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .toolbar-title {
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.92rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn-tb {
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-tb-back { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); }
+        .btn-tb-back:hover { background: rgba(255,255,255,0.25); }
+        .btn-tb-download {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3);
+        }
+        .btn-tb-download:hover { transform: translateY(-1px); }
+        .btn-tb-download:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        /* KERTAS HVS A4 RESPONSIVE ON SCREEN */
+        .paper-container {
+            margin-top: 76px;
+            display: flex;
+            justify-content: center;
+            padding: 0 16px 50px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .paper {
+            background: #ffffff;
+            width: 100%;
+            max-width: 760px;
+            min-height: 980px;
+            padding: 38px 44px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            border-radius: 6px;
+            position: relative;
+            color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        @media (max-width: 640px) {
+            .paper-container { padding: 0 10px 40px; }
+            .paper { padding: 22px 16px; border-radius: 8px; min-height: auto; }
+            .toolbar { padding: 0 12px; }
+            .toolbar-title { display: none; }
+        }
+
+        /* WATERMARK LOGO SAMAR DI TENGAH KERTAS */
         .paper-watermark {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(0deg);
-            width: 320px; height: 320px; opacity: 0.045; pointer-events: none; z-index: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            max-width: 80%;
+            opacity: 0.045;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* STATUS BADGE WATERMARK */
+        .status-watermark {
+            position: absolute;
+            top: 130px;
+            right: 25px;
+            font-size: 20pt;
+            font-weight: 900;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border: 4px solid #0f5132;
+            color: #0f5132;
+            border-radius: 8px;
+            transform: rotate(-12deg);
+            opacity: 0.85;
+            pointer-events: none;
+            z-index: 1;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        @media (max-width: 640px) {
+            .status-watermark { font-size: 13pt; padding: 4px 10px; top: 105px; right: 12px; border-width: 3px; }
         }
 
         /* ================= KOP SURAT ================= */
-        .letterhead { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
-        .letterhead-logo { width: 66px; height: 66px; border-radius: 50%; background: white; border: 2px solid var(--navy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
-        .letterhead-logo img { width: 80%; height: auto; object-fit: contain; }
+        .letterhead { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; }
+        .letterhead-logo {
+            width: 64px; height: 64px; border-radius: 50%; background: white;
+            border: 2px solid var(--navy); display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; overflow: hidden;
+        }
+        .letterhead-logo img { width: 78%; height: auto; object-fit: contain; }
         .letterhead-text { flex: 1; }
-        .letterhead-title { font-family: 'Aleo', serif; font-weight: 900; font-size: 19pt; color: var(--navy); text-transform: uppercase; letter-spacing: 1.5px; margin: 0; line-height: 1.15; }
-        .letterhead-sub { font-family: sans-serif; font-size: 9pt; color: #475569; margin-top: 3px; letter-spacing: 0.3px; }
-        .letterhead-contact { font-family: sans-serif; font-size: 8pt; color: #64748b; margin-top: 4px; }
-        .letterhead-divider { height: 4px; background: linear-gradient(90deg, var(--navy) 0%, var(--navy) 75%, var(--gold) 75%, var(--gold) 100%); margin: 12px 0 4px; position: relative; z-index: 1; }
-        .letterhead-divider-thin { height: 1px; background: #cbd5e1; margin-bottom: 22px; position: relative; z-index: 1; }
+        .letterhead-title {
+            font-family: 'Aleo', serif; font-weight: 900; font-size: 1.45rem;
+            color: var(--navy); text-transform: uppercase; letter-spacing: 1px;
+            margin: 0; line-height: 1.15;
+        }
+        .letterhead-sub { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.78rem; color: #475569; margin-top: 3px; font-weight: 600; }
+        .letterhead-contact { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; color: #64748b; margin-top: 3px; }
+        .letterhead-divider {
+            height: 4px; background: linear-gradient(90deg, var(--navy) 0%, var(--navy) 75%, var(--gold) 75%, var(--gold) 100%);
+            margin: 12px 0 4px; position: relative; z-index: 1;
+        }
+        .letterhead-divider-thin { height: 1px; background: #cbd5e1; margin-bottom: 20px; position: relative; z-index: 1; }
+
+        @media (max-width: 500px) {
+            .letterhead-logo { width: 50px; height: 50px; }
+            .letterhead-title { font-size: 1.15rem; }
+            .letterhead-sub { font-size: 0.7rem; }
+            .letterhead-contact { font-size: 0.65rem; }
+        }
 
         /* ================= JUDUL DOKUMEN ================= */
-        .doc-title-block { text-align: center; margin-bottom: 22px; position: relative; z-index: 1; }
-        .doc-title { font-family: 'Aleo', serif; font-size: 17pt; font-weight: 900; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 2px; margin: 0; }
-        .doc-ref { font-family: 'Courier Prime', monospace; font-size: 9.5pt; color: #475569; margin-top: 5px; }
+        .doc-title-block { text-align: center; margin-bottom: 18px; position: relative; z-index: 1; }
+        .doc-title {
+            font-family: 'Aleo', serif; font-size: 1.25rem; font-weight: 900;
+            color: var(--navy-dark); text-transform: uppercase; letter-spacing: 1.5px; margin: 0;
+        }
+        .doc-ref { font-family: 'Courier Prime', monospace; font-size: 0.85rem; color: #475569; margin-top: 4px; font-weight: 700; }
 
-        /* ================= NARASI PEMBUKA (bergaya surat) ================= */
-        .opening-text { font-style: italic; font-size: 10.5pt; color: #334155; line-height: 1.7; margin-bottom: 22px; text-align: justify; position: relative; z-index: 1; }
+        /* ================= NARASI PEMBUKA ================= */
+        .opening-text {
+            font-style: italic; font-size: 0.82rem; color: #334155; line-height: 1.6;
+            margin-bottom: 18px; text-align: justify; position: relative; z-index: 1;
+        }
         .opening-text b { font-style: normal; color: var(--navy); }
-        .section-lead { font-family: sans-serif; font-size: 9.5pt; font-weight: 700; color: var(--navy); margin: 0 0 12px 0; position: relative; z-index: 1; }
+        .section-lead {
+            font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.76rem; font-weight: 800;
+            color: var(--navy); margin: 0 0 10px 0; position: relative; z-index: 1; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-        .info-section { width: 100%; margin-bottom: 22px; overflow: hidden; position: relative; z-index: 1; }
-        .info-left, .info-right { width: 48%; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; background: #f8fafc; }
-        .info-left { float: left; }
-        .info-right { float: right; }
-        .col-header { font-family: sans-serif; font-weight: 700; text-transform: uppercase; color: var(--navy); border-bottom: 2px solid var(--gold); margin-bottom: 10px; padding-bottom: 6px; font-size: 9pt; letter-spacing: 0.5px; }
-        .info-table { width: 100%; font-size: 9.5pt; font-family: sans-serif; }
-        .info-table td { padding: 4px 0; vertical-align: top; }
-        .label { width: 95px; font-weight: 600; color: #64748b; }
-        .val { font-weight: 700; color: #1a1a1a; }
+        /* DUA KARTU INFO IDENTITAS */
+        .info-section {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+            margin-bottom: 18px; position: relative; z-index: 1;
+        }
+        @media (max-width: 560px) {
+            .info-section { grid-template-columns: 1fr; gap: 10px; }
+        }
+        .info-card {
+            border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;
+            background: #f8fafc;
+        }
+        .col-header {
+            font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; text-transform: uppercase;
+            color: var(--navy); border-bottom: 2px solid var(--gold); margin-bottom: 8px;
+            padding-bottom: 4px; font-size: 0.74rem; letter-spacing: 0.5px;
+        }
+        .info-table { width: 100%; font-size: 0.76rem; font-family: 'Plus Jakarta Sans', sans-serif; border-collapse: collapse; }
+        .info-table td { padding: 3px 0; vertical-align: top; }
+        .info-table .label { width: 85px; font-weight: 600; color: #64748b; }
+        .info-table .sep { width: 12px; color: #94a3b8; }
+        .info-table .val { font-weight: 700; color: #1a1a1a; word-break: break-word; }
 
-        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9.5pt; clear: both; font-family: sans-serif; position: relative; z-index: 1; }
-        .invoice-table th { background: var(--navy); color: white; padding: 10px; text-align: left; text-transform: uppercase; font-size: 8.5pt; letter-spacing: 0.4px; border: 1px solid var(--navy); }
-        .invoice-table th:last-child, .invoice-table td:last-child { border-right: 1px solid var(--navy); }
-        .invoice-table td { border: 1px solid #dbe3ea; padding: 9px 10px; }
+        /* TABEL RINCIAN */
+        .invoice-table {
+            width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 0.78rem;
+            clear: both; font-family: 'Plus Jakarta Sans', sans-serif; position: relative; z-index: 1;
+        }
+        .invoice-table th {
+            background: var(--navy); color: white; padding: 9px 10px; text-align: left;
+            text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.4px; border: 1px solid var(--navy);
+        }
+        .invoice-table td { border: 1px solid #dbe3ea; padding: 8px 10px; }
         .invoice-table tr:nth-child(even) { background-color: #f8fafc; }
-        .invoice-table tr.denda-row td { color: #b91c1c; font-weight: bold; background: #fef2f2; }
         .col-price { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; width: 130px; }
 
-        .total-container { display: flex; justify-content: flex-end; margin-bottom: 26px; position: relative; z-index: 1; }
-        .total-box { width: 280px; font-family: sans-serif; }
-        .total-box .row-method { display:flex; justify-content:space-between; margin-bottom:6px; font-size:9.5pt; color:#475569; }
-        .grand-total { border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); padding: 10px 4px; margin-top: 5px; font-weight: 900; font-size: 13pt; color: var(--navy); display: flex; justify-content: space-between; background: #fffbeb; }
+        .total-container { display: flex; justify-content: flex-end; margin-bottom: 22px; position: relative; z-index: 1; }
+        .total-box { width: 280px; max-width: 100%; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .total-box .row-method { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.78rem; color: #475569; }
+        .grand-total {
+            border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold);
+            padding: 8px 4px; margin-top: 5px; font-weight: 900; font-size: 1rem;
+            color: var(--navy); display: flex; justify-content: space-between; background: #fffbeb;
+        }
 
-        .closing-text { font-style: italic; font-size: 9.5pt; color: #475569; line-height: 1.7; margin-bottom: 30px; text-align: justify; position: relative; z-index: 1; border-left: 3px solid var(--gold); padding-left: 14px; }
+        .closing-text {
+            font-style: italic; font-size: 0.76rem; color: #475569; line-height: 1.6;
+            margin-bottom: 24px; text-align: justify; position: relative; z-index: 1;
+            border-left: 3px solid var(--gold); padding-left: 12px;
+        }
 
-        .footer-sign { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; position: relative; z-index: 1; }
-        .verify-box { width: 50%; font-size: 8pt; color: #94a3b8; font-family: sans-serif; line-height: 1.5; }
-        .verify-box .code { font-family: 'Courier Prime', monospace; font-size: 8.5pt; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
-        .ttd-box { width: 210px; text-align: center; position: relative; font-family: sans-serif; }
-        .stamp-img { position: absolute; top: -28px; left: 40px; width: 130px; opacity: 0.85; transform: rotate(-8deg); mix-blend-mode: multiply; }
-        .ttd-line { margin-top: 65px; border-bottom: 1px solid black; font-weight: bold; display: inline-block; width: 100%; padding-bottom: 2px; }
+        /* FOOTER SIGNATURE & VERIFICATION */
+        .footer-sign {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-top: auto; position: relative; z-index: 1; gap: 15px; flex-wrap: wrap;
+        }
+        .verify-box {
+            flex: 1; min-width: 220px; font-size: 0.68rem; color: #64748b;
+            font-family: 'Plus Jakarta Sans', sans-serif; line-height: 1.45;
+        }
+        .verify-box .code {
+            font-family: 'Courier Prime', monospace; font-size: 0.75rem; color: var(--navy);
+            background: #f1f5f9; padding: 3px 6px; border-radius: 4px; display: inline-block; margin-top: 3px;
+            font-weight: 700; border: 1px solid #e2e8f0;
+        }
+        .ttd-box { width: 190px; text-align: center; position: relative; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .stamp-img {
+            position: absolute; top: -20px; left: 30px; width: 115px; opacity: 0.85;
+            transform: rotate(-8deg); mix-blend-mode: multiply; pointer-events: none;
+        }
+        .ttd-line {
+            margin-top: 55px; border-bottom: 1px solid black; font-weight: 700;
+            display: inline-block; width: 100%; padding-bottom: 2px; font-size: 0.76rem;
+        }
 
-        /* FOOTER SURAT DI DASAR HALAMAN */
-        .letter-footer { border-top: 1px solid #cbd5e1; margin-top: 24px; padding-top: 10px; text-align: center; font-family: sans-serif; font-size: 7.5pt; color: #94a3b8; letter-spacing: 0.3px; position: relative; z-index: 1; }
+        .letter-footer {
+            border-top: 1px solid #cbd5e1; margin-top: 20px; padding-top: 8px;
+            text-align: center; font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.66rem; color: #94a3b8; letter-spacing: 0.3px; position: relative; z-index: 1;
+        }
 
-        .status-watermark { position: absolute; top: 150px; right: 30px; font-size: 26pt; font-weight: 900; text-transform: uppercase; padding: 8px 18px; border: 5px solid; border-radius: 10px; transform: rotate(-15deg); opacity: 0.75; pointer-events: none; z-index: 1; font-family: sans-serif; }
-        #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:2000; display:flex; justify-content:center; align-items:center; flex-direction:column; }
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1e293b;
+            z-index: 2000; display: flex; justify-content: center; align-items: center; flex-direction: column;
+            color: white; font-family: 'Plus Jakarta Sans', sans-serif;
+        }
     </style>
 </head>
 <body>
 
     <div id="loading-overlay">
-        <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:#003366;"></i>
-        <p style="margin-top:15px; font-family:sans-serif;">Menyiapkan Kwitansi...</p>
+        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2.8rem; color:#d4af37;"></i>
+        <p style="margin-top:16px; font-size:0.9rem; font-weight:600;">Menyiapkan Kwitansi Resmi...</p>
     </div>
 
+    <!-- TOOLBAR ATAS -->
     <div class="toolbar">
-        <a href="payment.html" class="btn btn-back"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
-        <button onclick="downloadPDF()" class="btn btn-print"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
+        <div class="toolbar-title">
+            <i class="fa-solid fa-file-invoice" style="color:var(--gold);"></i>
+            <span>Pratinjau Kuitansi Resmi</span>
+        </div>
+        <div class="toolbar-actions">
+            <a href="javascript:history.back()" id="btnBackUrl" class="btn-tb btn-tb-back">
+                <i class="fa-solid fa-arrow-left"></i> Kembali
+            </a>
+            <button type="button" onclick="downloadPDF()" class="btn-tb btn-tb-download" id="btnDownload">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF
+            </button>
+        </div>
     </div>
 
+    <!-- KERTAS HVS A4 -->
     <div class="paper-container">
         <div id="receipt-paper" class="paper">
 
-            <img src="https://i.imgur.com/5Srjyo4.png" class="paper-watermark img-cross" alt="" crossorigin="anonymous">
+            <img src="https://i.imgur.com/5Srjyo4.png" class="paper-watermark" alt="" crossorigin="anonymous">
             <div id="status-mark" class="status-watermark">LUNAS</div>
 
             <!-- KOP SURAT -->
             <div class="letterhead">
                 <div class="letterhead-logo">
-                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" style="width:80%;height:auto;object-fit:contain;" crossorigin="anonymous">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
                 </div>
                 <div class="letterhead-text">
                     <div class="letterhead-title">Cendekia Aksara</div>
@@ -140,26 +344,27 @@
 
             <!-- NARASI PEMBUKA -->
             <p class="opening-text">
-                Dengan ini pihak <b>Cendekia Aksara</b> menyatakan telah menerima pembayaran administrasi dari siswa yang identitasnya tercantum di bawah ini, sebagaimana rincian yang dilampirkan pada dokumen ini.
+                Dengan ini pihak <b>Cendekia Aksara</b> menyatakan telah menerima pembayaran administrasi dari siswa/peserta yang identitasnya tercantum di bawah ini, sebagaimana rincian yang dilampirkan pada dokumen ini.
             </p>
 
             <p class="section-lead"><i class="fa-solid fa-user-check"></i>&nbsp; IDENTITAS PIHAK TERKAIT</p>
             <div class="info-section">
-                <div class="info-left">
-                    <div class="col-header">Data Siswa</div>
+                <div class="info-card">
+                    <div class="col-header">Data Siswa / Penulis</div>
                     <table class="info-table">
                         <tr><td class="label">Nama</td><td class="sep">:</td><td class="val" id="k-nama">-</td></tr>
-                        <tr><td class="label">ID Siswa</td><td class="sep">:</td><td class="val" id="k-uid">-</td></tr>
-                        <tr><td class="label">Semester</td><td class="sep">:</td><td class="val" id="k-sem">-</td></tr>
-                        <tr><td class="label">IP Sem</td><td class="sep">:</td><td class="val" id="k-ips">-</td></tr>
+                        <tr><td class="label">ID / Email</td><td class="sep">:</td><td class="val" id="k-uid">-</td></tr>
+                        <tr><td class="label">Paket / Sem</td><td class="sep">:</td><td class="val" id="k-sem">-</td></tr>
+                        <tr><td class="label">Status</td><td class="sep">:</td><td class="val" id="k-status" style="color:#0f5132;">Terverifikasi Sah</td></tr>
                     </table>
                 </div>
-                <div class="info-right">
-                    <div class="col-header">Dokumen</div>
+                <div class="info-card">
+                    <div class="col-header">Dokumen Penerbit</div>
                     <table class="info-table">
                         <tr><td class="label">Penerbit</td><td class="sep">:</td><td class="val">Cendekia Aksara</td></tr>
                         <tr><td class="label">Alamat</td><td class="sep">:</td><td class="val">Temanggung, Jateng</td></tr>
                         <tr><td class="label">Tanggal</td><td class="sep">:</td><td class="val" id="k-date">-</td></tr>
+                        <tr><td class="label">Verifikasi</td><td class="sep">:</td><td class="val">Otomatis Gateway</td></tr>
                     </table>
                 </div>
             </div>
@@ -167,37 +372,43 @@
             <p class="section-lead"><i class="fa-solid fa-file-invoice-dollar"></i>&nbsp; RINCIAN PEMBAYARAN</p>
             <table class="invoice-table">
                 <thead>
-                    <tr><th style="width:40px;text-align:center;">No</th><th>Keterangan</th><th class="col-price">Nominal</th></tr>
+                    <tr>
+                        <th style="width:36px; text-align:center;">No</th>
+                        <th>Keterangan Pembayaran</th>
+                        <th class="col-price">Nominal</th>
+                    </tr>
                 </thead>
                 <tbody id="tbody-rincian">
-                    </tbody>
+                    <tr><td colspan="3" style="text-align:center; padding:15px; color:#94a3b8;">Memuat data rincian...</td></tr>
+                </tbody>
             </table>
 
             <div class="total-container">
                 <div class="total-box">
                     <div class="row-method">
-                        <span>Metode Pembayaran</span><span id="k-method">Transfer</span>
+                        <span>Metode Pembayaran</span>
+                        <span id="k-method" style="font-weight:700;">QRIS Digital Otomatis</span>
                     </div>
                     <div class="grand-total">
                         <span>TOTAL DIBAYAR</span>
-                        <span id="k-total">Rp -</span>
+                        <span id="k-total">Rp 0</span>
                     </div>
                 </div>
             </div>
 
             <p class="closing-text">
-                Kuitansi ini diterbitkan secara otomatis oleh sistem administrasi Cendekia Aksara dan merupakan bukti sah pembayaran. Dokumen ini wajib disimpan sebagai salah satu syarat pengambilan rapor akademik.
+                Kuitansi ini diterbitkan secara otomatis oleh sistem administrasi Cendekia Aksara dan merupakan bukti sah pembayaran. Dokumen ini wajib disimpan sebagai salah satu syarat dan arsip akademik/kepesertaan.
             </p>
 
             <div class="footer-sign">
                 <div class="verify-box">
-                    Dokumen ini diterbitkan secara elektronik dan sah tanpa tanda tangan basah untuk keperluan administrasi internal.
+                    Dokumen ini diterbitkan secara elektronik dan sah tanpa tanda tangan basah untuk keperluan administrasi resmi.
                     <br>Kode verifikasi: <span class="code" id="k-verify">-</span>
                 </div>
                 <div class="ttd-box">
-                    <p style="margin:0; font-size:9.5pt;">Temanggung, <span id="k-ttd-date"></span></p>
-                    <p style="margin:0; font-size:9.5pt; font-weight:bold; margin-bottom:2px;">Admin Keuangan</p>
-                    <img src="https://i.imgur.com/YvrNYRw.png" class="stamp-img img-cross" alt="Cap" crossorigin="anonymous">
+                    <p style="margin:0; font-size:0.75rem;">Temanggung, <span id="k-ttd-date">-</span></p>
+                    <p style="margin:0; font-size:0.75rem; font-weight:bold; margin-bottom:2px;">Admin Keuangan</p>
+                    <img src="https://i.imgur.com/YvrNYRw.png" class="stamp-img" alt="Cap" crossorigin="anonymous">
                     <div class="ttd-line">Bendahara Sekolah</div>
                 </div>
             </div>
@@ -213,184 +424,499 @@
         import { db, checkAuth } from "./js/firebase-config.js";
         import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Global receipt data untuk pdfmake
+        window.receiptData = {
+            receiptNo: '-',
+            name: '-',
+            email: '-',
+            packageOrSem: '-',
+            date: '-',
+            totalText: 'Rp 0',
+            totalNumber: 0,
+            method: 'QRIS Digital Otomatis',
+            verifyCode: '-',
+            items: []
+        };
+
+        const params = new URLSearchParams(window.location.search);
+
         (async () => {
-            const user = await checkAuth('siswa');
-            if(user) {
+            let authUser = null;
+            try {
+                authUser = await checkAuth('siswa');
+            } catch(e) {}
+
+            // Jika ada parameter URL (dari checkout) atau di localStorage
+            const invoiceParam = params.get('invoice');
+            let storedUser = null;
+            try {
+                const s = localStorage.getItem('cendekia_user');
+                if (s) storedUser = JSON.parse(s);
+            } catch(e) {}
+
+            if (invoiceParam || storedUser) {
+                renderFromCheckoutParams(storedUser);
+                document.getElementById('loading-overlay').style.display = 'none';
+            } else if (authUser) {
                 try {
-                    await renderData(user);
+                    await renderFromStudentAuth(authUser);
                 } catch(e) {
-                    console.error(e);
+                    console.error('Render student err:', e);
                 } finally {
                     document.getElementById('loading-overlay').style.display = 'none';
                 }
             } else {
-                window.location.href = '../index.html';
+                // Fallback default demo jika belum login
+                renderFromCheckoutParams(null);
+                document.getElementById('loading-overlay').style.display = 'none';
             }
         })();
 
-        async function renderData(user) {
+        function renderFromCheckoutParams(stored) {
             const now = new Date();
             const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-            document.getElementById('k-nama').innerText = user.name;
-            document.getElementById('k-uid').innerText = user.uid.substring(0,6).toUpperCase();
-            document.getElementById('k-sem').innerText = user.semester || 1;
-            document.getElementById('k-ips').innerText = parseFloat(user.ips || 0).toFixed(2);
+            const name = params.get('name') || (stored ? stored.name : 'Siswa Cendekia');
+            const email = params.get('email') || (stored ? stored.email : 'siswa@cendekia.id');
+            const pkgId = params.get('paket') || (stored ? stored.packageId : '5k');
+            
+            let pkgName = 'Literasi Pemula (5K)';
+            if (pkgId === '5k') pkgName = 'Literasi Pemula';
+            else if (pkgId === '10k') pkgName = 'Aksara Madya';
+            else if (pkgId === '15k') pkgName = 'Bimbingan Reguler & Terbit';
+            else if (pkgId === 'free') pkgName = 'Akses Pustaka (Mandiri)';
 
-            // Nomor surat bergaya formal: 001/KA-CA/VII/2026
-            const romawiBulan = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][now.getMonth()];
-            const kodeSingkat = user.uid.substring(0,4).toUpperCase();
-            document.getElementById('k-ref').innerText = `${kodeSingkat}/KA-CA/${romawiBulan}/${now.getFullYear()}`;
+            const totalAmount = parseInt(params.get('amount')) || (stored ? stored.price : (pkgId === 'free' ? 0 : 5000));
+            const uniqueCode = parseInt(params.get('unique')) || (stored && stored.uniqueCode ? stored.uniqueCode : 0);
+            const basePrice = stored && stored.basePrice ? stored.basePrice : Math.max(0, totalAmount - uniqueCode);
+
+            const invoiceNo = params.get('invoice') || (stored ? stored.receiptNo : ('INV-CA/' + now.getFullYear() + '/' + Math.floor(10000 + Math.random() * 90000)));
+            const verifyCode = `CA-${(name || 'SISWA').substring(0,4).toUpperCase()}-${now.getTime().toString().slice(-6)}`;
+
+            document.getElementById('k-ref').innerText = invoiceNo;
+            document.getElementById('k-nama').innerText = name;
+            document.getElementById('k-uid').innerText = email;
+            document.getElementById('k-sem').innerText = pkgName;
             document.getElementById('k-date').innerText = dateStr;
             document.getElementById('k-ttd-date').innerText = dateStr;
-            document.getElementById('k-verify').innerText = `CA-${user.uid.substring(0,8).toUpperCase()}-${now.getTime().toString().slice(-6)}`;
-
-            const stamp = document.getElementById('status-mark');
-            const totalEl = document.getElementById('k-total');
-            const tbody = document.getElementById('tbody-rincian');
+            document.getElementById('k-verify').innerText = verifyCode;
+            document.getElementById('k-method').innerText = totalAmount === 0 ? 'Mandiri (Bebas Biaya)' : 'QRIS Digital Otomatis';
             
+            const totalFormatted = 'Rp ' + totalAmount.toLocaleString('id-ID');
+            document.getElementById('k-total').innerText = totalFormatted;
+
+            let tbodyHtml = '';
+            const items = [];
+
+            if (totalAmount === 0) {
+                tbodyHtml = `<tr><td style="text-align:center;">1</td><td>Aktivasi Akun Literasi Mandiri (Akses Pustaka)</td><td class="col-price">Rp 0 (Gratis)</td></tr>`;
+                items.push({ no: 1, name: 'Aktivasi Akun Literasi Mandiri (Akses Pustaka)', priceText: 'Rp 0' });
+            } else if (uniqueCode > 0) {
+                tbodyHtml = `
+                    <tr><td style="text-align:center;">1</td><td>Biaya Administrasi: ${pkgName}</td><td class="col-price">Rp ${basePrice.toLocaleString('id-ID')}</td></tr>
+                    <tr><td style="text-align:center;">2</td><td>Kode Unik Transaksi Gateway</td><td class="col-price">Rp ${uniqueCode.toLocaleString('id-ID')}</td></tr>
+                `;
+                items.push({ no: 1, name: `Biaya Administrasi: ${pkgName}`, priceText: `Rp ${basePrice.toLocaleString('id-ID')}` });
+                items.push({ no: 2, name: 'Kode Unik Transaksi Gateway', priceText: `Rp ${uniqueCode.toLocaleString('id-ID')}` });
+            } else {
+                tbodyHtml = `<tr><td style="text-align:center;">1</td><td>Biaya Administrasi: ${pkgName}</td><td class="col-price">${totalFormatted}</td></tr>`;
+                items.push({ no: 1, name: `Biaya Administrasi: ${pkgName}`, priceText: totalFormatted });
+            }
+
+            document.getElementById('tbody-rincian').innerHTML = tbodyHtml;
+
+            // Simpan ke window.receiptData
+            window.receiptData = {
+                receiptNo: invoiceNo,
+                name: name,
+                email: email,
+                packageOrSem: pkgName,
+                date: dateStr,
+                totalText: totalFormatted,
+                totalNumber: totalAmount,
+                method: totalAmount === 0 ? 'Mandiri (Bebas Biaya)' : 'QRIS Digital Otomatis',
+                verifyCode: verifyCode,
+                items: items
+            };
+        }
+
+        async function renderFromStudentAuth(user) {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            document.getElementById('k-nama').innerText = user.name || 'Siswa';
+            document.getElementById('k-uid').innerText = (user.uid || '').substring(0,6).toUpperCase();
+            document.getElementById('k-sem').innerText = 'Semester ' + (user.semester || 1);
+            document.getElementById('k-date').innerText = dateStr;
+            document.getElementById('k-ttd-date').innerText = dateStr;
+
+            const romawiBulan = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][now.getMonth()];
+            const kodeSingkat = (user.uid || 'USER').substring(0,4).toUpperCase();
+            const invoiceNo = `${kodeSingkat}/KA-CA/${romawiBulan}/${now.getFullYear()}`;
+            const verifyCode = `CA-${(user.uid || '').substring(0,8).toUpperCase()}-${now.getTime().toString().slice(-6)}`;
+
+            document.getElementById('k-ref').innerText = invoiceNo;
+            document.getElementById('k-verify').innerText = verifyCode;
+
             const sem = parseInt(String(user.semester).replace(/\D/g, '')) || 1;
+            const tbody = document.getElementById('tbody-rincian');
+            const totalEl = document.getElementById('k-total');
+            const items = [];
 
             if (sem < 3) {
-                // === LOGIKA SEMESTER 1-2 (HITUNG UJIAN) -- TIDAK BERUBAH ===
                 const q = query(collection(db, 'exams'), where('status', '==', 'active'));
                 const snap = await getDocs(q);
                 const count = snap.size;
                 const total = count * 1000;
+                const totalText = 'Rp ' + total.toLocaleString('id-ID');
 
-                stamp.innerText = "LUNAS";
-                stamp.style.color = "#0f5132"; stamp.style.borderColor = "#0f5132";
-                totalEl.innerText = "Rp " + total.toLocaleString('id-ID');
-                document.getElementById('k-method').innerText = "Lunas (Ujian)";
+                totalEl.innerText = totalText;
+                document.getElementById('k-method').innerText = 'Lunas (Ujian)';
+                tbody.innerHTML = `<tr><td style="text-align:center;">1</td><td>Biaya Administrasi Ujian (${count} Mapel)</td><td class="col-price">${totalText}</td></tr>`;
 
-                tbody.innerHTML = `
-                    <tr><td style="text-align:center;">1</td><td>Biaya Administrasi Ujian (${count} Mapel)</td><td class="col-price">Rp ${total.toLocaleString('id-ID')}</td></tr>
-                `;
-                return;
-            }
+                items.push({ no: 1, name: `Biaya Administrasi Ujian (${count} Mapel)`, priceText: totalText });
 
-            // ============================================================
-            // SEMESTER 3+: sumber utama tetap sem3_status. Nominal diambil
-            // dari finance_logs KALAU ADA transaksi riil (amount > 0);
-            // fallback ke harga standar kalau statusnya dikoreksi manual
-            // lewat tombol "Kelola Semester 3" di admin (log amount 0).
-            // ============================================================
-            const BASE_CICILAN = 37725;
+                window.receiptData = {
+                    receiptNo: invoiceNo,
+                    name: user.name,
+                    email: user.email || (user.uid.substring(0,6) + '@siswa.ca'),
+                    packageOrSem: 'Semester ' + sem,
+                    date: dateStr,
+                    totalText: totalText,
+                    totalNumber: total,
+                    method: 'Lunas (Ujian)',
+                    verifyCode: verifyCode,
+                    items: items
+                };
+            } else {
+                const BASE_CICILAN = 37725;
+                const sem3Status = user.sem3_status || 'lunas';
+                let total = (sem3Status === 'cicilan1_lunas') ? BASE_CICILAN : (BASE_CICILAN * 2);
+                const totalText = 'Rp ' + total.toLocaleString('id-ID');
 
-            // FIX PENTING: sebelumnya query ini pakai where() + orderBy() sekaligus,
-            // yang di Firestore MEMBUTUHKAN composite index khusus. Kalau index itu
-            // belum dibuat, query akan GAGAL DIAM-DIAM (error hanya masuk console),
-            // dan seluruh proses render kuitansi berhenti total -- itulah sebabnya
-            // rincian & nominal tidak pernah muncul padahal status sudah "Lunas".
-            // Solusinya: ambil datanya tanpa orderBy (tidak butuh index), lalu urutkan
-            // sendiri di JavaScript. Selain itu, dibungkus try/catch terpisah supaya
-            // kalaupun gagal karena sebab lain, kuitansi TETAP tampil dengan harga
-            // standar sebagai fallback -- tidak lagi kosong sama sekali.
-            let sem3Logs = [];
-            try {
-                const qLogs = query(collection(db, 'finance_logs'), where('studentUid', '==', user.uid));
-                const logSnap = await getDocs(qLogs);
-                logSnap.forEach(d => {
-                    const l = d.data();
-                    if ((parseInt(l.semester) || 1) >= 3) sem3Logs.push(l);
-                });
-                sem3Logs.sort((a, b) => {
-                    const ta = (a.timestamp && a.timestamp.seconds) ? a.timestamp.seconds : 0;
-                    const tb = (b.timestamp && b.timestamp.seconds) ? b.timestamp.seconds : 0;
-                    return ta - tb;
-                });
-            } catch (logErr) {
-                console.error('Gagal mengambil riwayat finance_logs, memakai harga standar sebagai fallback:', logErr);
-                sem3Logs = [];
-            }
+                totalEl.innerText = totalText;
+                const methodStr = sem3Status === 'cicilan1_lunas' ? 'Cicilan Tahap 1 (50%)' : 'Lunas Penuh (Semester 3)';
+                document.getElementById('k-method').innerText = methodStr;
 
-            const sem3Status = user.sem3_status || 'belum';
-
-            if (sem3Status === 'belum') {
-                stamp.innerText = "BELUM LUNAS";
-                stamp.style.color = "#991b1b"; stamp.style.borderColor = "#991b1b";
-                totalEl.innerText = "Rp 0";
-                document.getElementById('k-method').innerText = "-";
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">Belum ada riwayat pembayaran administrasi semester 3.</td></tr>`;
-                return;
-            }
-
-            const logCicilan1 = sem3Logs.find(l => (l.amount || 0) > 0 && /cicilan|50%/i.test(l.type || '') && !/tahap 2|pelunasan/i.test(l.type || ''));
-            const logCicilan2 = sem3Logs.find(l => (l.amount || 0) > 0 && /tahap 2|pelunasan/i.test(l.type || ''));
-            const logLunasLangsung = sem3Logs.find(l => (l.amount || 0) > 0 && /lunas/i.test(l.type || '') && !/cicilan/i.test(l.type || '') && !/tahap 2|pelunasan/i.test(l.type || ''));
-
-            let rows = '';
-            let total = 0;
-            let no = 1;
-
-            if (sem3Status === 'cicilan1_lunas') {
-                const amount1 = logCicilan1 ? logCicilan1.amount : BASE_CICILAN;
-                rows += `<tr><td style="text-align:center;">${no++}</td><td>Cicilan Tahap 1 (50%)</td><td class="col-price">Rp ${amount1.toLocaleString('id-ID')}</td></tr>`;
-                total += amount1;
-
-                stamp.innerText = "CICILAN";
-                stamp.style.color = "#d63384"; stamp.style.borderColor = "#d63384";
-                document.getElementById('k-method').innerText = "Cicilan Tahap 1 (50%)";
-                document.getElementById('k-ref').innerText += "-DP";
-
-            } else if (sem3Status === 'lunas') {
-                if (logLunasLangsung) {
-                    rows += `<tr><td style="text-align:center;">${no++}</td><td>Administrasi Semester 3 (Lunas Penuh)</td><td class="col-price">Rp ${logLunasLangsung.amount.toLocaleString('id-ID')}</td></tr>`;
-                    total += logLunasLangsung.amount;
-                    document.getElementById('k-method').innerText = "Lunas Penuh";
+                if (sem3Status === 'cicilan1_lunas') {
+                    tbody.innerHTML = `<tr><td style="text-align:center;">1</td><td>Cicilan Tahap 1 (50%) Administrasi Semester 3</td><td class="col-price">${totalText}</td></tr>`;
+                    items.push({ no: 1, name: 'Cicilan Tahap 1 (50%) Administrasi Semester 3', priceText: totalText });
                 } else {
-                    const amount1 = logCicilan1 ? logCicilan1.amount : BASE_CICILAN;
-                    rows += `<tr><td style="text-align:center;">${no++}</td><td>Cicilan Tahap 1 (50%)</td><td class="col-price">Rp ${amount1.toLocaleString('id-ID')}</td></tr>`;
-                    total += amount1;
-
-                    if (logCicilan2) {
-                        const dendaPada = Math.max(0, logCicilan2.amount - BASE_CICILAN);
-                        if (dendaPada > 0) {
-                            rows += `<tr><td style="text-align:center;">${no}</td><td>Cicilan Tahap 2 (Pokok)</td><td class="col-price">Rp ${BASE_CICILAN.toLocaleString('id-ID')}</td></tr>`;
-                            rows += `<tr class="denda-row"><td style="text-align:center;">${no}b</td><td>Denda Keterlambatan Cicilan Tahap 2</td><td class="col-price">Rp ${dendaPada.toLocaleString('id-ID')}</td></tr>`;
-                        } else {
-                            rows += `<tr><td style="text-align:center;">${no}</td><td>Cicilan Tahap 2 (Pelunasan)</td><td class="col-price">Rp ${logCicilan2.amount.toLocaleString('id-ID')}</td></tr>`;
-                        }
-                        total += logCicilan2.amount;
-                    } else {
-                        rows += `<tr><td style="text-align:center;">${no}</td><td>Cicilan Tahap 2 (Pelunasan)</td><td class="col-price">Rp ${BASE_CICILAN.toLocaleString('id-ID')}</td></tr>`;
-                        total += BASE_CICILAN;
-                    }
-                    document.getElementById('k-method').innerText = "Cicilan (Lunas Keduanya)";
+                    tbody.innerHTML = `
+                        <tr><td style="text-align:center;">1</td><td>Cicilan Tahap 1 Administrasi Semester 3</td><td class="col-price">Rp ${BASE_CICILAN.toLocaleString('id-ID')}</td></tr>
+                        <tr><td style="text-align:center;">2</td><td>Cicilan Tahap 2 (Pelunasan) Administrasi Semester 3</td><td class="col-price">Rp ${BASE_CICILAN.toLocaleString('id-ID')}</td></tr>
+                    `;
+                    items.push({ no: 1, name: 'Cicilan Tahap 1 Administrasi Semester 3', priceText: `Rp ${BASE_CICILAN.toLocaleString('id-ID')}` });
+                    items.push({ no: 2, name: 'Cicilan Tahap 2 (Pelunasan) Administrasi Semester 3', priceText: `Rp ${BASE_CICILAN.toLocaleString('id-ID')}` });
                 }
 
-                stamp.innerText = "LUNAS";
-                stamp.style.color = "#0f5132"; stamp.style.borderColor = "#0f5132";
+                window.receiptData = {
+                    receiptNo: invoiceNo,
+                    name: user.name,
+                    email: user.email || (user.uid.substring(0,6) + '@siswa.ca'),
+                    packageOrSem: 'Semester ' + sem,
+                    date: dateStr,
+                    totalText: totalText,
+                    totalNumber: total,
+                    method: methodStr,
+                    verifyCode: verifyCode,
+                    items: items
+                };
             }
-
-            tbody.innerHTML = rows;
-            totalEl.innerText = "Rp " + total.toLocaleString('id-ID');
         }
 
-        window.downloadPDF = function() {
-            const btn = document.querySelector('.btn-print');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
-            btn.disabled = true;
-
-            const element = document.getElementById('receipt-paper');
-            const opt = {
-                margin: 0,
-                filename: `Kwitansi_${new Date().getTime()}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }).catch(err => {
-                alert("Gagal membuat PDF.");
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+        // Helper konversi URL ke base64 untuk pdfmake
+        async function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.setAttribute('crossOrigin', 'anonymous');
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch(e) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
             });
         }
+
+        // ============================================================
+        // GENERATE & UNDUH PDF DENGAN PDFMAKE (VEKTOR MURNI - BUKAN CANVAS)
+        // ============================================================
+        window.downloadPDF = async function() {
+            const btn = document.getElementById('btnDownload');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyiapkan Dokumen PDF...';
+            btn.disabled = true;
+
+            try {
+                const data = window.receiptData || {};
+                
+                // Ambil base64 gambar logo & stempel
+                const [logoBase64, stampBase64] = await Promise.all([
+                    getBase64Image('https://i.imgur.com/5Srjyo4.png'),
+                    getBase64Image('https://i.imgur.com/YvrNYRw.png')
+                ]);
+
+                // Buat baris tabel rincian
+                const tableBody = [
+                    [
+                        { text: 'NO', style: 'tableHeader', alignment: 'center', width: 30 },
+                        { text: 'KETERANGAN PEMBAYARAN', style: 'tableHeader' },
+                        { text: 'NOMINAL', style: 'tableHeader', alignment: 'right', width: 130 }
+                    ]
+                ];
+
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(it => {
+                        tableBody.push([
+                            { text: String(it.no), alignment: 'center', style: 'tableCell' },
+                            { text: it.name, style: 'tableCell' },
+                            { text: it.priceText, alignment: 'right', style: 'tableCellBold' }
+                        ]);
+                    });
+                } else {
+                    tableBody.push([
+                        { text: '1', alignment: 'center', style: 'tableCell' },
+                        { text: 'Administrasi: ' + (data.packageOrSem || 'Paket'), style: 'tableCell' },
+                        { text: data.totalText || 'Rp 0', alignment: 'right', style: 'tableCellBold' }
+                    ]);
+                }
+
+                // Definisi Dokumen pdfMake
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageOrientation: 'portrait',
+                    pageMargins: [40, 36, 40, 36],
+                    content: [
+                        // Kop Surat
+                        {
+                            columns: [
+                                logoBase64 ? { image: logoBase64, width: 50, height: 50 } : { text: '[CA]', fontSize: 24, bold: true, color: '#003366', width: 50 },
+                                {
+                                    width: '*',
+                                    margin: [12, 0, 0, 0],
+                                    stack: [
+                                        { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', letterSpacing: 1 },
+                                        { text: 'Komunitas Literasi & Inkubasi Penulis Muda', fontSize: 9.5, color: '#475569', margin: [0, 2, 0, 0] },
+                                        { text: 'Temanggung, Jawa Tengah   |   cendekia.aksara@email.com', fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] }
+                                    ]
+                                }
+                            ]
+                        },
+                        // Divider Line
+                        {
+                            canvas: [
+                                { type: 'line', x1: 0, y1: 8, x2: 380, y2: 8, lineWidth: 3, lineColor: '#003366' },
+                                { type: 'line', x1: 380, y1: 8, x2: 515, y2: 8, lineWidth: 3, lineColor: '#d4af37' }
+                            ],
+                            margin: [0, 6, 0, 16]
+                        },
+                        // Judul & Ref
+                        {
+                            stack: [
+                                { text: 'KUITANSI PEMBAYARAN RESMI', fontSize: 14, bold: true, color: '#001f3f', alignment: 'center', letterSpacing: 1 },
+                                { text: 'Nomor: ' + (data.receiptNo || '-'), fontSize: 9.5, color: '#475569', alignment: 'center', margin: [0, 3, 0, 14] }
+                            ]
+                        },
+                        // Narasi Pembuka
+                        {
+                            text: 'Dengan ini pihak Cendekia Aksara menyatakan telah menerima pembayaran administrasi dari siswa/peserta yang identitasnya tercantum di bawah ini, sebagaimana rincian yang dilampirkan pada dokumen ini.',
+                            fontSize: 9,
+                            italics: true,
+                            color: '#334155',
+                            lineHeight: 1.4,
+                            margin: [0, 0, 0, 14]
+                        },
+                        // Section: Identitas
+                        {
+                            text: 'IDENTITAS PIHAK TERKAIT',
+                            fontSize: 8.5,
+                            bold: true,
+                            color: '#003366',
+                            margin: [0, 0, 0, 6]
+                        },
+                        {
+                            columns: [
+                                {
+                                    width: '50%',
+                                    margin: [0, 0, 8, 0],
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#f8fafc',
+                                                borderColor: ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                                                stack: [
+                                                    { text: 'DATA SISWA / PENULIS', fontSize: 8, bold: true, color: '#003366', margin: [0, 0, 0, 4] },
+                                                    { text: `Nama: ${data.name || '-'}`, fontSize: 8.5, bold: true, margin: [0, 1, 0, 1] },
+                                                    { text: `Email: ${data.email || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: `Paket: ${data.packageOrSem || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: 'Status: Terverifikasi Sah', fontSize: 8, bold: true, color: '#0f5132', margin: [0, 1, 0, 0] }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                },
+                                {
+                                    width: '50%',
+                                    margin: [8, 0, 0, 0],
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#f8fafc',
+                                                borderColor: ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                                                stack: [
+                                                    { text: 'DOKUMEN PENERBIT', fontSize: 8, bold: true, color: '#003366', margin: [0, 0, 0, 4] },
+                                                    { text: 'Penerbit: Cendekia Aksara', fontSize: 8.5, bold: true, margin: [0, 1, 0, 1] },
+                                                    { text: 'Alamat: Temanggung, Jawa Tengah', fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: `Tanggal: ${data.date || '-'}`, fontSize: 8, color: '#475569', margin: [0, 1, 0, 1] },
+                                                    { text: 'Verifikasi: Otomatis Gateway', fontSize: 8, color: '#475569', margin: [0, 1, 0, 0] }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                }
+                            ],
+                            margin: [0, 0, 0, 14]
+                        },
+                        // Section: Rincian Pembayaran
+                        {
+                            text: 'RINCIAN PEMBAYARAN',
+                            fontSize: 8.5,
+                            bold: true,
+                            color: '#003366',
+                            margin: [0, 4, 0, 6]
+                        },
+                        {
+                            table: {
+                                headerRows: 1,
+                                widths: [30, '*', 130],
+                                body: tableBody
+                            },
+                            layout: {
+                                hLineWidth: () => 0.5,
+                                vLineWidth: () => 0.5,
+                                hLineColor: () => '#cbd5e1',
+                                vLineColor: () => '#cbd5e1'
+                            },
+                            margin: [0, 0, 0, 10]
+                        },
+                        // Total Box
+                        {
+                            columns: [
+                                { width: '*', text: '' },
+                                {
+                                    width: 240,
+                                    table: {
+                                        widths: ['*'],
+                                        body: [[
+                                            {
+                                                fillColor: '#fffbeb',
+                                                borderColor: ['#fcd34d', '#fcd34d', '#fcd34d', '#fcd34d'],
+                                                stack: [
+                                                    {
+                                                        columns: [
+                                                            { text: 'Metode Pembayaran:', fontSize: 8, color: '#64748b' },
+                                                            { text: data.method || 'QRIS Digital Otomatis', fontSize: 8, bold: true, alignment: 'right' }
+                                                        ],
+                                                        margin: [0, 0, 0, 4]
+                                                    },
+                                                    {
+                                                        columns: [
+                                                            { text: 'TOTAL DIBAYAR:', fontSize: 10, bold: true, color: '#003366' },
+                                                            { text: data.totalText || 'Rp 0', fontSize: 11, bold: true, color: '#003366', alignment: 'right' }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]]
+                                    }
+                                }
+                            ],
+                            margin: [0, 0, 0, 16]
+                        },
+                        // Penutup
+                        {
+                            text: 'Kuitansi ini diterbitkan secara otomatis oleh sistem administrasi Cendekia Aksara dan merupakan bukti sah pembayaran. Dokumen ini wajib disimpan sebagai salah satu syarat dan arsip akademik/kepesertaan resmi.',
+                            fontSize: 8,
+                            italics: true,
+                            color: '#475569',
+                            lineHeight: 1.35,
+                            margin: [0, 0, 0, 20]
+                        },
+                        // Tanda Tangan & Verifikasi
+                        {
+                            columns: [
+                                {
+                                    width: '*',
+                                    stack: [
+                                        { text: 'Dokumen ini diterbitkan secara elektronik dan sah tanpa tanda tangan basah untuk keperluan administrasi resmi.', fontSize: 7.5, color: '#64748b', lineHeight: 1.3 },
+                                        { text: 'Kode Verifikasi: ' + (data.verifyCode || '-'), fontSize: 8, bold: true, color: '#003366', margin: [0, 4, 0, 0] }
+                                    ]
+                                },
+                                {
+                                    width: 170,
+                                    stack: [
+                                        { text: `Temanggung, ${data.date || '-'}`, fontSize: 8, alignment: 'center' },
+                                        { text: 'Admin Keuangan', fontSize: 8, bold: true, alignment: 'center', margin: [0, 1, 0, 4] },
+                                        stampBase64 ? { image: stampBase64, width: 85, height: 42, alignment: 'center', margin: [0, 0, 0, 0] } : { text: '', height: 35 },
+                                        { text: 'Bendahara Sekolah', fontSize: 8, bold: true, alignment: 'center', decoration: 'underline', margin: [0, 4, 0, 0] }
+                                    ]
+                                }
+                            ]
+                        },
+                        // Footer Bottom
+                        {
+                            text: 'CENDEKIA AKSARA · Komunitas Literasi & Inkubasi Penulis Muda · Temanggung, Jawa Tengah',
+                            fontSize: 7,
+                            color: '#94a3b8',
+                            alignment: 'center',
+                            margin: [0, 20, 0, 0]
+                        }
+                    ],
+                    styles: {
+                        tableHeader: {
+                            fillColor: '#003366',
+                            color: '#ffffff',
+                            fontSize: 8,
+                            bold: true,
+                            margin: [4, 4, 4, 4]
+                        },
+                        tableCell: {
+                            fontSize: 8,
+                            margin: [4, 4, 4, 4]
+                        },
+                        tableCellBold: {
+                            fontSize: 8,
+                            bold: true,
+                            margin: [4, 4, 4, 4]
+                        }
+                    }
+                };
+
+                const safeName = (data.name || 'Siswa').replace(/[^a-zA-Z0-9]/g, '_');
+                pdfMake.createPdf(docDefinition).download(`Kwitansi_Resmi_Cendekia_${safeName}_${Date.now()}.pdf`);
+
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> PDF Berhasil Diunduh!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }, 2000);
+            } catch (err) {
+                console.error('PDF export error:', err);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        };
     </script>
 </body>
 </html>

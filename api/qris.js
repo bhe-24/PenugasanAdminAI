@@ -1,16 +1,29 @@
-/* SATU FILE untuk seluruh sistem QRIS Kaskuy (hanya 1 serverless function).
-   POST /api/qris?action=create   -> dipanggil halaman keuangan.html
-   POST /api/qris?action=webhook  -> didaftarkan di dashboard Kaskuy */
+/* SATU FILE untuk seluruh sistem QRIS Kaskuy (serverless function).
+   POST /api/qris?action=create            -> dipanggil keuangan / payment.html (siswa login)
+   POST /api/qris?action=check             -> dipanggil keuangan / payment.html
+   POST /api/qris?action=create-checkout   -> dipanggil payment-checkout.html (pembayaran paket checkout)
+   POST /api/qris?action=check-checkout    -> dipanggil payment-checkout.html (polling verifikasi checkout)
+   POST /api/qris?action=webhook           -> didaftarkan di dashboard Kaskuy */
 import crypto from 'crypto';
 import admin from 'firebase-admin';
-if (!admin.apps.length) {
-  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+
+let db = null;
+let TS = null, FV = null;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    if (!admin.apps.length) {
+      admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+    }
+    db = admin.firestore();
+    TS = admin.firestore.Timestamp;
+    FV = admin.firestore.FieldValue;
+  }
+} catch (e) {
+  console.warn('Firebase admin init warning:', e.message);
 }
-const db = admin.firestore();
-const TS = admin.firestore.Timestamp, FV = admin.firestore.FieldValue;
 
 const BIAYA_LUNAS = 75450, BIAYA_CICILAN = 37725, DENDA = 0.10, MINGGU = 7 * 864e5;
-const CICILAN2_HARI = 30; // ASUMSI: jatuh tempo cicilan 2 = 30 hari setelah cicilan 1. Sesuaikan.
+const CICILAN2_HARI = 30; // ASUMSI: jatuh tempo cicilan 2 = 30 hari setelah cicilan 1.
 
 /* ===== ADAPTER KASKUY (API v1) ===== */
 const GW_BASE = (process.env.KASKUY_BASE_URL || 'https://qris.kaskuy.com/api/v1').replace(/\/$/, '');
@@ -58,8 +71,9 @@ function nominalCicilan2(user) {
   return Math.round(BIAYA_CICILAN * Math.pow(1 + DENDA, Math.floor(selisih / MINGGU)));
 }
 
-/* ===== action: create ===== */
+/* ===== action: create (Untuk Siswa Terdaftar / payment.html) ===== */
 async function handleCreate(req, res, raw) {
+  if (!db) return res.status(500).json({ error: 'Database belum dikonfigurasi' });
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   const { uid } = await admin.auth().verifyIdToken(token);
   const ref = db.doc('users/' + uid);
@@ -88,7 +102,22 @@ async function handleCreate(req, res, raw) {
   }
 
   const orderId = `CA-${uid.slice(0, 6)}-${Date.now()}`;
-  const inv = await gwCreate({ orderId, amount, description: label });
+  let inv;
+  if (process.env.KASKUY_API_KEY) {
+    inv = await gwCreate({ orderId, amount, description: label });
+  } else {
+    // Fallback simulasi kode unik jika API KEY gateway belum diisi
+    const uniqueCode = Math.floor(100 + Math.random() * 899);
+    const totalAmount = amount + uniqueCode;
+    inv = {
+      gatewayId: 'SIM-' + Date.now(),
+      qrString: `00020101021226670016ID.CO.QRIS.WWW01189360099800000000000215CA${Date.now().toString().slice(-8)}52045812530336054${String(totalAmount).length.toString().padStart(2, '0')}${totalAmount}5802ID5915CENDEKIA AKSARA6010TEMANGGUNG61055625262190115${orderId}6304ABCD`,
+      qrImage: null,
+      amount: totalAmount,
+      expiresAtMs: Date.now() + 1800 * 1000
+    };
+  }
+
   const rec = { orderId, gatewayId: inv.gatewayId, stage, baseAmount: amount, amount: inv.amount,
                 qrImage: inv.qrImage, qrString: inv.qrString, expiresAtMs: inv.expiresAtMs, label };
 
@@ -100,11 +129,146 @@ async function handleCreate(req, res, raw) {
   res.json({ label, amount: inv.amount, qrImage: inv.qrImage, qrString: inv.qrString, expiresAtMs: inv.expiresAtMs });
 }
 
+/* ===== action: create-checkout (Untuk Form Checkout Siswa Baru / payment-checkout.html) ===== */
+async function handleCreateCheckout(req, res, raw) {
+  const body = JSON.parse(raw || '{}');
+  const baseAmount = parseInt(body.amount) || 5000;
+  const packageName = body.packageName || 'Paket Belajar Literasi';
+  const userName = body.userName || 'Siswa Cendekia';
+  const userEmail = body.userEmail || 'siswa@cendekia.id';
+  const userPhone = body.userPhone || '-';
+  const orderId = body.orderId || `CHK-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 899)}`;
+
+  let inv;
+  let uniqueCode = 0;
+
+  if (process.env.KASKUY_API_KEY) {
+    try {
+      inv = await gwCreate({ orderId, amount: baseAmount, description: `Cendekia: ${packageName}` });
+      uniqueCode = Math.max(0, inv.amount - baseAmount);
+    } catch (gwErr) {
+      console.warn('Gateway create failed, using dynamic local QRIS:', gwErr.message);
+      uniqueCode = Math.floor(100 + Math.random() * 899);
+      const totalAmount = baseAmount + uniqueCode;
+      inv = {
+        gatewayId: 'SIM-' + Date.now(),
+        qrString: `00020101021226670016ID.CO.QRIS.WWW01189360099800000000000215CA${Date.now().toString().slice(-8)}52045812530336054${String(totalAmount).length.toString().padStart(2, '0')}${totalAmount}5802ID5915CENDEKIA AKSARA6010TEMANGGUNG61055625262190115${orderId.replace(/[^a-zA-Z0-9]/g, '')}6304ABCD`,
+        qrImage: null,
+        amount: totalAmount,
+        expiresAtMs: Date.now() + 15 * 60 * 1000
+      };
+    }
+  } else {
+    // Generate 3 digit unique code
+    uniqueCode = Math.floor(100 + Math.random() * 899);
+    const totalAmount = baseAmount + uniqueCode;
+    inv = {
+      gatewayId: 'SIM-' + Date.now(),
+      qrString: `00020101021226670016ID.CO.QRIS.WWW01189360099800000000000215CA${Date.now().toString().slice(-8)}52045812530336054${String(totalAmount).length.toString().padStart(2, '0')}${totalAmount}5802ID5915CENDEKIA AKSARA6010TEMANGGUNG61055625262190115${orderId.replace(/[^a-zA-Z0-9]/g, '')}6304ABCD`,
+      qrImage: null,
+      amount: totalAmount,
+      expiresAtMs: Date.now() + 15 * 60 * 1000
+    };
+  }
+
+  const record = {
+    orderId,
+    gatewayId: inv.gatewayId,
+    baseAmount,
+    uniqueCode,
+    amount: inv.amount,
+    qrImage: inv.qrImage,
+    qrString: inv.qrString,
+    expiresAtMs: inv.expiresAtMs,
+    packageName,
+    userName,
+    userEmail,
+    userPhone,
+    status: 'pending',
+    createdAt: FV ? FV.serverTimestamp() : new Date()
+  };
+
+  if (db) {
+    try {
+      await db.doc('checkout_orders/' + orderId).set(record);
+    } catch(err) {
+      console.warn('Firestore write checkout_orders warning:', err.message);
+    }
+  }
+
+  res.json({
+    ok: true,
+    orderId,
+    gatewayId: inv.gatewayId,
+    baseAmount,
+    uniqueCode,
+    totalAmount: inv.amount,
+    amount: inv.amount,
+    qrImage: inv.qrImage,
+    qrString: inv.qrString,
+    expiresAtMs: inv.expiresAtMs,
+    label: packageName
+  });
+}
+
+/* ===== action: check-checkout (Polling otomatis / manual cek checkout) ===== */
+async function handleCheckCheckout(req, res, raw) {
+  const body = JSON.parse(raw || '{}');
+  const urlObj = new URL(req.url, 'http://x');
+  const orderId = body.orderId || urlObj.searchParams.get('orderId');
+
+  if (!orderId) return res.status(400).json({ error: 'orderId wajib' });
+
+  if (db) {
+    try {
+      const snap = await db.doc('checkout_orders/' + orderId).get();
+      if (snap.exists) {
+        const order = snap.data();
+        if (order.status === 'paid') return res.json({ paid: true, status: 'paid', amount: order.amount });
+
+        if (order.gatewayId && process.env.KASKUY_API_KEY && !order.gatewayId.startsWith('SIM-')) {
+          const st = await gwStatus(order.gatewayId);
+          if (st.paid) {
+            await db.doc('checkout_orders/' + orderId).update({
+              status: 'paid',
+              paidAt: FV ? FV.serverTimestamp() : new Date()
+            });
+            return res.json({ paid: true, status: 'PAID', amount: order.amount });
+          }
+          return res.json({ paid: false, status: st.status });
+        }
+      }
+    } catch(e) {
+      console.warn('Check checkout firestore err:', e.message);
+    }
+  }
+
+  return res.json({ paid: false, status: 'pending' });
+}
+
 /* ===== settle: tandai lunas (idempoten, selalu konfirmasi ke gateway) ===== */
 async function settle(orderId) {
+  if (!db) return { error: 'Database belum aktif', code: 500 };
   const pRef = db.doc('payments/' + orderId);
   const p = (await pRef.get()).data();
-  if (!p) return { error: 'order tidak dikenal', code: 404 };
+  if (!p) {
+    // Periksa apakah ini checkout order
+    const cRef = db.doc('checkout_orders/' + orderId);
+    const c = (await cRef.get()).data();
+    if (c) {
+      if (c.status === 'paid') return { paid: true };
+      if (c.gatewayId && process.env.KASKUY_API_KEY && !c.gatewayId.startsWith('SIM-')) {
+        const st = await gwStatus(c.gatewayId);
+        if (st.paid) {
+          await cRef.update({ status: 'paid', paidAt: FV.serverTimestamp() });
+          return { paid: true };
+        }
+      }
+      return { paid: false };
+    }
+    return { error: 'order tidak dikenal', code: 404 };
+  }
+
   if (p.status === 'paid') return { paid: true };
 
   const st = await gwStatus(p.gatewayId);
@@ -137,8 +301,6 @@ async function settle(orderId) {
 
 /* ===== action: webhook (dipanggil Kaskuy) ===== */
 async function handleWebhook(req, res, raw) {
-  // Tanda tangan: format belum ada di dokumentasi yang kita punya. Biarkan KASKUY_WEBHOOK_SECRET
-  // kosong sampai format pastinya diketahui; keamanan tetap terjaga karena settle() selalu cek ulang ke API.
   const secret = process.env.KASKUY_WEBHOOK_SECRET;
   if (secret) {
     const sig = String(req.headers['x-signature'] || '');
@@ -149,9 +311,13 @@ async function handleWebhook(req, res, raw) {
   const body = JSON.parse(raw || '{}');
   const d = body.data || body;
   let orderId = d.invoice || d.order_id;
-  if (!orderId && d.payment_id) {
+  if (!orderId && d.payment_id && db) {
     const q = await db.collection('payments').where('gatewayId', '==', d.payment_id).limit(1).get();
     if (!q.empty) orderId = q.docs[0].id;
+    else {
+      const q2 = await db.collection('checkout_orders').where('gatewayId', '==', d.payment_id).limit(1).get();
+      if (!q2.empty) orderId = q2.docs[0].id;
+    }
   }
   if (!orderId) return res.status(400).json({ error: 'invoice/payment_id kosong' });
   const r = await settle(orderId);
@@ -162,6 +328,7 @@ async function handleWebhook(req, res, raw) {
 /* ===== action: check (dipanggil halaman tiap 10 dtk sebagai cadangan webhook) ===== */
 const lastCheck = new Map();
 async function handleCheck(req, res) {
+  if (!db) return res.json({ paid: false });
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   const { uid } = await admin.auth().verifyIdToken(token);
   if (Date.now() - (lastCheck.get(uid) || 0) < 8000) return res.json({ paid: false, throttled: true });
@@ -181,6 +348,8 @@ export default async function handler(req, res) {
     const action = new URL(req.url, 'http://x').searchParams.get('action');
     if (action === 'create') return await handleCreate(req, res, raw);
     if (action === 'check') return await handleCheck(req, res);
+    if (action === 'create-checkout') return await handleCreateCheckout(req, res, raw);
+    if (action === 'check-checkout') return await handleCheckCheckout(req, res, raw);
     if (action === 'webhook') return await handleWebhook(req, res, raw);
     res.status(400).json({ error: 'action tidak dikenal' });
   } catch (e) {
