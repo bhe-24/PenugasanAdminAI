@@ -13,6 +13,7 @@ const CendekiaApp = (function () {
     const STORAGE_KEY_CHALLENGES = 'cendekia_free_challenges';
     const STORAGE_KEY_HISTORY = 'cendekia_free_history';
     const STORAGE_KEY_DAILY_POOL = 'cendekia_free_daily_pool';
+    const STORAGE_KEY_TRANSACTIONS = 'cendekia_user_transactions';
 
     // LEVEL DEFINITIONS
     const LEVELS = [
@@ -53,14 +54,84 @@ const CendekiaApp = (function () {
         }
     };
 
-    // BADGES DATABASE
+    // 6 LENCANA RESMI CENDEKIA AKSARA DENGAN SYARAT AKTUAL
     const BADGE_CATALOG = {
-        'badge_first_step': { id: 'badge_first_step', name: 'Langkah Pertama', icon: 'footprints', desc: 'Membuka portal literasi Member Free.' },
-        'badge_reading_lover': { id: 'badge_reading_lover', name: 'Pencinta Pustaka', icon: 'book-heart', desc: 'Membaca modul sastra mandiri.' },
-        'badge_word_master': { id: 'badge_word_master', name: 'Pengrajin Kata', icon: 'pen-tool', desc: 'Menyusun karya sastra pertama di ruang menulis.' },
-        'badge_quiz_champ': { id: 'badge_quiz_champ', name: 'Juara Kuis', icon: 'trophy', desc: 'Menyelesaikan 5 kuis dengan nilai sempurna.' },
-        'badge_streak_7': { id: 'badge_streak_7', name: 'Api Konsisten', icon: 'flame', desc: 'Aktif belajar literasi 7 hari berturut-turut.' },
-        'badge_idea_spark': { id: 'badge_idea_spark', name: 'Pemantik Kreatif', icon: 'sparkles', desc: 'Menyimpan 5 ide cerita di laboratorium kreasi.' }
+        'badge_first_step': {
+            id: 'badge_first_step',
+            name: 'Langkah Awal',
+            icon: 'footprints',
+            desc: 'Selesaikan aktivitas belajar pertama di portal Member Free.',
+            target: 1,
+            unit: 'Aktivitas',
+            check: (user) => {
+                const total = (user.stats?.materialsLearned || 0) + 
+                              (user.stats?.gamesCompleted || 0) + 
+                              (user.stats?.quizCompleted || 0) + 
+                              (user.stats?.worksCreated || 0) + 
+                              (user.stats?.ideasArchived || 0) + 
+                              (user.xp > 0 ? 1 : 0);
+                return total >= 1;
+            },
+            progress: (user) => {
+                const total = (user.stats?.materialsLearned || 0) + 
+                              (user.stats?.gamesCompleted || 0) + 
+                              (user.stats?.quizCompleted || 0) + 
+                              (user.stats?.worksCreated || 0) + 
+                              (user.stats?.ideasArchived || 0) + 
+                              (user.xp > 0 ? 1 : 0);
+                return Math.min(1, total);
+            }
+        },
+        'badge_reading_lover': {
+            id: 'badge_reading_lover',
+            name: 'Pembaca Buku',
+            icon: 'book-open',
+            desc: 'Membaca minimal 3 modul pembelajaran di Ruang Belajar.',
+            target: 3,
+            unit: 'Modul',
+            check: (user) => (user.stats?.materialsLearned || 0) >= 3,
+            progress: (user) => Math.min(3, user.stats?.materialsLearned || 0)
+        },
+        'badge_word_master': {
+            id: 'badge_word_master',
+            name: 'Pengrajin Kata',
+            icon: 'pen-tool',
+            desc: 'Menulis dan menyimpan minimal 1 karya naskah sastra pertamamu.',
+            target: 1,
+            unit: 'Karya',
+            check: (user) => (user.stats?.worksCreated || 0) >= 1,
+            progress: (user) => Math.min(1, user.stats?.worksCreated || 0)
+        },
+        'badge_quiz_champ': {
+            id: 'badge_quiz_champ',
+            name: 'Juara Kuis',
+            icon: 'trophy',
+            desc: 'Menyelesaikan minimal 3 ronde permainan atau latihan literasi.',
+            target: 3,
+            unit: 'Permainan',
+            check: (user) => ((user.stats?.gamesCompleted || 0) + (user.stats?.quizCompleted || 0)) >= 3,
+            progress: (user) => Math.min(3, (user.stats?.gamesCompleted || 0) + (user.stats?.quizCompleted || 0))
+        },
+        'badge_streak_3': {
+            id: 'badge_streak_3',
+            name: 'Api Konsisten',
+            icon: 'flame',
+            desc: 'Mempertahankan streak belajar minimal 3 hari berturut-turut.',
+            target: 3,
+            unit: 'Hari',
+            check: (user) => (user.streak || 0) >= 3,
+            progress: (user) => Math.min(3, user.streak || 0)
+        },
+        'badge_idea_spark': {
+            id: 'badge_idea_spark',
+            name: 'Pemantik Kreatif',
+            icon: 'sparkles',
+            desc: 'Menyimpan minimal 3 ide atau eksplorasi cerita di Ruang Kreasi.',
+            target: 3,
+            unit: 'Ide',
+            check: (user) => (user.stats?.ideasArchived || 0) >= 3,
+            progress: (user) => Math.min(3, user.stats?.ideasArchived || 0)
+        }
     };
 
     // 1. GET & SYNC USER DATA
@@ -153,6 +224,22 @@ const CendekiaApp = (function () {
         const user = getUser();
         user.xp = (user.xp || 0) + points;
 
+        if (!user.stats) {
+            user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        }
+
+        // Auto-increment statistik aktivitas berbasis alasan
+        const rLower = (reason || '').toLowerCase();
+        if (rLower.includes('bacaan') || rLower.includes('membaca') || rLower.includes('modul')) {
+            user.stats.materialsLearned = (user.stats.materialsLearned || 0) + 1;
+        } else if (rLower.includes('kuis') || rLower.includes('tebak') || rLower.includes('susun') || rLower.includes('teka-teki') || rLower.includes('perbaikan') || rLower.includes('sambung') || rLower.includes('tantangan') || rLower.includes('game') || rLower.includes('permainan')) {
+            user.stats.gamesCompleted = (user.stats.gamesCompleted || 0) + 1;
+        } else if (rLower.includes('karya') || rLower.includes('menulis') || rLower.includes('naskah')) {
+            user.stats.worksCreated = Math.max(user.stats.worksCreated || 0, getWorks().length || 1);
+        } else if (rLower.includes('ide')) {
+            user.stats.ideasArchived = Math.max(user.stats.ideasArchived || 0, getIdeas().length || 1);
+        }
+
         // Cek Level
         let newLevel = user.level || 1;
         let newTitle = user.levelTitle || LEVELS[0].title;
@@ -170,6 +257,9 @@ const CendekiaApp = (function () {
         user.levelTitle = newTitle;
         saveUser(user);
 
+        // Evaluasi otomatis 6 lencana resmi
+        checkAndAwardBadges(user);
+
         // Catat Riwayat Aktivitas
         logActivity(reason, 'award', 'xp', points);
 
@@ -182,6 +272,8 @@ const CendekiaApp = (function () {
                         xp: user.xp,
                         level: user.level,
                         levelTitle: user.levelTitle,
+                        badges: user.badges || [],
+                        stats: user.stats || {},
                         lastActive: new Date().toISOString()
                     }).catch(e => console.warn('[Cendekia Central] Sync XP Firestore tertunda:', e));
                 }
@@ -198,6 +290,77 @@ const CendekiaApp = (function () {
         // Perbarui elemen UI di halaman aktif jika ada
         updateDOMStats();
         return { xp: user.xp, level: user.level, leveledUp };
+    }
+
+    // PENCATATAN AKTIVITAS BACAAN & GAME KHUSUS
+    function recordMaterialRead(category, title) {
+        const user = getUser();
+        if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        user.stats.materialsLearned = (user.stats.materialsLearned || 0) + 1;
+        saveUser(user);
+        addXP(20, 'Menyelesaikan Bacaan: ' + (title || category));
+    }
+
+    function recordGameCompleted(gameName, score) {
+        const user = getUser();
+        if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        user.stats.gamesCompleted = (user.stats.gamesCompleted || 0) + 1;
+        saveUser(user);
+        checkAndAwardBadges(user);
+    }
+
+    // EVALUASI & NOTIFIKASI 6 LENCANA RESMI
+    function checkAndAwardBadges(user) {
+        if (!user) user = getUser();
+        if (!Array.isArray(user.badges)) user.badges = [];
+
+        let newlyUnlocked = [];
+
+        Object.keys(BADGE_CATALOG).forEach(key => {
+            const badge = BADGE_CATALOG[key];
+            if (!user.badges.includes(badge.id)) {
+                if (badge.check && badge.check(user)) {
+                    user.badges.push(badge.id);
+                    newlyUnlocked.push(badge);
+                }
+            }
+        });
+
+        if (newlyUnlocked.length > 0) {
+            saveUser(user);
+            newlyUnlocked.forEach((badge, idx) => {
+                setTimeout(() => {
+                    showBadgeUnlockedModal(badge);
+                }, idx * 1200);
+            });
+        }
+
+        return user.badges;
+    }
+
+    function showBadgeUnlockedModal(badge) {
+        const overlay = document.createElement('div');
+        overlay.className = 'app-modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.zIndex = '9999';
+        overlay.innerHTML = `
+            <div class="app-modal-card" style="text-align:center; max-width:340px;">
+                <div class="modal-icon-badge" style="background:#fef3c7; color:#b45309; width:68px; height:68px; border:2px solid var(--accent); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; border-radius:50%;">
+                    <i data-lucide="${badge.icon || 'medal'}" style="width:34px; height:34px;"></i>
+                </div>
+                <div style="font-size:0.7rem; font-weight:800; color:var(--accent-dark); text-transform:uppercase; letter-spacing:0.5px;">Pencapaian Baru Terbuka!</div>
+                <h3 class="modal-title" style="color:var(--primary); font-size:1.15rem; margin:4px 0 8px;">${badge.name} 🏅</h3>
+                <p class="modal-desc" style="font-size:0.75rem; line-height:1.45; color:var(--text-muted); margin-bottom:12px;">${badge.desc}</p>
+                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:var(--radius-sm); padding:6px 12px; margin-bottom:16px; font-size:0.72rem; font-weight:800; color:#065f46; display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="sparkles" style="width:14px; height:14px; color:#059669;"></i> Lencana Resmi Aktif &bull; +25 XP
+                </div>
+                <button type="button" class="btn-modal-primary" style="background:var(--primary); width:100%;" onclick="this.closest('.app-modal-overlay').remove()">
+                    Keren, Lanjutkan!
+                </button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        if (window.lucide) lucide.createIcons();
     }
 
     function showXPToast(text) {
@@ -383,7 +546,102 @@ const CendekiaApp = (function () {
         }
     }
 
-    // 7. TELAAH KURASI SISTEM CENDEKIA (SISTEM CERDAS BERKARYA TANPA KATA TERLARANG)
+    // 7. SISTEM TRANSAKSI & UPGRADE KEANGGOTAAN MEMBER (TANPA DAFTAR ULANG)
+    function getTransactions() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY_TRANSACTIONS) || '[]');
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async function recordTransaction(tx) {
+        try {
+            let txs = getTransactions();
+            const newTx = {
+                id: tx.id || tx.invoiceNo || 'tx_' + Date.now(),
+                invoiceNo: tx.invoiceNo || ('INV-UPG-' + Date.now().toString(36).toUpperCase()),
+                packageId: tx.packageId || '5k',
+                packageName: tx.packageName || 'Member 5K',
+                amount: tx.amount || 5000,
+                basePrice: tx.basePrice || 5000,
+                uniqueCode: tx.uniqueCode || 0,
+                status: tx.status || 'LUNAS',
+                paymentMethod: tx.paymentMethod || 'QRIS Digital Otomatis',
+                date: tx.date || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+                timestamp: new Date().toISOString(),
+                userName: tx.userName || '',
+                userEmail: tx.userEmail || ''
+            };
+            txs.unshift(newTx);
+            localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(txs));
+
+            // Simpan ke Firestore transactions jika bridge aktif
+            try {
+                const fb = await getFirebaseBridge();
+                if (fb && fb.db) {
+                    const uid = fb.auth?.currentUser?.uid || 'guest';
+                    await fb.setDoc(fb.doc(fb.db, "transactions", newTx.invoiceNo), {
+                        ...newTx,
+                        uid: uid,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            } catch (err) {
+                console.warn('[Cendekia Central] Sync transaction firestore warning:', err);
+            }
+
+            return newTx;
+        } catch (e) {
+            console.error('[Cendekia Central] Gagal menyimpan transaksi:', e);
+            return null;
+        }
+    }
+
+    async function upgradeUserTier(tierName, packageId = '5k') {
+        const user = getUser();
+        user.tier = tierName;
+        user.role = 'siswa';
+        user.status = 'registered';
+        user.packageId = packageId;
+        user.packageName = tierName;
+        saveUser(user);
+
+        // Update di session legacy juga
+        try {
+            const legacy = JSON.parse(localStorage.getItem('cendekia_user') || '{}');
+            legacy.tier = tierName;
+            legacy.role = 'siswa';
+            legacy.status = 'registered';
+            legacy.packageId = packageId;
+            legacy.packageName = tierName;
+            localStorage.setItem('cendekia_user', JSON.stringify(legacy));
+            localStorage.setItem('user_status', 'registered');
+            localStorage.setItem('user_package', packageId);
+        } catch (e) {}
+
+        // Sync ke Firestore users/{uid}
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb && fb.auth && fb.auth.currentUser) {
+                await fb.updateDoc(fb.doc(fb.db, "users", fb.auth.currentUser.uid), {
+                    tier: tierName,
+                    role: 'siswa',
+                    status: 'registered',
+                    packageId: packageId,
+                    packageName: tierName,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        } catch (err) {
+            console.warn('[Cendekia Central] Update tier Firestore warning:', err);
+        }
+
+        updateDOMStats();
+        return user;
+    }
+
+    // 8. TELAAH KURASI SISTEM CENDEKIA (SISTEM CERDAS BERKARYA TANPA KATA TERLARANG)
     function analyzeWritingSystem(text, category = 'cerpen') {
         const words = text.trim() ? text.trim().split(/\s+/).length : 0;
         const characters = text.length;
@@ -923,6 +1181,13 @@ const CendekiaApp = (function () {
         ensureDailyGame,
         formatTimeRemaining,
         getLeaderboardUsers,
+        recordMaterialRead,
+        recordGameCompleted,
+        checkAndAwardBadges,
+        showBadgeUnlockedModal,
+        getTransactions,
+        recordTransaction,
+        upgradeUserTier,
         init,
         BADGE_CATALOG,
         LEVELS

@@ -158,8 +158,8 @@
                         <i data-lucide="chart-simple" style="width:13px; height:13px;"></i>
                         <span>IPS: <span id="display-ips">3.50</span></span>
                     </div>
-                    <div class="badge-sem-pill" style="background:#fffdf5; border-color:var(--accent); color:var(--accent-dark);">
-                        <i data-lucide="shield-check" style="width:13px; height:13px;"></i> Member Free
+                    <div class="badge-sem-pill" id="display-tier-badge" style="background:#fffdf5; border-color:var(--accent); color:var(--accent-dark);">
+                        <i data-lucide="shield-check" style="width:13px; height:13px;"></i> <span id="display-tier-text">Member Free</span>
                     </div>
                 </div>
 
@@ -167,10 +167,10 @@
                 <div class="hero-xp-section" style="background:#f8fafc; border:1px solid var(--border-soft); text-align:left;">
                     <div class="hero-xp-meta" style="color:var(--text-dark);">
                         <span>Level <b data-bind="userLevel">1</b> (<span data-bind="userLevelTitle">Penulis Pemula 🌱</span>)</span>
-                        <span><b data-bind="userXp">45</b> / <span data-bind="userMaxXp">100</span> XP</span>
+                        <span><b data-bind="userXp">0</b> / <span data-bind="userMaxXp">100</span> XP</span>
                     </div>
                     <div class="hero-xp-bar-bg" style="background:#e2e8f0;">
-                        <div class="hero-xp-bar-fill" data-bind="xpProgressPercent" style="width:45%; background:var(--primary);"></div>
+                        <div class="hero-xp-bar-fill" data-bind="xpProgressPercent" style="width:0%; background:var(--primary);"></div>
                     </div>
                 </div>
             </div>
@@ -280,15 +280,35 @@
                     </div>
                     <div class="info-item">
                         <span class="info-label">Tipe Keanggotaan:</span>
-                        <span class="info-val">Member Free (Akses Bebas Biaya)</span>
+                        <span class="info-val" id="profTier">Member Free (Akses Bebas Biaya)</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Layanan Termasuk:</span>
-                        <span class="info-val">Modul Literasi, 8 Game, Studio Tulis, &amp; Lab Kreasi</span>
+                        <span class="info-val" id="profFeatures">Modul Literasi, 8 Game, Studio Tulis, &amp; Lab Kreasi</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Biaya Bulanan:</span>
-                        <span class="info-val" style="color:#059669;">Rp 0 (Gratis)</span>
+                        <span class="info-val" id="profPrice" style="color:#059669;">Rp 0 (Gratis)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. RIWAYAT TRANSAKSI / PEMBELIAN & UPGRADE MEMBER -->
+            <div class="info-card" id="cardRiwayatTransaksi">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div class="info-title" style="margin-bottom:0; display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="receipt" style="width:16px; height:16px; color:var(--primary);"></i>
+                        <span>Riwayat Transaksi &amp; Pembelian</span>
+                    </div>
+                    <a href="/mem-free/langganan.html" style="font-size:0.68rem; font-weight:800; color:var(--accent-dark); text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                        <i data-lucide="sparkles" style="width:12px; height:12px;"></i> Upgrade Paket
+                    </a>
+                </div>
+
+                <div id="transactionHistoryList" style="display:flex; flex-direction:column; gap:10px;">
+                    <!-- Render Dinamis dari CendekiaApp.getTransactions() & Firestore -->
+                    <div style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding:16px;">
+                        Memuat riwayat transaksi...
                     </div>
                 </div>
             </div>
@@ -405,6 +425,31 @@
                 picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003366&color=fff&size=200`;
             }
 
+            // Status Tier / Keanggotaan
+            const currentTier = user.tier || 'Member Free';
+            const tierBadge = document.getElementById('display-tier-badge');
+            const tierText = document.getElementById('display-tier-text');
+            const profTier = document.getElementById('profTier');
+            const profFeatures = document.getElementById('profFeatures');
+            const profPrice = document.getElementById('profPrice');
+
+            if (tierText) tierText.textContent = currentTier;
+            if (profTier) profTier.textContent = currentTier === 'Member Free' ? 'Member Free (Akses Bebas Biaya)' : `${currentTier} (Keanggotaan Aktif)`;
+
+            if (currentTier !== 'Member Free') {
+                if (tierBadge) {
+                    tierBadge.style.background = '#fffdf5';
+                    tierBadge.style.borderColor = 'var(--accent)';
+                    tierBadge.style.color = 'var(--accent-dark)';
+                    tierBadge.innerHTML = `<i data-lucide="crown" style="width:13px; height:13px; color:#d97706;"></i> <span>${currentTier}</span>`;
+                }
+                if (profFeatures) profFeatures.textContent = 'Akses Kelas Resmi, Bimbingan Kurator, Evaluasi Naskah & Modul';
+                if (profPrice) {
+                    profPrice.style.color = '#0284c7';
+                    profPrice.textContent = 'Langganan Aktif';
+                }
+            }
+
             // Biodata View (Read-Only)
             document.getElementById('bioValName').textContent = user.name || '-';
             document.getElementById('bioValHp').textContent = user.noHp || '-';
@@ -419,6 +464,93 @@
             document.getElementById('inp-addr').value = user.alamat || '';
             document.getElementById('inp-bio').value = user.bioSingkat || '';
 
+            // Muat Riwayat Transaksi Aktual
+            loadTransactionHistory(user);
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // 2. SISTEM RIWAYAT TRANSAKSI AKTUAL SISWA
+        async function loadTransactionHistory(user) {
+            const container = document.getElementById('transactionHistoryList');
+            if (!container) return;
+
+            let txs = CendekiaApp.getTransactions();
+
+            // Coba sinkronisasi transaksi dari Firestore jika pengguna memiliki email/uid
+            try {
+                const fb = await CendekiaApp.getFirebaseBridge();
+                if (fb && fb.db && (user.uid || user.email)) {
+                    const snap = await fb.getDocs(fb.collection(fb.db, "transactions"));
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if ((user.uid && data.uid === user.uid) || (user.email && data.userEmail === user.email)) {
+                            if (!txs.some(t => t.invoiceNo === data.invoiceNo || t.id === d.id)) {
+                                txs.push({ id: d.id, ...data });
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn('Gagal membaca transaksi Firestore:', err);
+            }
+
+            // Urutkan transaksi dari yang terbaru
+            txs.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+
+            if (txs.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:20px 14px; background:#f8fafc; border-radius:var(--radius-sm); border:1px dashed var(--border-medium);">
+                        <div style="width:38px; height:38px; border-radius:50%; background:#e2e8f0; color:var(--text-muted); display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">
+                            <i data-lucide="receipt-text" style="width:20px; height:20px;"></i>
+                        </div>
+                        <div style="font-size:0.82rem; font-weight:700; color:var(--primary); margin-bottom:2px;">Belum Ada Transaksi</div>
+                        <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4; margin-bottom:10px;">
+                            Anda belum memiliki riwayat pembelian atau upgrade paket.
+                        </p>
+                        <a href="/mem-free/langganan.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:6px 14px; font-size:0.7rem; text-decoration:none;">
+                            <i data-lucide="crown" style="width:13px; height:13px;"></i> Upgrade Member Sekarang
+                        </a>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            let html = '';
+            txs.forEach(tx => {
+                const invoice = tx.invoiceNo || tx.orderId || 'INV-UPG';
+                const pkg = tx.packageName || 'Upgrade Keanggotaan';
+                const amt = (tx.amount || 0).toLocaleString('id-ID');
+                const dt = tx.date || (tx.timestamp ? new Date(tx.timestamp).toLocaleDateString('id-ID') : 'Terbaru');
+                const method = tx.paymentMethod || 'QRIS Digital Otomatis';
+                const kwitansiUrl = `/kwitansi.html?invoice=${encodeURIComponent(invoice)}&name=${encodeURIComponent(tx.userName || user.name || '')}&email=${encodeURIComponent(tx.userEmail || user.email || '')}&paket=${encodeURIComponent(tx.packageId || '5k')}&amount=${tx.amount || 0}&unique=${tx.uniqueCode || 0}`;
+
+                html += `
+                    <div style="background:white; border-radius:var(--radius-sm); padding:12px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <strong style="font-size:0.74rem; color:var(--primary); font-family:monospace;">#${invoice}</strong>
+                            <span style="font-size:0.62rem; font-weight:800; background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:var(--radius-full); display:inline-flex; align-items:center; gap:3px;">
+                                <i data-lucide="check-circle" style="width:11px; height:11px;"></i> ${tx.status || 'LUNAS'}
+                            </span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <div>
+                                <div style="font-size:0.82rem; font-weight:700; color:var(--text-dark);">${pkg}</div>
+                                <span style="font-size:0.65rem; color:var(--text-muted);">${dt} &bull; ${method}</span>
+                            </div>
+                            <strong style="font-size:0.86rem; color:var(--primary);">Rp ${amt}</strong>
+                        </div>
+                        <div style="display:flex; justify-content:flex-end; gap:6px; border-top:1px dashed var(--border-soft); padding-top:8px;">
+                            <a href="${kwitansiUrl}" target="_blank" style="font-size:0.68rem; font-weight:800; color:var(--secondary); text-decoration:none; display:inline-flex; align-items:center; gap:4px; background:#eff6ff; padding:4px 10px; border-radius:var(--radius-sm);">
+                                <i data-lucide="file-text" style="width:12px; height:12px;"></i> Lihat Kwitansi Resmi (PDF)
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
             if (window.lucide) lucide.createIcons();
         }
 
