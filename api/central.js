@@ -302,6 +302,144 @@ Patuhi aturan ini dengan KETAT:
             }
 
             // ---------------------------------------------------------
+            // [MEMBER FREE] GENERATOR SOAL HARIAN BERLAKU 24 JAM
+            // ---------------------------------------------------------
+            case 'generate-mem-free-daily': {
+                if (!groq) return res.status(500).json({ error: 'Server AI Groq belum dikonfigurasi.' });
+
+                const { materials } = payload;
+                if (!materials || (Array.isArray(materials) && materials.length === 0)) {
+                    return res.status(400).json({ error: 'Bahan ajar materi kosong. Harap unggah materi di Admin terlebih dahulu.' });
+                }
+
+                // Susun teks kurikulum referensi dari Firestore
+                let combinedText = "";
+                if (Array.isArray(materials)) {
+                    combinedText = materials.map(m => {
+                        return `=== [KATEGORI: ${m.category || m.id || 'Materi'}] ===\nJUDUL: ${m.title || 'Materi Pembelajaran'}\nRINGKASAN: ${m.summary || '-'}\nISI BAHAN AJAR:\n${m.content || '-'}\nCONTOH / KASUS:\n${m.examples || '-'}`;
+                    }).join('\n\n------------------------------------\n\n');
+                } else if (typeof materials === 'string') {
+                    combinedText = materials;
+                } else if (typeof materials === 'object') {
+                    combinedText = JSON.stringify(materials, null, 2);
+                }
+
+                if (!combinedText || combinedText.trim().length < 15) {
+                    return res.status(400).json({ error: 'Bahan ajar materi terlalu singkat untuk dijadikan referensi soal.' });
+                }
+
+                // Sabuk pengaman token (maksimal 25.000 karakter)
+                const safeMateri = combinedText.length > 25000 ? combinedText.substring(0, 25000) + '... [BAGIAN DILANJUTKAN]' : combinedText;
+
+                const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Perancang Kurikulum Soal Literasi di Cendekia Aksara.
+Tugas Anda: Menganalisis materi referensi bahan ajar yang diberikan dan menyusun 1 paket lengkap soal latihan harian dan permainan literasi untuk siswa Member Free.
+
+ATURAN SANGAT KETAT:
+1. SEMUA soal, tebakan kata, teka-teki, dan latihan WAJIB berakar 100% pada isi materi referensi yang diberikan (fakta, kosakata, kaidah ejaan EYD, istilah sastra, atau contoh). DILARANG mengarang topik acak di luar materi!
+2. DILARANG menggunakan kata rujukan teks seperti "Berdasarkan materi di atas...", "Menurut wacana...", atau "Dalam teks...". Tiap soal harus mandiri (self-contained).
+3. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
+4. Struktur JSON WAJIB memiliki seluruh properti berikut dengan format presisi:
+{
+  "kuis_pintar": [
+    {
+      "q": "Pertanyaan pilihan ganda mengenai konsep dari materi?",
+      "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+      "answer": 0,
+      "exp": "Pembahasan edukatif ringkas mengapa opsi tersebut tepat sesuai kaidah materi."
+    }
+  ],
+  "tebak_kata": [
+    {
+      "word": "KOSAKATA",
+      "clue": "Deskripsi atau petunjuk makna kata dari materi (Wajib kata tunggal HURUF KAPITAL tanpa spasi, 4-10 huruf)"
+    }
+  ],
+  "susun_kata": [
+    {
+      "word": "SASTRA",
+      "clue": "Petunjuk makna istilah dari materi untuk ditebak dengan menyusun huruf acak"
+    }
+  ],
+  "teka_teki": [
+    {
+      "riddle": "Teka-teki analogis/imajinatif mengenai konsep di materi?",
+      "answer": "BUKU",
+      "clue": "Petunjuk singkat teka-teki"
+    }
+  ],
+  "tebak_sastra": [
+    {
+      "quote": "Kutipan, latar karya, atau ringkasan tokoh sastra dari materi",
+      "question": "Pertanyaan analisis atau wawasan dari kutipan di atas?",
+      "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+      "answer": 0,
+      "desc": "Penjelasan wawasan literasi dari materi"
+    }
+  ],
+  "sambung_cerita": [
+    {
+      "theme": "Tema naratif sesuai materi",
+      "prompt": "Paragraf pembuka cerita yang menarik perhatian...",
+      "guidance": "Instruksi kreatif untuk siswa melanjutkan jalan cerita"
+    }
+  ],
+  "perbaiki_kalimat": [
+    {
+      "err": "Kalimat yang mengandung kesalahan ejaan/struktur/diksi sesuai pembahasan materi.",
+      "options": ["Versi perbaikan A", "Versi perbaikan B", "Versi perbaikan C"],
+      "correct": 0,
+      "exp": "Penjelasan kaidah perbaikan yang benar."
+    }
+  ],
+  "tantangan_cepat": [
+    {
+      "word": "PRAKTIK",
+      "isBaku": true
+    }
+  ]
+}
+
+JUMLAH BUTIR WAJIB:
+- kuis_pintar: tepat 5 butir
+- tebak_kata: tepat 5 butir
+- susun_kata: tepat 5 butir
+- teka_teki: tepat 5 butir
+- tebak_sastra: tepat 5 butir
+- sambung_cerita: tepat 3 butir
+- perbaiki_kalimat: tepat 5 butir
+- tantangan_cepat: tepat 10 butir (campuran kata baku [isBaku: true] dan kata tidak baku [isBaku: false] yang ada atau terkait dengan materi)`;
+
+                let lastErr = null;
+                const modelsToTry = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+
+                for (const modelName of modelsToTry) {
+                    try {
+                        console.log(`[MemFree Daily] Memanggil Groq AI dengan model: ${modelName}...`);
+                        const completion = await groq.chat.completions.create({
+                            model: modelName,
+                            messages: [
+                                { role: "system", content: systemPrompt },
+                                { role: "user", content: `MATERI REFERENSI KURIKULUM CENDEKIA AKSARA:\n\n${safeMateri}` }
+                            ],
+                            temperature: 0.2
+                        });
+
+                        const textResponse = completion.choices[0]?.message?.content || "";
+                        const parsed = extractJSON(textResponse);
+
+                        if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
+                            return res.status(200).json({ success: true, modelUsed: modelName, questions: parsed });
+                        }
+                    } catch (err) {
+                        console.warn(`[MemFree Daily] Model ${modelName} gagal:`, err.message);
+                        lastErr = err;
+                    }
+                }
+
+                return res.status(500).json({ error: "Gagal memproses soal harian dengan AI Groq: " + (lastErr?.message || "Format respons tidak valid") });
+            }
+
+            // ---------------------------------------------------------
             // [B] KOREKSI UJIAN
             // ---------------------------------------------------------
             case 'grade-ujian': {

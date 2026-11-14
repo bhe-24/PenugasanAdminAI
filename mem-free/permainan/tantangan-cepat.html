@@ -14,25 +14,42 @@
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
-        .timer-badge {
-            font-size: 1.15rem; font-weight: 800; color: #ea580c; background: #fff7ed;
-            border: 1.5px solid #ea580c; padding: 4px 14px; border-radius: var(--radius-full);
-            display: inline-flex; align-items: center; gap: 6px;
-        }
         .fast-card {
-            background: white; border-radius: var(--radius-md); padding: 18px;
+            background: white; border-radius: var(--radius-md); padding: 24px 18px;
             border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); text-align: center;
         }
-        .rapid-btn {
-            width: 100%; padding: 14px; border-radius: var(--radius-md); font-weight: 800;
-            font-size: 0.92rem; border: none; cursor: pointer; transition: all 0.15s;
+        .timer-badge {
+            width: 72px; height: 72px; border-radius: 50%; background: #fff7ed;
+            color: #ea580c; border: 3px solid #fdba74; display: flex; align-items: center;
+            justify-content: center; font-size: 1.6rem; font-weight: 800; margin: 0 auto 16px;
         }
+        .rapid-word-display {
+            font-size: 1.6rem; font-weight: 800; color: var(--primary);
+            letter-spacing: 1px; margin: 16px 0 24px; min-height: 48px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .choice-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .btn-baku {
+            background: #ecfdf5; border: 2px solid #059669; color: #065f46;
+            padding: 16px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .btn-baku:active { transform: scale(0.96); background: #d1fae5; }
+        .btn-nonbaku {
+            background: #fef2f2; border: 2px solid #dc2626; color: #991b1b;
+            padding: 16px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .btn-nonbaku:active { transform: scale(0.96); background: #fee2e2; }
     </style>
 </head>
 <body>
 
     <div class="mobile-app-wrapper">
 
+        <!-- HEADER -->
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
                 <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
@@ -42,49 +59,65 @@
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
                         <i data-lucide="timer" style="width:18px; height:18px; color:#ea580c;"></i> Tantangan Cepat
                     </h1>
-                    <div class="header-brand-sub">60 Detik Kilat Kosakata Baku</div>
+                    <div class="header-brand-sub" id="cepatSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
-            <div class="timer-badge">
-                <i data-lucide="clock" style="width:18px; height:18px;"></i> <span id="timeDisplay">60</span>s
+            <div style="background:#ffedd5; color:#ea580c; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
             </div>
         </header>
 
         <main class="app-body">
 
-            <!-- LOBBY START -->
-            <div class="fast-card" id="startScreen">
-                <div style="width:60px; height:60px; border-radius:50%; background:#ffedd5; color:#ea580c; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.6rem;">
-                    <i data-lucide="zap" style="width:30px; height:30px;"></i>
+            <!-- LOADING STATE -->
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Tantangan Cepat...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
                 </div>
-                <h3 style="font-size:1.1rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Siap Tes Kecepatan?</h3>
-                <p style="font-size:0.76rem; color:var(--text-muted); margin-bottom:18px; line-height:1.45;">
-                    Tentukan apakah kata yang muncul termasuk <b>Baku</b> atau <b>Tidak Baku</b> dalam waktu 60 detik.
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Latihan Belum Tersedia</h3>
+                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
                 </p>
-                <button type="button" class="btn-primary-challenge" style="background:#ea580c;" onclick="startGame()">
-                    <i data-lucide="play" style="width:16px; height:16px;"></i> Mulai Tantangan Cepat
+                <a href="/mem-free/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
+                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
+                </a>
+            </div>
+
+            <!-- READY SCREEN -->
+            <div class="fast-card" id="startScreen" style="display:none;">
+                <div class="timer-badge">
+                    <i data-lucide="zap" style="width:36px; height:36px;"></i>
+                </div>
+                <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Uji Refleks Kosakata Baku</h2>
+                <p style="font-size:0.76rem; color:var(--text-muted); line-height:1.5; margin-bottom:20px;">
+                    Tentukan dengan cepat apakah kata yang muncul merupakan kata <b>Baku</b> atau <b>Tidak Baku</b> dalam waktu 60 detik!
+                </p>
+                <button type="button" class="btn-primary-challenge" style="background:#ea580c;" onclick="startTimerGame()">
+                    <i data-lucide="play" style="width:16px; height:16px;"></i> Mulai Tantangan Kilat
                 </button>
             </div>
 
-            <!-- GAME ACTIVE -->
-            <div class="fast-card" id="gameScreen" style="display:none;">
-                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Apakah kata ini baku menurut KBBI?</div>
-                
-                <div id="targetWord" style="font-size:1.6rem; font-weight:800; color:var(--primary); margin:20px 0; letter-spacing:1px;">
-                    PRAKTIK
-                </div>
+            <!-- ACTIVE GAME SCREEN -->
+            <div class="fast-card" id="playScreen" style="display:none;">
+                <div class="timer-badge" id="timeDisplay">60</div>
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Kata ke-<span id="qNum">1</span> dari <span id="qCount">10</span></div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                    <button type="button" class="rapid-btn" style="background:#ecfdf5; color:#065f46; border:2px solid #059669;" onclick="answerFast(true)">
+                <div class="rapid-word-display" id="wordDisplay">...</div>
+
+                <div class="choice-grid">
+                    <button type="button" class="btn-baku" onclick="judgeWord(true)">
                         <i data-lucide="check" style="width:16px; height:16px; display:inline-block; vertical-align:middle;"></i> BAKU
                     </button>
-                    <button type="button" class="rapid-btn" style="background:#fef2f2; color:#991b1b; border:2px solid #dc2626;" onclick="answerFast(false)">
+                    <button type="button" class="btn-nonbaku" onclick="judgeWord(false)">
                         <i data-lucide="x" style="width:16px; height:16px; display:inline-block; vertical-align:middle;"></i> TIDAK BAKU
                     </button>
-                </div>
-
-                <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); margin-top:16px;">
-                    Skor Saat Ini: <span id="liveScore" style="color:#ea580c;">0</span>
                 </div>
             </div>
 
@@ -93,14 +126,14 @@
                 <div style="width:60px; height:60px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
                     <i data-lucide="trophy" style="width:30px; height:30px;"></i>
                 </div>
-                <h3 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Waktu Habis!</h3>
+                <h3 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Waktu Selesai!</h3>
                 <p style="font-size:0.76rem; color:var(--text-muted); margin-bottom:14px;">Hasil tantangan kilat 60 detikmu:</p>
                 <div style="background:#f8fafc; border-radius:var(--radius-md); padding:14px; margin-bottom:16px;">
                     <span style="font-size:0.8rem; color:var(--text-muted);">Skor Akhir:</span><br>
                     <strong style="font-size:1.8rem; color:#ea580c;" id="finalScoreDisplay">0</strong> Poin<br>
                     <span style="font-size:0.72rem; color:var(--accent-dark); font-weight:800;" id="xpEarnedText">+30 XP Diperoleh!</span>
                 </div>
-                <button type="button" class="btn-primary-challenge" onclick="startGame()">
+                <button type="button" class="btn-primary-challenge" onclick="startTimerGame()">
                     <i data-lucide="rotate-ccw" style="width:15px; height:15px;"></i> Coba Lagi
                 </button>
             </div>
@@ -115,75 +148,115 @@
 
     <script src="/mem-free/central.js"></script>
     <script>
-        const fastQuestions = [
-            { word: "PRAKTIK", isBaku: true },
-            { word: "PRAKTEK", isBaku: false },
-            { word: "ANTREAN", isBaku: true },
-            { word: "ANTRIAN", isBaku: false },
-            { word: "APOTEK", isBaku: true },
-            { word: "APOTIK", isBaku: false },
-            { word: "KREATIFITAS", isBaku: false },
-            { word: "KREATIVITAS", isBaku: true },
-            { word: "SEKADAR", isBaku: true },
-            { word: "SEKEDAR", isBaku: false }
-        ];
-
+        let fastQuestions = [];
         let timeLeft = 60;
         let timerId = null;
         let score = 0;
         let qIndex = 0;
 
-        function startGame() {
+        async function initGameEngine() {
+            const loadingState = document.getElementById('gameLoadingState');
+            const emptyState = document.getElementById('gameEmptyState');
+            const startScreen = document.getElementById('startScreen');
+            const loadingSub = document.getElementById('loadingSubtitle');
+
+            await CendekiaApp.ensureDailyGame('tantangan_cepat', {
+                onLoading: (msg) => {
+                    loadingState.style.display = 'block';
+                    emptyState.style.display = 'none';
+                    startScreen.style.display = 'none';
+                    if (loadingSub) loadingSub.textContent = msg;
+                },
+                onNoMaterials: (reason) => {
+                    loadingState.style.display = 'none';
+                    startScreen.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('emptyReason').textContent = reason;
+                    if (window.lucide) lucide.createIcons();
+                },
+                onReady: (gameFast, poolMeta) => {
+                    loadingState.style.display = 'none';
+                    emptyState.style.display = 'none';
+                    startScreen.style.display = 'block';
+
+                    fastQuestions = gameFast || [];
+
+                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
+                    document.getElementById('cepatSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+
+                    if (window.lucide) lucide.createIcons();
+                }
+            });
+        }
+
+        function startTimerGame() {
+            if (!fastQuestions || fastQuestions.length === 0) return;
             timeLeft = 60;
             score = 0;
             qIndex = 0;
             document.getElementById('timeDisplay').textContent = timeLeft;
-            document.getElementById('liveScore').textContent = '0';
+            document.getElementById('gameScore').textContent = '0';
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('endScreen').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('playScreen').style.display = 'block';
 
-            showWord();
+            showCurrentWord();
 
-            clearInterval(timerId);
+            if (timerId) clearInterval(timerId);
             timerId = setInterval(() => {
                 timeLeft--;
                 document.getElementById('timeDisplay').textContent = timeLeft;
                 if (timeLeft <= 0) {
-                    endGame();
+                    endTimerGame();
                 }
             }, 1000);
+
+            if (window.lucide) lucide.createIcons();
         }
 
-        function showWord() {
-            const item = fastQuestions[qIndex % fastQuestions.length];
-            document.getElementById('targetWord').textContent = item.word;
-        }
-
-        function answerFast(userAnswer) {
-            const item = fastQuestions[qIndex % fastQuestions.length];
-            if (userAnswer === item.isBaku) {
-                score += 10;
-                document.getElementById('liveScore').textContent = score;
+        function showCurrentWord() {
+            if (qIndex >= fastQuestions.length) {
+                endTimerGame();
+                return;
             }
-            qIndex++;
-            showWord();
+            const item = fastQuestions[qIndex];
+            document.getElementById('qNum').textContent = qIndex + 1;
+            document.getElementById('qCount').textContent = fastQuestions.length;
+            document.getElementById('wordDisplay').textContent = item.word || item.q || '';
         }
 
-        function endGame() {
+        function judgeWord(userChoiceBaku) {
+            const item = fastQuestions[qIndex];
+            const isCorrect = (userChoiceBaku === item.isBaku);
+
+            if (isCorrect) {
+                score += 10;
+                document.getElementById('gameScore').textContent = score;
+            } else {
+                score = Math.max(0, score - 5);
+                document.getElementById('gameScore').textContent = score;
+            }
+
+            qIndex++;
+            showCurrentWord();
+        }
+
+        function endTimerGame() {
             clearInterval(timerId);
-            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('playScreen').style.display = 'none';
             document.getElementById('endScreen').style.display = 'block';
             document.getElementById('finalScoreDisplay').textContent = score;
-            
-            const xpGained = Math.max(10, Math.round(score / 2));
-            document.getElementById('xpEarnedText').textContent = `+${xpGained} XP Diperoleh!`;
-            CendekiaApp.addXP(xpGained, 'Tantangan Cepat 60 Detik');
+
+            const xpEarned = Math.max(10, Math.round(score / 2));
+            document.getElementById('xpEarnedText').textContent = `+${xpEarned} XP Telah Ditambahkan ke Akunmu!`;
+            CendekiaApp.addXP(xpEarned, 'Tantangan Cepat Selesai');
+
             if (window.lucide) lucide.createIcons();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
+            initGameEngine();
         });
     </script>
 </body>

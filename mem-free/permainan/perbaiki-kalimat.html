@@ -14,18 +14,18 @@
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
-        .err-sentence-box {
-            background: #fef2f2; border: 1.5px dashed #dc2626; border-radius: var(--radius-md);
-            padding: 14px; font-size: 0.84rem; color: #991b1b; line-height: 1.45; margin: 12px 0 16px;
-            font-weight: 700;
+        .err-sentence-card {
+            background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: var(--radius-md);
+            padding: 16px; margin: 14px 0 16px; font-size: 0.85rem; color: #9f1239;
+            font-weight: 600; line-height: 1.5;
         }
         .fix-opt-btn {
-            display: block; width: 100%; text-align: left; padding: 12px;
-            border-radius: var(--radius-sm); border: 1.5px solid var(--border-soft);
-            background: white; font-size: 0.76rem; font-weight: 600; color: var(--text-dark);
-            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+            display: block; width: 100%; text-align: left; padding: 12px 14px;
+            border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);
+            background: #ffffff; font-size: 0.8rem; font-weight: 600; color: var(--text-dark);
+            margin-bottom: 10px; cursor: pointer; transition: all 0.2s; line-height: 1.45;
         }
-        .fix-opt-btn:hover { border-color: #4f46e5; background: #eef2ff; }
+        .fix-opt-btn:hover { border-color: #0284c7; background: #f0f9ff; }
         .fix-opt-btn.correct { background: #ecfdf5; border-color: #059669; color: #065f46; font-weight: 800; }
         .fix-opt-btn.wrong { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
     </style>
@@ -34,6 +34,7 @@
 
     <div class="mobile-app-wrapper">
 
+        <!-- HEADER -->
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
                 <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
@@ -41,31 +42,56 @@
                 </a>
                 <div>
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
-                        <i data-lucide="spell-check" style="width:18px; height:18px; color:#4f46e5;"></i> Perbaiki Kalimat
+                        <i data-lucide="spell-check" style="width:18px; height:18px; color:#e11d48;"></i> Perbaiki Kalimat
                     </h1>
-                    <div class="header-brand-sub">Eliminasi Kerancuan &amp; Pleonasme</div>
+                    <div class="header-brand-sub" id="kalimatSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
-            <div style="background:#e0e7ff; color:#4f46e5; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+            <div style="background:#ffe4e6; color:#e11d48; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
                 Skor: <span id="gameScore">0</span>
             </div>
         </header>
 
         <main class="app-body">
 
-            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
-                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Kalimat Bermasalah (Tidak Efektif):</div>
-                <div class="err-sentence-box" id="errText">
-                    "Semua para siswa-siswa berkumpul bersama-sama agar supaya dapat mendengar pengumuman."
+            <!-- LOADING STATE -->
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Perbaikan Kalimat...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+                </div>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Latihan Belum Tersedia</h3>
+                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
+                </p>
+                <a href="/mem-free/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
+                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
+                </a>
+            </div>
+
+            <!-- GAME CONTAINER -->
+            <div id="gameContainer" style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
+                    <span>Soal <span id="eIdx">1</span> dari <span id="eTotal">5</span></span>
+                    <span style="color:#e11d48;"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
                 </div>
 
-                <div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin-bottom:8px;">
-                    Pilih bentuk perbaikan kalimat yang paling efektif &amp; baku:
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-top:10px;">Kalimat yang Mengandung Kekeliruan:</div>
+                <div class="err-sentence-card" id="errText">...</div>
+
+                <div style="font-size:0.78rem; font-weight:800; color:var(--primary); margin-bottom:10px;">
+                    Pilih Bentuk Perbaikan yang Paling Tepat &amp; Efektif:
                 </div>
 
                 <div id="fixOptions"></div>
 
-                <div id="feedbackBox" style="margin-top:12px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.74rem; line-height:1.45;"></div>
+                <div id="feedbackBox" style="margin-top:14px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.76rem; line-height:1.45;"></div>
             </div>
 
             <div class="app-footer-copyright">
@@ -78,41 +104,58 @@
 
     <script src="/mem-free/central.js"></script>
     <script>
-        const exercises = [
-            {
-                err: "Semua para siswa-siswa berkumpul bersama-sama agar supaya dapat mendengar pengumuman.",
-                options: [
-                    "Para siswa berkumpul agar dapat mendengar pengumuman.",
-                    "Semua para siswa berkumpul bersama agar supaya mendengar pengumuman.",
-                    "Siswa-siswa sekalian berkumpul agar supaya mendengar pengumuman."
-                ],
-                correct: 0,
-                exp: "Kalimat asli mengandung pemborosan kata (pleonasme) berlebih: 'semua para siswa-siswa' dan 'agar supaya'. Bentuk paling efektif dan hemat adalah: 'Para siswa berkumpul agar dapat mendengar pengumuman'."
-            },
-            {
-                err: "Buku itu saya sudah membacanya sampai selesai kemarin lusa.",
-                options: [
-                    "Buku itu saya sudah baca sampai selesai kemarin lusa.",
-                    "Buku itu sudah saya baca sampai selesai kemarin lusa.",
-                    "Sudah saya membaca buku itu sampai selesai kemarin lusa."
-                ],
-                correct: 1,
-                exp: "Bentuk pasif diri persona pertama yang baku adalah predikat mendahului objek persona: 'sudah saya baca', bukan 'saya sudah membacanya'."
-            }
-        ];
-
+        let exercises = [];
         let eIndex = 0;
         let score = 0;
 
+        async function initGameEngine() {
+            const loadingState = document.getElementById('gameLoadingState');
+            const emptyState = document.getElementById('gameEmptyState');
+            const gameContainer = document.getElementById('gameContainer');
+            const loadingSub = document.getElementById('loadingSubtitle');
+
+            await CendekiaApp.ensureDailyGame('perbaiki_kalimat', {
+                onLoading: (msg) => {
+                    loadingState.style.display = 'block';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    if (loadingSub) loadingSub.textContent = msg;
+                },
+                onNoMaterials: (reason) => {
+                    loadingState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('emptyReason').textContent = reason;
+                    if (window.lucide) lucide.createIcons();
+                },
+                onReady: (gameExercises, poolMeta) => {
+                    loadingState.style.display = 'none';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'block';
+
+                    exercises = gameExercises || [];
+
+                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
+                    document.getElementById('kalimatSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+
+                    loadExercise();
+                }
+            });
+        }
+
         function loadExercise() {
+            if (!exercises || exercises.length === 0) return;
             const item = exercises[eIndex];
-            document.getElementById('errText').textContent = `"${item.err}"`;
+            document.getElementById('eIdx').textContent = eIndex + 1;
+            document.getElementById('eTotal').textContent = exercises.length;
+            document.getElementById('errText').textContent = `"${item.err || item.incorrect || ''}"`;
             document.getElementById('feedbackBox').style.display = 'none';
 
             const container = document.getElementById('fixOptions');
             container.innerHTML = '';
 
-            item.options.forEach((opt, idx) => {
+            const opts = item.options || [];
+            opts.forEach((opt, idx) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'fix-opt-btn';
@@ -120,43 +163,53 @@
                 btn.onclick = () => submitFix(idx, btn);
                 container.appendChild(btn);
             });
+
+            if (window.lucide) lucide.createIcons();
         }
 
         function submitFix(chosenIdx, btn) {
             const item = exercises[eIndex];
+            const correctIdx = item.correct !== undefined ? item.correct : 0;
             const buttons = document.querySelectorAll('.fix-opt-btn');
             buttons.forEach(b => b.disabled = true);
 
             const fb = document.getElementById('feedbackBox');
             fb.style.display = 'block';
 
-            if (chosenIdx === item.correct) {
+            if (chosenIdx === correctIdx) {
                 btn.classList.add('correct');
                 score += 20;
                 document.getElementById('gameScore').textContent = score;
                 CendekiaApp.addXP(20, 'Perbaikan Kalimat Tepat');
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
-                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> ${item.exp}<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextExercise()">Soal Berikutnya &rarr;</button>`;
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> ${item.exp || item.explanation || ''}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextExercise()">Kalimat Berikutnya &rarr;</button>`;
             } else {
                 btn.classList.add('wrong');
-                buttons[item.correct].classList.add('correct');
+                if (buttons[correctIdx]) buttons[correctIdx].classList.add('correct');
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
-                fb.innerHTML = `Kurang tepat. ${item.exp}<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem;" onclick="nextExercise()">Lanjut &rarr;</button>`;
+                fb.innerHTML = `Kurang tepat. ${item.exp || item.explanation || ''}<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextExercise()">Lanjut &rarr;</button>`;
             }
         }
 
         function nextExercise() {
-            eIndex = (eIndex + 1) % exercises.length;
-            loadExercise();
+            eIndex++;
+            if (eIndex < exercises.length) {
+                loadExercise();
+            } else {
+                const fb = document.getElementById('feedbackBox');
+                fb.style.background = '#f0fdf4';
+                fb.style.color = '#166534';
+                fb.innerHTML = `<strong>Luar Biasa! Seluruh Kalimat Selesai Diperiksa! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
-            loadExercise();
+            initGameEngine();
         });
     </script>
 </body>

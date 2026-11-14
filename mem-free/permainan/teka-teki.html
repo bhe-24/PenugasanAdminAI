@@ -14,27 +14,32 @@
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
-        .crossword-grid {
-            display: grid; grid-template-columns: repeat(5, 42px); justify-content: center;
-            gap: 4px; margin: 18px 0;
+        .riddle-card {
+            background: white; border-radius: var(--radius-md); padding: 18px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); text-align: center;
         }
-        .cw-cell {
-            width: 42px; height: 42px; border: 1.5px solid var(--border-medium);
-            background: white; border-radius: 6px; text-align: center; font-size: 1.1rem;
-            font-weight: 800; color: var(--primary); text-transform: uppercase;
+        .riddle-prompt {
+            font-size: 0.95rem; font-weight: 800; color: var(--primary);
+            line-height: 1.5; margin: 14px 0; text-align: left;
+            background: #fffdf5; border-left: 3px solid #b45309; padding: 12px 14px;
+            border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
         }
-        .cw-cell:focus { border-color: var(--warning); outline: none; background: #fffdf5; }
-        .cw-cell.blocked { background: #1e293b; border-color: #0f172a; pointer-events: none; }
-        .clue-list-card {
-            background: #f8fafc; border-radius: var(--radius-sm); padding: 12px;
-            font-size: 0.72rem; text-align: left; line-height: 1.4; border: 1px solid var(--border-soft);
+        .letter-inputs-row {
+            display: flex; justify-content: center; gap: 6px; margin: 20px 0; flex-wrap: wrap;
         }
+        .letter-cell {
+            width: 42px; height: 46px; border: 2px solid var(--border-medium);
+            border-radius: var(--radius-xs); text-align: center; font-size: 1.25rem; font-weight: 800;
+            color: var(--primary); text-transform: uppercase; background: #fff;
+        }
+        .letter-cell:focus { border-color: #b45309; outline: none; background: #fffbeb; }
     </style>
 </head>
 <body>
 
     <div class="mobile-app-wrapper">
 
+        <!-- HEADER -->
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
                 <a href="/mem-free/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
@@ -44,7 +49,7 @@
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
                         <i data-lucide="puzzle" style="width:18px; height:18px; color:#b45309;"></i> Teka-Teki Aksara
                     </h1>
-                    <div class="header-brand-sub">Mini Teka-Teki Silang Sastra</div>
+                    <div class="header-brand-sub" id="tekaSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
             <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
@@ -54,24 +59,50 @@
 
         <main class="app-body">
 
-            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); text-align:center;">
-                <div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin-bottom:4px;">
-                    Isi Kotak TTS di Bawah:
-                </div>
-                
-                <!-- GRID 5x5 TTS -->
-                <div class="crossword-grid" id="cwGrid"></div>
+            <!-- LOADING STATE -->
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Teka-Teki Harian...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+            </div>
 
-                <div class="clue-list-card">
-                    <strong style="color:var(--primary); display:block; margin-bottom:4px;">Mendatar:</strong>
-                    <div>1. <b>(Baris 1)</b> Rangkaian bunyi akhir pada larik puisi (4 Huruf: R I M A)</div>
-                    <div style="margin-top:4px;">2. <b>(Baris 3)</b> Karangan pendek prosa fiksi (6 Huruf: C E R P E N - disingkat)</div>
-                    <strong style="color:var(--primary); display:block; margin:8px 0 4px;">Menurun:</strong>
-                    <div>1. <b>(Kolom 1)</b> Bentuk sastra penuh irama dan bait (5 Huruf)</div>
+            <!-- EMPTY STATE -->
+            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
+                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
+                </div>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Teka-Teki Belum Tersedia</h3>
+                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
+                </p>
+                <a href="/mem-free/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
+                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
+                </a>
+            </div>
+
+            <!-- GAME CONTAINER -->
+            <div class="riddle-card" id="gameContainer" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
+                    <span>Teka-Teki <span id="riddleIdx">1</span> dari <span id="riddleTotal">5</span></span>
+                    <span style="color:var(--accent-dark);"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
                 </div>
 
-                <button type="button" class="btn-primary-challenge" style="margin-top:14px; width:100%;" onclick="validateTTS()">
-                    Periksa Jawaban TTS
+                <div class="riddle-prompt">
+                    <span style="font-size:0.72rem; font-weight:700; color:#b45309; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">
+                        <i data-lucide="help-circle" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Pecahkan Teka-Teki Ini:
+                    </span>
+                    <span id="riddleText">...</span>
+                </div>
+
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;" id="clueHintText">
+                    Petunjuk: ...
+                </div>
+
+                <!-- KOTAK ISIAN HURUF TEKA-TEKI -->
+                <div class="letter-inputs-row" id="inputsRow"></div>
+
+                <button type="button" class="btn-primary-challenge" style="margin-top:10px; width:100%;" onclick="validateRiddle()">
+                    Periksa Jawaban Teka-Teki
                 </button>
 
                 <div id="ttsFeedback" style="margin-top:12px; display:none; padding:10px; border-radius:var(--radius-sm); font-size:0.74rem;"></div>
@@ -87,75 +118,124 @@
 
     <script src="/mem-free/central.js"></script>
     <script>
-        // Layout 5x5 Matrix
-        // R I M A _
-        // P _ _ _ _
-        // U _ _ _ _
-        // I _ _ _ _
-        // S _ _ _ _
-        const gridAnswers = [
-            ['R','I','M','A','#'],
-            ['A','#','#','#','#'],
-            ['S','#','#','#','#'],
-            ['A','#','#','#','#'],
-            ['#','#','#','#','#']
-        ];
+        let riddles = [];
+        let rIndex = 0;
+        let score = 0;
 
-        function renderTTS() {
-            const container = document.getElementById('cwGrid');
-            container.innerHTML = '';
+        async function initGameEngine() {
+            const loadingState = document.getElementById('gameLoadingState');
+            const emptyState = document.getElementById('gameEmptyState');
+            const gameContainer = document.getElementById('gameContainer');
+            const loadingSub = document.getElementById('loadingSubtitle');
 
-            for (let r = 0; r < 5; r++) {
-                for (let c = 0; c < 5; c++) {
-                    const input = document.createElement('input');
-                    input.maxLength = 1;
-                    input.className = 'cw-cell';
-                    input.dataset.r = r;
-                    input.dataset.c = c;
+            await CendekiaApp.ensureDailyGame('teka_teki', {
+                onLoading: (msg) => {
+                    loadingState.style.display = 'block';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    if (loadingSub) loadingSub.textContent = msg;
+                },
+                onNoMaterials: (reason) => {
+                    loadingState.style.display = 'none';
+                    gameContainer.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    document.getElementById('emptyReason').textContent = reason;
+                    if (window.lucide) lucide.createIcons();
+                },
+                onReady: (gameRiddles, poolMeta) => {
+                    loadingState.style.display = 'none';
+                    emptyState.style.display = 'none';
+                    gameContainer.style.display = 'block';
 
-                    if (gridAnswers[r][c] === '#') {
-                        input.classList.add('blocked');
-                    } else {
-                        input.oninput = (e) => {
-                            e.target.value = e.target.value.toUpperCase();
-                        };
-                    }
-                    container.appendChild(input);
-                }
-            }
-        }
+                    riddles = (gameRiddles || []).map(r => ({
+                        riddle: r.riddle || r.question || '',
+                        answer: (r.answer || '').toUpperCase().trim(),
+                        clue: r.clue || ''
+                    }));
 
-        function validateTTS() {
-            const inputs = document.querySelectorAll('.cw-cell:not(.blocked)');
-            let allCorrect = true;
+                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
+                    document.getElementById('tekaSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
 
-            inputs.forEach(inp => {
-                const r = inp.dataset.r;
-                const c = inp.dataset.c;
-                if (inp.value.toUpperCase() !== gridAnswers[r][c]) {
-                    allCorrect = false;
+                    loadCurrentRiddle();
                 }
             });
+        }
+
+        function loadCurrentRiddle() {
+            if (!riddles || riddles.length === 0) return;
+            const cur = riddles[rIndex];
+            document.getElementById('riddleIdx').textContent = rIndex + 1;
+            document.getElementById('riddleTotal').textContent = riddles.length;
+            document.getElementById('riddleText').textContent = `"${cur.riddle}"`;
+            document.getElementById('clueHintText').textContent = cur.clue ? `Petunjuk: ${cur.clue} (${cur.answer.length} Huruf)` : `(${cur.answer.length} Huruf)`;
+            document.getElementById('ttsFeedback').style.display = 'none';
+
+            const container = document.getElementById('inputsRow');
+            container.innerHTML = '';
+
+            for (let i = 0; i < cur.answer.length; i++) {
+                const inp = document.createElement('input');
+                inp.maxLength = 1;
+                inp.className = 'letter-cell';
+                inp.dataset.idx = i;
+                inp.oninput = (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                    if (e.target.value && inp.nextElementSibling) {
+                        inp.nextElementSibling.focus();
+                    }
+                };
+                inp.onkeydown = (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && inp.previousElementSibling) {
+                        inp.previousElementSibling.focus();
+                    }
+                };
+                container.appendChild(inp);
+            }
+
+            if (container.firstElementChild) container.firstElementChild.focus();
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function validateRiddle() {
+            const cur = riddles[rIndex];
+            const inputs = document.querySelectorAll('.letter-cell');
+            let entered = "";
+            inputs.forEach(i => entered += (i.value || "").toUpperCase());
 
             const fb = document.getElementById('ttsFeedback');
             fb.style.display = 'block';
 
-            if (allCorrect) {
+            if (entered === cur.answer) {
+                score += 20;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(20, 'Teka-Teki Aksara Terpecahkan');
+
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
-                fb.innerHTML = '<strong>Jawaban Benar! 🎉</strong> Kamu berhasil memecahkan Teka-Teki Aksara (+30 XP).';
-                CendekiaApp.addXP(30, 'Teka-Teki Aksara Selesai');
-                document.getElementById('gameScore').textContent = '30';
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b>.<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextRiddle()">Teka-Teki Berikutnya &rarr;</button>`;
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
-                fb.innerHTML = 'Ada beberapa huruf yang belum sesuai. Cek kembali petunjuk mendatar dan menurun.';
+                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan kembali petunjuknya dan coba lagi!`;
+            }
+        }
+
+        function nextRiddle() {
+            rIndex++;
+            if (rIndex < riddles.length) {
+                loadCurrentRiddle();
+            } else {
+                const fb = document.getElementById('ttsFeedback');
+                fb.style.background = '#f0fdf4';
+                fb.style.color = '#166534';
+                fb.innerHTML = `<strong>Selamat! Seluruh Teka-Teki Telah Terpecahkan! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
-            renderTTS();
+            initGameEngine();
         });
     </script>
 </body>

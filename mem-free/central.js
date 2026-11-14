@@ -12,6 +12,7 @@ const CendekiaApp = (function () {
     const STORAGE_KEY_IDEAS = 'cendekia_free_ideas';
     const STORAGE_KEY_CHALLENGES = 'cendekia_free_challenges';
     const STORAGE_KEY_HISTORY = 'cendekia_free_history';
+    const STORAGE_KEY_DAILY_POOL = 'cendekia_free_daily_pool';
 
     // LEVEL DEFINITIONS
     const LEVELS = [
@@ -506,7 +507,245 @@ const CendekiaApp = (function () {
         });
     }
 
-    // 11. INIT ENGINE
+    // 11. FIREBASE BRIDGE, BAHAN AJAR, & GENERATOR SOAL 24 JAM
+    let _fbCache = null;
+    async function getFirebaseBridge() {
+        if (_fbCache) return _fbCache;
+        try {
+            const fbConfig = await import('/js/firebase-config.js');
+            const firestore = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+            _fbCache = {
+                db: fbConfig.db,
+                auth: fbConfig.auth,
+                storage: fbConfig.storage,
+                ...firestore
+            };
+            return _fbCache;
+        } catch (err) {
+            console.warn('[Cendekia Central] Gagal inisialisasi Firebase Bridge:', err);
+            return null;
+        }
+    }
+
+    // Ambil materi spesifik berdasarkan kategori
+    async function getMaterialByCategory(categoryId) {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb) return null;
+            const snap = await fb.getDoc(fb.doc(fb.db, "mem_free_materials", categoryId));
+            if (snap.exists()) {
+                return { id: snap.id, ...snap.data() };
+            }
+            return null;
+        } catch (err) {
+            console.error('[Cendekia Central] Gagal membaca materi:', err);
+            return null;
+        }
+    }
+
+    // Ambil seluruh bahan ajar yang sudah diunggah oleh admin
+    async function getAllMaterials() {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb) return [];
+            const q = await fb.getDocs(fb.collection(fb.db, "mem_free_materials"));
+            const list = [];
+            q.forEach(d => {
+                const data = d.data();
+                if (data.content && data.content.trim().length > 0) {
+                    list.push({ id: d.id, ...data });
+                }
+            });
+            return list;
+        } catch (err) {
+            console.error('[Cendekia Central] Gagal membaca daftar bahan ajar:', err);
+            return [];
+        }
+    }
+
+    // Simpan bahan ajar materi ke Firestore
+    async function saveMaterial(categoryId, materialData) {
+        const fb = await getFirebaseBridge();
+        if (!fb) throw new Error("Koneksi database tidak tersedia.");
+        const docRef = fb.doc(fb.db, "mem_free_materials", categoryId);
+        await fb.setDoc(docRef, {
+            id: categoryId,
+            category: categoryId,
+            title: materialData.title || '',
+            summary: materialData.summary || '',
+            content: materialData.content || '',
+            examples: materialData.examples || '',
+            charCount: (materialData.content || '').length,
+            updatedAt: new Date().toISOString(),
+            updatedBy: fb.auth.currentUser?.email || 'admin'
+        });
+        return true;
+    }
+
+    // Hapus materi dari Firestore
+    async function deleteMaterial(categoryId) {
+        const fb = await getFirebaseBridge();
+        if (!fb) throw new Error("Koneksi database tidak tersedia.");
+        await fb.deleteDoc(fb.doc(fb.db, "mem_free_materials", categoryId));
+        return true;
+    }
+
+    // Ambil pool soal harian aktif (berlaku 24 jam)
+    async function getDailyPool() {
+        const now = Date.now();
+        // Cek Firestore terlebih dahulu
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb) {
+                const snap = await fb.getDoc(fb.doc(fb.db, "mem_free_daily_pool", "active_pool"));
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.expiresAt && now < data.expiresAt && data.questions) {
+                        try {
+                            localStorage.setItem(STORAGE_KEY_DAILY_POOL, JSON.stringify(data));
+                        } catch (e) {}
+                        return { active: true, data };
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('[Cendekia Central] Gagal membaca pool Firestore, beralih ke cache lokal:', err);
+        }
+
+        // Cek cache lokal jika Firestore offline
+        try {
+            const localRaw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
+            if (localRaw) {
+                const parsed = JSON.parse(localRaw);
+                if (parsed.expiresAt && now < parsed.expiresAt && parsed.questions) {
+                    return { active: true, data: parsed };
+                }
+            }
+        } catch (e) {}
+
+        return { active: false, data: null };
+    }
+
+    // Hapus / Reset pool soal aktif
+    async function resetDailyPool() {
+        try {
+            localStorage.removeItem(STORAGE_KEY_DAILY_POOL);
+            const fb = await getFirebaseBridge();
+            if (fb) {
+                await fb.deleteDoc(fb.doc(fb.db, "mem_free_daily_pool", "active_pool"));
+            }
+            return true;
+        } catch (err) {
+            console.error('[Cendekia Central] Gagal mereset pool harian:', err);
+            return false;
+        }
+    }
+
+    // Generate pool soal harian baru dari materi via backend API Groq
+    async function generateDailyPoolFromMaterials(materials) {
+        const res = await fetch('/api/central', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'generate-mem-free-daily',
+                materials: materials
+            })
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `HTTP ${res.status}: Gagal memproses paket soal.`);
+        }
+
+        const resData = await res.json();
+        if (!resData.questions) {
+            throw new Error('Format hasil generate soal tidak valid.');
+        }
+
+        const now = Date.now();
+        const expiresAt = now + (24 * 60 * 60 * 1000); // 24 Jam penuh
+        const poolDoc = {
+            generatedAt: now,
+            expiresAt: expiresAt,
+            dateKey: new Date().toISOString().slice(0, 10),
+            questions: resData.questions,
+            materialsCount: materials.length,
+            modelUsed: resData.modelUsed || 'Groq LPU',
+            status: 'active'
+        };
+
+        // Simpan ke Firestore untuk dibagikan ke seluruh member free
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb) {
+                await fb.setDoc(fb.doc(fb.db, "mem_free_daily_pool", "active_pool"), poolDoc);
+            }
+        } catch (e) {
+            console.warn('[Cendekia Central] Gagal menyimpan pool ke Firestore:', e);
+        }
+
+        // Simpan ke localStorage
+        try {
+            localStorage.setItem(STORAGE_KEY_DAILY_POOL, JSON.stringify(poolDoc));
+        } catch (e) {}
+
+        return poolDoc;
+    }
+
+    // Helper sinkronisasi latihan harian untuk game/kuis (menangani user pertama dan caching 24 jam)
+    async function ensureDailyGame(gameKey, options = {}) {
+        const { onLoading, onNoMaterials, onReady } = options;
+        if (onLoading) onLoading("Memeriksa kesiapan latihan harian...");
+
+        try {
+            // 1. Cek apakah paket soal harian 24 jam sudah aktif
+            const poolRes = await getDailyPool();
+            if (poolRes.active && poolRes.data && poolRes.data.questions) {
+                const gameData = poolRes.data.questions[gameKey];
+                if (gameData && (!Array.isArray(gameData) || gameData.length > 0)) {
+                    if (onReady) onReady(gameData, poolRes.data);
+                    return;
+                }
+            }
+
+            // 2. Pool belum ada atau sudah lewat 24 jam -> Cek bahan ajar dari Admin
+            if (onLoading) onLoading("Mengecek ketersediaan bahan ajar kurikulum dari Admin...");
+            const materials = await getAllMaterials();
+
+            if (!materials || materials.length === 0) {
+                if (onNoMaterials) {
+                    onNoMaterials("Bahan ajar materi belum diunggah oleh Admin di sistem. Soal latihan harian belum dapat digenerate.");
+                }
+                return;
+            }
+
+            // 3. User pertama yang membuka sistem memicu pembuatan soal harian 24 jam!
+            if (onLoading) onLoading("Sistem sedang menganalisis materi kurikulum & memproses paket soal latihan 24 jam dengan AI Groq...");
+            const newPool = await generateDailyPoolFromMaterials(materials);
+
+            const gameData = newPool.questions[gameKey];
+            if (gameData && (!Array.isArray(gameData) || gameData.length > 0)) {
+                if (onReady) onReady(gameData, newPool);
+            } else {
+                if (onNoMaterials) onNoMaterials("Paket latihan untuk permainan ini belum dapat disiapkan dari materi yang tersedia.");
+            }
+        } catch (err) {
+            console.error('[Cendekia Central] Error ensureDailyGame:', err);
+            if (onNoMaterials) onNoMaterials("Terjadi kendala saat memuat latihan harian: " + err.message);
+        }
+    }
+
+    // Helper format hitung mundur (misal: "18j 24m 10d")
+    function formatTimeRemaining(ms) {
+        if (ms <= 0) return 'Kadaluarsa';
+        const totalSecs = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSecs / 3600);
+        const mins = Math.floor((totalSecs % 3600) / 60);
+        const secs = totalSecs % 60;
+        return `${hours}j ${mins}m ${secs}d`;
+    }
+
+    // 12. INIT ENGINE
     function init() {
         getUser();
         updateDOMStats();
@@ -531,6 +770,16 @@ const CendekiaApp = (function () {
         getClassDashboardUrl,
         renderBottomNav,
         updateDOMStats,
+        getFirebaseBridge,
+        getMaterialByCategory,
+        getAllMaterials,
+        saveMaterial,
+        deleteMaterial,
+        getDailyPool,
+        resetDailyPool,
+        generateDailyPoolFromMaterials,
+        ensureDailyGame,
+        formatTimeRemaining,
         init,
         BADGE_CATALOG,
         LEVELS
