@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pembayaran QRIS Checkout - Cendekia Aksara</title>
+    
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- QR Code Generator CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #003366;
+            --primary-dark: #001f3f;
+            --primary-soft: #eff6ff;
+            --accent: #d4af37;
+            --accent-hover: #b8902e;
+            --bg-page: #f8fafc;
+            --border-soft: #e2e8f0;
+            --radius-sm: 12px;
+            --radius-md: 18px;
+            --radius-lg: 24px;
+            --radius-full: 9999px;
+            --shadow-sm: 0 2px 8px rgba(0, 51, 102, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 51, 102, 0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Poppins', sans-serif;
+            background-color: #0b1329;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(0, 51, 102, 0.25) 0%, transparent 45%);
+            color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .mobile-app-wrapper {
+            width: 100%;
+            max-width: 430px;
+            min-height: 100vh;
+            background-color: var(--bg-page);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+            padding-bottom: 96px;
+        }
+
+        @media (min-width: 480px) {
+            body { padding: 24px 16px; }
+            .mobile-app-wrapper {
+                min-height: 900px;
+                border-radius: 36px;
+                border: 8px solid #1e293b;
+                box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            }
+            .app-header {
+                border-top-left-radius: 28px;
+                border-top-right-radius: 28px;
+            }
+        }
+
+        /* HEADER IDENTIK (STICKY KOKOH, LOGO + AKSARA + TOMBOL MASUK, TANPA TOMBOL KEMBALI) */
+        .app-header {
+            position: sticky;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            background: #ffffff;
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1.5px solid var(--border-soft);
+            box-shadow: 0 4px 18px rgba(0, 51, 102, 0.06);
+            backdrop-filter: blur(10px);
+        }
+        .brand-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+        .brand-logo-wrap {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 51, 102, 0.08);
+            border: 1.5px solid #dbeafe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .brand-logo-wrap img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+        }
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .brand-text .app-name {
+            font-size: 1.08rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.2;
+            letter-spacing: -0.3px;
+        }
+        .brand-text .app-sub {
+            font-size: 0.72rem;
+            color: var(--accent-hover);
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-header-login {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 9px 18px;
+            border-radius: var(--radius-full);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 3px 10px rgba(0, 51, 102, 0.2);
+        }
+
+        .app-body { padding: 16px 18px 0; display: flex; flex-direction: column; gap: 16px; }
+
+        .page-title-banner {
+            background: linear-gradient(135deg, #002b53 0%, #001830 100%);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            color: white;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            box-shadow: var(--shadow-sm);
+        }
+        .page-title-banner h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .page-title-banner p {
+            font-size: 0.74rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+
+        /* CARD BOX */
+        .card-box {
+            background: white; border-radius: var(--radius-md); padding: 16px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        }
+        .card-box-title {
+            font-size: 0.86rem; font-weight: 800; color: var(--primary); margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-box-title span { display: flex; align-items: center; gap: 8px; }
+        .card-box-title i { color: var(--accent-hover); }
+
+        .badge-status {
+            font-size: 0.68rem; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .badge-waiting { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .badge-paid { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+        .info-list { display: flex; flex-direction: column; gap: 8px; font-size: 0.78rem; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-label { color: #64748b; font-weight: 500; }
+        .info-val { font-weight: 700; color: #1e293b; text-align: right; }
+
+        /* QRIS BOX SECTION */
+        .qris-wrapper {
+            background: #ffffff; border-radius: var(--radius-md); border: 1.5px solid #cbd5e1;
+            padding: 20px 16px; text-align: center; box-shadow: var(--shadow-md);
+            position: relative; overflow: hidden;
+        }
+        .qris-top-banner {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #003366; padding-bottom: 10px; margin-bottom: 14px;
+        }
+        .qris-logo-text {
+            font-weight: 900; font-size: 1.25rem; color: #e11d48; letter-spacing: 1px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .qris-national {
+            font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase;
+        }
+        .qris-amount-large {
+            font-size: 1.7rem; font-weight: 900; color: var(--primary); margin: 6px 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .qris-invoice-ref {
+            font-size: 0.72rem; color: #64748b; font-family: monospace; background: #f1f5f9;
+            padding: 4px 10px; border-radius: 6px; display: inline-block; margin-bottom: 14px;
+        }
+        .qrcode-container {
+            display: flex; justify-content: center; align-items: center;
+            padding: 14px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0;
+            margin: 0 auto 12px; width: 230px; height: 230px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .qrcode-container img { max-width: 100%; height: auto; border-radius: 8px; }
+
+        .timer-badge {
+            font-size: 0.76rem; font-weight: 700; color: #b45309; background: #fffbeb;
+            padding: 5px 12px; border-radius: var(--radius-full); display: inline-flex;
+            align-items: center; gap: 6px; border: 1px solid #fef3c7; margin-bottom: 12px;
+        }
+
+        .detect-indicator {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 0.72rem; color: #0284c7; background: #f0f9ff; padding: 8px 12px;
+            border-radius: 10px; border: 1px solid #bae6fd; margin-bottom: 14px;
+        }
+        .detect-indicator i { font-size: 0.85rem; }
+
+        .btn-action-primary {
+            width: 100%; padding: 13px; border-radius: var(--radius-full);
+            background: linear-gradient(135deg, var(--accent) 0%, #b8902e 100%);
+            color: #001f3f; font-weight: 800; font-size: 0.85rem; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35); transition: transform 0.2s; margin-bottom: 8px;
+        }
+        .btn-action-primary:active { transform: scale(0.98); }
+
+        .btn-simulate-success {
+            width: 100%; padding: 11px; border-radius: var(--radius-full);
+            background: #10b981; color: white; font-weight: 700; font-size: 0.78rem;
+            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            gap: 6px; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
+        }
+        .btn-simulate-success:active { transform: scale(0.98); }
+
+        .link-cancel {
+            text-align: center; margin-top: 10px; font-size: 0.72rem;
+        }
+        .link-cancel a { color: #64748b; text-decoration: none; }
+        .link-cancel a:hover { color: var(--primary); }
+
+        /* CUSTOM CODE MODAL DIALOGS (NO BROWSER ALERT) */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 19, 41, 0.85); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 2500;
+            padding: 16px;
+        }
+        .custom-modal-card {
+            width: 90%; max-width: 360px; background: white; border-radius: var(--radius-lg);
+            padding: 24px 20px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 2px solid var(--accent); position: relative; animation: popUpIn 0.3s ease;
+        }
+        @keyframes popUpIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-icon-badge {
+            width: 62px; height: 62px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; margin: 0 auto 12px;
+        }
+        .icon-success { background: #dcfce7; color: #166534; }
+        .icon-info { background: #e0f2fe; color: #0369a1; }
+        .modal-title { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
+        .modal-desc { font-size: 0.76rem; color: #475569; margin-bottom: 16px; line-height: 1.45; }
+        .btn-modal-action {
+            width: 100%; padding: 12px; border-radius: var(--radius-full);
+            background: var(--primary); color: white; font-weight: 800; font-size: 0.82rem;
+            border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+
+        /* BOTTOM NAV BAR IDENTIK */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 430px; height: 68px; background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px); border-top: 1px solid rgba(226, 232, 240, 0.8);
+            display: flex; justify-content: space-around; align-items: center; padding: 0 8px; z-index: 1000;
+        }
+        @media (min-width: 480px) {
+            .bottom-nav { border-bottom-left-radius: 32px; border-bottom-right-radius: 32px; bottom: 24px; width: calc(100% - 32px); max-width: 414px; }
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-decoration: none; color: #64748b; font-size: 0.65rem; font-weight: 600; gap: 4px; flex: 1; padding: 6px 0;
+            position: relative;
+        }
+        .nav-item i { font-size: 1.15rem; }
+        .nav-item.active { color: var(--primary); font-weight: 800; }
+        .nav-item.active::after {
+            content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+        }
+
+        .copyright-outside {
+            font-size: 0.68rem; color: #94a3b8; text-align: center;
+            padding: 20px 10px 10px; line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <!-- HEADER STICKY (IDENTIK DENGAN INDEX, LOGO + CENDEKIA AKSARA + MASUK, TANPA TOMBOL KEMBALI) -->
+        <header class="app-header">
+            <a href="/home" class="brand-badge">
+                <div class="brand-logo-wrap">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
+                </div>
+                <div class="brand-text">
+                    <span class="app-name">Cendekia Aksara</span>
+                    <span class="app-sub">Edu & Inkubasi Literasi</span>
+                </div>
+            </a>
+            <div class="header-actions">
+                <a href="/login" id="headerAuthBtn" class="btn-header-login">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span>Masuk</span>
+                </a>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <!-- PAGE TITLE BANNER -->
+            <div class="page-title-banner">
+                <h1>Pembayaran QRIS Paket Belajar</h1>
+                <p>Pindai kode QRIS di bawah ini untuk aktivasi akun ruang belajar secara instan.</p>
+            </div>
+
+            <!-- CARD 1: INFORMASI SISWA & PAKET -->
+            <div class="card-box">
+                <div class="card-box-title">
+                    <span><i class="fa-solid fa-user-shield"></i> Data Pendaftaran Siswa</span>
+                    <span class="badge-status badge-waiting" id="badgeStatus">
+                        <i class="fa-solid fa-clock"></i> Menunggu Bayar
+                    </span>
+                </div>
+                <div class="info-list">
+                    <div class="info-row">
+                        <span class="info-label">Nama Lengkap:</span>
+                        <span class="info-val" id="viewName">Memuat...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email Terdaftar:</span>
+                        <span class="info-val" id="viewEmail">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Paket Belajar:</span>
+                        <span class="info-val" id="viewPackage">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Nomor WhatsApp:</span>
+                        <span class="info-val" id="viewPhone">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 2: QRIS DIGITAL & VERIFIKASI OTOMATIS -->
+            <div class="qris-wrapper">
+                <div class="qris-top-banner">
+                    <div class="qris-logo-text">
+                        <i class="fa-solid fa-qrcode"></i> QRIS
+                    </div>
+                    <div class="qris-national">Standar Pembayaran Nasional</div>
+                </div>
+
+                <div style="font-size: 0.72rem; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                    Total Biaya Administrasi
+                </div>
+                <div class="qris-amount-large" id="viewAmount">Rp 5.000</div>
+                <div class="qris-invoice-ref" id="viewInvoice">INV-CA/2026/00000</div>
+
+                <!-- QR CODE CANVAS -->
+                <div class="qrcode-container" id="qrcodeBox">
+                    <div id="qrcode"></div>
+                </div>
+
+                <div class="timer-badge" id="timerBadge">
+                    <i class="fa-solid fa-stopwatch"></i> Berlaku: <span id="timerText">14:59</span>
+                </div>
+
+                <div class="detect-indicator">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span>Sistem mendeteksi transaksi secara real-time...</span>
+                </div>
+
+                <p style="font-size: 0.7rem; color: #64748b; margin-bottom: 14px; line-height: 1.4;">
+                    Pindai dengan aplikasi perbankan digital atau e-wallet (BCA, Mandiri, BRI, BNI, GoPay, OVO, DANA, ShopeePay).
+                </p>
+
+                <button type="button" class="btn-action-primary" onclick="checkPaymentStatusManual()">
+                    <i class="fa-solid fa-rotate"></i> Cek Status Pembayaran
+                </button>
+
+                <button type="button" class="btn-simulate-success" onclick="simulatePaymentSuccess()">
+                    <i class="fa-solid fa-bolt"></i> Simulasi Bayar Berhasil (Instant Verifikasi)
+                </button>
+
+                <div class="link-cancel">
+                    <a href="/checkout.html"><i class="fa-solid fa-arrow-left"></i> Kembali ke Form Checkout</a>
+                </div>
+            </div>
+
+            <!-- FOOTER COPYRIGHT -->
+            <div class="copyright-outside">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+        <!-- STICKY BOTTOM NAV BAR -->
+        <nav class="bottom-nav">
+            <a href="/home" class="nav-item">
+                <i class="fa-solid fa-house"></i>
+                <span>Beranda</span>
+            </a>
+            <a href="/layanan.html" class="nav-item">
+                <i class="fa-solid fa-cubes"></i>
+                <span>Layanan</span>
+            </a>
+            <a href="/paket.html" class="nav-item">
+                <i class="fa-solid fa-tags"></i>
+                <span>Paket</span>
+            </a>
+            <a href="/checkout.html" class="nav-item active">
+                <i class="fa-solid fa-bag-shopping"></i>
+                <span>Daftar</span>
+            </a>
+            <a href="/login" class="nav-item">
+                <i class="fa-solid fa-user"></i>
+                <span>Akun</span>
+            </a>
+        </nav>
+
+    </div>
+
+    <!-- CUSTOM CODE MODAL: NOTIFIKASI SUKSES (MENGGANTIKAN ALERT BROWSER) -->
+    <div class="custom-modal-overlay" id="modalPaymentSuccess">
+        <div class="custom-modal-card">
+            <div class="modal-icon-badge icon-success">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 class="modal-title">Pembayaran Berhasil! 🎉</h3>
+            <p class="modal-desc" id="successMsg">
+                Pembayaran telah terverifikasi secara otomatis oleh sistem. Kwitansi resmi Anda telah diterbitkan.
+            </p>
+            <button type="button" class="btn-modal-action" onclick="proceedToReceipt()">
+                <i class="fa-solid fa-receipt"></i> Buka Kwitansi Resmi
+            </button>
+        </div>
+    </div>
+
+    <!-- CUSTOM CODE MODAL: NOTIFIKASI INFO / CEK STATUS -->
+    <div class="custom-modal-overlay" id="modalCustomInfo">
+        <div class="custom-modal-card">
+            <div class="modal-icon-badge icon-info">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <h3 class="modal-title" id="infoTitle">Status Pembayaran</h3>
+            <p class="modal-desc" id="infoMsg">
+                Menunggu transfer masuk dari sistem bank / e-wallet. Silakan selesaikan pembayaran QRIS Anda.
+            </p>
+            <button type="button" class="btn-modal-action" onclick="closeCustomModal('modalCustomInfo')">
+                Mengerti
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Tangkap data transaksi dari URL parameter atau localStorage
+        const params = new URLSearchParams(window.location.search);
+        
+        let pendingData = null;
+        try {
+            const raw = localStorage.getItem('cendekia_pending_reg');
+            if (raw) pendingData = JSON.parse(raw);
+        } catch(e) {}
+
+        const userName = params.get('name') || (pendingData ? pendingData.name : 'Siswa Cendekia');
+        const userEmail = params.get('email') || (pendingData ? pendingData.email : 'siswa@email.com');
+        const userPhone = params.get('phone') || (pendingData ? pendingData.phone : '-');
+        const packageId = params.get('paket') || (pendingData ? pendingData.packageId : '5k');
+        
+        let packageName = 'Literasi Pemula (5K)';
+        let price = 5000;
+
+        if (packageId === '5k') {
+            packageName = 'Literasi Pemula';
+            price = 5000;
+        } else if (packageId === '10k') {
+            packageName = 'Aksara Madya';
+            price = 10000;
+        } else if (packageId === '15k') {
+            packageName = 'Bimbingan Reguler & Terbit';
+            price = 15000;
+        }
+
+        const invoiceNo = params.get('invoice') || (pendingData ? pendingData.receiptNo : ('INV-CA/' + new Date().getFullYear() + '/' + Math.floor(10000 + Math.random() * 90000)));
+
+        // Tampilkan pada UI
+        document.getElementById('viewName').textContent = userName;
+        document.getElementById('viewEmail').textContent = userEmail;
+        document.getElementById('viewPhone').textContent = userPhone;
+        document.getElementById('viewPackage').textContent = packageName;
+        document.getElementById('viewAmount').textContent = 'Rp ' + price.toLocaleString('id-ID');
+        document.getElementById('viewInvoice').textContent = invoiceNo;
+
+        // Generate QRIS string dinamis
+        const qrisPayload = `00020101021226670016ID.CO.QRIS.WWW01189360099800000000000215CA${Date.now().toString().slice(-8)}52045812530336054${price.toString().length < 10 ? '0' + price.toString().length : price.toString().length}${price}5802ID5915CENDEKIA AKSARA6010TEMANGGUNG61055625262190115${invoiceNo.replace(/[^a-zA-Z0-9]/g, '')}6304ABCD`;
+
+        // Render QR Code dengan QRCode.js
+        const qrContainer = document.getElementById('qrcode');
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: qrisPayload,
+            width: 200,
+            height: 200,
+            colorDark: "#001f3f",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+
+        // Hitung Mundur Timer (15 menit)
+        let secondsLeft = 15 * 60;
+        const timerTextEl = document.getElementById('timerText');
+        const timerInterval = setInterval(() => {
+            secondsLeft--;
+            if (secondsLeft <= 0) {
+                clearInterval(timerInterval);
+                timerTextEl.textContent = 'Kedaluwarsa';
+                return;
+            }
+            const m = Math.floor(secondsLeft / 60);
+            const s = secondsLeft % 60;
+            timerTextEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+        }, 1000);
+
+        // Simulasi polling otomatis deteksi pembayaran (setelah 18 detik auto-detect atau via tombol)
+        let autoCheckTimeout = setTimeout(() => {
+            // Optional: simulate spontaneous background payment detection
+        }, 18000);
+
+        function checkPaymentStatusManual() {
+            // Modal info custom (bukan browser alert)
+            document.getElementById('infoTitle').textContent = 'Pengecekan Pembayaran';
+            document.getElementById('infoMsg').textContent = 'Sistem sedang mencocokkan mutasi QRIS sebesar Rp ' + price.toLocaleString('id-ID') + ' dari bank/e-wallet Anda. Jika baru saja transfer, mohon tunggu beberapa detik atau gunakan tombol Simulasi di bawah.';
+            document.getElementById('modalCustomInfo').style.display = 'flex';
+        }
+
+        function closeCustomModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function simulatePaymentSuccess() {
+            clearTimeout(autoCheckTimeout);
+            clearInterval(timerInterval);
+
+            // Update badge status
+            const badge = document.getElementById('badgeStatus');
+            badge.className = 'badge-status badge-paid';
+            badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> LUNAS';
+
+            // Simpan status sukses di localStorage
+            const confirmedUser = {
+                name: userName,
+                email: userEmail,
+                phone: userPhone,
+                packageId: packageId,
+                packageName: packageName,
+                price: price,
+                receiptNo: invoiceNo,
+                status: 'LUNAS',
+                paymentMethod: 'QRIS Digital Otomatis',
+                date: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            };
+
+            localStorage.setItem('cendekia_user', JSON.stringify(confirmedUser));
+            localStorage.setItem('user_status', 'registered');
+            localStorage.setItem('user_package', packageId);
+            localStorage.setItem('checkout_payment_status', 'paid');
+
+            // Tampilkan custom success modal
+            document.getElementById('successMsg').innerHTML = `
+                Pembayaran sebesar <b>Rp ${price.toLocaleString('id-ID')}</b> untuk <b>${packageName}</b> telah berhasil diverifikasi otomatis oleh gateway QRIS.<br><br>Kwitansi pembayaran resmi Anda telah diterbitkan.
+            `;
+            document.getElementById('modalPaymentSuccess').style.display = 'flex';
+        }
+
+        function proceedToReceipt() {
+            document.getElementById('modalPaymentSuccess').style.display = 'none';
+            // Alihkan kembali ke checkout.html membawa parameter status=paid
+            const returnUrl = `/checkout.html?status=paid&invoice=${encodeURIComponent(invoiceNo)}&paket=${encodeURIComponent(packageId)}&name=${encodeURIComponent(userName)}&email=${encodeURIComponent(userEmail)}&amount=${price}`;
+            window.location.replace(returnUrl);
+        }
+    </script>
+
+</body>
+</html>

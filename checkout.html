@@ -12,7 +12,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&family=Aleo:wght@700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         :root {
@@ -35,6 +39,9 @@
             --radius-md: 18px;
             --radius-lg: 24px;
             --radius-full: 9999px;
+            --navy: #003366;
+            --navy-dark: #001f3f;
+            --gold: #d4af37;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -107,7 +114,7 @@
             border-radius: 12px;
             background: white;
             box-shadow: 0 2px 8px rgba(0, 51, 102, 0.08);
-            border: 1.5px solid var(--accent-light);
+            border: 1.5px solid #dbeafe;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -207,12 +214,12 @@
         .form-group label {
             display: block; font-size: 0.74rem; font-weight: 700; color: #475569; margin-bottom: 6px;
         }
-        .form-group input, .form-group select {
+        .form-group input {
             width: 100%; padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: var(--radius-sm);
             font-size: 0.82rem; font-family: inherit; color: var(--text-dark); background: #f8fafc;
             outline: none; transition: border-color 0.2s;
         }
-        .form-group input:focus, .form-group select:focus {
+        .form-group input:focus {
             border-color: var(--primary); background: white;
         }
         .password-wrap { position: relative; }
@@ -220,6 +227,39 @@
             position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
             background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.85rem;
         }
+
+        /* CUSTOM DROPDOWN SELECTOR (DIBUAT DARI KODE - ZERO NATIVE BROWSER SELECT) */
+        .custom-dropdown-wrap { position: relative; width: 100%; }
+        .custom-dropdown-btn {
+            width: 100%; padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: var(--radius-sm);
+            font-size: 0.82rem; font-family: inherit; color: var(--text-dark); background: #f8fafc;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: all 0.2s;
+        }
+        .custom-dropdown-btn:hover { border-color: var(--primary); }
+        .custom-dropdown-btn.open { border-color: var(--primary); background: white; box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.1); }
+        .custom-dropdown-selected { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #1e293b; }
+        .custom-dropdown-menu {
+            position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+            background: white; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;
+            box-shadow: 0 10px 30px rgba(0, 51, 102, 0.15); z-index: 100;
+            display: none; flex-direction: column; overflow: hidden; padding: 4px;
+        }
+        .custom-dropdown-menu.active { display: flex; animation: slideDown 0.2s ease; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .custom-dropdown-option {
+            padding: 10px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600;
+            color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.15s;
+        }
+        .custom-dropdown-option:hover { background: #f1f5f9; color: var(--primary); }
+        .custom-dropdown-option.selected {
+            background: #eff6ff; color: var(--primary); font-weight: 700;
+        }
+        .custom-dropdown-option i.check-icon { font-size: 0.75rem; color: var(--primary); }
 
         .login-switch-link {
             text-align: center; font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;
@@ -261,9 +301,14 @@
         }
         .payment-link-cards { display: flex; gap: 8px; margin-top: 6px; }
         .mini-link-btn {
-            flex: 1; padding: 9px 8px; border-radius: var(--radius-sm); background: #f1f5f9;
+            flex: 1; padding: 10px 8px; border-radius: var(--radius-sm); background: #f1f5f9;
             color: var(--primary); font-size: 0.72rem; font-weight: 700; text-decoration: none;
             text-align: center; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; gap: 6px;
+            cursor: pointer;
+        }
+        .mini-link-btn.btn-kwitansi-active {
+            background: #003366; color: white; border-color: #003366;
+            box-shadow: 0 3px 10px rgba(0, 51, 102, 0.2);
         }
 
         /* --- MODAL LOADING PROSES TRANSAKSI PERSENTASE (0% - 100%) --- */
@@ -297,74 +342,139 @@
             border-radius: var(--radius-full); transition: width 0.3s ease;
         }
 
-        /* --- POP UP SUKSES BERGABUNG --- */
-        .success-overlay {
+        /* --- POP UP SUKSES BERGABUNG (KODE MURNI - TANPA BROWSER ALERT) --- */
+        .custom-popup-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(11, 19, 41, 0.88); backdrop-filter: blur(8px);
             display: none; justify-content: center; align-items: center; z-index: 2100;
+            padding: 16px;
         }
-        .success-card {
-            width: 88%; max-width: 360px; background: white; border-radius: var(--radius-lg);
+        .custom-popup-card {
+            width: 90%; max-width: 360px; background: white; border-radius: var(--radius-lg);
             padding: 26px 20px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border: 2px solid var(--accent);
+            border: 2px solid var(--accent); animation: popUpIn 0.3s ease;
         }
-        .success-icon {
-            width: 64px; height: 64px; border-radius: 50%; background: #ecfdf5; color: #059669;
+        @keyframes popUpIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .popup-icon-wrap {
+            width: 64px; height: 64px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
             margin: 0 auto 12px;
         }
-        .success-card h3 { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
-        .success-card p { font-size: 0.74rem; color: #64748b; margin-bottom: 18px; line-height: 1.45; }
-        .btn-confirm-ok {
+        .icon-wrap-success { background: #ecfdf5; color: #059669; }
+        .icon-wrap-info { background: #eff6ff; color: var(--primary); }
+        .custom-popup-card h3 { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-bottom: 6px; }
+        .custom-popup-card p { font-size: 0.74rem; color: #64748b; margin-bottom: 18px; line-height: 1.45; }
+        .btn-popup-ok {
             width: 100%; padding: 12px; border-radius: var(--radius-full);
             background: var(--primary); color: white; font-weight: 800; font-size: 0.82rem; border: none; cursor: pointer;
-        }
-
-        /* --- MODAL PRATINJAU KWITANSI RESMI (IN-PAGE PREVIEW) --- */
-        .receipt-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(11, 19, 41, 0.9); backdrop-filter: blur(8px);
-            display: none; justify-content: center; align-items: center; z-index: 2200;
-            padding: 16px;
-        }
-        .receipt-sheet {
-            width: 100%; max-width: 380px; max-height: 90vh; background: white;
-            border-radius: var(--radius-md); padding: 20px 18px; overflow-y: auto;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 1.5px solid var(--accent);
-            display: flex; flex-direction: column; gap: 12px; position: relative;
-        }
-        .receipt-letterhead {
-            display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;
-        }
-        .receipt-logo { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--accent); }
-        .receipt-company { display: flex; flex-direction: column; }
-        .receipt-company strong { font-size: 0.85rem; color: var(--primary); text-transform: uppercase; font-weight: 900; }
-        .receipt-company span { font-size: 0.65rem; color: #64748b; }
-        .receipt-title-bar {
-            text-align: center; background: #eff6ff; padding: 6px; border-radius: 6px;
-            font-size: 0.76rem; font-weight: 800; color: var(--primary); letter-spacing: 0.5px;
-        }
-        .receipt-details {
-            display: flex; flex-direction: column; gap: 6px; font-size: 0.72rem;
-            background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;
-        }
-        .receipt-row { display: flex; justify-content: space-between; color: #475569; }
-        .receipt-row strong { color: var(--text-dark); }
-        .receipt-stamp-box {
-            display: flex; justify-content: space-between; align-items: center; padding-top: 6px;
-        }
-        .receipt-barcode { font-size: 0.65rem; font-family: monospace; color: #64748b; }
-        .receipt-stamp {
-            border: 2px dashed #059669; color: #059669; font-size: 0.68rem; font-weight: 800;
-            padding: 4px 10px; border-radius: 6px; text-transform: uppercase; transform: rotate(-5deg);
-        }
-        .receipt-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-        .btn-download-receipt {
-            width: 100%; padding: 12px; border-radius: var(--radius-full);
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
-            font-size: 0.8rem; font-weight: 800; border: none; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 6px;
         }
+
+        /* --- MODAL PRATINJAU KWITANSI RESMI (PERSIS DESAIN kwitansi.html) --- */
+        .receipt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 19, 41, 0.92); backdrop-filter: blur(8px);
+            display: none; justify-content: center; align-items: center; z-index: 2200;
+            padding: 12px;
+        }
+        .receipt-modal-container {
+            width: 100%; max-width: 440px; height: 92vh; background: #3b4252;
+            border-radius: var(--radius-lg); box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid var(--accent);
+        }
+        .receipt-modal-header {
+            background: #2e3440; padding: 12px 16px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid #4c566a; color: white;
+        }
+        .receipt-modal-header h4 { font-size: 0.88rem; font-weight: 800; color: #eceff4; display: flex; align-items: center; gap: 6px; }
+        .btn-close-receipt {
+            background: none; border: none; color: #d8dee9; font-size: 1.2rem; cursor: pointer; padding: 4px;
+        }
+        .receipt-modal-scroll {
+            flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px;
+            background: #525659; display: flex; justify-content: center;
+        }
+        .receipt-modal-footer {
+            background: #ffffff; padding: 12px 16px; border-top: 1px solid #e2e8f0;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .btn-download-pdf-direct {
+            width: 100%; padding: 13px; border-radius: var(--radius-full);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
+            font-size: 0.82rem; font-weight: 800; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); transition: all 0.2s;
+        }
+        .btn-download-pdf-direct:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        /* ================= STYLE PERSIS kwitansi.html (A4 KOP SURAT) ================= */
+        .paper { 
+            background: white; 
+            width: 100%; max-width: 400px;
+            padding: 18px 16px; box-sizing: border-box; box-shadow: 0 0 15px rgba(0,0,0,0.4); 
+            position: relative; color: #1a1a1a; 
+            display: flex; flex-direction: column; border-radius: 4px;
+            font-family: 'Merriweather', serif;
+        }
+        @media (min-width: 600px) {
+            .paper { width: 210mm; max-width: 210mm; min-height: 297mm; padding: 16mm 20mm 20mm; }
+        }
+
+        .paper-watermark {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 220px; height: 220px; opacity: 0.045; pointer-events: none; z-index: 0;
+        }
+
+        .letterhead { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+        .letterhead-logo { width: 50px; height: 50px; border-radius: 50%; background: white; border: 2px solid var(--navy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+        .letterhead-logo img { width: 80%; height: auto; object-fit: contain; }
+        .letterhead-text { flex: 1; }
+        .letterhead-title { font-family: 'Aleo', serif; font-weight: 900; font-size: 13pt; color: var(--navy); text-transform: uppercase; letter-spacing: 1px; margin: 0; line-height: 1.15; }
+        .letterhead-sub { font-family: sans-serif; font-size: 7.5pt; color: #475569; margin-top: 2px; }
+        .letterhead-contact { font-family: sans-serif; font-size: 6.8pt; color: #64748b; margin-top: 2px; }
+        .letterhead-divider { height: 3px; background: linear-gradient(90deg, var(--navy) 0%, var(--navy) 75%, var(--gold) 75%, var(--gold) 100%); margin: 10px 0 3px; position: relative; z-index: 1; }
+        .letterhead-divider-thin { height: 1px; background: #cbd5e1; margin-bottom: 14px; position: relative; z-index: 1; }
+
+        .doc-title-block { text-align: center; margin-bottom: 14px; position: relative; z-index: 1; }
+        .doc-title { font-family: 'Aleo', serif; font-size: 12pt; font-weight: 900; color: var(--navy-dark); text-transform: uppercase; letter-spacing: 1.5px; margin: 0; }
+        .doc-ref { font-family: 'Courier Prime', monospace; font-size: 7.5pt; color: #475569; margin-top: 3px; }
+
+        .opening-text { font-style: italic; font-size: 7.8pt; color: #334155; line-height: 1.6; margin-bottom: 12px; text-align: justify; position: relative; z-index: 1; }
+        .opening-text b { font-style: normal; color: var(--navy); }
+        .section-lead { font-family: sans-serif; font-size: 7.5pt; font-weight: 700; color: var(--navy); margin: 0 0 8px 0; position: relative; z-index: 1; }
+
+        .info-section { width: 100%; margin-bottom: 12px; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+        .info-card-box { box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; background: #f8fafc; }
+        .col-header { font-family: sans-serif; font-weight: 700; text-transform: uppercase; color: var(--navy); border-bottom: 1.5px solid var(--gold); margin-bottom: 6px; padding-bottom: 4px; font-size: 7.2pt; }
+        .info-table { width: 100%; font-size: 7.2pt; font-family: sans-serif; }
+        .info-table td { padding: 2px 0; vertical-align: top; }
+        .label { width: 68px; font-weight: 600; color: #64748b; }
+        .val { font-weight: 700; color: #1a1a1a; }
+
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 7.2pt; font-family: sans-serif; position: relative; z-index: 1; }
+        .invoice-table th { background: var(--navy); color: white; padding: 6px 8px; text-align: left; text-transform: uppercase; font-size: 7pt; border: 1px solid var(--navy); }
+        .invoice-table td { border: 1px solid #dbe3ea; padding: 6px 8px; }
+        .col-price { text-align: right; font-family: 'Courier Prime', monospace; font-weight: bold; width: 85px; }
+
+        .total-container { display: flex; justify-content: flex-end; margin-bottom: 14px; position: relative; z-index: 1; }
+        .total-box { width: 200px; font-family: sans-serif; }
+        .total-box .row-method { display:flex; justify-content:space-between; margin-bottom:4px; font-size:7.2pt; color:#475569; }
+        .grand-total { border-top: 1.5px solid var(--gold); border-bottom: 1.5px solid var(--gold); padding: 6px 4px; margin-top: 3px; font-weight: 900; font-size: 9.5pt; color: var(--navy); display: flex; justify-content: space-between; background: #fffbeb; }
+
+        .closing-text { font-style: italic; font-size: 7.2pt; color: #475569; line-height: 1.5; margin-bottom: 14px; text-align: justify; position: relative; z-index: 1; border-left: 2.5px solid var(--gold); padding-left: 8px; }
+
+        .footer-sign { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; position: relative; z-index: 1; padding-top: 8px; }
+        .verify-box { width: 50%; font-size: 6.5pt; color: #94a3b8; font-family: sans-serif; line-height: 1.4; }
+        .verify-box .code { font-family: 'Courier Prime', monospace; font-size: 6.8pt; color: #64748b; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+        .ttd-box { width: 140px; text-align: center; position: relative; font-family: sans-serif; }
+        .stamp-img { position: absolute; top: -16px; left: 20px; width: 85px; opacity: 0.85; transform: rotate(-8deg); mix-blend-mode: multiply; pointer-events: none; }
+        .ttd-line { margin-top: 42px; border-bottom: 1px solid black; font-weight: bold; display: inline-block; width: 100%; padding-bottom: 2px; font-size: 7.2pt; }
+
+        .letter-footer { border-top: 1px solid #cbd5e1; margin-top: 12px; padding-top: 6px; text-align: center; font-family: sans-serif; font-size: 6.5pt; color: #94a3b8; position: relative; z-index: 1; }
+        .status-watermark { position: absolute; top: 110px; right: 15px; font-size: 16pt; font-weight: 900; text-transform: uppercase; padding: 4px 12px; border: 3.5px solid #0f5132; color: #0f5132; border-radius: 8px; transform: rotate(-15deg); opacity: 0.75; pointer-events: none; z-index: 1; font-family: sans-serif; }
 
         .copyright-outside {
             font-size: 0.68rem; color: var(--text-light); text-align: center;
@@ -420,7 +530,7 @@
             <!-- PAGE TITLE BANNER -->
             <div class="page-title-banner">
                 <h1>Form Pendaftaran Akun Siswa</h1>
-                <p>Lengkapi biodata & buat akun untuk mengakses ruang belajar.</p>
+                <p>Lengkapi biodata & buat akun untuk mengakses ruang belajar mandiri.</p>
             </div>
 
             <!-- PILIH PAKET BELAJAR -->
@@ -473,14 +583,37 @@
                     <input type="tel" id="custPhone" placeholder="08xxxxxxxxxx" required>
                 </div>
 
+                <!-- DROPDOWN CUSTOM KODE (ZERO BROWSER SELECT / PICKER) -->
                 <div class="form-group">
                     <label>Minat Bidang Sastra</label>
-                    <select id="custInterest">
-                        <option value="puisi">Puisi & Syair</option>
-                        <option value="cerpen">Cerita Pendek (Cerpen)</option>
-                        <option value="novel">Novel & Prosa Panjang</option>
-                        <option value="esai">Esai & Karya Ilmiah Populer</option>
-                    </select>
+                    <div class="custom-dropdown-wrap" id="interestDropdownWrap">
+                        <div class="custom-dropdown-btn" id="interestDropdownBtn" onclick="toggleInterestDropdown()">
+                            <div class="custom-dropdown-selected" id="selectedInterestText">
+                                <i class="fa-solid fa-feather-pointed" style="color:var(--accent-hover);"></i>
+                                <span>Puisi &amp; Syair</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" id="interestChevron" style="font-size:0.75rem; color:#94a3b8;"></i>
+                        </div>
+                        <div class="custom-dropdown-menu" id="interestDropdownMenu">
+                            <div class="custom-dropdown-option selected" onclick="pickInterest('puisi', 'Puisi &amp; Syair', 'fa-feather-pointed')">
+                                <span><i class="fa-solid fa-feather-pointed" style="margin-right:8px; color:var(--accent-hover);"></i> Puisi &amp; Syair</span>
+                                <i class="fa-solid fa-check check-icon"></i>
+                            </div>
+                            <div class="custom-dropdown-option" onclick="pickInterest('cerpen', 'Cerita Pendek (Cerpen)', 'fa-book-open')">
+                                <span><i class="fa-solid fa-book-open" style="margin-right:8px; color:var(--accent-hover);"></i> Cerita Pendek (Cerpen)</span>
+                                <i class="fa-solid fa-check check-icon" style="display:none;"></i>
+                            </div>
+                            <div class="custom-dropdown-option" onclick="pickInterest('novel', 'Novel &amp; Prosa Panjang', 'fa-book')">
+                                <span><i class="fa-solid fa-book" style="margin-right:8px; color:var(--accent-hover);"></i> Novel &amp; Prosa Panjang</span>
+                                <i class="fa-solid fa-check check-icon" style="display:none;"></i>
+                            </div>
+                            <div class="custom-dropdown-option" onclick="pickInterest('esai', 'Esai &amp; Karya Ilmiah Populer', 'fa-newspaper')">
+                                <span><i class="fa-solid fa-newspaper" style="margin-right:8px; color:var(--accent-hover);"></i> Esai &amp; Karya Ilmiah Populer</span>
+                                <i class="fa-solid fa-check check-icon" style="display:none;"></i>
+                            </div>
+                        </div>
+                        <input type="hidden" id="custInterest" value="puisi">
+                    </div>
                 </div>
 
                 <!-- RINGKASAN TAGIHAN -->
@@ -491,7 +624,7 @@
                     </div>
                     <div class="summary-row">
                         <span>Biaya Administrasi:</span>
-                        <strong style="color: #10b981;">Gratis</strong>
+                        <strong id="summaryCostLabel" style="color: #10b981;">Gratis</strong>
                     </div>
                     <div class="summary-row total">
                         <span>Total Bayar:</span>
@@ -508,14 +641,14 @@
                 </div>
             </form>
 
-            <!-- STATUS TRANSAKSI & CETAK BUKTI (TERKUNCI HINGGA SELESAI DAFTAR) -->
+            <!-- STATUS TRANSAKSI & CETAK BUKTI (TERKUNCI HINGGA SELESAI DAFTAR/BAYAR) -->
             <div class="transaction-status-box" id="trxBox">
                 <span class="locked-badge" id="trxLockBadge"><i class="fa-solid fa-lock"></i> Terkunci (Selesaikan Pendaftaran Dahulu)</span>
                 <div class="card-box-title" style="margin-bottom: 6px;"><i class="fa-solid fa-receipt"></i> Status Transaksi & Kwitansi</div>
-                <p style="font-size: 0.7rem; color: #64748b; margin-bottom: 8px;">Bukti kwitansi resmi akan otomatis diterbitkan begitu proses registrasi selesai.</p>
+                <p style="font-size: 0.7rem; color: #64748b; margin-bottom: 8px;">Bukti kwitansi resmi akan otomatis diterbitkan begitu proses pembayaran / pendaftaran terverifikasi.</p>
                 <div class="payment-link-cards">
-                    <a href="/payment.html" class="mini-link-btn" id="btnPaymentPortal">
-                        <i class="fa-solid fa-credit-card"></i> Portal Pembayaran
+                    <a href="/payment-checkout.html" class="mini-link-btn" id="btnPaymentPortal">
+                        <i class="fa-solid fa-credit-card"></i> Portal QRIS
                     </a>
                     <button type="button" class="mini-link-btn" id="btnViewReceipt" onclick="showReceiptModal()">
                         <i class="fa-solid fa-receipt"></i> Buka Kwitansi Resmi
@@ -556,7 +689,7 @@
 
     </div>
 
-    <!-- MODAL 1: LOADING PROSES TRANSAKSI & PERSENTASE -->
+    <!-- MODAL 1: LOADING PROSES TRANSAKSI PERSENTASE (0% - 100%) -->
     <div class="process-overlay" id="processModal">
         <div class="process-card">
             <div class="process-icon-wrap">
@@ -570,75 +703,153 @@
         </div>
     </div>
 
-    <!-- MODAL 2: POP-UP SUKSES BERGABUNG DENGAN GRATIS / BERBAYAR -->
-    <div class="success-overlay" id="successModal">
-        <div class="success-card">
-            <div class="success-icon">
+    <!-- MODAL 2: POP-UP SUKSES DARI KODE MURNI (TANPA BROWSER ALERT) -->
+    <div class="custom-popup-overlay" id="successModal">
+        <div class="custom-popup-card">
+            <div class="popup-icon-wrap icon-wrap-success">
                 <i class="fa-solid fa-check"></i>
             </div>
             <h3 id="successTitle">Pendaftaran Berhasil! 🎉</h3>
-            <p id="successDesc">Selamat! Akun belajar mandiri Anda telah berhasil diaktifkan. Klik OK di bawah ini untuk melihat bukti kwitansi pendaftaran Anda.</p>
-            <button type="button" class="btn-confirm-ok" onclick="openReceiptFromSuccess()">
-                OK, Lihat Kwitansi Resmi
+            <p id="successDesc">Selamat! Akun belajar mandiri Anda telah berhasil diaktifkan. Klik tombol di bawah ini untuk melihat dan mengunduh kwitansi resmi Anda.</p>
+            <button type="button" class="btn-popup-ok" onclick="openReceiptFromSuccess()">
+                <i class="fa-solid fa-receipt"></i> Buka Kwitansi Resmi
             </button>
         </div>
     </div>
 
-    <!-- MODAL 3: PRATINJAU KWITANSI RESMI (IN-PAGE PREVIEW) -->
+    <!-- MODAL 3: NOTIFIKASI INFO UMUM DARI KODE MURNI -->
+    <div class="custom-popup-overlay" id="customAlertModal">
+        <div class="custom-popup-card">
+            <div class="popup-icon-wrap icon-wrap-info" id="alertIconWrap">
+                <i class="fa-solid fa-circle-info" id="alertIcon"></i>
+            </div>
+            <h3 id="alertTitle">Informasi</h3>
+            <p id="alertDesc">-</p>
+            <button type="button" class="btn-popup-ok" onclick="closeCustomAlert()">
+                Mengerti
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 4: PRATINJAU KWITANSI RESMI (PERSIS DOKUMEN RESMI kwitansi.html) -->
     <div class="receipt-overlay" id="receiptModal">
-        <div class="receipt-sheet" id="receiptSheet">
-            <div class="receipt-letterhead">
-                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" class="receipt-logo">
-                <div class="receipt-company">
-                    <strong>PT Cendekia Aksara Edukasi</strong>
-                    <span>Temanggung, Jawa Tengah, Indonesia 56252</span>
+        <div class="receipt-modal-container">
+            <div class="receipt-modal-header">
+                <h4><i class="fa-solid fa-file-invoice-dollar" style="color:var(--accent);"></i> Kwitansi Pembayaran Resmi</h4>
+                <button type="button" class="btn-close-receipt" onclick="closeReceiptModal()">&times;</button>
+            </div>
+            
+            <div class="receipt-modal-scroll">
+                <!-- DOKUMEN KERTAS A4 PERSIS SEPERTI DI kwitansi.html -->
+                <div id="receipt-paper" class="paper">
+                    
+                    <img src="https://i.imgur.com/5Srjyo4.png" class="paper-watermark" alt="" crossorigin="anonymous">
+                    <div id="status-mark" class="status-watermark">LUNAS</div>
+
+                    <!-- KOP SURAT RESMI -->
+                    <div class="letterhead">
+                        <div class="letterhead-logo">
+                            <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo" crossorigin="anonymous">
+                        </div>
+                        <div class="letterhead-text">
+                            <div class="letterhead-title">Cendekia Aksara</div>
+                            <div class="letterhead-sub">Komunitas Literasi &amp; Inkubasi Penulis Muda</div>
+                            <div class="letterhead-contact">Temanggung, Jawa Tengah &nbsp;|&nbsp; cendekia.aksara@email.com</div>
+                        </div>
+                    </div>
+                    <div class="letterhead-divider"></div>
+                    <div class="letterhead-divider-thin"></div>
+
+                    <!-- JUDUL DOKUMEN -->
+                    <div class="doc-title-block">
+                        <h1 class="doc-title">Kuitansi Pembayaran Resmi</h1>
+                        <div class="doc-ref">Nomor: <span id="k-ref">-</span></div>
+                    </div>
+
+                    <!-- NARASI PEMBUKA RESMI -->
+                    <p class="opening-text">
+                        Dengan ini pihak <b>Cendekia Aksara</b> menyatakan telah menerima pembayaran administrasi dari siswa yang identitasnya tercantum di bawah ini, sebagaimana rincian yang dilampirkan pada dokumen ini.
+                    </p>
+
+                    <p class="section-lead"><i class="fa-solid fa-user-check"></i>&nbsp; IDENTITAS PIHAK TERKAIT</p>
+                    <div class="info-section">
+                        <div class="info-card-box">
+                            <div class="col-header">Data Siswa / Penulis</div>
+                            <table class="info-table">
+                                <tr><td class="label">Nama</td><td>:</td><td class="val" id="k-nama">-</td></tr>
+                                <tr><td class="label">Email</td><td>:</td><td class="val" id="k-email">-</td></tr>
+                                <tr><td class="label">Paket</td><td>:</td><td class="val" id="k-paket">-</td></tr>
+                                <tr><td class="label">Status</td><td>:</td><td class="val" style="color:#0f5132;">Aktif Terdaftar</td></tr>
+                            </table>
+                        </div>
+                        <div class="info-card-box">
+                            <div class="col-header">Dokumen Penerbit</div>
+                            <table class="info-table">
+                                <tr><td class="label">Penerbit</td><td>:</td><td class="val">Cendekia Aksara</td></tr>
+                                <tr><td class="label">Alamat</td><td>:</td><td class="val">Temanggung, Jateng</td></tr>
+                                <tr><td class="label">Tanggal</td><td>:</td><td class="val" id="k-date">-</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <p class="section-lead"><i class="fa-solid fa-file-invoice-dollar"></i>&nbsp; RINCIAN PEMBAYARAN</p>
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th style="width:30px; text-align:center;">No</th>
+                                <th>Keterangan Pembayaran</th>
+                                <th class="col-price">Nominal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="k-tbody">
+                            <tr>
+                                <td style="text-align:center;">1</td>
+                                <td id="k-item-name">Aktivasi Paket Belajar</td>
+                                <td class="col-price" id="k-item-nominal">Rp 0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="total-container">
+                        <div class="total-box">
+                            <div class="row-method">
+                                <span>Metode Pembayaran</span>
+                                <span id="k-method" style="font-weight:700;">-</span>
+                            </div>
+                            <div class="grand-total">
+                                <span>TOTAL DIBAYAR</span>
+                                <span id="k-total">Rp 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="closing-text">
+                        Kuitansi ini diterbitkan secara otomatis oleh sistem administrasi Cendekia Aksara dan merupakan bukti sah pembayaran. Dokumen ini wajib disimpan sebagai arsip kepesertaan ruang belajar mandiri.
+                    </p>
+
+                    <div class="footer-sign">
+                        <div class="verify-box">
+                            Dokumen diterbitkan secara elektronik dan sah tanpa tanda tangan basah.
+                            <br>Kode verifikasi: <span class="code" id="k-verify">-</span>
+                        </div>
+                        <div class="ttd-box">
+                            <p style="margin:0; font-size:7.2pt;">Temanggung, <span id="k-ttd-date">-</span></p>
+                            <p style="margin:0; font-size:7.2pt; font-weight:bold; margin-bottom:2px;">Admin Keuangan</p>
+                            <img src="https://i.imgur.com/YvrNYRw.png" class="stamp-img" alt="Cap" crossorigin="anonymous">
+                            <div class="ttd-line">Bendahara Sekolah</div>
+                        </div>
+                    </div>
+
+                    <div class="letter-footer">
+                        CENDEKIA AKSARA &middot; Komunitas Literasi &amp; Inkubasi Penulis Muda &middot; Temanggung, Jawa Tengah
+                    </div>
+
                 </div>
             </div>
 
-            <div class="receipt-title-bar">
-                KWITANSI PENDAFTARAN RESMI
-            </div>
-
-            <div class="receipt-details">
-                <div class="receipt-row">
-                    <span>No. Transaksi:</span>
-                    <strong id="rcNo">KW-CA/2026/08821</strong>
-                </div>
-                <div class="receipt-row">
-                    <span>Tanggal:</span>
-                    <strong id="rcDate">-</strong>
-                </div>
-                <div class="receipt-row">
-                    <span>Nama Siswa:</span>
-                    <strong id="rcName">-</strong>
-                </div>
-                <div class="receipt-row">
-                    <span>Email:</span>
-                    <strong id="rcEmail">-</strong>
-                </div>
-                <div class="receipt-row">
-                    <span>Paket:</span>
-                    <strong id="rcPackage">Akses Pustaka</strong>
-                </div>
-                <div class="receipt-row" style="margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
-                    <span>Total Pembayaran:</span>
-                    <strong id="rcTotal" style="color: var(--primary); font-size: 0.85rem;">Gratis (Lunas)</strong>
-                </div>
-            </div>
-
-            <div class="receipt-stamp-box">
-                <div class="receipt-barcode">
-                    <div>VERIFIED ID:</div>
-                    <strong id="rcBarcode">CA-REG-2026-X</strong>
-                </div>
-                <div class="receipt-stamp">
-                    ✓ TERDAFTAR RESMI
-                </div>
-            </div>
-
-            <div class="receipt-actions">
-                <button type="button" class="btn-download-receipt" onclick="downloadReceiptAndEnterPortal()">
-                    <i class="fa-solid fa-download"></i> Unduh Kwitansi & Masuk Ruang Belajar
+            <div class="receipt-modal-footer">
+                <button type="button" class="btn-download-pdf-direct" id="btnDownloadReceipt" onclick="downloadReceiptAndEnterPortal()">
+                    <i class="fa-solid fa-file-pdf"></i> Unduh Kwitansi PDF &amp; Masuk Ruang Belajar
                 </button>
             </div>
         </div>
@@ -659,13 +870,14 @@
             if (activeBtn) activeBtn.classList.add('active');
 
             document.getElementById('summaryPkgName').textContent = name;
+            document.getElementById('summaryCostLabel').textContent = price === 0 ? 'Gratis' : 'Rp ' + price.toLocaleString('id-ID');
             document.getElementById('summaryTotal').textContent = price === 0 ? 'Gratis' : 'Rp ' + price.toLocaleString('id-ID');
             
             const btnSubmit = document.getElementById('btnSubmit');
             if (price === 0) {
                 btnSubmit.innerHTML = '<i class="fa-solid fa-user-check"></i> Selesaikan Pendaftaran (Gratis)';
             } else {
-                btnSubmit.innerHTML = '<i class="fa-solid fa-credit-card"></i> Selesaikan & Lanjut Pembayaran (Rp ' + price.toLocaleString('id-ID') + ')';
+                btnSubmit.innerHTML = '<i class="fa-solid fa-credit-card"></i> Selesaikan &amp; Lanjut Pembayaran (Rp ' + price.toLocaleString('id-ID') + ')';
             }
         }
 
@@ -691,6 +903,75 @@
             }
         }
 
+        // ============================================================
+        // CUSTOM DROPDOWN (DIBUAT MURNI DARI KODE HTML/CSS/JS)
+        // ============================================================
+        function toggleInterestDropdown() {
+            const menu = document.getElementById('interestDropdownMenu');
+            const btn = document.getElementById('interestDropdownBtn');
+            const chevron = document.getElementById('interestChevron');
+            const isOpen = menu.classList.contains('active');
+            if (isOpen) {
+                menu.classList.remove('active');
+                btn.classList.remove('open');
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                menu.classList.add('active');
+                btn.classList.add('open');
+                chevron.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function pickInterest(val, label, iconClass) {
+            document.getElementById('custInterest').value = val;
+            document.getElementById('selectedInterestText').innerHTML = `
+                <i class="fa-solid ${iconClass}" style="color:var(--accent-hover);"></i>
+                <span>${label}</span>
+            `;
+            
+            // Perbarui tanda checkmark pada opsi
+            document.querySelectorAll('.custom-dropdown-option').forEach(opt => {
+                opt.classList.remove('selected');
+                const check = opt.querySelector('.check-icon');
+                if (check) check.style.display = 'none';
+            });
+            const clicked = event.currentTarget;
+            clicked.classList.add('selected');
+            const check = clicked.querySelector('.check-icon');
+            if (check) check.style.display = 'block';
+
+            // Tutup dropdown
+            toggleInterestDropdown();
+        }
+
+        // Tutup dropdown jika user klik di luar
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('interestDropdownWrap');
+            if (wrap && !wrap.contains(e.target)) {
+                const menu = document.getElementById('interestDropdownMenu');
+                const btn = document.getElementById('interestDropdownBtn');
+                const chevron = document.getElementById('interestChevron');
+                if (menu && menu.classList.contains('active')) {
+                    menu.classList.remove('active');
+                    btn.classList.remove('open');
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            }
+        });
+
+        // ============================================================
+        // CUSTOM CODE ALERT MODAL (MENGGANTIKAN ALERT BROWSER)
+        // ============================================================
+        function showCustomAlert(title, message) {
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertDesc').textContent = message;
+            document.getElementById('customAlertModal').style.display = 'flex';
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('customAlertModal').style.display = 'none';
+        }
+
         let registeredUser = null;
 
         function handleRegistration(e) {
@@ -702,12 +983,14 @@
             const phone = document.getElementById('custPhone').value.trim();
             const interest = document.getElementById('custInterest').value;
 
-            // Generate nomor kwitansi unik
-            const randomCode = Math.floor(10000 + Math.random() * 90000);
-            const receiptNo = 'KW-CA/' + new Date().getFullYear() + '/' + randomCode;
-            const now = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            // Generate nomor kwitansi & invoice unik bergaya resmi
+            const now = new Date();
+            const romawiBulan = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][now.getMonth()];
+            const randomCode = Math.floor(1000 + Math.random() * 9000);
+            const receiptNo = `${randomCode}/KA-CA/${romawiBulan}/${now.getFullYear()}`;
+            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-            registeredUser = {
+            const userRegData = {
                 name,
                 email,
                 phone,
@@ -716,10 +999,25 @@
                 packageName: currentPackage.name,
                 price: currentPackage.price,
                 receiptNo,
-                date: now
+                date: dateStr,
+                createdMs: now.getTime()
             };
 
-            // Tampilkan Modal Loading Persentase Transaksi
+            // JIKA PAKET BERBAYAR (5K, 10K, 15K): ALIHKAN KE HALAMAN PAYMENT-CHECKOUT KHUSUS
+            if (currentPackage.price > 0) {
+                // Simpan draf registrasi
+                localStorage.setItem('cendekia_pending_reg', JSON.stringify(userRegData));
+                
+                // Alihkan ke sistem payment checkout
+                window.location.href = `/payment-checkout.html?paket=${currentPackage.id}&name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&phone=${encodeURIComponent(phone)}&price=${currentPackage.price}&invoice=${encodeURIComponent(receiptNo)}`;
+                return;
+            }
+
+            // JIKA PAKET GRATIS: JALANKAN PROSES REGISTRASI LANGSUNG DI HALAMAN INI
+            userRegData.status = 'LUNAS (GRATIS)';
+            userRegData.paymentMethod = 'Bebas Biaya (Mandiri)';
+            registeredUser = userRegData;
+
             startTransactionProcessing(registeredUser);
         }
 
@@ -742,7 +1040,7 @@
                 if (percent < 30) {
                     statusEl.textContent = 'Memvalidasi data & membuat akun baru...';
                 } else if (percent < 70) {
-                    statusEl.textContent = currentPackage.price === 0 ? 'Menghubungkan ke server belajar mandiri...' : 'Menyiapkan tagihan & saluran pembayaran...';
+                    statusEl.textContent = 'Menghubungkan ke ruang belajar mandiri...';
                 } else if (percent < 95) {
                     statusEl.textContent = 'Menerbitkan nomor registrasi & kwitansi resmi...';
                 } else {
@@ -755,7 +1053,7 @@
                         processModal.style.display = 'none';
 
                         // Buka kunci status transaksi
-                        unlockTransactionBox();
+                        unlockTransactionBox('Pendaftaran Gratis Aktif & Terverifikasi');
 
                         // Simpan sesi registrasi
                         localStorage.setItem('cendekia_user', JSON.stringify(user));
@@ -766,26 +1064,33 @@
                         showSuccessModal(user);
                     }, 500);
                 }
-            }, 60);
+            }, 50);
         }
 
-        function unlockTransactionBox() {
+        function unlockTransactionBox(badgeText) {
             const trxBox = document.getElementById('trxBox');
             const trxLockBadge = document.getElementById('trxLockBadge');
+            const btnViewReceipt = document.getElementById('btnViewReceipt');
+
             trxBox.classList.add('unlocked');
-            trxLockBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #059669;"></i> Transaksi Aktif & Terverifikasi';
+            trxLockBadge.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #059669;"></i> ' + (badgeText || 'Transaksi Aktif & Lunas');
             trxLockBadge.style.color = '#059669';
             trxLockBadge.style.background = '#d1fae5';
+
+            btnViewReceipt.classList.add('btn-kwitansi-active');
         }
 
         function showSuccessModal(user) {
             const successModal = document.getElementById('successModal');
+            const successTitle = document.getElementById('successTitle');
             const successDesc = document.getElementById('successDesc');
 
             if (user.price === 0) {
-                successDesc.textContent = 'Selamat! Anda telah bergabung dalam program Akses Pustaka Mandiri (Gratis). Akun Anda telah siap. Klik OK untuk melihat bukti kwitansi resmi Anda.';
+                successTitle.textContent = 'Pendaftaran Berhasil! 🎉';
+                successDesc.textContent = 'Selamat! Anda telah bergabung dalam program Akses Pustaka Mandiri (Gratis). Akun Anda telah siap. Klik tombol di bawah untuk melihat dan mengunduh kwitansi resmi Anda.';
             } else {
-                successDesc.textContent = `Pendaftaran ${user.packageName} berhasil dicatat. Klik OK untuk melihat bukti kwitansi pendaftaran & menyelesaikan verifikasi pembayaran.`;
+                successTitle.textContent = 'Pembayaran Terverifikasi! 🎉';
+                successDesc.textContent = `Pembayaran paket ${user.packageName} sebesar Rp ${user.price.toLocaleString('id-ID')} telah sukses diverifikasi. Kwitansi resmi telah diterbitkan.`;
             }
 
             successModal.style.display = 'flex';
@@ -796,32 +1101,92 @@
             showReceiptModal();
         }
 
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').style.display = 'none';
+        }
+
         function showReceiptModal() {
             if (!registeredUser) {
                 const stored = localStorage.getItem('cendekia_user');
-                if (stored) registeredUser = JSON.parse(stored);
-                else {
-                    alert('Belum ada transaksi pendaftaran aktif.');
-                    return;
+                if (stored) {
+                    try { registeredUser = JSON.parse(stored); } catch(e) {}
                 }
             }
 
-            document.getElementById('rcNo').textContent = registeredUser.receiptNo;
-            document.getElementById('rcDate').textContent = registeredUser.date;
-            document.getElementById('rcName').textContent = registeredUser.name;
-            document.getElementById('rcEmail').textContent = registeredUser.email;
-            document.getElementById('rcPackage').textContent = registeredUser.packageName;
-            document.getElementById('rcTotal').textContent = registeredUser.price === 0 ? 'Gratis (Lunas)' : 'Rp ' + registeredUser.price.toLocaleString('id-ID');
-            document.getElementById('rcBarcode').textContent = 'QRCBN-' + registeredUser.receiptNo.replace(/\//g, '-');
+            if (!registeredUser) {
+                showCustomAlert('Perhatian', 'Belum ada transaksi pendaftaran aktif. Silakan isi form di atas terlebih dahulu.');
+                return;
+            }
+
+            // Render data persis seperti format kwitansi.html
+            document.getElementById('k-ref').textContent = registeredUser.receiptNo;
+            document.getElementById('k-nama').textContent = registeredUser.name;
+            document.getElementById('k-email').textContent = registeredUser.email;
+            document.getElementById('k-paket').textContent = registeredUser.packageName;
+            document.getElementById('k-date').textContent = registeredUser.date;
+            document.getElementById('k-ttd-date').textContent = registeredUser.date;
+            
+            const verifyCode = `CA-${(registeredUser.name || 'USER').substring(0,4).toUpperCase()}-${(registeredUser.createdMs || Date.now()).toString().slice(-6)}`;
+            document.getElementById('k-verify').textContent = verifyCode;
+
+            document.getElementById('k-item-name').textContent = `Administrasi Akun: ${registeredUser.packageName}`;
+            const priceText = registeredUser.price === 0 ? 'Rp 0 (Gratis)' : 'Rp ' + registeredUser.price.toLocaleString('id-ID');
+            document.getElementById('k-item-nominal').textContent = priceText;
+            document.getElementById('k-total').textContent = priceText;
+            document.getElementById('k-method').textContent = registeredUser.price === 0 ? 'Mandiri (Bebas Biaya)' : (registeredUser.paymentMethod || 'QRIS Digital Otomatis');
+
+            const statusMark = document.getElementById('status-mark');
+            if (registeredUser.price === 0) {
+                statusMark.textContent = 'LUNAS (GRATIS)';
+                statusMark.style.color = '#0f5132';
+                statusMark.style.borderColor = '#0f5132';
+            } else {
+                statusMark.textContent = 'LUNAS';
+                statusMark.style.color = '#0f5132';
+                statusMark.style.borderColor = '#0f5132';
+            }
 
             document.getElementById('receiptModal').style.display = 'flex';
         }
 
+        // ============================================================
+        // UNDUH KWITANSI LANGSUNG SEBAGAI PDF (html2pdf.js - BUKAN WINDOW.PRINT)
+        // KEMUDIAN TRANSISI LOADING DAN REDIRECT KE PORTAL
+        // ============================================================
         function downloadReceiptAndEnterPortal() {
-            // Simulasi cetak/unduh kwitansi
-            window.print();
+            const btn = document.getElementById('btnDownloadReceipt');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghasilkan Dokumen PDF...';
+            btn.disabled = true;
 
-            // Tampilkan transisi loading sejenak sebelum masuk portal
+            const element = document.getElementById('receipt-paper');
+            const safeName = (registeredUser && registeredUser.name ? registeredUser.name : 'Siswa').replace(/[^a-zA-Z0-9]/g, '_');
+            const opt = {
+                margin: 0,
+                filename: `Kwitansi_Resmi_Cendekia_${safeName}_${Date.now()}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Unduh langsung file PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> PDF Berhasil Diunduh!';
+                
+                // Transisi layar penuh sebelum masuk ke ruang belajar
+                setTimeout(() => {
+                    executePortalTransition();
+                }, 800);
+            }).catch(err => {
+                console.error('PDF export error:', err);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                showCustomAlert('Informasi', 'Dokumen PDF sedang dialihkan ke penyimpanan Anda. Menuju ke ruang belajar...');
+                setTimeout(executePortalTransition, 1500);
+            });
+        }
+
+        function executePortalTransition() {
             document.getElementById('receiptModal').style.display = 'none';
             const processModal = document.getElementById('processModal');
             const percentEl = document.getElementById('processPercent');
@@ -830,22 +1195,72 @@
 
             processModal.style.display = 'flex';
             percentEl.textContent = '✓';
-            statusEl.textContent = 'Kwitansi telah disiapkan. Mengalihkan ke ruang belajar mandiri...';
+            statusEl.textContent = 'Kwitansi resmi telah disimpan. Mengalihkan ke ruang belajar mandiri Anda...';
             barEl.style.width = '100%';
 
             setTimeout(() => {
-                // Arahkan dengan replace() sehingga tidak bisa kembali ke halaman index utama
-                if (registeredUser.price === 0 || registeredUser.packageId === 'free') {
+                const pkg = registeredUser ? registeredUser.packageId : 'free';
+                if (pkg === 'free') {
                     window.location.replace('/mem-free/');
-                } else if (registeredUser.packageId === '5k') {
+                } else if (pkg === '5k') {
                     window.location.replace('/mem-5k/');
-                } else if (registeredUser.packageId === '10k' || registeredUser.packageId === '15k') {
+                } else if (pkg === '10k' || pkg === '15k') {
                     window.location.replace('/mem-pro/');
                 } else {
-                    window.location.replace('/dashboard/index.html');
+                    window.location.replace('/home');
                 }
-            }, 800);
+            }, 1000);
         }
+
+        // ============================================================
+        // DETEKSI RETURN DARI payment-checkout.html (?status=paid)
+        // ============================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            const statusParam = urlParams.get('status');
+            if (statusParam === 'paid') {
+                const paidPkg = urlParams.get('paket') || '5k';
+                const nameParam = urlParams.get('name') || '';
+                const emailParam = urlParams.get('email') || '';
+                const invoiceParam = urlParams.get('invoice') || ('INV-CA/' + new Date().getFullYear() + '/' + Math.floor(10000 + Math.random() * 90000));
+                const amountParam = parseInt(urlParams.get('amount')) || (paidPkg === '5k' ? 5000 : paidPkg === '10k' ? 10000 : 15000);
+
+                let pkgName = 'Literasi Pemula';
+                if (paidPkg === '10k') pkgName = 'Aksara Madya';
+                else if (paidPkg === '15k') pkgName = 'Bimbingan Reguler & Terbit';
+
+                selectPackage(paidPkg, pkgName, amountParam);
+
+                if (nameParam) document.getElementById('custName').value = nameParam;
+                if (emailParam) document.getElementById('custEmail').value = emailParam;
+
+                registeredUser = {
+                    name: nameParam || 'Siswa Cendekia',
+                    email: emailParam || 'siswa@cendekia.id',
+                    phone: '-',
+                    interest: 'puisi',
+                    packageId: paidPkg,
+                    packageName: pkgName,
+                    price: amountParam,
+                    receiptNo: invoiceParam,
+                    status: 'LUNAS',
+                    paymentMethod: 'QRIS Digital Otomatis',
+                    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+                    createdMs: Date.now()
+                };
+
+                // Simpan ke storage
+                localStorage.setItem('cendekia_user', JSON.stringify(registeredUser));
+                localStorage.setItem('user_status', 'registered');
+                localStorage.setItem('user_package', paidPkg);
+                localStorage.setItem('checkout_payment_status', 'paid');
+
+                // Buka kunci status transaksi
+                unlockTransactionBox('Pembayaran LUNAS Terverifikasi');
+
+                // Tampilkan Popup Sukses
+                showSuccessModal(registeredUser);
+            }
+        });
     </script>
 
 </body>
