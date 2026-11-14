@@ -159,6 +159,21 @@ const CendekiaApp = (function () {
         // Catat Riwayat Aktivitas
         logActivity(reason, 'award', 'xp', points);
 
+        // Sinkronisasi pembaruan XP ke Firestore jika pengguna login
+        try {
+            getFirebaseBridge().then(fb => {
+                if (fb && fb.auth && fb.auth.currentUser) {
+                    const uid = fb.auth.currentUser.uid;
+                    fb.updateDoc(fb.doc(fb.db, "users", uid), {
+                        xp: user.xp,
+                        level: user.level,
+                        levelTitle: user.levelTitle,
+                        lastActive: new Date().toISOString()
+                    }).catch(e => console.warn('[Cendekia Central] Sync XP Firestore tertunda:', e));
+                }
+            });
+        } catch(e) {}
+
         // Tampilkan Notifikasi Toast
         showXPToast(`+${points} XP: ${reason}!`);
 
@@ -745,6 +760,63 @@ const CendekiaApp = (function () {
         return `${hours}j ${mins}m ${secs}d`;
     }
 
+    // Ambil data peringkat pengguna asli (Leaderboard nyata tanpa dummy)
+    async function getLeaderboardUsers() {
+        const currentUser = getUser();
+        const usersList = [];
+
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb && fb.db) {
+                const snap = await fb.getDocs(fb.collection(fb.db, "users"));
+                snap.forEach(d => {
+                    const data = d.data();
+                    const xp = typeof data.xp === 'number' ? data.xp : (parseInt(data.xp) || 0);
+                    // Masukkan hanya user asli yang memiliki nama dan terdaftar di database
+                    if (data.name || data.email || xp > 0) {
+                        usersList.push({
+                            uid: d.id,
+                            name: data.name || 'Siswa Cendekia',
+                            username: data.username || '',
+                            photoURL: data.photoURL || '',
+                            levelTitle: data.levelTitle || 'Penulis Pemula 🌱',
+                            semester: data.semester ? `Semester ${data.semester}` : (data.role === 'siswa' ? 'Siswa' : 'Member Free'),
+                            xp: xp,
+                            isCurrentUser: (fb.auth?.currentUser && d.id === fb.auth.currentUser.uid) || (data.email && data.email === currentUser.email)
+                        });
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn('[Cendekia Central] Gagal membaca koleksi users dari Firestore:', err);
+        }
+
+        // Pastikan pengguna saat ini masuk ke daftar jika belum ada
+        const alreadyInList = usersList.some(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
+        if (!alreadyInList) {
+            usersList.push({
+                uid: currentUser.uid || 'me',
+                name: currentUser.name || 'Siswa Cendekia',
+                username: currentUser.username || '',
+                photoURL: currentUser.photoURL || '',
+                levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
+                semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member Free',
+                xp: currentUser.xp || 0,
+                isCurrentUser: true
+            });
+        }
+
+        // Urutkan berdasarkan XP tertinggi ke terendah
+        usersList.sort((a, b) => b.xp - a.xp);
+
+        // Beri nomor peringkat asli
+        usersList.forEach((u, idx) => {
+            u.rank = idx + 1;
+        });
+
+        return usersList;
+    }
+
     // 12. INIT ENGINE
     function init() {
         getUser();
@@ -780,6 +852,7 @@ const CendekiaApp = (function () {
         generateDailyPoolFromMaterials,
         ensureDailyGame,
         formatTimeRemaining,
+        getLeaderboardUsers,
         init,
         BADGE_CATALOG,
         LEVELS
