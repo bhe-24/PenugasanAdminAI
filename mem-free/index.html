@@ -286,6 +286,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- KOLOM PERINGKATKU (MENGAMBIL DARI SISTEM / LEADERBOARD AKUN NYATA) -->
+                <div id="myRankContainer"></div>
             </section>
 
             <!-- 6. KARYA TERBARU & AKTIVITAS TERAKHIR -->
@@ -343,7 +346,26 @@
     <!-- ENGINE SCRIPTS -->
     <script src="/mem-free/central.js"></script>
     <script>
-        // 1. RENDER TANTANGAN HARI INI & KALENDER KEAKTIFAN REALTIME (OTOMATIS & TANPA DUMMY)
+        // TOGGLE DROPDOWN MISI HARIAN (HEMAT SPACE)
+        window.toggleMissionsDropdown = function() {
+            const body = document.getElementById('missionsDropdownContent');
+            const icon = document.getElementById('missionToggleChevron');
+            const label = document.getElementById('missionToggleLabel');
+            if (!body) return;
+
+            const isClosed = body.style.display === 'none';
+            if (isClosed) {
+                body.style.display = 'block';
+                if (icon) icon.style.transform = 'rotate(180deg)';
+                if (label) label.textContent = 'Tutup';
+            } else {
+                body.style.display = 'none';
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                if (label) label.textContent = 'Daftar Misi';
+            }
+        };
+
+        // 1. RENDER TANTANGAN HARI INI DALAM BENTUK DROPDOWN RINGKAS & REKOMENDASI UTAMA
         async function renderTodayChallenge() {
             const container = document.getElementById('todayChallengeArea');
             if (!container) return;
@@ -388,47 +410,64 @@
                 });
 
                 container.innerHTML = `
-                    <div class="challenge-hero-card">
-                        <!-- HEADER PROGRES MISI HARIAN -->
-                        <div class="challenge-top">
-                            <span class="challenge-badge">
-                                <i data-lucide="target" style="width:12px; height:12px;"></i> Misi Literasi Hari Ini &bull; Reset 00:00 WIB
-                            </span>
-                            <span class="challenge-xp-reward" style="font-size:0.72rem;">
-                                <i data-lucide="sparkles" style="width:13px; height:13px;"></i> Progres: <b>${compCount}/${totalCount} Selesai</b> (${pct}%)
-                            </span>
-                        </div>
-
-                        <!-- PROGRESS BAR -->
-                        <div style="width:100%; height:6px; background:#f1f5f9; border-radius:10px; overflow:hidden; margin:6px 0 14px; border:1px solid #e2e8f0;">
-                            <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #f59e0b, #10b981); transition:width 0.4s ease;"></div>
-                        </div>
-
-                        <!-- KARTU UTAMA -->
-                        ${isAllDone ? `
-                            <div style="text-align:center; padding:12px 10px; background:#f0fdf4; border:1.5px solid #a7f3d0; border-radius:var(--radius-sm); margin-bottom:12px;">
-                                <div style="font-size:1.6rem; margin-bottom:4px;">🏆</div>
-                                <h3 style="font-size:0.96rem; font-weight:800; color:#065f46; margin-bottom:4px;">Semua Misi Hari Ini Tuntas!</h3>
-                                <p style="font-size:0.72rem; color:#047857; line-height:1.45; margin:0 auto; max-width:320px;">
-                                    Hebat! Seluruh tantangan literasi hari ini telah Anda selesaikan. Api keaktifanmu berkobar sempurna!
-                                </p>
+                    <div class="mission-dropdown-wrapper">
+                        <!-- HEADER RINGKAS (SELALU TAMPAK & HEMAT TEMPAT) -->
+                        <div class="mission-compact-header">
+                            <div class="mission-top-bar">
+                                <span class="mission-progress-pill" ${isAllDone ? 'style="background:#dcfce7; color:#15803d;"' : ''}>
+                                    <i data-lucide="${isAllDone ? 'check-circle-2' : 'target'}" style="width:13px; height:13px; color:${isAllDone ? '#15803d' : '#ea580c'};"></i>
+                                    <b>${compCount}/${totalCount} Selesai</b>
+                                </span>
+                                <button type="button" class="mission-toggle-btn" id="missionsToggleBtn" onclick="toggleMissionsDropdown()" title="Buka / Tutup daftar seluruh misi">
+                                    <span id="missionToggleLabel">Daftar Misi</span>
+                                    <i data-lucide="chevron-down" id="missionToggleChevron" style="width:14px; height:14px; transition:transform 0.25s ease;"></i>
+                                </button>
                             </div>
-                        ` : `
-                            <div style="margin-bottom:12px; background:#fff; border:1px solid #fed7aa; border-radius:var(--radius-sm); padding:12px;">
-                                <div style="font-size:0.68rem; font-weight:800; color:#c2410c; text-transform:uppercase; margin-bottom:2px;">
-                                    Tantangan Prioritas Berikutnya:
+
+                            <!-- KARTU REKOMENDASI PRIORITAS DI KOLOM ATAS -->
+                            ${isAllDone ? `
+                                <div style="margin-top:8px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:1.3rem;">🏆</span>
+                                        <div>
+                                            <div style="font-size:0.84rem; font-weight:800; color:#065f46;">Semua Misi Hari Ini Tuntas!</div>
+                                            <div style="font-size:0.68rem; color:#047857;">Hebat! Api keaktifanmu berkobar sempurna hari ini.</div>
+                                        </div>
+                                    </div>
+                                    <span style="font-size:0.68rem; font-weight:800; color:#059669; background:#dcfce7; padding:4px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
+                                        <i data-lucide="check" style="width:12px; height:12px;"></i> Tuntas
+                                    </span>
                                 </div>
-                                <h3 class="challenge-title" style="margin-bottom:4px;">${topPending.title}</h3>
-                                <p class="challenge-desc" style="margin-bottom:10px;">${topPending.desc}</p>
-                                <a href="${topPending.link}" class="btn-primary-challenge" style="padding:8px 14px; font-size:0.75rem;">
-                                    <i data-lucide="${topPending.icon || 'play'}" style="width:14px; height:14px;"></i> ${topPending.actionText} (+${topPending.rewardXp} XP) &rarr;
-                                </a>
-                            </div>
-                        `}
+                            ` : `
+                                <div style="margin-top:8px; background:white; border:1px solid #fed7aa; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                                        <div style="width:34px; height:34px; border-radius:50%; background:#fff7ed; color:#ea580c; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid #ffedd5;">
+                                            <i data-lucide="${topPending.icon || 'play'}" style="width:16px; height:16px;"></i>
+                                        </div>
+                                        <div style="min-width:0;">
+                                            <div style="font-size:0.62rem; font-weight:800; color:#ea580c; text-transform:uppercase; letter-spacing:0.3px;">Rekomendasi Utama:</div>
+                                            <div style="font-size:0.82rem; font-weight:800; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${topPending.title}</div>
+                                            <div style="font-size:0.68rem; color:var(--text-muted); line-height:1.2;">${topPending.desc}</div>
+                                        </div>
+                                    </div>
+                                    <a href="${topPending.link}" class="btn-primary-challenge" style="width:auto; padding:6px 12px; font-size:0.72rem; flex-shrink:0; white-space:nowrap;">
+                                        ${topPending.actionText || 'Kerjakan'} (+${topPending.rewardXp} XP) <i data-lucide="arrow-right" style="width:11px; height:11px;"></i>
+                                    </a>
+                                </div>
+                            `}
 
-                        <!-- DAFTAR MINI CHECKLIST 4 MISI -->
-                        <div class="mission-mini-checklist">
-                            ${checklistHtml}
+                            <!-- PROGRESS BAR TIPIS -->
+                            <div style="width:100%; height:4px; background:#f1f5f9; border-radius:10px; overflow:hidden; margin-top:8px; border:1px solid #e2e8f0;">
+                                <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #f59e0b, #10b981); transition:width 0.4s ease;"></div>
+                            </div>
+                        </div>
+
+                        <!-- DROPDOWN CONTAINER (BISA DIBUKA/TUTUP AGAR TIDAK MAKAN BANYAK SPACE) -->
+                        <div id="missionsDropdownContent" class="mission-dropdown-body" style="display:none;">
+                            <div style="font-size:0.68rem; font-weight:800; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase;">Daftar Seluruh Misi Hari Ini:</div>
+                            <div class="mission-mini-checklist" style="margin-top:0;">
+                                ${checklistHtml}
+                            </div>
                         </div>
                     </div>
 
@@ -586,6 +625,10 @@
                 `;
             });
 
+            const consistencyLabel = stats.isWeekEnded
+                ? `Konsistensi: ${stats.consistency}%`
+                : `Konsistensi: ${stats.consistency}% <span style="font-size:0.62rem; font-weight:600; color:var(--text-muted);">(Sedang Berjalan)</span>`;
+
             container.innerHTML = `
                 <div class="chart-preview-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -593,7 +636,7 @@
                             <span style="font-size:0.75rem; color:var(--text-muted);">Aktivitas Harian Realtime</span>
                             <span style="font-size:0.68rem; color:var(--primary); font-weight:700; display:block;">Total: ${stats.totalActivities} Aktivitas Pekan Ini</span>
                         </div>
-                        <span style="font-size:0.75rem; font-weight:800; color:var(--primary);">Konsistensi: ${stats.consistency}%</span>
+                        <span style="font-size:0.75rem; font-weight:800; color:var(--primary);">${consistencyLabel}</span>
                     </div>
 
                     <div class="chart-bars-row">
@@ -601,11 +644,63 @@
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.65rem; color:var(--text-muted);">
                         <span><i data-lucide="activity" style="width:11px; height:11px; display:inline-block; vertical-align:middle;"></i> Sumber: modul, game, karya, &amp; latihan</span>
-                        <span>${stats.activeDays}/7 Hari Aktif</span>
+                        <span>${stats.activeDays}/7 Hari Aktif &bull; Final dihitung setelah 00:00 WIB</span>
                     </div>
                 </div>
             `;
             if (window.lucide) lucide.createIcons();
+        }
+
+        // 5. RENDER KOLOM PERINGKATKU (MENGAMBIL DARI SISTEM / LEADERBOARD AKUN NYATA)
+        async function renderMyRankCard() {
+            const container = document.getElementById('myRankContainer');
+            if (!container) return;
+
+            try {
+                const usersList = await CendekiaApp.getLeaderboardUsers();
+                const currentUser = CendekiaApp.getUser();
+
+                // Cari akunnya sendiri dalam leaderboard nyata
+                let myData = usersList.find(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
+                if (!myData) {
+                    myData = {
+                        rank: usersList.length > 0 ? usersList.length : 1,
+                        name: currentUser.name || 'Siswa Cendekia',
+                        photoURL: currentUser.photoURL || '',
+                        levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
+                        xp: currentUser.xp || 0
+                    };
+                }
+
+                const defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23003366' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E";
+                const photoSrc = (myData.photoURL && myData.photoURL.trim() !== '') ? myData.photoURL : defaultAvatar;
+
+                container.innerHTML = `
+                    <div class="my-rank-preview-card">
+                        <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                            <div style="width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg, #003366, #0284c7); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 3px 8px rgba(0,51,102,0.25);">
+                                <span style="font-size:0.56rem; text-transform:uppercase; font-weight:700; opacity:0.85; line-height:1;">Peringkat</span>
+                                <span style="font-size:1.05rem; font-weight:900; line-height:1.1;">#${myData.rank}</span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                                <img src="${photoSrc}" alt="${myData.name}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1.5px solid #e2e8f0; background:#f8fafc; flex-shrink:0;" onerror="this.src='${defaultAvatar}'">
+                                <div style="min-width:0;">
+                                    <div style="font-size:0.64rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Peringkatku</div>
+                                    <div style="font-size:0.88rem; font-weight:800; color:var(--primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${myData.name}</div>
+                                    <div style="font-size:0.68rem; color:var(--accent-dark); font-weight:700;">${myData.levelTitle || 'Siswa Cendekia'} &bull; ${myData.xp || 0} XP</div>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="/mem-free/grafik-skorku.html" style="font-size:0.72rem; font-weight:800; color:var(--primary); background:#f8fafc; border:1px solid #e2e8f0; padding:6px 10px; border-radius:20px; text-decoration:none; display:inline-flex; align-items:center; gap:3px; flex-shrink:0; white-space:nowrap;">
+                            Detail Skorku <i data-lucide="chevron-right" style="width:13px; height:13px;"></i>
+                        </a>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+            } catch (e) {
+                console.warn('Gagal memuat kartu peringkatku:', e);
+                container.innerHTML = '';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -614,6 +709,7 @@
             renderRecommendedModules();
             renderHomeBadges();
             renderWeeklyProgress();
+            renderMyRankCard();
 
             // Render Recent Works jika ada di local storage
             const works = CendekiaApp.getWorks();

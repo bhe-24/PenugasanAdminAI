@@ -597,8 +597,14 @@ const CendekiaApp = (function () {
             if (i <= currentDayOfWeek && c > 0) activeDaysCount++;
         });
 
-        const elapsedDays = currentDayOfWeek + 1;
-        const consistencyRate = Math.round((activeDaysCount / elapsedDays) * 100);
+        // Konsistensi pekan berjalan:
+        // Sepekan adalah 7 hari penuh (Senin s.d. Minggu).
+        // Selama pekan masih berjalan (belum melewati Minggu malam / 00:00 WIB pergantian pekan),
+        // konsistensi dihitung terhadap total 7 hari dan berstatus "Sedang Berjalan",
+        // sehingga konsistensi tidak langsung diklaim 100% di awal/tengah pekan.
+        const consistencyRate = Math.round((activeDaysCount / 7) * 100);
+        const isWeekEnded = currentDayOfWeek === 6 && (now.getHours() === 23 && now.getMinutes() >= 59);
+        const statusText = isWeekEnded ? 'Pekan Selesai' : 'Sedang Berjalan';
 
         const resultDays = days.map((label, idx) => {
             const count = dayCounts[idx];
@@ -624,6 +630,8 @@ const CendekiaApp = (function () {
             totalActivities,
             activeDays: activeDaysCount,
             consistency: consistencyRate,
+            isWeekEnded: isWeekEnded,
+            statusText: statusText,
             currentDayIdx: currentDayOfWeek,
             isTodayActive: dayCounts[currentDayOfWeek] > 0
         };
@@ -669,6 +677,10 @@ const CendekiaApp = (function () {
             ? `<span style="font-size:0.7rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="flame" style="width:14px; height:14px; color:#f59e0b;"></i> Api Keaktifan Menyala!</span>`
             : `<span style="font-size:0.7rem; font-weight:700; color:#b45309; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="sparkles" style="width:14px; height:14px; color:#d97706;"></i> Siap Beraktivitas Hari Ini</span>`;
 
+        const consistencyLabel = stats.isWeekEnded
+            ? `Konsistensi: <b>${stats.consistency}%</b>`
+            : `Konsistensi: <b>${stats.consistency}%</b> <span style="font-size:0.6rem; color:var(--text-muted); font-weight:normal;">(Sedang Berjalan &bull; Final 00:00 WIB)</span>`;
+
         el.innerHTML = `
             <div class="cal-widget-inner">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -682,7 +694,7 @@ const CendekiaApp = (function () {
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:var(--text-muted); margin-top:8px;">
                     <span>${stats.activeDays}/7 Hari Aktif Pekan Ini</span>
-                    <span>Konsistensi: <b>${stats.consistency}%</b></span>
+                    <span>${consistencyLabel}</span>
                 </div>
             </div>
         `;
@@ -2068,6 +2080,11 @@ const CendekiaApp = (function () {
         LEVELS
     };
 })();
+
+// Pastikan tersedia di objek window
+if (typeof window !== 'undefined') {
+    window.CendekiaApp = CendekiaApp;
+}
 
 // Jalankan otomatis saat DOM siap
 document.addEventListener('DOMContentLoaded', () => {
