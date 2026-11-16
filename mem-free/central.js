@@ -243,9 +243,9 @@ const CendekiaApp = (function () {
         } catch (e) {}
     }
 
-    // 2. STREAK ENGINE
+    // 2. STREAK ENGINE (BERBASIS TANGGAL REALTIME WIB)
     function checkStreak(user) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayDateKeyWIB ? getTodayDateKeyWIB() : new Date().toISOString().split('T')[0];
         if (!user.lastActiveDate) {
             user.lastActiveDate = today;
             user.streak = 1;
@@ -261,7 +261,7 @@ const CendekiaApp = (function () {
             if (diffDays === 1) {
                 user.streak += 1;
             } else if (diffDays > 1) {
-                // Dorongan positif, tidak menghukum habis: minimal 1
+                // Pertahankan api keaktifan, reset ke 1
                 user.streak = 1;
             }
             user.lastActiveDate = today;
@@ -344,12 +344,18 @@ const CendekiaApp = (function () {
 
     // PENCATATAN AKTIVITAS BACAAN & GAME KHUSUS
     function recordMaterialRead(category, title) {
+        const todayKey = getTodayDateKeyWIB();
+        try {
+            localStorage.setItem('cendekia_read_today_' + todayKey, JSON.stringify({ category, title, timestamp: Date.now() }));
+        } catch(e) {}
+
         const user = getUser();
         if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
         user.stats.materialsLearned = (user.stats.materialsLearned || 0) + 1;
         saveUser(user);
         // Sesuai aturan: Modul materi dapat dibaca berulang kali secara penuh tanpa XP
         logActivity('Membaca Modul: ' + (title || category), 'book-open', 'read');
+        completeChallenge('tc_read');
         checkAndAwardBadges(user);
     }
 
@@ -487,7 +493,7 @@ const CendekiaApp = (function () {
         const works = getWorks();
         const ideas = getIdeas();
 
-        const now = new Date();
+        const now = getWIBDate ? getWIBDate() : new Date();
         const currentDayOfWeek = (now.getDay() + 6) % 7; // 0 = Senin, ..., 6 = Minggu
         
         const monday = new Date(now);
@@ -560,8 +566,21 @@ const CendekiaApp = (function () {
             });
         }
 
-        // 4. Aktivitas dari tantangan harian
+        // 4. Aktivitas dari game latihan, modul bacaan, & tantangan harian
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki'];
         dayDates.forEach((dateStr, idx) => {
+            gameKeys.forEach(gk => {
+                try {
+                    if (localStorage.getItem(`cendekia_game_result_${gk}_${dateStr}`)) {
+                        dayCounts[idx]++;
+                    }
+                } catch(e) {}
+            });
+            try {
+                if (localStorage.getItem('cendekia_read_today_' + dateStr)) {
+                    dayCounts[idx]++;
+                }
+            } catch(e) {}
             try {
                 const compl = localStorage.getItem('cendekia_completed_challenges_' + dateStr);
                 if (compl) {
@@ -587,7 +606,7 @@ const CendekiaApp = (function () {
             const isFuture = idx > currentDayOfWeek;
             let heightPercent = 0;
             if (count > 0) {
-                heightPercent = Math.min(100, Math.max(20, Math.round((count / maxDayCount) * 100)));
+                heightPercent = Math.min(100, Math.max(25, Math.round((count / maxDayCount) * 100)));
             }
             return {
                 label,
@@ -595,7 +614,8 @@ const CendekiaApp = (function () {
                 count,
                 heightPercent,
                 isToday,
-                isFuture
+                isFuture,
+                hasActivity: count > 0
             };
         });
 
@@ -604,70 +624,181 @@ const CendekiaApp = (function () {
             totalActivities,
             activeDays: activeDaysCount,
             consistency: consistencyRate,
-            currentDayIdx: currentDayOfWeek
+            currentDayIdx: currentDayOfWeek,
+            isTodayActive: dayCounts[currentDayOfWeek] > 0
         };
     }
 
-    // 5. TANTANGAN HARIAN SISTEM (BERBASIS POOL HARIAN ASLI TANPA DUMMY)
-    function getDailyChallenges() {
-        const today = new Date().toISOString().split('T')[0];
-        let savedPool = null;
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
-            if (raw) savedPool = JSON.parse(raw);
-        } catch (e) {}
+    // WIDGET KALENDER KEAKTIFAN PEKAN INI (REALTIME)
+    function renderWeeklyCalendarWidget(containerOrId) {
+        const el = typeof containerOrId === 'string' ? document.getElementById(containerOrId) : containerOrId;
+        if (!el) return;
 
-        // Jika belum ada pool latihan harian yang digenerate dari admin/bahan ajar
-        if (!savedPool || !savedPool.games || Object.keys(savedPool.games).length === 0) {
-            return [];
-        }
+        const stats = getWeeklyActivityStats();
 
-        const gameCatalog = {
-            'kuis-pintar': { title: 'Tantangan Kuis Pintar Literasi', desc: 'Jawab 5 pertanyaan literasi pilihan ganda berbasis bahan ajar hari ini.', badge: 'Misi Kuis', xp: 25, link: '/mem-free/permainan/kuis-pintar.html' },
-            'tebak-kata': { title: 'Tantangan Tebak Kata Cendekia', desc: 'Pecahkan teka-teki kata dengan petunjuk materi literasi.', badge: 'Misi Kata', xp: 20, link: '/mem-free/permainan/tebak-kata.html' },
-            'susun-kata': { title: 'Tantangan Susun Kata Bermakna', desc: 'Rangkai huruf acak menjadi istilah baku bahasa Indonesia.', badge: 'Misi Aksara', xp: 20, link: '/mem-free/permainan/susun-kata.html' },
-            'teka-teki': { title: 'Tantangan Teka-Teki Aksara', desc: 'Selesaikan teka-teki silang aksara bertema bahan ajar.', badge: 'Misi Teka-Teki', xp: 25, link: '/mem-free/permainan/teka-teki.html' },
-            'tebak-sastra': { title: 'Tantangan Tebak Sastra & Majas', desc: 'Uji wawasan sastramu tentang gaya bahasa dan kutipan penting.', badge: 'Misi Sastra', xp: 25, link: '/mem-free/permainan/tebak-sastra.html' },
-            'sambung-cerita': { title: 'Tantangan Sambung Cerita Kreatif', desc: 'Lanjutkan narasi pembuka bahan ajar dengan imajinasimu.', badge: 'Misi Cerita', xp: 30, link: '/mem-free/permainan/sambung-cerita.html' },
-            'perbaiki-kalimat': { title: 'Tantangan Perbaiki Kalimat & EYD', desc: 'Koreksi kalimat tidak baku menjadi susunan kata yang sempurna.', badge: 'Misi Bahasa', xp: 25, link: '/mem-free/permainan/perbaiki-kalimat.html' },
-            'tantangan-cepat': { title: 'Tantangan Cepat Refleks Kata', desc: 'Jawab kuis kilat sebelum waktu habis.', badge: 'Misi Cepat', xp: 35, link: '/mem-free/permainan/tantangan-cepat.html' }
-        };
+        let cellsHtml = '';
+        stats.days.forEach(d => {
+            let cellClass = 'cal-day-cell';
+            let iconText = '-';
 
-        const list = [];
-        let completedMap = {};
-        try {
-            completedMap = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + today) || '{}');
-        } catch (e) {}
+            if (d.isToday) {
+                if (d.hasActivity) {
+                    cellClass += ' active-streak today-burning';
+                    iconText = '🔥';
+                } else {
+                    cellClass += ' today-waiting';
+                    iconText = 'Hari Ini';
+                }
+            } else if (d.hasActivity) {
+                cellClass += ' active-streak';
+                iconText = '✓';
+            } else if (d.isFuture) {
+                cellClass += ' future-day';
+                iconText = '-';
+            }
 
-        Object.keys(savedPool.games).forEach(gameKey => {
-            const meta = gameCatalog[gameKey] || { title: `Tantangan ${gameKey}`, desc: 'Selesaikan latihan hari ini.', badge: 'Misi Harian', xp: 25, link: `/mem-free/permainan/${gameKey}.html` };
-            list.push({
-                id: 'ch_' + gameKey,
-                badge: meta.badge,
-                title: meta.title,
-                desc: meta.desc,
-                rewardXp: meta.xp,
-                link: meta.link,
-                completed: !!completedMap['ch_' + gameKey]
-            });
+            cellsHtml += `
+                <div class="${cellClass}" title="${d.label} (${d.dateStr}): ${d.count} Aktivitas">
+                    <span style="font-size:0.62rem; display:block; opacity:0.85; margin-bottom:2px;">${d.label}</span>
+                    <span style="font-size:0.75rem; font-weight:800;">${iconText}</span>
+                </div>
+            `;
         });
 
-        return list;
+        const statusBanner = stats.isTodayActive
+            ? `<span style="font-size:0.7rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="flame" style="width:14px; height:14px; color:#f59e0b;"></i> Api Keaktifan Menyala!</span>`
+            : `<span style="font-size:0.7rem; font-weight:700; color:#b45309; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="sparkles" style="width:14px; height:14px; color:#d97706;"></i> Siap Beraktivitas Hari Ini</span>`;
+
+        el.innerHTML = `
+            <div class="cal-widget-inner">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <strong style="font-size:0.82rem; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="calendar" style="width:15px; height:15px; color:var(--accent-dark);"></i> Kalender Keaktifan Pekan Ini
+                    </strong>
+                    ${statusBanner}
+                </div>
+                <div class="cal-week-row">
+                    ${cellsHtml}
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:var(--text-muted); margin-top:8px;">
+                    <span>${stats.activeDays}/7 Hari Aktif Pekan Ini</span>
+                    <span>Konsistensi: <b>${stats.consistency}%</b></span>
+                </div>
+            </div>
+        `;
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // 5. TANTANGAN HARIAN SISTEM REALTIME (TERHUBUNG KE AKTIVITAS NYATA)
+    function getDailyChallenges() {
+        const todayKey = getTodayDateKeyWIB ? getTodayDateKeyWIB() : new Date().toISOString().split('T')[0];
+        const history = getHistory();
+        const works = getWorks();
+
+        let completedMap = {};
+        try {
+            completedMap = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + todayKey) || '{}');
+        } catch(e) {}
+
+        // 1. Cek Kuis Pintar
+        const kuisRes = getGameResult('kuis_pintar');
+        const isQuizDone = !!kuisRes || !!completedMap['tc_quiz'] || !!completedMap['tc_2'];
+
+        // 2. Cek Baca Modul
+        let isReadDone = !!completedMap['tc_read'] || !!completedMap['tc_1'];
+        if (!isReadDone) {
+            try {
+                if (localStorage.getItem('cendekia_read_today_' + todayKey)) {
+                    isReadDone = true;
+                } else {
+                    isReadDone = history.some(h => (h.isoDate === todayKey || (h.timestamp && new Date(h.timestamp).toISOString().split('T')[0] === todayKey)) && (h.type === 'read' || (h.title && h.title.toLowerCase().includes('membaca'))));
+                }
+            } catch(e) {}
+        }
+
+        // 3. Cek Game Kata (Tebak/Susun/Teka-Teki)
+        const tebakRes = getGameResult('tebak_kata');
+        const susunRes = getGameResult('susun_kata');
+        const tekaRes = getGameResult('teka_teki');
+        const isGameDone = !!(tebakRes || susunRes || tekaRes) || !!completedMap['tc_game'] || !!completedMap['tc_3'];
+
+        // 4. Cek Naskah Tulisan
+        let isWriteDone = !!completedMap['tc_write'] || !!completedMap['tc_4'];
+        if (!isWriteDone) {
+            try {
+                isWriteDone = works.some(w => {
+                    const ds = w.updatedAt || w.createdAt;
+                    return ds && ds.startsWith(todayKey);
+                });
+            } catch(e) {}
+        }
+
+        return [
+            {
+                id: 'tc_quiz',
+                badge: 'Kuis Harian',
+                icon: 'brain',
+                title: 'Kuis Pintar Kaidah EYD V',
+                desc: 'Selesaikan 15 butir soal pilihan ganda literasi & kata baku.',
+                rewardXp: 25,
+                link: '/mem-free/permainan/kuis-pintar.html',
+                actionText: 'Mulai Kuis',
+                completed: isQuizDone,
+                progressText: isQuizDone ? (kuisRes ? `Skor: ${kuisRes.score}/100 ✓` : 'Selesai ✓') : '15 Soal Menanti'
+            },
+            {
+                id: 'tc_read',
+                badge: 'Literasi Modul',
+                icon: 'book-open',
+                title: 'Jelajahi 1 Modul Pembelajaran',
+                desc: 'Baca tuntas materi Pengetahuan Umum atau Pengetahuan Inti.',
+                rewardXp: 15,
+                link: '/mem-free/belajar.html',
+                actionText: 'Baca Modul',
+                completed: isReadDone,
+                progressText: isReadDone ? 'Selesai Dibaca ✓' : 'Belum Dibaca'
+            },
+            {
+                id: 'tc_game',
+                badge: 'Arena Kata',
+                icon: 'gamepad-2',
+                title: 'Asah Kosakata di Arena Permainan',
+                desc: 'Pecahkan minimal 1 sesi Tebak Kata, Susun Kata, atau Teka-Teki.',
+                rewardXp: 20,
+                link: '/mem-free/bermain.html',
+                actionText: 'Mainkan Game',
+                completed: isGameDone,
+                progressText: isGameDone ? 'Game Ditaklukkan ✓' : 'Belum Dimainkan'
+            },
+            {
+                id: 'tc_write',
+                badge: 'Ruang Menulis',
+                icon: 'pen-tool',
+                title: 'Goreskan Draf Tulisan Baru',
+                desc: 'Tulis ide puisi, cerpen, atau catatan gagasan di Ruang Menulis.',
+                rewardXp: 20,
+                link: '/mem-free/berkarya/ruang-menulis.html',
+                actionText: 'Mulai Menulis',
+                completed: isWriteDone,
+                progressText: isWriteDone ? 'Karya Tersimpan ✓' : 'Belum Menulis'
+            }
+        ];
     }
 
     function completeChallenge(id) {
-        const today = new Date().toISOString().split('T')[0];
+        const todayKey = getTodayDateKeyWIB ? getTodayDateKeyWIB() : new Date().toISOString().split('T')[0];
         try {
-            const raw = localStorage.getItem(STORAGE_KEY_CHALLENGES);
-            if (raw) {
-                const data = JSON.parse(raw);
-                const item = data.list.find(c => c.id === id);
-                if (item && !item.completed) {
-                    item.completed = true;
-                    localStorage.setItem(STORAGE_KEY_CHALLENGES, JSON.stringify(data));
-                    addXP(item.rewardXp, `Tantangan Harian Selesai (${item.title})`);
-                    return true;
-                }
+            let completedMap = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + todayKey) || '{}');
+            if (!completedMap[id]) {
+                completedMap[id] = { completedAt: new Date().toISOString() };
+                localStorage.setItem('cendekia_completed_challenges_' + todayKey, JSON.stringify(completedMap));
+                
+                const list = getDailyChallenges();
+                const ch = list.find(c => c.id === id || (id === 'tc_2' && c.id === 'tc_quiz') || (id === 'tc_3' && c.id === 'tc_game') || (id === 'tc_1' && c.id === 'tc_read') || (id === 'tc_4' && c.id === 'tc_write'));
+                const xpBonus = ch ? ch.rewardXp : 20;
+                addXP(xpBonus, `Tantangan Selesai (${ch ? ch.title : id})`);
+                return true;
             }
         } catch (e) {}
         return false;
@@ -1891,6 +2022,7 @@ const CendekiaApp = (function () {
         logActivity,
         getHistory,
         getWeeklyActivityStats,
+        renderWeeklyCalendarWidget,
         getDailyChallenges,
         completeChallenge,
         getWorks,

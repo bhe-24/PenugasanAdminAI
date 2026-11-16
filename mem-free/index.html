@@ -343,87 +343,106 @@
     <!-- ENGINE SCRIPTS -->
     <script src="/mem-free/central.js"></script>
     <script>
-        // 1. RENDER TANTANGAN HARI INI DARI POOL HARIAN ASLI (TANPA DUMMY)
+        // 1. RENDER TANTANGAN HARI INI & KALENDER KEAKTIFAN REALTIME (OTOMATIS & TANPA DUMMY)
         async function renderTodayChallenge() {
             const container = document.getElementById('todayChallengeArea');
             if (!container) return;
 
             try {
-                const pool = await CendekiaApp.getDailyPool();
-                const hasActivePool = pool && pool.games && Object.keys(pool.games).length > 0;
+                const challenges = CendekiaApp.getDailyChallenges();
+                const completedList = challenges.filter(c => c.completed);
+                const pendingList = challenges.filter(c => !c.completed);
+                const compCount = completedList.length;
+                const totalCount = challenges.length;
+                const pct = Math.round((compCount / totalCount) * 100);
 
-                if (!hasActivePool) {
-                    container.innerHTML = `
-                        <div class="challenge-hero-card" style="background:white; border:1.5px dashed #cbd5e1; color:var(--text-main); text-align:center; padding:24px 16px;">
-                            <div style="width:48px; height:48px; border-radius:50%; background:#f8fafc; color:var(--text-muted); display:flex; align-items:center; justify-content:center; margin:0 auto 10px; border:1px solid #e2e8f0;">
-                                <i data-lucide="target" style="width:24px; height:24px;"></i>
+                const isAllDone = compCount === totalCount;
+                const topPending = pendingList[0] || challenges[0];
+
+                let checklistHtml = '';
+                challenges.forEach(ch => {
+                    const statusTag = ch.completed
+                        ? `<span style="font-size:0.68rem; font-weight:800; color:#059669; background:#dcfce7; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
+                               <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> Selesai (+${ch.rewardXp} XP)
+                           </span>`
+                        : `<a href="${ch.link}" style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:3px 10px; border-radius:12px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">
+                               ${ch.actionText || 'Kerjakan'} <i data-lucide="arrow-right" style="width:10px; height:10px;"></i>
+                           </a>`;
+
+                    checklistHtml += `
+                        <div class="mission-mini-item ${ch.completed ? 'completed' : ''}">
+                            <div class="mini-left">
+                                <div class="mini-icon-circle">
+                                    <i data-lucide="${ch.icon || 'target'}" style="width:16px; height:16px;"></i>
+                                </div>
+                                <div>
+                                    <div class="mission-mini-title">${ch.title}</div>
+                                    <div class="mission-mini-sub">${ch.progressText || ch.desc}</div>
+                                </div>
                             </div>
-                            <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Belum Ada Tantangan Hari Ini</h3>
-                            <p style="font-size:0.74rem; color:var(--text-muted); line-height:1.45; margin:0 auto 14px; max-width:320px;">
-                                Tantangan literasi harian belum tersedia saat ini. Silakan kunjungi ruang modul atau coba lagi nanti.
-                            </p>
-                            <a href="/mem-free/belajar.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
-                                <i data-lucide="book-open" style="width:14px; height:14px;"></i> Buka Modul Belajar
-                            </a>
+                            <div style="flex-shrink:0;">
+                                ${statusTag}
+                            </div>
                         </div>
                     `;
-                    if (window.lucide) lucide.createIcons();
-                    return;
-                }
-
-                const gameCatalog = {
-                    'kuis-pintar': { title: 'Tantangan Kuis Pintar Literasi', desc: 'Jawab 5 pertanyaan literasi pilihan ganda berbasis bahan ajar hari ini.', icon: 'brain', link: '/mem-free/permainan/kuis-pintar.html', xp: 25 },
-                    'tebak-kata': { title: 'Tantangan Tebak Kata Cendekia', desc: 'Pecahkan teka-teki kata dengan petunjuk materi literasi.', icon: 'text-search', link: '/mem-free/permainan/tebak-kata.html', xp: 20 },
-                    'susun-kata': { title: 'Tantangan Susun Kata Bermakna', desc: 'Rangkai huruf acak menjadi istilah baku bahasa Indonesia.', icon: 'combine', link: '/mem-free/permainan/susun-kata.html', xp: 20 },
-                    'teka-teki': { title: 'Tantangan Teka-Teki Aksara', desc: 'Selesaikan teka-teki silang aksara bertema bahan ajar.', icon: 'puzzle', link: '/mem-free/permainan/teka-teki.html', xp: 25 },
-                    'tebak-sastra': { title: 'Tantangan Tebak Sastra & Majas', desc: 'Uji wawasan sastramu tentang gaya bahasa dan kutipan penting.', icon: 'book-open', link: '/mem-free/permainan/tebak-sastra.html', xp: 25 },
-                    'sambung-cerita': { title: 'Tantangan Sambung Cerita Kreatif', desc: 'Lanjutkan narasi pembuka bahan ajar dengan imajinasimu.', icon: 'book-text', link: '/mem-free/permainan/sambung-cerita.html', xp: 30 },
-                    'perbaiki-kalimat': { title: 'Tantangan Perbaiki Kalimat & EYD', desc: 'Koreksi kalimat tidak baku menjadi susunan kata yang sempurna.', icon: 'spell-check', link: '/mem-free/permainan/perbaiki-kalimat.html', xp: 25 },
-                    'tantangan-cepat': { title: 'Tantangan Cepat Refleks Kata', desc: 'Jawab kuis kilat sebelum waktu habis.', icon: 'timer', link: '/mem-free/permainan/tantangan-cepat.html', xp: 35 }
-                };
-
-                const gameKeys = Object.keys(pool.games);
-                const dayIdx = new Date().getDay(); // 0-6
-                const chosenKey = gameKeys[dayIdx % gameKeys.length] || gameKeys[0];
-                const targetGame = gameCatalog[chosenKey] || {
-                    title: `Tantangan ${chosenKey}`,
-                    desc: 'Selesaikan latihan terkurasi sistem hari ini dan raih XP tambahan.',
-                    icon: 'play',
-                    link: `/mem-free/permainan/${chosenKey}.html`,
-                    xp: 25
-                };
+                });
 
                 container.innerHTML = `
                     <div class="challenge-hero-card">
+                        <!-- HEADER PROGRES MISI HARIAN -->
                         <div class="challenge-top">
                             <span class="challenge-badge">
-                                <i data-lucide="clock" style="width:12px; height:12px;"></i> Misi Harian 24 Jam
+                                <i data-lucide="target" style="width:12px; height:12px;"></i> Misi Literasi Hari Ini &bull; Reset 00:00 WIB
                             </span>
-                            <span class="challenge-xp-reward">
-                                <i data-lucide="award" style="width:14px; height:14px;"></i> +${targetGame.xp} XP
+                            <span class="challenge-xp-reward" style="font-size:0.72rem;">
+                                <i data-lucide="sparkles" style="width:13px; height:13px;"></i> Progres: <b>${compCount}/${totalCount} Selesai</b> (${pct}%)
                             </span>
                         </div>
-                        <h3 class="challenge-title">${targetGame.title}</h3>
-                        <p class="challenge-desc">${targetGame.desc}</p>
-                        <a href="${targetGame.link}" class="btn-primary-challenge">
-                            <i data-lucide="play" style="width:15px; height:15px;"></i> Kerjakan Sekarang
-                        </a>
+
+                        <!-- PROGRESS BAR -->
+                        <div style="width:100%; height:6px; background:#f1f5f9; border-radius:10px; overflow:hidden; margin:6px 0 14px; border:1px solid #e2e8f0;">
+                            <div style="width:${pct}%; height:100%; background:linear-gradient(90deg, #f59e0b, #10b981); transition:width 0.4s ease;"></div>
+                        </div>
+
+                        <!-- KARTU UTAMA -->
+                        ${isAllDone ? `
+                            <div style="text-align:center; padding:12px 10px; background:#f0fdf4; border:1.5px solid #a7f3d0; border-radius:var(--radius-sm); margin-bottom:12px;">
+                                <div style="font-size:1.6rem; margin-bottom:4px;">🏆</div>
+                                <h3 style="font-size:0.96rem; font-weight:800; color:#065f46; margin-bottom:4px;">Semua Misi Hari Ini Tuntas!</h3>
+                                <p style="font-size:0.72rem; color:#047857; line-height:1.45; margin:0 auto; max-width:320px;">
+                                    Hebat! Seluruh tantangan literasi hari ini telah Anda selesaikan. Api keaktifanmu berkobar sempurna!
+                                </p>
+                            </div>
+                        ` : `
+                            <div style="margin-bottom:12px; background:#fff; border:1px solid #fed7aa; border-radius:var(--radius-sm); padding:12px;">
+                                <div style="font-size:0.68rem; font-weight:800; color:#c2410c; text-transform:uppercase; margin-bottom:2px;">
+                                    Tantangan Prioritas Berikutnya:
+                                </div>
+                                <h3 class="challenge-title" style="margin-bottom:4px;">${topPending.title}</h3>
+                                <p class="challenge-desc" style="margin-bottom:10px;">${topPending.desc}</p>
+                                <a href="${topPending.link}" class="btn-primary-challenge" style="padding:8px 14px; font-size:0.75rem;">
+                                    <i data-lucide="${topPending.icon || 'play'}" style="width:14px; height:14px;"></i> ${topPending.actionText} (+${topPending.rewardXp} XP) &rarr;
+                                </a>
+                            </div>
+                        `}
+
+                        <!-- DAFTAR MINI CHECKLIST 4 MISI -->
+                        <div class="mission-mini-checklist">
+                            ${checklistHtml}
+                        </div>
                     </div>
+
+                    <!-- KALENDER KEAKTIFAN PEKAN INI REALTIME -->
+                    <div class="cal-widget-card" id="homeWeeklyCalendarArea"></div>
                 `;
+
                 if (window.lucide) lucide.createIcons();
+
+                // Render Kalender Keaktifan Realtime
+                CendekiaApp.renderWeeklyCalendarWidget('homeWeeklyCalendarArea');
 
             } catch (err) {
                 console.warn('Gagal memuat tantangan harian:', err);
-                container.innerHTML = `
-                    <div class="challenge-hero-card" style="background:white; border:1.5px dashed #cbd5e1; color:var(--text-main); text-align:center; padding:24px 16px;">
-                        <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Belum Ada Tantangan Hari Ini</h3>
-                        <p style="font-size:0.74rem; color:var(--text-muted); margin-bottom:12px;">Tantangan literasi harian belum tersedia saat ini.</p>
-                        <a href="/mem-free/belajar.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
-                            <i data-lucide="book-open" style="width:14px; height:14px;"></i> Buka Modul Belajar
-                        </a>
-                    </div>
-                `;
-                if (window.lucide) lucide.createIcons();
             }
         }
 
