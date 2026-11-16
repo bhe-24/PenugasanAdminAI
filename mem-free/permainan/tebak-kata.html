@@ -11,6 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDFMAKE CDN UNTUK DOWNLOAD LEMBAR EVALUASI PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
@@ -126,11 +129,23 @@
         let wrongTries = 0;
         const maxWrong = 5;
 
+        let playedRecords = [];
+
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
             const emptyState = document.getElementById('gameEmptyState');
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
+
+            // Cek apakah game hari ini sudah selesai
+            const completed = CendekiaApp.getGameResult('tebak_kata');
+            if (completed) {
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'none';
+                gameContainer.style.display = 'block';
+                showCompletedScreen(completed);
+                return;
+            }
 
             await CendekiaApp.ensureDailyGame('tebak_kata', {
                 onLoading: (msg) => {
@@ -156,9 +171,7 @@
                         clue: w.clue || ''
                     }));
 
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('tebakSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
-
+                    document.getElementById('tebakSubMeta').textContent = `Latihan Kata • Reset Jam 00:00 WIB`;
                     initGame();
                 }
             });
@@ -247,26 +260,44 @@
             document.getElementById('gameScore').textContent = score;
             CendekiaApp.addXP(20, 'Menang Tebak Kata');
 
+            const cur = words[currentWordIdx];
+            playedRecords.push({
+                q: `Tebak Kata: ${cur.clue}`,
+                isCorrect: true,
+                selectedText: cur.word,
+                correctText: cur.word,
+                exp: `Makna kata: "${cur.clue}". Kosakata baku KBBI: ${cur.word}.`
+            });
+
             const fb = document.getElementById('gameFeedback');
             fb.style.display = 'block';
             fb.style.background = '#ecfdf5';
             fb.style.color = '#065f46';
             fb.style.border = '1px solid #a7f3d0';
             fb.innerHTML = `
-                <strong>Tepat Sekali! 🎉</strong> Kamu berhasil menebak kata <b>${words[currentWordIdx].word}</b>.<br><br>
+                <strong>Tepat Sekali! 🎉</strong> Kamu berhasil menebak kata <b>${cur.word}</b>.<br><br>
                 <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextWord()">Kata Berikutnya &rarr;</button>
             `;
             disableAllKeys();
         }
 
         function handleLoss() {
+            const cur = words[currentWordIdx];
+            playedRecords.push({
+                q: `Tebak Kata: ${cur.clue}`,
+                isCorrect: false,
+                selectedText: '(Gagal menebak)',
+                correctText: cur.word,
+                exp: `Makna kata: "${cur.clue}". Bentuk kosakata baku KBBI yang benar adalah ${cur.word}.`
+            });
+
             const fb = document.getElementById('gameFeedback');
             fb.style.display = 'block';
             fb.style.background = '#fef2f2';
             fb.style.color = '#991b1b';
             fb.style.border = '1px solid #fecaca';
             fb.innerHTML = `
-                <strong>Kesempatan Habis! 😢</strong> Kata yang benar adalah <b>${words[currentWordIdx].word}</b>.<br><br>
+                <strong>Kesempatan Habis! 😢</strong> Kata yang benar adalah <b>${cur.word}</b>.<br><br>
                 <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextWord()">Lanjut ke Kata Berikutnya &rarr;</button>
             `;
             disableAllKeys();
@@ -276,22 +307,79 @@
             document.querySelectorAll('.key-btn').forEach(b => b.disabled = true);
         }
 
-        function nextWord() {
+        async function nextWord() {
             currentWordIdx++;
             if (currentWordIdx < words.length) {
                 initGame();
             } else {
-                const fb = document.getElementById('gameFeedback');
-                fb.style.display = 'block';
-                fb.style.background = '#f0fdf4';
-                fb.style.color = '#166534';
-                fb.style.border = '1px solid #bbf7d0';
-                fb.innerHTML = `
-                    <strong>Selamat! Seluruh Kata Telah Selesai! 🏆</strong><br>
-                    Total Skor: <b>${score}</b>. Latihan harian ini telah tercatat di profilmu.
-                `;
+                // Selesai seluruh ronde
+                const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / words.length) * 100));
+                const resultData = {
+                    score: finalScore,
+                    correctCount: playedRecords.filter(r => r.isCorrect).length,
+                    totalCount: words.length,
+                    xpEarned: score,
+                    questions: playedRecords
+                };
+
+                await CendekiaApp.saveGameResult('tebak_kata', resultData);
                 CendekiaApp.completeChallenge('tc_3');
+                showCompletedScreen(resultData);
             }
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('gameContainer');
+            container.innerHTML = `
+                <div style="text-align:center; padding:20px 10px;">
+                    <div style="width:68px; height:68px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.6rem; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                        <i data-lucide="award" style="width:36px; height:36px;"></i>
+                    </div>
+                    <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Tebak Kata Selesai!</h2>
+                    <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
+                        <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini
+                    </div>
+
+                    <div style="background:#f8fafc; border-radius:12px; padding:16px; margin-bottom:16px; border:1px solid #e2e8f0;">
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">${data.score || 0} / 100</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                            Berhasil menebak <b>${data.correctCount || 0}</b> dari <b>${data.totalCount || 5}</b> kata
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:14px;" onclick="downloadTebakKataPDF()">
+                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                    </button>
+
+                    <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+                        Tebak Kata berikutnya akan dibuka kembali pada <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                    </div>
+                </div>
+            `;
+
+            if (window.lucide) lucide.createIcons();
+            startCountdownTimer();
+        }
+
+        window.downloadTebakKataPDF = () => {
+            const res = CendekiaApp.getGameResult('tebak_kata');
+            if (res) {
+                const user = CendekiaApp.getUser();
+                CendekiaApp.downloadEvaluationPDF({
+                    ...res,
+                    title: 'Laporan Evaluasi Pembelajaran - Tebak Kata Literasi'
+                }, user);
+            }
+        };
+
+        function startCountdownTimer() {
+            const update = () => {
+                const text = CendekiaApp.formatCountdownToMidnightWIB();
+                const els = document.querySelectorAll('.resetCountdownText');
+                els.forEach(e => e.textContent = text);
+            };
+            update();
+            setInterval(update, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {

@@ -78,8 +78,8 @@
                 </div>
                 <h2 style="font-size:1.05rem; font-weight:800; margin-bottom:4px;">Bermain Sambil Mengasah Diksi</h2>
                 <p style="font-size:0.72rem; color:#ede9fe; line-height:1.4;">Tingkatkan kelincahan berbahasa, wawasan sastrawan, dan kosakata baku lewat permainan interaktif.</p>
-                <div id="poolSyncPill" style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.18); padding:3px 10px; border-radius:var(--radius-full); font-size:0.65rem; font-weight:700; color:white; margin-top:8px;">
-                    <i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> Soal Bersama Berlaku 24 Jam
+                <div id="poolSyncPill" style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.18); padding:4px 12px; border-radius:var(--radius-full); font-size:0.68rem; font-weight:700; color:white; margin-top:8px;">
+                    <i data-lucide="clock" style="width:12px; height:12px;"></i> Siklus Harian &bull; Reset Jam 00:00 WIB (<span id="bannerCountdownWib">--:--:--</span>)
                 </div>
             </div>
 
@@ -111,40 +111,44 @@
                 </div>
 
                 <div class="feature-grid">
-                    <!-- 1. Kuis Pintar -->
-                    <a href="/mem-free/permainan/kuis-pintar.html" class="feature-card">
+                    <!-- 1. Kuis Pintar (15 Soal Vertikal) -->
+                    <a href="/mem-free/permainan/kuis-pintar.html" class="feature-card" id="card_kuis_pintar">
                         <div class="feature-icon-box" style="background:#ede9fe; color:#7c3aed;">
                             <i data-lucide="brain" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Kuis Pintar</div>
-                        <div class="feature-desc">Asah wawasan literasi, sejarah bahasa, dan kaidah baku.</div>
+                        <div class="feature-desc">15 soal pilihan ganda kaidah EYD, kosakata baku, dan literasi.</div>
+                        <div id="status_slot_kuis_pintar"></div>
                     </a>
 
                     <!-- 2. Tebak Kata -->
-                    <a href="/mem-free/permainan/tebak-kata.html" class="feature-card">
+                    <a href="/mem-free/permainan/tebak-kata.html" class="feature-card" id="card_tebak_kata">
                         <div class="feature-icon-box" style="background:#e0f2fe; color:#0284c7;">
                             <i data-lucide="text-search" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Tebak Kata</div>
                         <div class="feature-desc">Temukan kata tersembunyi berdasarkan petunjuk definisi.</div>
+                        <div id="status_slot_tebak_kata"></div>
                     </a>
 
                     <!-- 3. Susun Kata -->
-                    <a href="/mem-free/permainan/susun-kata.html" class="feature-card">
+                    <a href="/mem-free/permainan/susun-kata.html" class="feature-card" id="card_susun_kata">
                         <div class="feature-icon-box" style="background:#d1fae5; color:#059669;">
                             <i data-lucide="combine" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Susun Kata</div>
                         <div class="feature-desc">Rangkai huruf acak menjadi kosakata sastra bermakna.</div>
+                        <div id="status_slot_susun_kata"></div>
                     </a>
 
                     <!-- 4. Teka-Teki Aksara -->
-                    <a href="/mem-free/permainan/teka-teki.html" class="feature-card">
+                    <a href="/mem-free/permainan/teka-teki.html" class="feature-card" id="card_teka_teki">
                         <div class="feature-icon-box" style="background:#fef3c7; color:#b45309;">
                             <i data-lucide="puzzle" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Teka-Teki Aksara</div>
                         <div class="feature-desc">Teka-teki silang sastra bertema sastra Indonesia.</div>
+                        <div id="status_slot_teka_teki"></div>
                     </a>
 
                     <!-- 5. Tebak Sastra (TERKUNCI 5K) -->
@@ -278,22 +282,61 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            CendekiaApp.renderBottomNav('bermain');
-            
-            // Cek status pool harian 24 jam
-            CendekiaApp.getDailyPool().then(res => {
-                const pill = document.getElementById('poolSyncPill');
-                if (pill) {
-                    if (res.active && res.data) {
-                        const hrs = Math.max(1, Math.round((res.data.expiresAt - Date.now()) / 3600000));
-                        pill.innerHTML = `<i data-lucide="check-circle" style="width:12px; height:12px; color:#86efac;"></i> Soal Aktif (${hrs} Jam Tersisa)`;
+        function updateGameCardStatuses() {
+            const games = [
+                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda' },
+                { key: 'tebak_kata', defaultDesc: 'Tebak Kosakata KBBI' },
+                { key: 'susun_kata', defaultDesc: 'Susun Huruf Acak' },
+                { key: 'teka_teki', defaultDesc: 'Teka-Teki Aksara' }
+            ];
+
+            games.forEach(g => {
+                const slot = document.getElementById(`status_slot_${g.key}`);
+                if (!slot) return;
+
+                const res = CendekiaApp.getGameResult(g.key);
+                if (res) {
+                    slot.innerHTML = `
+                        <div style="font-size:0.68rem; font-weight:800; color:#059669; background:#ecfdf5; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
+                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> Skor: ${res.score}/100 (Selesai)
+                        </div>
+                    `;
+                } else {
+                    const draft = CendekiaApp.getGameDraft(g.key);
+                    if (draft && Object.keys(draft.answers || {}).length > 0) {
+                        const count = Object.keys(draft.answers).length;
+                        slot.innerHTML = `
+                            <div style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
+                                <i data-lucide="bookmark" style="width:11px; height:11px;"></i> Lanjutkan (${count} Terjawab)
+                            </div>
+                        `;
                     } else {
-                        pill.innerHTML = `<i data-lucide="clock" style="width:12px; height:12px;"></i> Otomatis Generate Saat Dibuka`;
+                        slot.innerHTML = `
+                            <div style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
+                                <i data-lucide="play" style="width:10px; height:10px;"></i> ${g.defaultDesc}
+                            </div>
+                        `;
                     }
-                    if (window.lucide) lucide.createIcons();
                 }
             });
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function startCountdownTimer() {
+            const update = () => {
+                const text = CendekiaApp.formatCountdownToMidnightWIB();
+                const el = document.getElementById('bannerCountdownWib');
+                if (el) el.textContent = text;
+            };
+            update();
+            setInterval(update, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            updateGameCardStatuses();
+            startCountdownTimer();
         });
     </script>
 </body>

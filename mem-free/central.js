@@ -1255,9 +1255,416 @@ const CendekiaApp = (function () {
         return true;
     }
 
-    // Ambil pool soal harian aktif (berlaku 24 jam)
+    // ========================================================
+    // SIKLUS WAKTU INDONESIA BARAT (WIB) & RESET JAM 00:00 WIB
+    // ========================================================
+    function getWIBDate() {
+        const now = new Date();
+        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+        return new Date(utcTime + (7 * 3600000));
+    }
+
+    function getTodayDateKeyWIB() {
+        const wib = getWIBDate();
+        const yyyy = wib.getFullYear();
+        const mm = String(wib.getMonth() + 1).padStart(2, '0');
+        const dd = String(wib.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getNextMidnightWIBTimestamp() {
+        const wib = getWIBDate();
+        const nextMidnightWib = new Date(wib);
+        nextMidnightWib.setDate(nextMidnightWib.getDate() + 1);
+        nextMidnightWib.setHours(0, 0, 0, 0);
+
+        const diffMs = nextMidnightWib.getTime() - wib.getTime();
+        return Date.now() + diffMs;
+    }
+
+    function formatCountdownToMidnightWIB() {
+        const wib = getWIBDate();
+        const nextMidnightWib = new Date(wib);
+        nextMidnightWib.setDate(nextMidnightWib.getDate() + 1);
+        nextMidnightWib.setHours(0, 0, 0, 0);
+
+        const diffMs = Math.max(0, nextMidnightWib.getTime() - wib.getTime());
+        const hrs = Math.floor(diffMs / 3600000);
+        const mins = Math.floor((diffMs % 3600000) / 60000);
+        const secs = Math.floor((diffMs % 60000) / 1000);
+        return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // ========================================================
+    // AUTOSAVE DRAFT & PERSISTENSI HASIL KUIS/GAME
+    // ========================================================
+    function getDraftStorageKey(gameKey) {
+        return `cendekia_draft_${gameKey}_${getTodayDateKeyWIB()}`;
+    }
+
+    function getResultStorageKey(gameKey) {
+        return `cendekia_result_${gameKey}_${getTodayDateKeyWIB()}`;
+    }
+
+    function saveGameDraft(gameKey, draftData) {
+        try {
+            const key = getDraftStorageKey(gameKey);
+            localStorage.setItem(key, JSON.stringify({
+                ...draftData,
+                savedAt: Date.now(),
+                dateKey: getTodayDateKeyWIB()
+            }));
+            return true;
+        } catch (e) {
+            console.warn('[Cendekia Central] Gagal menyimpan draft game:', e);
+            return false;
+        }
+    }
+
+    function getGameDraft(gameKey) {
+        try {
+            const key = getDraftStorageKey(gameKey);
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed.dateKey === getTodayDateKeyWIB()) {
+                return parsed;
+            }
+            localStorage.removeItem(key);
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function clearGameDraft(gameKey) {
+        try {
+            localStorage.removeItem(getDraftStorageKey(gameKey));
+        } catch (e) {}
+    }
+
+    async function saveGameResult(gameKey, resultData) {
+        const todayKey = getTodayDateKeyWIB();
+        const payload = {
+            ...resultData,
+            gameKey,
+            dateKey: todayKey,
+            completedAt: new Date().toISOString(),
+            expiresAt: getNextMidnightWIBTimestamp()
+        };
+
+        // 1. Simpan di localStorage
+        try {
+            localStorage.setItem(getResultStorageKey(gameKey), JSON.stringify(payload));
+            clearGameDraft(gameKey);
+        } catch (e) {}
+
+        // 2. Simpan di Firestore jika user terotentikasi
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb && fb.auth.currentUser) {
+                const uid = fb.auth.currentUser.uid;
+                await fb.setDoc(fb.doc(fb.db, "users", uid, "game_history", `${gameKey}_${todayKey}`), payload);
+            }
+        } catch (err) {
+            console.warn('[Cendekia Central] Gagal menyimpan riwayat kuis ke cloud:', err);
+        }
+
+        // Catat aktivitas global
+        logActivity('game', `Menyelesaikan ${gameKey.replace(/_/g, ' ')} (Skor: ${resultData.score || 0})`);
+        return payload;
+    }
+
+    function getGameResult(gameKey) {
+        try {
+            const key = getResultStorageKey(gameKey);
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed.dateKey === getTodayDateKeyWIB()) {
+                return parsed;
+            }
+            return null; // Sudah lewat jam 00:00 WIB
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function isGameCompletedToday(gameKey) {
+        return getGameResult(gameKey) !== null;
+    }
+
+    // ========================================================
+    // GENERATOR LAPORAN EVALUASI & HASIL BELAJAR (PDFMAKE)
+    // ========================================================
+    function downloadEvaluationPDF(evalData, userProfile) {
+        const executePdf = () => {
+            if (!window.pdfMake) {
+                alert("Pustaka PDFMake belum siap. Harap tunggu beberapa detik.");
+                return;
+            }
+
+            const studentName = userProfile?.name || evalData.studentName || 'Peserta Cendekia';
+            const studentTier = userProfile?.tier || 'Member Free';
+            const dateStr = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const timeStr = getWIBDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+            const score = Math.round(evalData.score || 0);
+            const correctCount = evalData.correctCount || 0;
+            const totalCount = evalData.totalCount || (evalData.questions ? evalData.questions.length : 15);
+            const xpEarned = evalData.xpEarned || (correctCount * 10);
+
+            let gradeText = "SANGAT BAIK (MAHIR LITERASI)";
+            let gradeColor = "#059669";
+            if (score < 50) {
+                gradeText = "PERLU BIMBINGAN & EVALUASI";
+                gradeColor = "#dc2626";
+            } else if (score < 70) {
+                gradeText = "CUKUP (PERLU PEMANTAPAN KAIDAH)";
+                gradeColor = "#d97706";
+            } else if (score < 85) {
+                gradeText = "BAIK (KOMPETENSI TERCAPAI)";
+                gradeColor = "#0284c7";
+            }
+
+            // Susun baris soal untuk lembar pembahasan
+            const questionBlocks = [];
+            const questions = evalData.questions || [];
+
+            questions.forEach((q, idx) => {
+                const qNum = idx + 1;
+                const isCorrect = q.isCorrect;
+                const selectedText = q.selectedText || (q.options ? q.options[q.selectedIdx] : '-');
+                const correctText = q.correctText || (q.options ? q.options[q.correctIdx] : '-');
+                const explanation = q.exp || q.explanation || 'Pembahasan kaidah tertera pada bahan ajar kurikulum.';
+
+                questionBlocks.push({
+                    margin: [0, 6, 0, 10],
+                    stack: [
+                        {
+                            text: `${qNum}. ${q.q || q.question || 'Pertanyaan'}`,
+                            fontSize: 10,
+                            bold: true,
+                            color: '#003366',
+                            margin: [0, 0, 0, 4]
+                        },
+                        {
+                            table: {
+                                widths: ['*'],
+                                body: [
+                                    [
+                                        {
+                                            fillColor: isCorrect ? '#ecfdf5' : '#fef2f2',
+                                            borderColor: [isCorrect ? '#a7f3d0' : '#fecaca', isCorrect ? '#a7f3d0' : '#fecaca', isCorrect ? '#a7f3d0' : '#fecaca', isCorrect ? '#a7f3d0' : '#fecaca'],
+                                            stack: [
+                                                {
+                                                    text: isCorrect 
+                                                        ? `✓ Jawaban Anda Benar: ${selectedText}` 
+                                                        : `✗ Jawaban Anda: ${selectedText} | Kunci Jawaban Benar: ${correctText}`,
+                                                    fontSize: 9,
+                                                    bold: true,
+                                                    color: isCorrect ? '#065f46' : '#991b1b',
+                                                    margin: [6, 4, 6, 4]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            }
+                        },
+                        {
+                            table: {
+                                widths: ['*'],
+                                body: [
+                                    [
+                                        {
+                                            fillColor: '#f8fafc',
+                                            borderColor: ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                                            stack: [
+                                                {
+                                                    text: `Pembahasan Kaidah: ${explanation}`,
+                                                    fontSize: 8.5,
+                                                    italics: true,
+                                                    color: '#334155',
+                                                    margin: [6, 4, 6, 4]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            }
+                        }
+                    ]
+                });
+            });
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [36, 36, 36, 40],
+                header: function(currentPage, pageCount) {
+                    return {
+                        margin: [36, 15, 36, 0],
+                        columns: [
+                            { text: 'Cendekia Aksara Edukasi — Lembar Evaluasi Belajar', fontSize: 7.5, color: '#94a3b8' },
+                            { text: `Halaman ${currentPage} dari ${pageCount}`, alignment: 'right', fontSize: 7.5, color: '#94a3b8' }
+                        ]
+                    };
+                },
+                content: [
+                    // 1. BANNER KOP SURAT RESMI
+                    {
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [
+                                    {
+                                        fillColor: '#003366',
+                                        borderColor: ['#003366', '#003366', '#003366', '#003366'],
+                                        margin: [10, 10, 10, 10],
+                                        stack: [
+                                            { text: 'PT CENDEKIA AKSARA EDUKASI', fontSize: 13, bold: true, color: '#f59e0b', alignment: 'center' },
+                                            { text: 'LEMBAR HASIL EVALUASI PEMBELAJARAN & KUIS LITERASI', fontSize: 11, bold: true, color: '#ffffff', alignment: 'center', margin: [0, 2, 0, 2] },
+                                            { text: 'Program Penguatan Literasi & Kaidah Bahasa Indonesia — Akses Siswa Terbuka', fontSize: 8, color: '#cbd5e1', alignment: 'center' }
+                                        ]
+                                    }
+                                ]
+                            ]
+                        },
+                        margin: [0, 0, 0, 12]
+                    },
+
+                    // 2. KARTU IDENTITAS PESERTA
+                    {
+                        table: {
+                            widths: ['25%', '35%', '20%', '20%'],
+                            body: [
+                                [
+                                    { text: 'Nama Siswa', bold: true, fontSize: 8.5, color: '#475569', fillColor: '#f1f5f9' },
+                                    { text: studentName, bold: true, fontSize: 8.5, color: '#003366' },
+                                    { text: 'Status Akun', bold: true, fontSize: 8.5, color: '#475569', fillColor: '#f1f5f9' },
+                                    { text: studentTier, bold: true, fontSize: 8.5, color: '#0284c7' }
+                                ],
+                                [
+                                    { text: 'Waktu Pelaksanaan', bold: true, fontSize: 8.5, color: '#475569', fillColor: '#f1f5f9' },
+                                    { text: `${dateStr} (${timeStr})`, fontSize: 8, color: '#334155' },
+                                    { text: 'Nomor Sertifikat', bold: true, fontSize: 8.5, color: '#475569', fillColor: '#f1f5f9' },
+                                    { text: `CA-${Date.now().toString().slice(-6)}`, fontSize: 8, bold: true, color: '#64748b' }
+                                ]
+                            ]
+                        },
+                        margin: [0, 0, 0, 12]
+                    },
+
+                    // 3. KARTU REKAPITULASI NILAI
+                    {
+                        table: {
+                            widths: ['30%', '23%', '23%', '24%'],
+                            body: [
+                                [
+                                    { text: 'SKOR AKHIR', alignment: 'center', fontSize: 8, bold: true, color: '#475569', fillColor: '#e2e8f0' },
+                                    { text: 'JAWABAN BENAR', alignment: 'center', fontSize: 8, bold: true, color: '#065f46', fillColor: '#d1fae5' },
+                                    { text: 'JAWABAN SALAH', alignment: 'center', fontSize: 8, bold: true, color: '#991b1b', fillColor: '#fee2e2' },
+                                    { text: 'TOTAL POIN XP', alignment: 'center', fontSize: 8, bold: true, color: '#5b21b6', fillColor: '#ede9fe' }
+                                ],
+                                [
+                                    { text: `${score} / 100`, alignment: 'center', fontSize: 18, bold: true, color: '#003366', margin: [0, 6, 0, 6] },
+                                    { text: `${correctCount} Soal`, alignment: 'center', fontSize: 13, bold: true, color: '#059669', margin: [0, 6, 0, 6] },
+                                    { text: `${totalCount - correctCount} Soal`, alignment: 'center', fontSize: 13, bold: true, color: '#dc2626', margin: [0, 6, 0, 6] },
+                                    { text: `+${xpEarned} XP`, alignment: 'center', fontSize: 13, bold: true, color: '#7c3aed', margin: [0, 6, 0, 6] }
+                                ],
+                                [
+                                    {
+                                        colSpan: 4,
+                                        fillColor: '#f8fafc',
+                                        alignment: 'center',
+                                        text: [
+                                            { text: 'PREDIKAT CAPAIAN: ', bold: true, fontSize: 8.5, color: '#475569' },
+                                            { text: gradeText, bold: true, fontSize: 9, color: gradeColor }
+                                        ],
+                                        margin: [0, 4, 0, 4]
+                                    },
+                                    {}, {}, {}
+                                ]
+                            ]
+                        },
+                        margin: [0, 0, 0, 16]
+                    },
+
+                    // 4. JUDUL BAGIAN EVALUASI
+                    {
+                        text: 'LEMBAR PEMBAHASAN SOAL & KAIDAH LITERASI',
+                        fontSize: 10,
+                        bold: true,
+                        color: '#003366',
+                        margin: [0, 0, 0, 6]
+                    },
+                    {
+                        text: 'Gunakan lembar pembahasan di bawah ini untuk mempelajari kaidah bahasa dan memperkuat kompetensi literasi:',
+                        fontSize: 8,
+                        color: '#64748b',
+                        margin: [0, 0, 0, 10]
+                    },
+
+                    // 5. BLOK BUTIR-BUTIR SOAL
+                    ...questionBlocks,
+
+                    // 6. CATATAN KAKI & TANDA TANGAN RESMI
+                    {
+                        margin: [0, 16, 0, 0],
+                        columns: [
+                            {
+                                width: '60%',
+                                stack: [
+                                    { text: 'Catatan Evaluasi:', fontSize: 8, bold: true, color: '#475569' },
+                                    { text: '1. Hasil evaluasi ini berlaku sah sebagai rekap capaian belajar harian siswa.', fontSize: 7.5, color: '#64748b' },
+                                    { text: '2. Kuis latihan berikutnya akan dibuka kembali secara otomatis setiap hari pada pukul 00:00 WIB.', fontSize: 7.5, color: '#64748b' },
+                                    { text: '3. Seluruh butir soal disusun berbasis kurikulum bahan ajar terverifikasi.', fontSize: 7.5, color: '#64748b' }
+                                ]
+                            },
+                            {
+                                width: '40%',
+                                alignment: 'center',
+                                stack: [
+                                    { text: 'Verifikasi Sistem Akademik,', fontSize: 8, color: '#475569' },
+                                    { text: 'Cendekia Aksara AI Learning', fontSize: 8, bold: true, color: '#003366', margin: [0, 2, 0, 20] },
+                                    { text: 'TIM KURIKULUM CENDEKIA', fontSize: 8, bold: true, decoration: 'underline', color: '#003366' },
+                                    { text: 'Sistem Terverifikasi Otomatis', fontSize: 7, color: '#94a3b8' }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                defaultStyle: {
+                    font: 'Roboto',
+                    lineHeight: 1.2
+                }
+            };
+
+            const fileName = `Evaluasi-Kuis-Cendekia-${getTodayDateKeyWIB()}-${studentName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+            window.pdfMake.createPdf(docDefinition).download(fileName);
+        };
+
+        if (window.pdfMake) {
+            executePdf();
+        } else {
+            const script1 = document.createElement('script');
+            script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js';
+            script1.onload = () => {
+                const script2 = document.createElement('script');
+                script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js';
+                script2.onload = () => {
+                    executePdf();
+                };
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script1);
+        }
+    }
+
+    // Ambil pool soal harian aktif (berlaku s.d. jam 00:00 WIB)
     async function getDailyPool() {
         const now = Date.now();
+        const todayKey = getTodayDateKeyWIB();
+
         // Cek Firestore terlebih dahulu
         try {
             const fb = await getFirebaseBridge();
@@ -1265,7 +1672,7 @@ const CendekiaApp = (function () {
                 const snap = await fb.getDoc(fb.doc(fb.db, "mem_free_daily_pool", "active_pool"));
                 if (snap.exists()) {
                     const data = snap.data();
-                    if (data.expiresAt && now < data.expiresAt && data.questions) {
+                    if (data.expiresAt && now < data.expiresAt && data.dateKey === todayKey && data.questions) {
                         try {
                             localStorage.setItem(STORAGE_KEY_DAILY_POOL, JSON.stringify(data));
                         } catch (e) {}
@@ -1282,7 +1689,7 @@ const CendekiaApp = (function () {
             const localRaw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
             if (localRaw) {
                 const parsed = JSON.parse(localRaw);
-                if (parsed.expiresAt && now < parsed.expiresAt && parsed.questions) {
+                if (parsed.expiresAt && now < parsed.expiresAt && parsed.dateKey === todayKey && parsed.questions) {
                     return { active: true, data: parsed };
                 }
             }
@@ -1306,7 +1713,7 @@ const CendekiaApp = (function () {
         }
     }
 
-    // Generate pool soal harian baru dari materi via backend API Groq
+    // Generate pool soal harian baru dari materi via backend API Groq (Reset 00:00 WIB)
     async function generateDailyPoolFromMaterials(materials) {
         const res = await fetch('/api/central', {
             method: 'POST',
@@ -1328,14 +1735,14 @@ const CendekiaApp = (function () {
         }
 
         const now = Date.now();
-        const expiresAt = now + (24 * 60 * 60 * 1000); // 24 Jam penuh
+        const expiresAt = getNextMidnightWIBTimestamp(); // Tepat jam 00:00 WIB
         const poolDoc = {
             generatedAt: now,
             expiresAt: expiresAt,
-            dateKey: new Date().toISOString().slice(0, 10),
+            dateKey: getTodayDateKeyWIB(),
             questions: resData.questions,
             materialsCount: materials.length,
-            modelUsed: resData.modelUsed || 'Groq LPU',
+            modelUsed: resData.modelUsed || 'AI Engine',
             status: 'active'
         };
 
@@ -1505,6 +1912,17 @@ const CendekiaApp = (function () {
         generateDailyPoolFromMaterials,
         ensureDailyGame,
         formatTimeRemaining,
+        getWIBDate,
+        getTodayDateKeyWIB,
+        getNextMidnightWIBTimestamp,
+        formatCountdownToMidnightWIB,
+        saveGameDraft,
+        getGameDraft,
+        clearGameDraft,
+        saveGameResult,
+        getGameResult,
+        isGameCompletedToday,
+        downloadEvaluationPDF,
         getLeaderboardUsers,
         recordMaterialRead,
         recordGameCompleted,

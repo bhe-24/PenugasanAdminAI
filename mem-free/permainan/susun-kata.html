@@ -11,6 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDFMAKE CDN UNTUK DOWNLOAD LEMBAR EVALUASI PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
@@ -128,11 +131,23 @@
         let currentPlaced = [];
         let scrambledLetters = [];
 
+        let playedRecords = [];
+
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
             const emptyState = document.getElementById('gameEmptyState');
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
+
+            // Cek apakah game hari ini sudah selesai
+            const completed = CendekiaApp.getGameResult('susun_kata');
+            if (completed) {
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'none';
+                gameContainer.style.display = 'block';
+                showCompletedScreen(completed);
+                return;
+            }
 
             await CendekiaApp.ensureDailyGame('susun_kata', {
                 onLoading: (msg) => {
@@ -158,9 +173,7 @@
                         clue: p.clue || ''
                     }));
 
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('susunSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
-
+                    document.getElementById('susunSubMeta').textContent = `Susun Kata • Reset Jam 00:00 WIB`;
                     loadPuzzle();
                 }
             });
@@ -251,35 +264,115 @@
             if (assembled.length < currentTarget.length) {
                 fb.style.background = '#fffbeb';
                 fb.style.color = '#b45309';
+                fb.style.border = '1px solid #fde68a';
                 fb.textContent = 'Lengkapi semua kotak huruf terlebih dahulu!';
                 return;
             }
 
+            const p = puzzles[pIndex];
             if (assembled === currentTarget) {
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
+                fb.style.border = '1px solid #a7f3d0';
                 fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Kata yang tersusun benar: <b>${currentTarget}</b>.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextPuzzle()">Lanjut Kata Berikutnya &rarr;</button>`;
-                score += 15;
+                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="proceedNextPuzzle(true)">Lanjut Kata Berikutnya &rarr;</button>`;
+                score += 20;
                 document.getElementById('gameScore').textContent = score;
-                CendekiaApp.addXP(15, 'Susun Kata Tepat');
+                CendekiaApp.addXP(20, 'Susun Kata Tepat');
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
-                fb.innerHTML = `Susunan kata belum tepat. Coba susun kembali!`;
+                fb.style.border = '1px solid #fecaca';
+                fb.innerHTML = `Susunan kata belum tepat. Coba susun kembali, atau lewati jika mengalami kendala.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:5px 10px; font-size:0.72rem; background:#64748b;" onclick="proceedNextPuzzle(false)">Lewati Kata Ini &rarr;</button>`;
             }
         }
 
-        function nextPuzzle() {
+        function proceedNextPuzzle(isSuccess) {
+            const p = puzzles[pIndex];
+            const assembled = currentPlaced.map(item => item.char).join('');
+            playedRecords.push({
+                q: `Susun Kata (Petunjuk: "${p.clue}")`,
+                isCorrect: isSuccess,
+                selectedText: assembled || '(Kosong/Dilewati)',
+                correctText: currentTarget,
+                exp: `Petunjuk: "${p.clue}". Bentuk kata baku yang benar adalah ${currentTarget}.`
+            });
+            nextPuzzle();
+        }
+
+        async function nextPuzzle() {
             pIndex++;
             if (pIndex < puzzles.length) {
                 loadPuzzle();
             } else {
-                const fb = document.getElementById('resultFeedback');
-                fb.style.background = '#f0fdf4';
-                fb.style.color = '#166534';
-                fb.innerHTML = `<strong>Luar Biasa! 🏆</strong> Seluruh kata acak berhasil diselesaikan.<br>Skor Akhir: <b>${score}</b>`;
+                const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (puzzles.length || 1)) * 100));
+                const resultData = {
+                    score: finalScore,
+                    correctCount: playedRecords.filter(r => r.isCorrect).length,
+                    totalCount: puzzles.length,
+                    xpEarned: score,
+                    questions: playedRecords
+                };
+
+                await CendekiaApp.saveGameResult('susun_kata', resultData);
+                CendekiaApp.completeChallenge('tc_3');
+                showCompletedScreen(resultData);
             }
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('gameContainer');
+            container.innerHTML = `
+                <div style="text-align:center; padding:20px 10px;">
+                    <div style="width:68px; height:68px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.6rem; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                        <i data-lucide="award" style="width:36px; height:36px;"></i>
+                    </div>
+                    <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Susun Kata Selesai!</h2>
+                    <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
+                        <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini
+                    </div>
+
+                    <div style="background:#f8fafc; border-radius:12px; padding:16px; margin-bottom:16px; border:1px solid #e2e8f0;">
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">${data.score || 0} / 100</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                            Berhasil menyusun <b>${data.correctCount || 0}</b> dari <b>${data.totalCount || 5}</b> kata
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:14px;" onclick="downloadSusunKataPDF()">
+                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                    </button>
+
+                    <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+                        Susun Kata berikutnya akan dibuka kembali pada <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                    </div>
+                </div>
+            `;
+
+            if (window.lucide) lucide.createIcons();
+            startCountdownTimer();
+        }
+
+        window.downloadSusunKataPDF = () => {
+            const res = CendekiaApp.getGameResult('susun_kata');
+            if (res) {
+                const user = CendekiaApp.getUser();
+                CendekiaApp.downloadEvaluationPDF({
+                    ...res,
+                    title: 'Laporan Evaluasi Pembelajaran - Susun Kata Literasi'
+                }, user);
+            }
+        };
+
+        function startCountdownTimer() {
+            const update = () => {
+                const text = CendekiaApp.formatCountdownToMidnightWIB();
+                const els = document.querySelectorAll('.resetCountdownText');
+                els.forEach(e => e.textContent = text);
+            };
+            update();
+            setInterval(update, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {

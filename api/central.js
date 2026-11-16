@@ -576,20 +576,28 @@ Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
                 const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Perancang Kurikulum Soal Literasi di Cendekia Aksara.
 Tugas Anda: Menganalisis materi referensi bahan ajar yang diberikan dan menyusun 1 paket lengkap soal latihan harian dan permainan literasi untuk siswa Member Free.
 
-ATURAN SANGAT KETAT:
-1. SEMUA soal, tebakan kata, teka-teki, dan latihan WAJIB berakar 100% pada isi materi referensi yang diberikan (fakta, kosakata, kaidah ejaan EYD, istilah sastra, atau contoh). DILARANG mengarang topik acak di luar materi!
-2. DILARANG menggunakan kata rujukan teks seperti "Berdasarkan materi di atas...", "Menurut wacana...", atau "Dalam teks...". Tiap soal harus mandiri (self-contained).
-3. Penjelasan (exp/desc) harus padat dan ringkas (1-2 kalimat edukatif).
-4. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
+ATURAN MATERI SOAL (SANGAT KETAT & WAJIB DIPATUHI):
+1. DILARANG KERAS membuat soal tentang profil pembuat, biografi pendiri/penulis, identitas pengembang, sejarah organisasi/yayasan, nama pengajar, atau nama aplikasi. Hal tersebut di luar konteks literasi!
+2. SEMUA 15 SOAL KUIS PILIHAN GANDA WAJIB MURNI menguji kompetensi akademis literasi & kaidah kebahasaan Indonesia berdasarkan materi:
+   - Kaidah Ejaan EYD V (penggunaan huruf kapital, huruf miring, penulisan kata turunan berimbuhan)
+   - Penulisan kata baku KBBI vs bentuk tidak baku yang sering keliru
+   - Penggunaan tanda baca yang tepat (tanda koma, titik dua, tanda hubung, tanda petik)
+   - Kalimat efektif, ketepatan konjungsi, dan kelogisan nalar kalimat
+   - Diksi, pilihan kata, sinonim/antonim kontekstual, majas/gaya bahasa
+   - Unsur intrinsik sastra (tema, alur, perwatakan, latar, sudut pandang, amanat)
+   - Analisis perbaikan kalimat rancu / tidak logis
+3. SETIAP SOAL HARUS BERSIFAT MANDIRI (self-contained) tanpa kata rujukan seperti "Menurut teks di atas...".
+4. Penjelasan (exp/desc) harus padat dan ringkas (1-2 kalimat edukatif yang menjelaskan kaidah kebahasaannya).
+5. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
 
 STRUKTUR JSON YANG DIHASILKAN:
 {
   "kuis_pintar": [
     {
-      "q": "Pertanyaan pilihan ganda seputar konsep materi?",
+      "q": "Pertanyaan pilihan ganda seputar kaidah/konsep literasi?",
       "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
       "answer": 0,
-      "exp": "Pembahasan edukatif ringkas 1 kalimat."
+      "exp": "Pembahasan edukatif ringkas 1-2 kalimat mengenai kaidah yang benar."
     }
   ],
   "tebak_kata": [
@@ -644,14 +652,14 @@ STRUKTUR JSON YANG DIHASILKAN:
 }
 
 JUMLAH BUTIR TARGET:
-- kuis_pintar: tepat 5 butir
-- tebak_kata: tepat 5 butir
-- susun_kata: tepat 5 butir
-- teka_teki: tepat 5 butir
-- tebak_sastra: tepat 3 butir
-- sambung_cerita: tepat 2 butir
-- perbaiki_kalimat: tepat 3 butir
-- tantangan_cepat: tepat 5 butir`;
+- kuis_pintar: TEPAT 15 BUTIR SOAL PILIHAN GANDA (berkualitas tinggi, bernomor 1 s.d. 15)
+- tebak_kata: 5 butir kata literasi KBBI
+- susun_kata: 5 butir kata
+- teka_teki: 5 butir
+- tebak_sastra: 3 butir
+- sambung_cerita: 2 butir
+- perbaiki_kalimat: 3 butir
+- tantangan_cepat: 5 butir`;
 
                 let lastErr = null;
                 // 1. Coba Groq LPU dengan model stabil
@@ -667,7 +675,7 @@ JUMLAH BUTIR TARGET:
                                     { role: "user", content: `MATERI REFERENSI KURIKULUM CENDEKIA AKSARA:\n\n${safeMateri}` }
                                 ],
                                 temperature: 0.2,
-                                max_tokens: 3500
+                                max_tokens: 4096
                             });
 
                             const textResponse = completion.choices[0]?.message?.content || "";
@@ -693,7 +701,8 @@ JUMLAH BUTIR TARGET:
                             contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
                             generationConfig: {
                                 temperature: 0.2,
-                                responseMimeType: "application/json"
+                                responseMimeType: "application/json",
+                                maxOutputTokens: 6000
                             },
                             safetySettings
                         });

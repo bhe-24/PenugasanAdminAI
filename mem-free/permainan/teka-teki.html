@@ -11,6 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDFMake Library for PDF Evaluation Report -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
@@ -121,12 +124,23 @@
         let riddles = [];
         let rIndex = 0;
         let score = 0;
+        let playedRecords = [];
 
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
             const emptyState = document.getElementById('gameEmptyState');
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
+
+            // Cek apakah game hari ini sudah diselesaikan
+            const completed = CendekiaApp.getGameResult('teka_teki');
+            if (completed) {
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'none';
+                gameContainer.style.display = 'block';
+                showCompletedScreen(completed);
+                return;
+            }
 
             await CendekiaApp.ensureDailyGame('teka_teki', {
                 onLoading: (msg) => {
@@ -153,9 +167,7 @@
                         clue: r.clue || ''
                     }));
 
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('tekaSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
-
+                    document.getElementById('tekaSubMeta').textContent = `Teka-Teki Aksara • Reset Jam 00:00 WIB`;
                     loadCurrentRiddle();
                 }
             });
@@ -212,25 +224,102 @@
 
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
+                fb.style.border = '1px solid #a7f3d0';
                 fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b>.<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextRiddle()">Teka-Teki Berikutnya &rarr;</button>`;
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="proceedNextRiddle(true, '${entered}')">Teka-Teki Berikutnya &rarr;</button>`;
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
-                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan kembali petunjuknya dan coba lagi!`;
+                fb.style.border = '1px solid #fecaca';
+                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan petunjuknya dan coba lagi, atau lewati jika mengalami kesulitan.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:5px 10px; font-size:0.72rem; background:#64748b;" onclick="proceedNextRiddle(false, '${entered}')">Lewati Soal Ini &rarr;</button>`;
             }
         }
 
-        function nextRiddle() {
+        function proceedNextRiddle(isCorrect, enteredVal) {
+            const cur = riddles[rIndex];
+            playedRecords.push({
+                q: `Teka-Teki: "${cur.riddle}"`,
+                isCorrect: isCorrect,
+                selectedText: enteredVal || '(Dilewati)',
+                correctText: cur.answer,
+                exp: `Petunjuk: "${cur.clue || '-'}". Jawaban teka-teki aksara yang tepat adalah "${cur.answer}".`
+            });
+            nextRiddle();
+        }
+
+        async function nextRiddle() {
             rIndex++;
             if (rIndex < riddles.length) {
                 loadCurrentRiddle();
             } else {
-                const fb = document.getElementById('ttsFeedback');
-                fb.style.background = '#f0fdf4';
-                fb.style.color = '#166534';
-                fb.innerHTML = `<strong>Selamat! Seluruh Teka-Teki Telah Terpecahkan! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
+                const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (riddles.length || 1)) * 100));
+                const resultData = {
+                    score: finalScore,
+                    correctCount: playedRecords.filter(r => r.isCorrect).length,
+                    totalCount: riddles.length,
+                    xpEarned: score,
+                    questions: playedRecords
+                };
+
+                await CendekiaApp.saveGameResult('teka_teki', resultData);
+                CendekiaApp.completeChallenge('tc_3');
+                showCompletedScreen(resultData);
             }
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('gameContainer');
+            container.innerHTML = `
+                <div style="text-align:center; padding:20px 10px;">
+                    <div style="width:68px; height:68px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.6rem; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                        <i data-lucide="award" style="width:36px; height:36px;"></i>
+                    </div>
+                    <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Teka-Teki Aksara Selesai!</h2>
+                    <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
+                        <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini
+                    </div>
+
+                    <div style="background:#f8fafc; border-radius:12px; padding:16px; margin-bottom:16px; border:1px solid #e2e8f0;">
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">${data.score || 0} / 100</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                            Berhasil memecahkan <b>${data.correctCount || 0}</b> dari <b>${data.totalCount || 5}</b> teka-teki
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:14px;" onclick="downloadTekaTekiPDF()">
+                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                    </button>
+
+                    <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+                        Teka-Teki Aksara berikutnya akan dibuka kembali pada <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                    </div>
+                </div>
+            `;
+
+            if (window.lucide) lucide.createIcons();
+            startCountdownTimer();
+        }
+
+        window.downloadTekaTekiPDF = () => {
+            const res = CendekiaApp.getGameResult('teka_teki');
+            if (res) {
+                const user = CendekiaApp.getUser();
+                CendekiaApp.downloadEvaluationPDF({
+                    ...res,
+                    title: 'Laporan Evaluasi Pembelajaran - Teka-Teki Aksara'
+                }, user);
+            }
+        };
+
+        function startCountdownTimer() {
+            const update = () => {
+                const text = CendekiaApp.formatCountdownToMidnightWIB();
+                const els = document.querySelectorAll('.resetCountdownText');
+                els.forEach(e => e.textContent = text);
+            };
+            update();
+            setInterval(update, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
