@@ -441,8 +441,15 @@ Patuhi aturan ini dengan KETAT:
                     return res.status(400).json({ error: 'Teks materi terlalu singkat untuk dirapikan (minimal 15 karakter).' });
                 }
 
-                const cleanInput = sanitizeText(rawText);
-                const safeInput = cleanInput.length > 20000 ? cleanInput.substring(0, 20000) + '... [Bagian Lanjutan Disesuaikan]' : cleanInput;
+                // 1. Pra-pembersihan teks mentah (Pangkas dafpus, kredit, ISBN otomatis)
+                let cleanInput = sanitizeText(rawText);
+                const dafpusPattern = /(?:^|\n|\r)\s*(?:DAFTAR\s+PUSTAKA|BIBLIOGRAFI|REFERENCES|DAFTAR\s+RUJUKAN|REFERENSI|SUMBER\s+BACAAN)\s*[:\-–]?\s*(?:[\r\n]+[\s\S]*)$/i;
+                cleanInput = cleanInput.replace(dafpusPattern, '\n\n[BAGIAN DAFTAR PUSTAKA DIBERSIHKAN OTOMATIS OLEH SISTEM]\n');
+                cleanInput = cleanInput.replace(/(?:ISBN|ISSN)[\s\:\-\–\—\dXx]{8,}/gi, '');
+                cleanInput = cleanInput.replace(/(?:Hak Cipta Dilindungi Undang-Undang|All Rights Reserved|Diterbitkan oleh[\s\w\.,]+|Cetakan ke-?\d+[\s\w\.,]+)/gi, '');
+                cleanInput = cleanInput.replace(/https?:\/\/[^\s\)\"\']+/gi, '');
+
+                const safeInput = cleanInput.length > 25000 ? cleanInput.substring(0, 25000) + '... [Bagian Lanjutan Disesuaikan]' : cleanInput;
 
                 const categoryLabels = {
                     'pengetahuan-umum': 'Pengetahuan Umum (Kaidah Ejaan EYD V, Tata Bahasa, & Kosakata Baku KBBI)',
@@ -452,21 +459,30 @@ Patuhi aturan ini dengan KETAT:
                 };
                 const catContext = categoryLabels[category] || category || 'Literasi Bahasa & Sastra Indonesia';
 
-                const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Pakar Silabus Literasi di Cendekia Aksara.
-Tugas Anda: Menganalisis materi mentah dari pengajar/admin dan menyusunnya menjadi modul kurikulum pembelajaran yang SANGAT RAPI, BERBOBOT, MENARIK, dan SIAP BACA untuk siswa Member Free.
+                const systemPrompt = `Anda adalah Kurator Edukasi Ahli, Editor Substansi, & Pakar Silabus Literasi di Cendekia Aksara.
+Tugas Anda: Menganalisis naskah dokumen yang diunggah oleh Admin/Pengajar, MEMBERSIHKAN SELURUH BAGIAN NON-MATERI, dan MEMADATKAN substansi pembelajaran menjadi modul ajar yang SANGAT JELAS, PADAT, BERBOBOT, dan BERSTRUKTUR TINGGI untuk siswa Member Free.
+
+ATURAN PEMBERSIHAN & ELEMINASI NON-MATERI (WAJIB & MUTLAK):
+1. HAPUS KREDIT & HAK CIPTA: Buang semua nama penerbit, percetakan, nomor ISBN/ISSN, tahun cetak/edisi, hak cipta/copyright, disclaimer hukum, dan kontak/media sosial.
+2. HAPUS DAFTAR PUSTAKA & SITASI: Buang seluruh daftar pustaka (dafpus), bibliografi, catatan kaki (footnote/endnote), daftar rujukan, sitasi dalam kurung yang mengganggu kelancaran baca (misal: (Sugono, 2019: 45) diubah menjadi bahasa wajar atau dihapus), serta tautan/URL link situs web.
+3. HAPUS ELEMEN PENGANTAR: Buang kata pengantar, prakata, ucapan terima kasih, lembar persembahan, biodata penulis/editor/tim penyusun, kata sambutan, dan petunjuk teknis silabus administratif.
+4. FOKUS MURNI PADA SUBSTANSI ILMU: Ambil HANYA konsep inti, definisi baku, kaidah tata bahasa/EYD V, struktur narasi sastra, analisis gaya bahasa, dan pembuktian contohnya.
+5. PEMADATAN (KONDENSASI) & KEJELASAN TINGGI:
+   - Buang kalimat bertele-tele, basa-basi pembuka yang tidak penting, atau pengulangan materi yang membosankan.
+   - Sajikan intisari materi secara padat, bernas, dan to the point dengan alur pikir yang runut dan logis.
 
 PEDOMAN STRUKTUR MATERI WAJIB:
-1. JUDUL: Rancang judul yang profesional, berbobot, dan mencerminkan esensi materi (pertahankan konteks "${inputTitle || ''}" jika sudah sesuai).
-2. RINGKASAN: Tuliskan ringkasan esensial 1-2 kalimat padat yang langsung menjelaskan kompetensi inti materi.
-3. ISI MATERI (CONTENT): Susun materi dalam format Markdown berstruktur tinggi:
-   - Gunakan subjudul dengan "### [Nama Sub-Bab / Topik]".
-   - Gunakan poin penjelasan esensial dengan "- **[Istilah Kunci / Konsep]**: Penjelasan mendalam, lugas, dan mudah dipahami pembaca...".
-   - Gunakan penomoran untuk aturan/tahapan "1. **[Aturan / Kaidah]**: Penjelasan rinci...".
-   - Sisipkan kotak wawasan/tips dengan format "> **Catatan Kritis / Tips Literasi**: [Poin kunci penting]...".
-   - DILARANG teks menumpuk tanpa jeda paragraf! Gunakan baris kosong antar-poin agar nyaman dibaca.
-4. CONTOH / KASUS NYATA (EXAMPLES): Berikan contoh konkret (misal pasangan kata baku vs tidak baku, kutipan sastra, atau studi kasus kalimat yang jelas).
-5. KATA KUNCI (KEY_CONCEPTS): Ekstrak 5-8 istilah penting untuk bahan pembuatan latihan/kuis.
-6. PEMBAGIAN SUB-MODUL (CHUNKS): Jika materi panjang (> 3.500 karakter), berikan pembagian 2-3 sub-modul logis agar siswa dapat belajar bertahap.
+1. JUDUL (title): Rancang judul yang profesional, berbobot akademis, dan langsung mencerminkan materi utama (contoh: "Kaidah Pemakaian Tanda Baca & Penulisan Huruf Kapital Menurut EYD V"). Pertahankan konteks "${inputTitle || ''}" jika relevan.
+2. RINGKASAN (summary): Tuliskan ringkasan esensial 1-2 kalimat padat yang langsung menjelaskan kompetensi inti materi.
+3. ISI MATERI (content): Susun materi yang sudah dipadatkan dalam format Markdown berstruktur tinggi:
+   - Gunakan subjudul dengan "### [Nama Sub-Bab / Topik Bahasan]".
+   - Gunakan poin penjelasan esensial berpeluru: "- **[Istilah Kunci / Konsep]**: Penjelasan mendalam, lugas, dan padat...".
+   - Gunakan penomoran untuk aturan/tahapan kaidah: "1. **[Aturan / Kaidah]**: Penjelasan rinci...".
+   - Sisipkan kotak wawasan/tips dengan format: "> **Catatan Kritis / Tips Literasi**: [Poin kunci penting]...".
+   - Berikan baris kosong antar-poin agar bersih dan sangat nyaman dibaca siswa.
+4. CONTOH / KASUS NYATA (examples): Berikan contoh konkret yang jelas (misal: perbandingan kalimat baku vs tidak baku, kutipan diksi/majas, atau studi kasus analisis teks).
+5. KATA KUNCI (key_concepts): Ekstrak 5-8 istilah penting untuk bahan pembuatan latihan/kuis.
+6. INFO PEMBERSIHAN (cleaned_summary): Berikan keterangan singkat apa saja yang telah dibersihkan/dihapus (misal: "Daftar pustaka, identitas penerbit/kredit, dan bagian pengantar telah dibersihkan; materi teori dan contoh telah dipadatkan").
 
 Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
 {
@@ -474,7 +490,8 @@ Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
   "summary": "Ringkasan esensial 1-2 kalimat.",
   "content": "Isi materi terstruktur dengan Markdown ### dan poin berpeluru...",
   "examples": "Contoh kasus konkret dan studi penerapan...",
-  "key_concepts": ["Istilah 1", "Istilah 2", "Istilah 3", "Istilah 4", "Istilah 5"]
+  "key_concepts": ["Istilah 1", "Istilah 2", "Istilah 3", "Istilah 4", "Istilah 5"],
+  "cleaned_summary": "Keterangan pembersihan dan pemadatan..."
 }`;
 
                 let lastErr = null;
@@ -496,7 +513,15 @@ Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
                             const text = completion.choices[0]?.message?.content || "";
                             const parsed = extractJSON(text);
                             if (parsed && (parsed.content || parsed.title)) {
-                                return res.status(200).json({ success: true, modelUsed: mName, material: parsed });
+                                return res.status(200).json({
+                                    success: true,
+                                    modelUsed: mName,
+                                    material: parsed,
+                                    stats: {
+                                        rawLength: rawText.length,
+                                        refinedLength: (parsed.content || '').length
+                                    }
+                                });
                             }
                         } catch (err) {
                             console.warn(`[Refine Material] Groq model ${mName} gagal:`, err.message);
@@ -522,7 +547,15 @@ Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
                         const text = result.response.text();
                         const parsed = extractJSON(text);
                         if (parsed && (parsed.content || parsed.title)) {
-                            return res.status(200).json({ success: true, modelUsed: 'gemini-2.5-flash', material: parsed });
+                            return res.status(200).json({
+                                success: true,
+                                modelUsed: 'gemini-2.5-flash',
+                                material: parsed,
+                                stats: {
+                                    rawLength: rawText.length,
+                                    refinedLength: (parsed.content || '').length
+                                }
+                            });
                         }
                     } catch (gErr) {
                         console.error("[Refine Material] Gemini fallback gagal:", gErr.message);

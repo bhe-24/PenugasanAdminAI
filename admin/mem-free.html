@@ -280,16 +280,21 @@
                         </div>
                     </div>
 
-                    <!-- DROPZONE / UPLOAD FILE TXT -->
-                    <div class="upload-dropzone" onclick="document.getElementById('txtFileInput').click()">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <div style="font-weight:700; font-size:0.92rem; color:var(--primary); margin-bottom:4px;">
-                            Klik untuk Mengunggah File Bahan Ajar (.txt / .md)
+                    <!-- DROPZONE / UPLOAD FILE BAHAN AJAR -->
+                    <div class="upload-dropzone" onclick="document.getElementById('txtFileInput').click()" style="background: linear-gradient(180deg, #f8faff 0%, #f0f7ff 100%); border: 2px dashed #38bdf8; padding: 22px 18px;">
+                        <div style="width: 52px; height: 52px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.15);">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
                         </div>
-                        <div style="font-size:0.75rem; color:var(--text-gray);">
-                            Teks file akan otomatis dimuat ke kotak editor di bawah ini.
+                        <div style="font-weight: 800; font-size: 0.98rem; color: var(--primary); margin-bottom: 4px;">
+                            Unggah File Bahan Ajar (.txt / .md / .text)
                         </div>
-                        <input type="file" id="txtFileInput" accept=".txt,.md" style="display:none;" onchange="handleFileUpload(event)">
+                        <div style="font-size: 0.78rem; color: #475569; max-width: 620px; margin: 0 auto; line-height: 1.55;">
+                            <span style="display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:#1e40af; padding:2px 10px; border-radius:50px; font-weight:700; font-size:0.7rem; margin-bottom:5px;">
+                                <i class="fa-solid fa-broom"></i> Pembersihan Otomatis AI
+                            </span><br>
+                            Sistem AI akan otomatis <b>menghapus kredit, hak cipta, &amp; daftar pustaka (dafpus)</b>, serta <b>memadatkan materi</b> menjadi poin-poin jelas dan berbobot sebelum disajikan ke formulir.
+                        </div>
+                        <input type="file" id="txtFileInput" accept=".txt,.md,.text,text/plain" style="display:none;" onchange="handleFileUpload(event)">
                     </div>
 
                     <div class="form-group">
@@ -530,14 +535,13 @@
                 <!-- Dinamis diisi oleh JS -->
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid var(--border-light); padding-top:14px; margin-top:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid var(--border-light); padding-top:14px; margin-top:16px; flex-wrap:wrap; gap:10px;">
                 <div style="font-size:0.75rem; color:var(--text-gray);">
-                    <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Anda dapat mengedit kembali teks di formulir setelah diterapkan.
+                    <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Seluruh materi telah disaring, dipadatkan, dan otomatis dimasukkan ke formulir.
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button type="button" class="btn-outline" onclick="closeAiRefineModal()">Batal</button>
                     <button type="button" class="btn-primary" onclick="applyAiRefinedMaterial()">
-                        <i class="fa-solid fa-check"></i> Terapkan ke Formulir
+                        <i class="fa-solid fa-check"></i> Gunakan &amp; Lanjutkan di Formulir
                     </button>
                 </div>
             </div>
@@ -616,39 +620,118 @@
             window.onCategorySelectChange();
         };
 
-        // HANDLE UPLOAD FILE TXT / MD
+        // ==========================================
+        // FITUR PENGOLAHAN FILE AI: PEMBERSIHAN DAFPUS/KREDIT & PEMADATAN
+        // ==========================================
+        let tempRefinedMaterial = null;
+        let tempRefinedStats = null;
+        let lastUploadedRawText = "";
+
+        // HANDLE UPLOAD FILE TXT / MD / TEXT
         window.handleFileUpload = (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 const text = event.target.result;
-                document.getElementById('matContent').value = text;
-                
-                // Jika judul masih kosong, gunakan nama file
-                const titleInput = document.getElementById('matTitle');
-                if (!titleInput.value) {
-                    const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-                    titleInput.value = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+                if (!text || text.trim().length < 15) {
+                    return Swal.fire({
+                        icon: 'warning',
+                        title: 'File Terlalu Singkat atau Kosong',
+                        text: 'File yang diunggah harus memuat minimal 15 karakter materi ajar.',
+                        confirmButtonColor: '#003366'
+                    });
                 }
 
+                lastUploadedRawText = text;
+                const category = document.getElementById('categorySelect').value;
+                const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+                const initialTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+
+                // TAMPILKAN PROSES KURASI AI SEBELUM DITAMPILKAN
                 Swal.fire({
-                    icon: 'success',
-                    title: 'File Berhasil Dimuat!',
-                    text: `Berhasil membaca ${text.length} karakter dari ${file.name}.`,
-                    timer: 2000,
-                    showConfirmButton: false
+                    title: 'Sistem Menerima File & Mengolah dengan AI ✨',
+                    html: `
+                        <div style="font-size:0.82rem; color:var(--text-dark); margin-bottom:12px;">
+                            Membaca file <b>${file.name}</b> (${text.length.toLocaleString('id-ID')} karakter).
+                        </div>
+                        <div style="text-align:left; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; font-size:0.75rem; color:#334155; line-height:1.65;">
+                            <div style="color:#0284c7; font-weight:700; margin-bottom:6px;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Proses Pembersihan &amp; Pemadatan Berjalan:
+                            </div>
+                            <div><i class="fa-solid fa-check" style="color:#10b981; width:16px;"></i> Menghapus informasi kredit, lisensi, penerbit, &amp; ISBN</div>
+                            <div><i class="fa-solid fa-check" style="color:#10b981; width:16px;"></i> Menghapus daftar pustaka (dafpus), referensi, &amp; sitasi</div>
+                            <div><i class="fa-solid fa-check" style="color:#10b981; width:16px;"></i> Mengeliminasi kata pengantar &amp; basa-basi pembuka</div>
+                            <div><i class="fa-solid fa-wand-magic-sparkles" style="color:#7c3aed; width:16px;"></i> <b>Memadatkan materi</b> ke poin-poin bernas, berstruktur, &amp; jelas</div>
+                        </div>
+                        <small style="color:#64748b; margin-top:10px; display:block;">Harap tunggu beberapa detik...</small>
+                    `,
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
                 });
+
+                try {
+                    const res = await fetch('/api/central', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'refine-mem-free-material',
+                            category: category,
+                            title: initialTitle,
+                            rawText: text
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.error || `HTTP ${res.status}: Gagal memproses AI.`);
+                    }
+
+                    const resData = await res.json();
+                    if (!resData.material) throw new Error("Format materi hasil olahan AI tidak valid.");
+
+                    tempRefinedMaterial = resData.material;
+                    tempRefinedStats = resData.stats || { rawLength: text.length, refinedLength: (resData.material.content || '').length };
+
+                    // LANGSUNG TERAPKAN HASIL OLAHAN AI KE FORMULIR
+                    if (resData.material.title) document.getElementById('matTitle').value = resData.material.title;
+                    if (resData.material.summary) document.getElementById('matSummary').value = resData.material.summary;
+                    if (resData.material.content) document.getElementById('matContent').value = resData.material.content;
+                    if (resData.material.examples) document.getElementById('matExamples').value = resData.material.examples;
+
+                    Swal.close();
+
+                    // Buka modal pratinjau hasil olahan AI
+                    renderAiRefinePreview(resData.material, resData.modelUsed, tempRefinedStats, true);
+                    document.getElementById('aiRefineModal').classList.add('active');
+
+                } catch (err) {
+                    console.error("Gagal olah AI otomatis file:", err);
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'AI Mengalami Kendala',
+                        text: `Gagal memadatkan dengan AI (${err.message}). Apakah Anda ingin memuat teks mentah asli langsung ke kotak editor formulir?`,
+                        showCancelButton: true,
+                        confirmButtonColor: '#003366',
+                        cancelButtonColor: '#64748b',
+                        confirmButtonText: 'Ya, Muat Teks Mentah',
+                        cancelButtonText: 'Batal'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            document.getElementById('matContent').value = text;
+                            const titleInput = document.getElementById('matTitle');
+                            if (!titleInput.value) titleInput.value = initialTitle;
+                        }
+                    });
+                } finally {
+                    e.target.value = ''; // Reset input file
+                }
             };
             reader.readAsText(file);
         };
 
-        // ==========================================
-        // FITUR AI REFINER BAHAN AJAR (MERAPIKAN MATERI)
-        // ==========================================
-        let tempRefinedMaterial = null;
-
+        // FITUR TOMBOL MANUAL "RAPIKAN & SUSUN POIN MATERI DENGAN AI"
         window.handleAiRefineMaterial = async () => {
             const category = document.getElementById('categorySelect').value;
             const title = document.getElementById('matTitle').value.trim();
@@ -658,14 +741,26 @@
                 return Swal.fire({
                     icon: 'warning',
                     title: 'Teks Materi Terlalu Singkat',
-                    text: 'Silakan ketik/tempelkan materi ajar lengkap atau unggah file .txt/.md terlebih dahulu di kotak editor (minimal 15 karakter).',
+                    text: 'Silakan ketik/tempelkan materi ajar lengkap atau unggah file terlebih dahulu di kotak editor (minimal 15 karakter).',
                     confirmButtonColor: '#003366'
                 });
             }
 
+            lastUploadedRawText = rawContent;
+
             Swal.fire({
-                title: 'Merancang Modul Terstruktur AI...',
-                html: 'Kurator AI sedang menganalisis materi Anda, menyusun sub-topik, poin-poin penjelasan esensial, merapikan istilah dan kaidah EYD, serta menyusun contoh kasus nyata.<br><small style="color:#64748b;">Harap tunggu beberapa saat...</small>',
+                title: 'Membersihkan & Memadatkan Materi dengan AI... ✨',
+                html: `
+                    <div style="text-align:left; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px; font-size:0.75rem; color:#334155; line-height:1.65;">
+                        <div style="color:#0284c7; font-weight:700; margin-bottom:6px;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> AI Sedang Mengolah Materi:
+                        </div>
+                        <div><i class="fa-solid fa-check" style="color:#10b981; width:16px;"></i> Menghapus kredit penerbit, hak cipta, &amp; dafpus</div>
+                        <div><i class="fa-solid fa-check" style="color:#10b981; width:16px;"></i> Memadatkan konsep dan penjelasan berbelit-belit</div>
+                        <div><i class="fa-solid fa-wand-magic-sparkles" style="color:#7c3aed; width:16px;"></i> Merancang poin materi berbobot, ringkasan, &amp; studi kasus</div>
+                    </div>
+                    <small style="color:#64748b; margin-top:8px; display:block;">Harap tunggu beberapa saat...</small>
+                `,
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading()
             });
@@ -691,17 +786,25 @@
                 if (!resData.material) throw new Error("Format hasil perapian AI tidak valid.");
 
                 tempRefinedMaterial = resData.material;
+                tempRefinedStats = resData.stats || { rawLength: rawContent.length, refinedLength: (resData.material.content || '').length };
+
+                // Langsung terapkan ke formulir
+                if (resData.material.title) document.getElementById('matTitle').value = resData.material.title;
+                if (resData.material.summary) document.getElementById('matSummary').value = resData.material.summary;
+                if (resData.material.content) document.getElementById('matContent').value = resData.material.content;
+                if (resData.material.examples) document.getElementById('matExamples').value = resData.material.examples;
+
                 Swal.close();
 
                 // Buka modal pratinjau
-                renderAiRefinePreview(resData.material, resData.modelUsed);
+                renderAiRefinePreview(resData.material, resData.modelUsed, tempRefinedStats, false);
                 document.getElementById('aiRefineModal').classList.add('active');
 
             } catch (err) {
                 console.error("Gagal AI Refine:", err);
                 Swal.fire({
                     icon: 'error',
-                    title: 'Gagal Merapikan Materi',
+                    title: 'Gagal Memadatkan Materi',
                     text: err.message || 'Terjadi gangguan saat memproses AI. Silakan coba kembali.',
                     confirmButtonColor: '#003366'
                 });
@@ -732,14 +835,28 @@
 
             Swal.fire({
                 icon: 'success',
-                title: 'Materi AI Berhasil Diterapkan!',
-                text: 'Formulir telah diperbarui dengan judul, ringkasan, dan isi materi terstruktur berpoin. Anda dapat meninjau dan klik "Simpan & Terbitkan Bahan Ajar".',
+                title: 'Materi AI Diterapkan di Formulir!',
+                text: 'Kredit dan dafpus telah dibersihkan, isi materi telah dipadatkan berpoin rapi. Anda dapat memeriksa dan klik "Simpan & Terbitkan Bahan Ajar".',
                 confirmButtonColor: '#003366',
                 timer: 2500
             });
         };
 
-        function renderAiRefinePreview(mat, modelUsed) {
+        window.toggleRawDocView = () => {
+            const rawBox = document.getElementById('rawDocCompareBox');
+            const btn = document.getElementById('btnToggleRawDoc');
+            if (!rawBox) return;
+
+            if (rawBox.style.display === 'none' || !rawBox.style.display) {
+                rawBox.style.display = 'block';
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> Sembunyikan Teks Mentah Asli';
+            } else {
+                rawBox.style.display = 'none';
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-file-lines"></i> Bandingkan dengan Teks Mentah Asli File';
+            }
+        };
+
+        function renderAiRefinePreview(mat, modelUsed, stats, fromFileUpload = false) {
             const container = document.getElementById('aiRefinePreviewArea');
             if (!container) return;
 
@@ -752,18 +869,61 @@
                 `).join(' ');
             }
 
+            const rawLen = stats?.rawLength || 0;
+            const refLen = stats?.refinedLength || (mat.content || '').length;
+            const compRatio = rawLen > 0 ? Math.round(((rawLen - refLen) / rawLen) * 100) : 0;
+
             container.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
-                    <span style="font-size:0.75rem; color:#475569; font-weight:700;">
-                        <i class="fa-solid fa-microchip" style="color:#7c3aed;"></i> Model: ${modelUsed || 'AI Engine'}
-                    </span>
-                    <span class="status-badge badge-active" style="font-size:0.7rem;">
-                        <i class="fa-solid fa-circle-check"></i> Terstruktur Rapi
-                    </span>
+                <!-- BANNER STATUS PEMBERSIHAN & PEMADATAN -->
+                <div style="background:linear-gradient(135deg, #065f46 0%, #047857 100%); color:white; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 4px 15px rgba(6,95,70,0.2);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+                        <span style="font-size:0.7rem; font-weight:800; background:rgba(255,255,255,0.2); padding:3px 10px; border-radius:50px; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="fa-solid fa-shield-halved"></i> 100% Bersih dari Kredit &amp; Dafpus
+                        </span>
+                        <span style="font-size:0.72rem; color:#a7f3d0; font-weight:700;">
+                            <i class="fa-solid fa-microchip"></i> Diolah dengan AI (${modelUsed || 'AI Engine'})
+                        </span>
+                    </div>
+                    <div style="font-size:1.02rem; font-weight:800; margin-bottom:4px;">
+                        ${fromFileUpload ? 'File Berhasil Diterima &amp; Dipadatkan oleh AI ✨' : 'Materi Berhasil Dirapikan &amp; Dipadatkan ✨'}
+                    </div>
+                    <div style="font-size:0.76rem; color:#d1fae5; line-height:1.5;">
+                        Informasi kredit penerbit, lisensi, kata pengantar, dan daftar pustaka (dafpus) telah dibuang. Materi difokuskan murni pada teori esensial dan contoh penerapan yang padat &amp; jelas.
+                    </div>
                 </div>
 
+                <!-- KARTU STATISTIK PEMADATAN -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:16px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; text-align:center;">
+                        <div style="font-size:0.7rem; color:#64748b; font-weight:600;">Teks Mentah Awal</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:var(--primary);">${rawLen.toLocaleString('id-ID')} kar</div>
+                    </div>
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:10px 12px; text-align:center;">
+                        <div style="font-size:0.7rem; color:#047857; font-weight:600;">Materi Padat Inti</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#065f46;">${refLen.toLocaleString('id-ID')} kar</div>
+                    </div>
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; text-align:center;">
+                        <div style="font-size:0.7rem; color:#1d4ed8; font-weight:600;">Tingkat Pemadatan</div>
+                        <div style="font-size:1.1rem; font-weight:800; color:#1e40af;">${compRatio > 0 ? compRatio + '% Lebih Padat' : 'Optimal'}</div>
+                    </div>
+                </div>
+
+                <!-- CHECKLIST PEMBERSIHAN -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
+                    <strong style="font-size:0.78rem; color:var(--primary); display:block; margin-bottom:6px;">
+                        <i class="fa-solid fa-list-check" style="color:#0284c7;"></i> Laporan Elemen yang Dieliminasi:
+                    </strong>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:6px; font-size:0.74rem; color:#475569;">
+                        <div><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Kredit, nama penerbit, &amp; ISBN dihapus</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Daftar pustaka &amp; sitasi dihapus</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Kata pengantar &amp; basa-basi dibuang</div>
+                        <div><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Sub-bab &amp; poin tersusun dengan Markdown ###</div>
+                    </div>
+                </div>
+
+                <!-- PRATINJAU HASIL ISI -->
                 <div style="margin-bottom:12px;">
-                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Usulan Judul Modul:</label>
+                    <label style="font-size:0.74rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Judul Modul Kurikulum:</label>
                     <div style="font-size:1.05rem; font-weight:800; color:var(--primary);">${mat.title || '-'}</div>
                 </div>
 
@@ -773,7 +933,7 @@
                 </div>
 
                 <div style="margin-bottom:14px;">
-                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Isi Bahan Ajar Berpoin (Pratinjau Siswa):</label>
+                    <label style="font-size:0.74rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Isi Materi Terstruktur &amp; Padat (Tampilan Siswa):</label>
                     <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:14px; max-height:260px; overflow-y:auto; line-height:1.65; font-size:0.82rem; color:#334155; white-space:pre-line;">
 ${mat.content || '-'}
                     </div>
@@ -789,9 +949,21 @@ ${mat.content || '-'}
                 ` : ''}
 
                 ${conceptsHtml ? `
-                    <div style="margin-top:10px;">
-                        <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase; display:block; margin-bottom:4px;">Kata Kunci / Konsep Inti:</label>
+                    <div style="margin-top:10px; margin-bottom:14px;">
+                        <label style="font-size:0.74rem; font-weight:700; color:var(--text-gray); text-transform:uppercase; display:block; margin-bottom:4px;">Kata Kunci / Konsep Inti:</label>
                         <div>${conceptsHtml}</div>
+                    </div>
+                ` : ''}
+
+                <!-- TOMBOL TOGGLE TEKS MENTAH ASLI FILE -->
+                ${lastUploadedRawText ? `
+                    <div style="margin-top:14px; border-top:1px dashed #cbd5e1; padding-top:12px;">
+                        <button type="button" id="btnToggleRawDoc" class="btn-outline" style="font-size:0.74rem; padding:6px 14px;" onclick="toggleRawDocView()">
+                            <i class="fa-solid fa-file-lines"></i> Bandingkan dengan Teks Mentah Asli File
+                        </button>
+                        <div id="rawDocCompareBox" style="display:none; margin-top:10px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:12px; max-height:180px; overflow-y:auto; font-size:0.75rem; color:#475569; font-family:monospace; white-space:pre-wrap;">
+${lastUploadedRawText}
+                        </div>
                     </div>
                 ` : ''}
             `;
