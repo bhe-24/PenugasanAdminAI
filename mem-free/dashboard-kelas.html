@@ -304,21 +304,20 @@
     <!-- ENGINE SCRIPTS -->
     <script src="/mem-free/central.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            CendekiaApp.renderBottomNav('kelas');
-            
-            const user = CendekiaApp.getUser();
+        function renderStudentCard(user) {
             const sem = parseInt(user.semester) || 1;
             const targetUrl = CendekiaApp.getClassDashboardUrl();
 
-            // Render Biodata
+            // Render Nama Siswa
             const nameEl = document.getElementById('idCardName');
             if (nameEl) nameEl.textContent = user.name || 'Siswa Cendekia';
 
+            // Render Foto Profil Siswa (ambil dari photoURL / photo / profile luar)
             const photoWrapper = document.getElementById('idCardPhotoWrapper');
             if (photoWrapper) {
-                if (user.photo) {
-                    photoWrapper.innerHTML = `<img src="${user.photo}" alt="${user.name}" onerror="this.onerror=null; this.parentNode.innerHTML='<span class=\\'id-photo-initial\\'>${(user.name||'S')[0].toUpperCase()}</span>';">`;
+                const userPhoto = user.photo || user.photoURL || '';
+                if (userPhoto && userPhoto.trim().length > 0) {
+                    photoWrapper.innerHTML = `<img src="${userPhoto}" alt="${user.name}" onerror="this.onerror=null; this.parentNode.innerHTML='<span class=\\'id-photo-initial\\'>${(user.name||'S')[0].toUpperCase()}</span>';">`;
                 } else {
                     const initial = (user.name || 'S')[0].toUpperCase();
                     photoWrapper.innerHTML = `<span class="id-photo-initial">${initial}</span>`;
@@ -328,8 +327,8 @@
             // NIS / Reg No
             const regEl = document.getElementById('idCardReg');
             if (regEl) {
-                const phoneSuffix = user.phone ? user.phone.replace(/\D/g, '').slice(-4) : (user.email ? user.email.slice(0, 4).toUpperCase() : '2026');
-                regEl.textContent = `CA-SISWA-${phoneSuffix}`;
+                const phoneSuffix = user.noHp ? user.noHp.replace(/\D/g, '').slice(-4) : (user.phone ? user.phone.replace(/\D/g, '').slice(-4) : (user.email ? user.email.slice(0, 4).toUpperCase() : '2026'));
+                regEl.textContent = user.nis || `CA-SISWA-${phoneSuffix}`;
             }
 
             // Semester & Class
@@ -347,18 +346,50 @@
             if (emailEl) emailEl.textContent = user.email || 'siswa@cendekia.id';
 
             const phoneEl = document.getElementById('detailPhone');
-            if (phoneEl) phoneEl.textContent = user.phone || '-';
+            if (phoneEl) phoneEl.textContent = user.noHp || user.phone || '-';
 
             const tierEl = document.getElementById('detailTier');
             if (tierEl) tierEl.textContent = `${user.tier || 'Member Free'} &bull; Siswa Reguler`;
 
             if (sem >= 3) {
-                document.getElementById('idCardClass').textContent = 'Kelas Studio Inkubasi Naskah';
-                document.getElementById('officialClassTitle').textContent = 'Ruang Studio Inkubasi Naskah Buku';
-                document.getElementById('officialClassDesc').textContent = 'Inkubasi pemenuhan target bab berstandar QRCBN bersama Dewan Kurator';
+                const classLabel = document.getElementById('idCardClass');
+                if (classLabel) classLabel.textContent = 'Kelas Studio Inkubasi Naskah';
+                const classTitle = document.getElementById('officialClassTitle');
+                if (classTitle) classTitle.textContent = 'Ruang Studio Inkubasi Naskah Buku';
+                const classDesc = document.getElementById('officialClassDesc');
+                if (classDesc) classDesc.textContent = 'Inkubasi pemenuhan target bab berstandar QRCBN bersama Dewan Kurator';
             }
 
             if (window.lucide) lucide.createIcons();
+        }
+
+        // 1. Eksekusi Cepat & Instan dari Sesi Lokal (0ms)
+        const currentUser = CendekiaApp.getUser();
+        renderStudentCard(currentUser);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('kelas');
+            renderStudentCard(CendekiaApp.getUser());
+
+            // 2. Background Sync diam-diam dari Firestore jika terhubung sesi luar
+            CendekiaApp.getFirebaseBridge().then(async (fb) => {
+                if (!fb || !fb.auth || !fb.db) return;
+                fb.onAuthStateChanged(fb.auth, async (firebaseUser) => {
+                    if (firebaseUser) {
+                        try {
+                            const snap = await fb.getDoc(fb.doc(fb.db, "users", firebaseUser.uid));
+                            if (snap.exists()) {
+                                const dbUser = snap.data();
+                                const merged = { ...CendekiaApp.getUser(), uid: firebaseUser.uid, email: firebaseUser.email, ...dbUser };
+                                CendekiaApp.saveUser(merged);
+                                renderStudentCard(merged);
+                            }
+                        } catch (e) {
+                            console.warn("Silent sync kartu kelas:", e);
+                        }
+                    }
+                });
+            }).catch(() => {});
         });
     </script>
 </body>

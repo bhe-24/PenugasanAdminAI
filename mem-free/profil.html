@@ -367,14 +367,20 @@
     <!-- CENTRAL SCRIPT -->
     <script src="/mem-free/central.js"></script>
 
-    <!-- FIREBASE MODULE INTEGRASI (SINKRONISASI DATA PROFIL & FOTO LURING SEPERTI DI DASHBOARD/PROFIL) -->
-    <script type="module">
-        import { db, auth } from "/js/firebase-config.js";
-        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        let currentUid = null;
+    <!-- 1. EKSEKUSI INSTAN (0ms) - NAVIGASI BAWAH & PROFIL LOKAL LANGSUNG MUNCUL TANPA DELAY -->
+    <script>
         let isEditing = false;
+        let currentUid = null;
+
+        function formatIndoDate(dateStr) {
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr;
+                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            } catch(e) {
+                return dateStr;
+            }
+        }
 
         window.toggleEditBiodata = () => {
             isEditing = !isEditing;
@@ -393,112 +399,11 @@
             }
         };
 
-        function populateUI(user) {
-            const name = user.name || 'Siswa Cendekia';
-            const email = user.email || 'member@cendekia.id';
-            const sem = parseInt(user.semester) || 1;
-            const ips = parseFloat(user.ips || 0);
-
-            // Header Profile Card
-            document.getElementById('display-name').textContent = name;
-            document.getElementById('display-email').textContent = email;
-            document.getElementById('profEmail').textContent = email;
-            document.getElementById('display-sem').textContent = `Semester ${sem}`;
-            document.getElementById('display-ips').textContent = ips.toFixed(2);
-
-            // Badge IPS styling
-            const ipsBadge = document.getElementById('ips-badge');
-            ipsBadge.className = 'badge-ips-pill';
-            if (ips >= 3.00) {
-                ipsBadge.classList.add('ips-green');
-            } else if (ips >= 2.00) {
-                ipsBadge.classList.add('ips-yellow');
-            } else {
-                ipsBadge.classList.add('ips-red');
-            }
-
-            // Foto Profil
-            const picEl = document.getElementById('display-pic');
-            if (user.photoURL) {
-                picEl.src = user.photoURL;
-            } else {
-                picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003366&color=fff&size=200`;
-            }
-
-            // Status Tier / Keanggotaan
-            const currentTier = user.tier || 'Member Free';
-            const tierBadge = document.getElementById('display-tier-badge');
-            const tierText = document.getElementById('display-tier-text');
-            const profTier = document.getElementById('profTier');
-            const profFeatures = document.getElementById('profFeatures');
-            const profPrice = document.getElementById('profPrice');
-
-            if (tierText) tierText.textContent = currentTier;
-            if (profTier) profTier.textContent = currentTier === 'Member Free' ? 'Member Free (Akses Bebas Biaya)' : `${currentTier} (Keanggotaan Aktif)`;
-
-            if (currentTier !== 'Member Free') {
-                if (tierBadge) {
-                    tierBadge.style.background = '#fffdf5';
-                    tierBadge.style.borderColor = 'var(--accent)';
-                    tierBadge.style.color = 'var(--accent-dark)';
-                    tierBadge.innerHTML = `<i data-lucide="crown" style="width:13px; height:13px; color:#d97706;"></i> <span>${currentTier}</span>`;
-                }
-                if (profFeatures) profFeatures.textContent = 'Akses Kelas Resmi, Bimbingan Kurator, Evaluasi Naskah & Modul';
-                if (profPrice) {
-                    profPrice.style.color = '#0284c7';
-                    profPrice.textContent = 'Langganan Aktif';
-                }
-            }
-
-            // Biodata View (Read-Only)
-            document.getElementById('bioValName').textContent = user.name || '-';
-            document.getElementById('bioValHp').textContent = user.noHp || '-';
-            document.getElementById('bioValDob').textContent = user.tanggalLahir ? formatIndoDate(user.tanggalLahir) : '-';
-            document.getElementById('bioValAddr').textContent = user.alamat || '-';
-            document.getElementById('bioValBio').textContent = user.bioSingkat ? `"${user.bioSingkat}"` : 'Belum ada bio singkat.';
-
-            // Biodata Form Inputs
-            document.getElementById('inp-name').value = user.name || '';
-            document.getElementById('inp-hp').value = user.noHp || '';
-            document.getElementById('inp-dob').value = user.tanggalLahir || '';
-            document.getElementById('inp-addr').value = user.alamat || '';
-            document.getElementById('inp-bio').value = user.bioSingkat || '';
-
-            // Muat Riwayat Transaksi Aktual
-            loadTransactionHistory(user);
-
-            if (window.lucide) lucide.createIcons();
-        }
-
-        // 2. SISTEM RIWAYAT TRANSAKSI AKTUAL SISWA
-        async function loadTransactionHistory(user) {
+        function renderTransactionsUI(txs, user) {
             const container = document.getElementById('transactionHistoryList');
             if (!container) return;
 
-            let txs = CendekiaApp.getTransactions();
-
-            // Coba sinkronisasi transaksi dari Firestore jika pengguna memiliki email/uid
-            try {
-                const fb = await CendekiaApp.getFirebaseBridge();
-                if (fb && fb.db && (user.uid || user.email)) {
-                    const snap = await fb.getDocs(fb.collection(fb.db, "transactions"));
-                    snap.forEach(d => {
-                        const data = d.data();
-                        if ((user.uid && data.uid === user.uid) || (user.email && data.userEmail === user.email)) {
-                            if (!txs.some(t => t.invoiceNo === data.invoiceNo || t.id === d.id)) {
-                                txs.push({ id: d.id, ...data });
-                            }
-                        }
-                    });
-                }
-            } catch (err) {
-                console.warn('Gagal membaca transaksi Firestore:', err);
-            }
-
-            // Urutkan transaksi dari yang terbaru
-            txs.sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
-
-            if (txs.length === 0) {
+            if (!txs || txs.length === 0) {
                 container.innerHTML = `
                     <div style="text-align:center; padding:20px 14px; background:#f8fafc; border-radius:var(--radius-sm); border:1px dashed var(--border-medium);">
                         <div style="width:38px; height:38px; border-radius:50%; background:#e2e8f0; color:var(--text-muted); display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">
@@ -554,28 +459,129 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        function formatIndoDate(dateStr) {
-            try {
-                const d = new Date(dateStr);
-                if (isNaN(d.getTime())) return dateStr;
-                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            } catch(e) {
-                return dateStr;
+        function populateUI(user) {
+            const name = user.name || 'Siswa Cendekia';
+            const email = user.email || 'member@cendekia.id';
+            const sem = parseInt(user.semester) || 1;
+            const ips = parseFloat(user.ips || 0);
+
+            // Header Profile Card
+            document.getElementById('display-name').textContent = name;
+            document.getElementById('display-email').textContent = email;
+            document.getElementById('profEmail').textContent = email;
+            document.getElementById('display-sem').textContent = `Semester ${sem}`;
+            document.getElementById('display-ips').textContent = ips.toFixed(2);
+
+            // Badge IPS styling
+            const ipsBadge = document.getElementById('ips-badge');
+            if (ipsBadge) {
+                ipsBadge.className = 'badge-ips-pill';
+                if (ips >= 3.00) ipsBadge.classList.add('ips-green');
+                else if (ips >= 2.00) ipsBadge.classList.add('ips-yellow');
+                else ipsBadge.classList.add('ips-red');
             }
+
+            // Foto Profil (ambil dari photoURL / photo / profile luar)
+            const picEl = document.getElementById('display-pic');
+            const userPhoto = user.photoURL || user.photo || '';
+            if (picEl) {
+                if (userPhoto && userPhoto.trim().length > 0) {
+                    picEl.src = userPhoto;
+                } else {
+                    picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003366&color=fff&size=200`;
+                }
+            }
+
+            // Status Tier / Keanggotaan
+            const currentTier = user.tier || 'Member Free';
+            const tierBadge = document.getElementById('display-tier-badge');
+            const tierText = document.getElementById('display-tier-text');
+            const profTier = document.getElementById('profTier');
+            const profFeatures = document.getElementById('profFeatures');
+            const profPrice = document.getElementById('profPrice');
+
+            if (tierText) tierText.textContent = currentTier;
+            if (profTier) profTier.textContent = currentTier === 'Member Free' ? 'Member Free (Akses Bebas Biaya)' : `${currentTier} (Keanggotaan Aktif)`;
+
+            if (currentTier !== 'Member Free') {
+                if (tierBadge) {
+                    tierBadge.style.background = '#fffdf5';
+                    tierBadge.style.borderColor = 'var(--accent)';
+                    tierBadge.style.color = 'var(--accent-dark)';
+                    tierBadge.innerHTML = `<i data-lucide="crown" style="width:13px; height:13px; color:#d97706;"></i> <span>${currentTier}</span>`;
+                }
+                if (profFeatures) profFeatures.textContent = 'Akses Kelas Resmi, Bimbingan Kurator, Evaluasi Naskah & Modul';
+                if (profPrice) {
+                    profPrice.style.color = '#0284c7';
+                    profPrice.textContent = 'Langganan Aktif';
+                }
+            }
+
+            // Biodata View (Read-Only)
+            document.getElementById('bioValName').textContent = user.name || '-';
+            document.getElementById('bioValHp').textContent = user.noHp || '-';
+            document.getElementById('bioValDob').textContent = user.tanggalLahir ? formatIndoDate(user.tanggalLahir) : '-';
+            document.getElementById('bioValAddr').textContent = user.alamat || '-';
+            document.getElementById('bioValBio').textContent = user.bioSingkat ? `"${user.bioSingkat}"` : 'Belum ada bio singkat.';
+
+            // Biodata Form Inputs
+            document.getElementById('inp-name').value = user.name || '';
+            document.getElementById('inp-hp').value = user.noHp || '';
+            document.getElementById('inp-dob').value = user.tanggalLahir || '';
+            document.getElementById('inp-addr').value = user.alamat || '';
+            document.getElementById('inp-bio').value = user.bioSingkat || '';
+
+            // Render Transaksi Lokal Instan
+            const localTxs = CendekiaApp.getTransactions();
+            renderTransactionsUI(localTxs, user);
+
+            // Render riwayat aktivitas instan
+            const history = CendekiaApp.getHistory();
+            const logContainer = document.getElementById('userActivityLog');
+            if (logContainer && history && history.length > 0) {
+                logContainer.innerHTML = '';
+                history.slice(0, 5).forEach(h => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; justify-content:space-between; font-size:0.72rem; padding:6px 0; border-bottom:1px solid #f8fafc;';
+                    row.innerHTML = `
+                        <span style="color:var(--text-body);"><i data-lucide="check-circle-2" style="width:12px; height:12px; display:inline-block; vertical-align:middle; color:#059669;"></i> ${h.title}</span>
+                        <span style="color:var(--text-muted);">${h.time || h.date}</span>
+                    `;
+                    logContainer.appendChild(row);
+                });
+            }
+
+            if (window.lucide) lucide.createIcons();
         }
 
-        // 1. Eksekusi Cepat dari Sesi Lokal
-        try {
-            const localUser = CendekiaApp.getUser();
-            const legacy = localStorage.getItem('cendekia_user');
-            if (legacy) {
-                const legObj = JSON.parse(legacy);
-                Object.assign(localUser, legObj);
-            }
-            populateUI(localUser);
-        } catch(e) {}
+        // --- EKSEKUSI SEGERA: BOTTOM NAV & DATA AWAL MUNCUL SEKETIKA (0ms) ---
+        CendekiaApp.renderBottomNav('profil');
+        const activeUser = CendekiaApp.getUser();
+        populateUI(activeUser);
 
-        // 2. Sinkronisasi Real-Time dengan Firebase Firestore
+        function showLogoutModal() {
+            document.getElementById('modalLogout').style.display = 'flex';
+        }
+        function closeLogoutModal() {
+            document.getElementById('modalLogout').style.display = 'none';
+        }
+        function executeLogout() {
+            localStorage.removeItem('cendekia_user');
+            localStorage.removeItem('user_status');
+            localStorage.removeItem('user_semester');
+            localStorage.removeItem('user_package');
+            localStorage.removeItem('cendekia_free_user');
+            window.location.replace('/home/');
+        }
+    </script>
+
+    <!-- 2. FIREBASE SINKRONISASI LATAR BELAKANG (NON-BLOCKING) -->
+    <script type="module">
+        import { db, auth } from "/js/firebase-config.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Sinkronisasi Sesi Auth di Latar Belakang (Tidak Menahan Navigasi atau UI)
         onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
                 currentUid = firebaseUser.uid;
@@ -584,25 +590,27 @@
                     if (snap.exists()) {
                         const data = snap.data();
                         const mergedUser = {
+                            ...CendekiaApp.getUser(),
                             uid: firebaseUser.uid,
                             email: firebaseUser.email,
                             ...data
                         };
 
-                        // Perbarui Local Storage
-                        localStorage.setItem('cendekia_user', JSON.stringify(mergedUser));
-                        CendekiaApp.saveUser(mergedUser);
+                        if (data.photoURL) {
+                            mergedUser.photoURL = data.photoURL;
+                            mergedUser.photo = data.photoURL;
+                        }
 
-                        // Tampilkan ke UI
+                        CendekiaApp.saveUser(mergedUser);
                         populateUI(mergedUser);
                     }
                 } catch(err) {
-                    console.warn("Gagal membaca profil dari Firestore:", err);
+                    console.warn("Silent sync Firestore:", err);
                 }
             }
         });
 
-        // 3. Upload & Kompresi Foto Profil (Base64 JPEG Canvas seperti di dashboard/profil)
+        // 3. Upload & Kompresi Foto Profil (Base64 JPEG Canvas seperti di dashboard/profil luar)
         window.uploadFotoBase64 = () => {
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
@@ -618,7 +626,7 @@
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Kompresi Canvas (lebar maks 400px, 70% quality)
+                    // Kompresi Canvas (maks 400px, 70% quality)
                     const canvas = document.createElement('canvas');
                     const MAX_WIDTH = 400;
                     const scaleSize = MAX_WIDTH / img.width;
@@ -630,22 +638,16 @@
 
                     const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
-                    // Update UI langsung
+                    // Update UI langsung seketika
                     document.getElementById('display-pic').src = compressedBase64;
 
-                    // Update Local Storage
+                    // Update Sesi Lokal & Central
                     const user = CendekiaApp.getUser();
                     user.photoURL = compressedBase64;
+                    user.photo = compressedBase64;
                     CendekiaApp.saveUser(user);
 
-                    try {
-                        const raw = localStorage.getItem('cendekia_user');
-                        const parsed = raw ? JSON.parse(raw) : {};
-                        parsed.photoURL = compressedBase64;
-                        localStorage.setItem('cendekia_user', JSON.stringify(parsed));
-                    } catch(e) {}
-
-                    // Simpan ke Firestore jika terautentikasi
+                    // Simpan ke Firestore jika login
                     if (currentUid) {
                         updateDoc(doc(db, "users", currentUid), { photoURL: compressedBase64 })
                             .then(() => {
@@ -654,7 +656,7 @@
                                     title: 'Foto Profil Diperbarui!',
                                     text: 'Foto profil Anda berhasil disimpan ke sistem.',
                                     confirmButtonColor: '#003366',
-                                    timer: 2000,
+                                    timer: 1800,
                                     showConfirmButton: false
                                 });
                             })
@@ -667,7 +669,7 @@
                             title: 'Foto Tersimpan!',
                             text: 'Foto profil Anda berhasil diperbarui di perangkat ini.',
                             confirmButtonColor: '#003366',
-                            timer: 2000,
+                            timer: 1800,
                             showConfirmButton: false
                         });
                     }
@@ -694,22 +696,15 @@
                 bioSingkat: document.getElementById('inp-bio').value.trim()
             };
 
-            // Update UI & Local Storage
+            // Update UI & Local Storage seketika
             const user = CendekiaApp.getUser();
             Object.assign(user, payload);
             CendekiaApp.saveUser(user);
 
-            try {
-                const raw = localStorage.getItem('cendekia_user');
-                const parsed = raw ? JSON.parse(raw) : {};
-                Object.assign(parsed, payload);
-                localStorage.setItem('cendekia_user', JSON.stringify(parsed));
-            } catch(e) {}
-
             populateUI(user);
             window.toggleEditBiodata();
 
-            // Simpan ke Firestore jika ada user login
+            // Simpan ke Firestore di latar belakang
             if (currentUid) {
                 try {
                     await updateDoc(doc(db, "users", currentUid), payload);
@@ -725,48 +720,10 @@
                 title: 'Biodata Tersimpan!',
                 text: 'Informasi identitas diri Anda berhasil diperbarui.',
                 confirmButtonColor: '#003366',
-                timer: 2000,
+                timer: 1800,
                 showConfirmButton: false
             });
         };
-    </script>
-
-    <script>
-        function showLogoutModal() {
-            document.getElementById('modalLogout').style.display = 'flex';
-        }
-        function closeLogoutModal() {
-            document.getElementById('modalLogout').style.display = 'none';
-        }
-        function executeLogout() {
-            localStorage.removeItem('cendekia_user');
-            localStorage.removeItem('user_status');
-            localStorage.removeItem('user_semester');
-            localStorage.removeItem('user_package');
-            localStorage.removeItem('cendekia_free_user');
-            window.location.replace('/home/');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            CendekiaApp.renderBottomNav('profil');
-
-            // Render riwayat aktivitas
-            const history = CendekiaApp.getHistory();
-            const logContainer = document.getElementById('userActivityLog');
-            if (history && history.length > 0) {
-                logContainer.innerHTML = '';
-                history.slice(0, 5).forEach(h => {
-                    const row = document.createElement('div');
-                    row.style.cssText = 'display:flex; justify-content:space-between; font-size:0.72rem; padding:6px 0; border-bottom:1px solid #f8fafc;';
-                    row.innerHTML = `
-                        <span style="color:var(--text-body);"><i data-lucide="check-circle-2" style="width:12px; height:12px; display:inline-block; vertical-align:middle; color:#059669;"></i> ${h.title}</span>
-                        <span style="color:var(--text-muted);">${h.time || h.date}</span>
-                    `;
-                    logContainer.appendChild(row);
-                });
-                if (window.lucide) lucide.createIcons();
-            }
-        });
     </script>
 </body>
 </html>

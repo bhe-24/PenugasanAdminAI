@@ -134,7 +134,7 @@ const CendekiaApp = (function () {
         }
     };
 
-    // 1. GET & SYNC USER DATA
+    // 1. GET & SYNC USER DATA (Terintegrasi penuh dengan data dashboard & profil luar)
     function getUser() {
         let user = null;
         try {
@@ -148,22 +148,50 @@ const CendekiaApp = (function () {
             user = { ...defaultUser };
         }
 
-        // Sinkronkan selalu data profil dari sesi login/cendekia_user jika ada
+        // Sinkronkan selalu data profil dari sumber login utama, dashboard/profil luar (cendekia_user, user_photo, dll)
         try {
             const legacy = localStorage.getItem('cendekia_user');
             if (legacy) {
                 const l = JSON.parse(legacy);
-                if (l.name && (!user.name || user.name === 'Siswa Cendekia')) user.name = l.name;
-                if (l.email && !user.email) user.email = l.email;
-                if (l.photoURL && (!user.photoURL || user.photoURL !== l.photoURL)) user.photoURL = l.photoURL;
-                if (l.semester && !user.semester) user.semester = parseInt(l.semester) || 1;
-                if (l.noHp && !user.noHp) user.noHp = l.noHp;
-                if (l.tanggalLahir && !user.tanggalLahir) user.tanggalLahir = l.tanggalLahir;
-                if (l.alamat && !user.alamat) user.alamat = l.alamat;
-                if (l.bioSingkat && !user.bioSingkat) user.bioSingkat = l.bioSingkat;
+                if (l.name) user.name = l.name;
+                if (l.email) user.email = l.email;
+                if (l.uid && (!user.uid || user.uid.startsWith('guest_'))) user.uid = l.uid;
+
+                // Ambil foto profil dari properti apapun yang tersimpan di sistem luar
+                const externalPhoto = l.photoURL || l.photo || l.foto || l.profilePic || l.avatar;
+                if (externalPhoto) {
+                    user.photoURL = externalPhoto;
+                    user.photo = externalPhoto;
+                }
+
+                if (l.semester) user.semester = parseInt(l.semester) || user.semester || 1;
+                if (l.noHp || l.phone || l.whatsapp) user.noHp = l.noHp || l.phone || l.whatsapp;
+                if (l.tanggalLahir || l.dob) user.tanggalLahir = l.tanggalLahir || l.dob;
+                if (l.alamat || l.address) user.alamat = l.alamat || l.address;
+                if (l.bioSingkat || l.bio) user.bioSingkat = l.bioSingkat || l.bio;
+                if (l.nis || l.nomorInduk || l.idSiswa) user.nis = l.nis || l.nomorInduk || l.idSiswa;
+                if (l.ips !== undefined) user.ips = l.ips;
                 if (typeof l.xp === 'number' && l.xp > (user.xp || 0)) user.xp = l.xp;
             }
+
+            // Fallback pembacaan foto mandiri dari localStorage
+            const standalonePhoto = localStorage.getItem('user_photo') || localStorage.getItem('profile_photo');
+            if (standalonePhoto) {
+                user.photoURL = standalonePhoto;
+                user.photo = standalonePhoto;
+            }
+
+            // Fallback nama & semester mandiri dari localStorage
+            const standaloneName = localStorage.getItem('user_name');
+            if (standaloneName && (!user.name || user.name === 'Siswa Cendekia')) user.name = standaloneName;
+            const standaloneSem = localStorage.getItem('user_semester');
+            if (standaloneSem) user.semester = parseInt(standaloneSem) || user.semester || 1;
+
         } catch (e) {}
+
+        // Pastikan properti photo dan photoURL selalu berpasangan
+        if (user.photoURL && !user.photo) user.photo = user.photoURL;
+        if (user.photo && !user.photoURL) user.photoURL = user.photo;
 
         // Hitung streak otomatis
         checkStreak(user);
@@ -185,11 +213,33 @@ const CendekiaApp = (function () {
 
     function saveUser(user) {
         try {
+            // Pastikan properti photo dan photoURL sinkron
+            if (user.photoURL && !user.photo) user.photo = user.photoURL;
+            if (user.photo && !user.photoURL) user.photoURL = user.photo;
+
             localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-            // Sinkronkan juga ke sesi umum jika diperlukan
-            if (user.semester) {
-                localStorage.setItem('user_semester', user.semester);
-            }
+
+            // Sinkronkan juga ke sesi dashboard & profil luar
+            if (user.semester) localStorage.setItem('user_semester', user.semester);
+            if (user.name) localStorage.setItem('user_name', user.name);
+            if (user.photoURL) localStorage.setItem('user_photo', user.photoURL);
+
+            try {
+                const legacy = localStorage.getItem('cendekia_user');
+                const legObj = legacy ? JSON.parse(legacy) : {};
+                if (user.name) legObj.name = user.name;
+                if (user.email) legObj.email = user.email;
+                if (user.photoURL) {
+                    legObj.photoURL = user.photoURL;
+                    legObj.photo = user.photoURL;
+                }
+                if (user.semester) legObj.semester = user.semester;
+                if (user.noHp) legObj.noHp = user.noHp;
+                if (user.tanggalLahir) legObj.tanggalLahir = user.tanggalLahir;
+                if (user.alamat) legObj.alamat = user.alamat;
+                if (user.bioSingkat) legObj.bioSingkat = user.bioSingkat;
+                localStorage.setItem('cendekia_user', JSON.stringify(legObj));
+            } catch(e) {}
         } catch (e) {}
     }
 
@@ -952,12 +1002,30 @@ const CendekiaApp = (function () {
                         const snap = await fb.getDoc(fb.doc(fb.db, "users", authUser.uid));
                         if (snap.exists()) {
                             const d = snap.data();
-                            if (d.photoURL && (!currentUser.photoURL || currentUser.photoURL !== d.photoURL)) {
-                                currentUser.photoURL = d.photoURL;
+                            const newPhoto = d.photoURL || d.photo || d.foto || d.profilePic || d.avatar;
+                            if (newPhoto && (!currentUser.photoURL || currentUser.photoURL !== newPhoto)) {
+                                currentUser.photoURL = newPhoto;
+                                currentUser.photo = newPhoto;
                                 updated = true;
                             }
-                            if (d.name && (!currentUser.name || currentUser.name === 'Siswa Cendekia')) {
+                            if (d.name && (!currentUser.name || currentUser.name === 'Siswa Cendekia' || currentUser.name !== d.name)) {
                                 currentUser.name = d.name;
+                                updated = true;
+                            }
+                            if (d.noHp && !currentUser.noHp) {
+                                currentUser.noHp = d.noHp;
+                                updated = true;
+                            }
+                            if (d.alamat && !currentUser.alamat) {
+                                currentUser.alamat = d.alamat;
+                                updated = true;
+                            }
+                            if (d.tanggalLahir && !currentUser.tanggalLahir) {
+                                currentUser.tanggalLahir = d.tanggalLahir;
+                                updated = true;
+                            }
+                            if (d.bioSingkat && !currentUser.bioSingkat) {
+                                currentUser.bioSingkat = d.bioSingkat;
                                 updated = true;
                             }
                             if (typeof d.xp === 'number' && d.xp > (currentUser.xp || 0)) {
