@@ -674,27 +674,23 @@ const CendekiaApp = (function () {
         });
 
         const statusBanner = stats.isTodayActive
-            ? `<span style="font-size:0.7rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="flame" style="width:14px; height:14px; color:#f59e0b;"></i> Api Keaktifan Menyala!</span>`
-            : `<span style="font-size:0.7rem; font-weight:700; color:#b45309; display:inline-flex; align-items:center; gap:4px;"><i data-lucide="sparkles" style="width:14px; height:14px; color:#d97706;"></i> Siap Beraktivitas Hari Ini</span>`;
-
-        const consistencyLabel = stats.isWeekEnded
-            ? `Konsistensi: <b>${stats.consistency}%</b>`
-            : `Konsistensi: <b>${stats.consistency}%</b> <span style="font-size:0.6rem; color:var(--text-muted); font-weight:normal;">(Sedang Berjalan &bull; Final 00:00 WIB)</span>`;
+            ? `<span style="font-size:0.68rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;"><i data-lucide="flame" style="width:13px; height:13px; color:#f59e0b;"></i> Api Keaktifan Menyala!</span>`
+            : `<span style="font-size:0.68rem; font-weight:700; color:#b45309; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;"><i data-lucide="sparkles" style="width:13px; height:13px; color:#d97706;"></i> Siap Beraktivitas Hari Ini</span>`;
 
         el.innerHTML = `
             <div class="cal-widget-inner">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <strong style="font-size:0.82rem; color:var(--primary); display:flex; align-items:center; gap:6px;">
-                        <i data-lucide="calendar" style="width:15px; height:15px; color:var(--accent-dark);"></i> Kalender Keaktifan Pekan Ini
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <strong style="font-size:0.8rem; color:var(--primary); display:flex; align-items:center; gap:5px; white-space:nowrap;">
+                        <i data-lucide="calendar" style="width:14px; height:14px; color:var(--accent-dark);"></i> Kalender Keaktifan Pekan Ini
                     </strong>
                     ${statusBanner}
                 </div>
                 <div class="cal-week-row">
                     ${cellsHtml}
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:var(--text-muted); margin-top:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:0.68rem; color:var(--text-muted); margin-top:8px; white-space:nowrap;">
                     <span>${stats.activeDays}/7 Hari Aktif Pekan Ini</span>
-                    <span>${consistencyLabel}</span>
+                    <span>Konsistensi: <b style="color:var(--primary);">${stats.consistency}%</b></span>
                 </div>
             </div>
         `;
