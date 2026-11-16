@@ -154,6 +154,23 @@
         }
         .btn-outline:hover { background: var(--primary); color: white; }
 
+        /* TOMBOL AI REFINER */
+        .btn-ai-sparkle {
+            background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+            color: white; border: none; padding: 7px 16px; border-radius: 50px;
+            font-weight: 700; font-size: 0.8rem; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+            transition: all 0.2s ease;
+        }
+        .btn-ai-sparkle:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+        }
+        .btn-ai-sparkle:active {
+            transform: translateY(0);
+        }
+
         /* TABLE */
         .table-responsive { overflow-x: auto; }
         .custom-table {
@@ -281,8 +298,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="matContent"><i class="fa-solid fa-paragraph"></i> Isi Bahan Ajar Lengkap (Teori, Kosakata, Kaidah, Fakta)</label>
-                        <textarea id="matContent" class="form-control" rows="8" placeholder="Tuliskan atau tempelkan materi ajar lengkap di sini. Teks ini akan dianalisis oleh AI untuk merancang seluruh soal kuis dan permainan edukatif Member Free..." required></textarea>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                            <label class="form-label" for="matContent" style="margin-bottom:0;">
+                                <i class="fa-solid fa-paragraph"></i> Isi Bahan Ajar Lengkap (Teori, Kosakata, Kaidah, Fakta)
+                            </label>
+                            <button type="button" class="btn-ai-sparkle" id="btnAiRefine" onclick="handleAiRefineMaterial()">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Rapikan &amp; Susun Poin Materi dengan AI ✨
+                            </button>
+                        </div>
+                        <textarea id="matContent" class="form-control" rows="9" placeholder="Tuliskan atau tempelkan materi ajar lengkap di sini, atau unggah file .txt/.md di atas. Klik 'Rapikan dengan AI' agar AI merancang modul berpoin rapi, judul akademis, dan contoh kasus secara otomatis..." required></textarea>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:6px; display:flex; align-items:center; gap:6px;">
+                            <i class="fa-solid fa-circle-info" style="color:var(--accent-blue);"></i>
+                            <span>AI akan merapikan teks mentah menjadi subjudul (###), poin-poin penjelasan esensial, ringkasan terarah, dan studi kasus.</span>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -483,6 +511,39 @@
         </div>
     </div>
 
+    <!-- MODAL PRATINJAU MATERI AI (TERSTRUKTUR RAPI) -->
+    <div id="aiRefineModal" class="modal-overlay">
+        <div class="modal-content" style="max-width:760px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid var(--border-light); padding-bottom:12px; margin-bottom:16px;">
+                <div>
+                    <h3 style="font-family:'Aleo', serif; font-size:1.2rem; color:var(--primary); margin:0; display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Pratinjau Materi Terstruktur AI
+                    </h3>
+                    <div style="font-size:0.75rem; color:var(--text-gray); margin-top:2px;">
+                        Hasil kurasi materi dengan sub-bab, poin terstruktur, dan contoh studi kasus
+                    </div>
+                </div>
+                <button type="button" onclick="closeAiRefineModal()" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-gray);">&times;</button>
+            </div>
+
+            <div id="aiRefinePreviewArea" style="font-size:0.85rem; line-height:1.6; max-height:65vh; overflow-y:auto; padding-right:8px;">
+                <!-- Dinamis diisi oleh JS -->
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid var(--border-light); padding-top:14px; margin-top:16px;">
+                <div style="font-size:0.75rem; color:var(--text-gray);">
+                    <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Anda dapat mengedit kembali teks di formulir setelah diterapkan.
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn-outline" onclick="closeAiRefineModal()">Batal</button>
+                    <button type="button" class="btn-primary" onclick="applyAiRefinedMaterial()">
+                        <i class="fa-solid fa-check"></i> Terapkan ke Formulir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db, auth, checkAuth } from "../js/firebase-config.js";
         import { collection, doc, getDoc, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -582,6 +643,159 @@
             };
             reader.readAsText(file);
         };
+
+        // ==========================================
+        // FITUR AI REFINER BAHAN AJAR (MERAPIKAN MATERI)
+        // ==========================================
+        let tempRefinedMaterial = null;
+
+        window.handleAiRefineMaterial = async () => {
+            const category = document.getElementById('categorySelect').value;
+            const title = document.getElementById('matTitle').value.trim();
+            const rawContent = document.getElementById('matContent').value.trim();
+
+            if (!rawContent || rawContent.length < 15) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'Teks Materi Terlalu Singkat',
+                    text: 'Silakan ketik/tempelkan materi ajar lengkap atau unggah file .txt/.md terlebih dahulu di kotak editor (minimal 15 karakter).',
+                    confirmButtonColor: '#003366'
+                });
+            }
+
+            Swal.fire({
+                title: 'Merancang Modul Terstruktur AI...',
+                html: 'Kurator AI sedang menganalisis materi Anda, menyusun sub-topik, poin-poin penjelasan esensial, merapikan istilah dan kaidah EYD, serta menyusun contoh kasus nyata.<br><small style="color:#64748b;">Harap tunggu beberapa saat...</small>',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                const res = await fetch('/api/central', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'refine-mem-free-material',
+                        category: category,
+                        title: title,
+                        rawText: rawContent
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error || `HTTP ${res.status}: Gagal memproses AI.`);
+                }
+
+                const resData = await res.json();
+                if (!resData.material) throw new Error("Format hasil perapian AI tidak valid.");
+
+                tempRefinedMaterial = resData.material;
+                Swal.close();
+
+                // Buka modal pratinjau
+                renderAiRefinePreview(resData.material, resData.modelUsed);
+                document.getElementById('aiRefineModal').classList.add('active');
+
+            } catch (err) {
+                console.error("Gagal AI Refine:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Merapikan Materi',
+                    text: err.message || 'Terjadi gangguan saat memproses AI. Silakan coba kembali.',
+                    confirmButtonColor: '#003366'
+                });
+            }
+        };
+
+        window.closeAiRefineModal = () => {
+            document.getElementById('aiRefineModal').classList.remove('active');
+        };
+
+        window.applyAiRefinedMaterial = () => {
+            if (!tempRefinedMaterial) return;
+
+            if (tempRefinedMaterial.title) {
+                document.getElementById('matTitle').value = tempRefinedMaterial.title;
+            }
+            if (tempRefinedMaterial.summary) {
+                document.getElementById('matSummary').value = tempRefinedMaterial.summary;
+            }
+            if (tempRefinedMaterial.content) {
+                document.getElementById('matContent').value = tempRefinedMaterial.content;
+            }
+            if (tempRefinedMaterial.examples) {
+                document.getElementById('matExamples').value = tempRefinedMaterial.examples;
+            }
+
+            closeAiRefineModal();
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Materi AI Berhasil Diterapkan!',
+                text: 'Formulir telah diperbarui dengan judul, ringkasan, dan isi materi terstruktur berpoin. Anda dapat meninjau dan klik "Simpan & Terbitkan Bahan Ajar".',
+                confirmButtonColor: '#003366',
+                timer: 2500
+            });
+        };
+
+        function renderAiRefinePreview(mat, modelUsed) {
+            const container = document.getElementById('aiRefinePreviewArea');
+            if (!container) return;
+
+            let conceptsHtml = '';
+            if (mat.key_concepts && Array.isArray(mat.key_concepts)) {
+                conceptsHtml = mat.key_concepts.map(k => `
+                    <span style="display:inline-block; font-size:0.72rem; font-weight:700; background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:50px; margin:2px;">
+                        #${k}
+                    </span>
+                `).join(' ');
+            }
+
+            container.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; background:#f8fafc; padding:8px 12px; border-radius:8px; border:1px solid #e2e8f0;">
+                    <span style="font-size:0.75rem; color:#475569; font-weight:700;">
+                        <i class="fa-solid fa-microchip" style="color:#7c3aed;"></i> Model: ${modelUsed || 'AI Engine'}
+                    </span>
+                    <span class="status-badge badge-active" style="font-size:0.7rem;">
+                        <i class="fa-solid fa-circle-check"></i> Terstruktur Rapi
+                    </span>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Usulan Judul Modul:</label>
+                    <div style="font-size:1.05rem; font-weight:800; color:var(--primary);">${mat.title || '-'}</div>
+                </div>
+
+                <div style="margin-bottom:14px; background:#f0f9ff; border-left:3px solid #0284c7; padding:10px 14px; border-radius:4px;">
+                    <strong style="color:#0369a1; font-size:0.78rem; display:block; margin-bottom:2px;">Ringkasan Esensial:</strong>
+                    <div style="font-size:0.82rem; color:#0c4a6e; line-height:1.5;">${mat.summary || '-'}</div>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase;">Isi Bahan Ajar Berpoin (Pratinjau Siswa):</label>
+                    <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:14px; max-height:260px; overflow-y:auto; line-height:1.65; font-size:0.82rem; color:#334155; white-space:pre-line;">
+${mat.content || '-'}
+                    </div>
+                </div>
+
+                ${mat.examples ? `
+                    <div style="margin-bottom:14px; background:#fffbeb; border:1px solid #fde68a; padding:10px 14px; border-radius:6px;">
+                        <strong style="color:#b45309; font-size:0.78rem; display:block; margin-bottom:4px;">
+                            <i class="fa-solid fa-lightbulb"></i> Contoh Kasus / Studi Kasus:
+                        </strong>
+                        <div style="font-size:0.8rem; color:#78350f; line-height:1.5; white-space:pre-line;">${mat.examples}</div>
+                    </div>
+                ` : ''}
+
+                ${conceptsHtml ? `
+                    <div style="margin-top:10px;">
+                        <label style="font-size:0.75rem; font-weight:700; color:var(--text-gray); text-transform:uppercase; display:block; margin-bottom:4px;">Kata Kunci / Konsep Inti:</label>
+                        <div>${conceptsHtml}</div>
+                    </div>
+                ` : ''}
+            `;
+        }
 
         // SIMPAN MATERI KE FIRESTORE
         window.handleSaveMaterial = async (e) => {
@@ -815,11 +1029,11 @@
 
             const confirm = await Swal.fire({
                 title: 'Generate Paket Soal Baru?',
-                text: `AI Groq akan menganalisis ${materials.length} modul bahan ajar Anda dan menyusun soal 24 jam baru untuk seluruh siswa.`,
+                text: `Sistem AI akan menganalisis ${materials.length} modul bahan ajar Anda dan menyusun paket latihan serta permainan 24 jam baru untuk seluruh siswa.`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#003366',
-                confirmButtonText: 'Mulai Generate via Groq',
+                confirmButtonText: 'Mulai Generate Soal',
                 cancelButtonText: 'Batal'
             });
 
@@ -827,11 +1041,11 @@
 
             const btn = document.getElementById('btnForceGenerate');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Groq Sedang Menyusun Soal...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI Sedang Menyusun Soal...';
 
             Swal.fire({
                 title: 'Menyusun Soal dengan AI...',
-                html: 'Sistem sedang menganalisis materi referensi Anda dan merancang 8 paket permainan literasi.<br><small style="color:#64748b;">Harap tunggu beberapa detik...</small>',
+                html: 'Sistem sedang menganalisis materi referensi kurikulum Anda dan merancang paket latihan serta permainan literasi.<br><small style="color:#64748b;">Menggunakan AI hemat token &amp; auto-repair...</small>',
                 allowOutsideClick: false,
                 didOpen: () => Swal.showLoading()
             });
@@ -863,7 +1077,7 @@
                     dateKey: new Date().toISOString().slice(0, 10),
                     questions: resData.questions,
                     materialsCount: materials.length,
-                    modelUsed: resData.modelUsed || 'Groq LPU',
+                    modelUsed: resData.modelUsed || 'AI Engine',
                     status: 'active'
                 };
 
@@ -873,7 +1087,7 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Paket Soal Berhasil Diterbitkan!',
-                    text: '8 paket permainan dan latihan harian telah disinkronkan dan aktif berlaku selama 24 jam ke depan.',
+                    text: `8 paket permainan dan latihan harian berhasil disinkronkan via ${resData.modelUsed || 'AI Engine'} dan aktif selama 24 jam ke depan.`,
                     confirmButtonColor: '#003366'
                 });
 

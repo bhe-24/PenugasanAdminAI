@@ -1072,6 +1072,126 @@ const CendekiaApp = (function () {
         }
     }
 
+    // Helper format cerdas materi kurikulum: Mengubah Markdown / poin-poin menjadi elemen HTML modern yang rapi dan terstruktur
+    function renderFormattedMaterial(rawContent) {
+        if (!rawContent || typeof rawContent !== 'string') return '';
+
+        const lines = rawContent.trim().split(/\r?\n/);
+        let html = '<div class="mat-structured-wrapper">';
+        let inList = false;
+        let listType = ''; // 'bullet' or 'number'
+
+        const closeListIfNeeded = () => {
+            if (inList) {
+                html += `</div>`; // tutup list container
+                inList = false;
+                listType = '';
+            }
+        };
+
+        const formatInline = (text) => {
+            if (!text) return '';
+            return text
+                // Bold: **text** atau __text__
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="mat-term-highlight">$1</strong>')
+                .replace(/__(.*?)__/g, '<strong class="mat-term-highlight">$1</strong>')
+                // Italic: *text* atau _text_
+                .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="mat-term-italic">$1</em>')
+                .replace(/(?<!_)_(?!_)(.*?)(?<!_)_(?!_)/g, '<em class="mat-term-italic">$1</em>')
+                // Inline code / keyword: `text`
+                .replace(/`([^`]+)`/g, '<code class="mat-code-tag">$1</code>');
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            if (!line) {
+                closeListIfNeeded();
+                continue;
+            }
+
+            // 1. Heading H3 / H2 / H4
+            if (/^#{1,4}\s+/.test(line)) {
+                closeListIfNeeded();
+                const headingText = formatInline(line.replace(/^#{1,4}\s+/, ''));
+                html += `
+                    <div class="mat-section-header">
+                        <div class="mat-section-icon"><i data-lucide="bookmark" style="width:14px; height:14px;"></i></div>
+                        <h3 class="mat-heading-text">${headingText}</h3>
+                    </div>
+                `;
+                continue;
+            }
+
+            // 2. Callout / Catatan Kritis (> atau Tips: atau Catatan:)
+            if (/^>\s+/.test(line) || /^(Catatan|Tips|Penting|Perhatian)\s*:\s*/i.test(line)) {
+                closeListIfNeeded();
+                let cleanCallout = line.replace(/^>\s+/, '');
+                html += `
+                    <div class="mat-callout-card">
+                        <div class="mat-callout-icon"><i data-lucide="sparkles" style="width:16px; height:16px;"></i></div>
+                        <div class="mat-callout-body">${formatInline(cleanCallout)}</div>
+                    </div>
+                `;
+                continue;
+            }
+
+            // 3. Bullet points (- atau * atau •)
+            if (/^[-*•]\s+/.test(line)) {
+                if (!inList || listType !== 'bullet') {
+                    closeListIfNeeded();
+                    inList = true;
+                    listType = 'bullet';
+                    html += `<div class="mat-list-container mat-bullet-group">`;
+                }
+                const bulletText = formatInline(line.replace(/^[-*•]\s+/, ''));
+                html += `
+                    <div class="mat-bullet-item">
+                        <span class="mat-bullet-dot"><i data-lucide="check" style="width:11px; height:11px;"></i></span>
+                        <div class="mat-point-text">${bulletText}</div>
+                    </div>
+                `;
+                continue;
+            }
+
+            // 4. Numbered list (1. , 2. , dst)
+            if (/^\d+\.\s+/.test(line)) {
+                if (!inList || listType !== 'number') {
+                    closeListIfNeeded();
+                    inList = true;
+                    listType = 'number';
+                    html += `<div class="mat-list-container mat-number-group">`;
+                }
+                const numMatch = line.match(/^(\d+)\.\s+/);
+                const num = numMatch ? numMatch[1] : '•';
+                const numText = formatInline(line.replace(/^\d+\.\s+/, ''));
+                html += `
+                    <div class="mat-number-item">
+                        <span class="mat-number-badge">${num}</span>
+                        <div class="mat-point-text">${numText}</div>
+                    </div>
+                `;
+                continue;
+            }
+
+            // 5. Paragraf biasa
+            closeListIfNeeded();
+            html += `<p class="mat-paragraph">${formatInline(line)}</p>`;
+        }
+
+        closeListIfNeeded();
+        html += '</div>';
+
+        // Trigger Lucide icon parsing if available
+        setTimeout(() => {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
+        }, 50);
+
+        return html;
+    }
+
     // Ambil materi spesifik berdasarkan kategori
     async function getMaterialByCategory(categoryId) {
         try {
@@ -1375,6 +1495,7 @@ const CendekiaApp = (function () {
         renderBottomNav,
         updateDOMStats,
         getFirebaseBridge,
+        renderFormattedMaterial,
         getMaterialByCategory,
         getAllMaterials,
         saveMaterial,

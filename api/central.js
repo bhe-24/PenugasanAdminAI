@@ -64,18 +64,144 @@ const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
 ];
 
+function repairTruncatedJson(str) {
+    if (!str || typeof str !== 'string') return null;
+    let cleaned = str.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        // Lanjut ke perbaikan cerdas
+    }
+
+    const firstBrace = cleaned.indexOf('{');
+    const firstBracket = cleaned.indexOf('[');
+    if (firstBrace === -1 && firstBracket === -1) return null;
+
+    const knownKeys = [
+        'kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki',
+        'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat',
+        'title', 'summary', 'content', 'examples', 'chunks', 'key_concepts'
+    ];
+    const result = {};
+    let foundAnyKey = false;
+
+    for (let i = 0; i < knownKeys.length; i++) {
+        const key = knownKeys[i];
+        const keyPattern = new RegExp(`"${key}"\\s*:`, 'i');
+        const match = cleaned.match(keyPattern);
+        if (!match) continue;
+
+        const keyIdx = match.index;
+        const valStartIdx = keyIdx + match[0].length;
+        const remaining = cleaned.slice(valStartIdx).trim();
+
+        if (remaining.startsWith('[')) {
+            const arrStart = cleaned.indexOf('[', keyIdx);
+            let searchSlice = cleaned.slice(arrStart);
+            
+            const nextKeyIndices = [];
+            for (let j = 0; j < knownKeys.length; j++) {
+                if (j === i) continue;
+                const nextMatch = cleaned.slice(arrStart + 1).match(new RegExp(`"${knownKeys[j]}"\\s*:`, 'i'));
+                if (nextMatch) nextKeyIndices.push(nextMatch.index + arrStart + 1);
+            }
+            if (nextKeyIndices.length > 0) {
+                const nextKeyStart = Math.min(...nextKeyIndices);
+                searchSlice = cleaned.slice(arrStart, nextKeyStart);
+            }
+
+            const closeIdx = searchSlice.lastIndexOf(']');
+            if (closeIdx !== -1) {
+                try {
+                    const candidate = searchSlice.slice(0, closeIdx + 1).trim();
+                    const parsed = JSON.parse(candidate);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        result[key] = parsed;
+                        foundAnyKey = true;
+                        continue;
+                    }
+                } catch (err) {}
+            }
+
+            const lastObjEnd = searchSlice.lastIndexOf('}');
+            if (lastObjEnd !== -1) {
+                const salvageStr = searchSlice.slice(0, lastObjEnd + 1).trim() + ']';
+                try {
+                    const parsed = JSON.parse(salvageStr);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        result[key] = parsed;
+                        foundAnyKey = true;
+                        continue;
+                    }
+                } catch (err) {}
+            }
+        } else if (remaining.startsWith('"')) {
+            let strEnd = -1;
+            let escaped = false;
+            for (let c = 1; c < remaining.length; c++) {
+                if (remaining[c] === '\\') {
+                    escaped = !escaped;
+                } else if (remaining[c] === '"' && !escaped) {
+                    strEnd = c;
+                    break;
+                } else {
+                    escaped = false;
+                }
+            }
+            if (strEnd !== -1) {
+                result[key] = remaining.slice(1, strEnd);
+                foundAnyKey = true;
+            } else {
+                result[key] = remaining.slice(1).replace(/[\r\n\t]+/g, ' ').trim();
+                foundAnyKey = true;
+            }
+        }
+    }
+
+    if (foundAnyKey) return result;
+
+    // Upaya penutupan bracket/brace manual
+    try {
+        let attempt = cleaned;
+        if (firstBrace !== -1) {
+            attempt = attempt.slice(firstBrace).replace(/,\s*$/, '').trim();
+            let openBraces = 0, openBrackets = 0, inString = false, esc = false;
+            for (let i = 0; i < attempt.length; i++) {
+                const ch = attempt[i];
+                if (ch === '\\') { esc = !esc; continue; }
+                if (ch === '"' && !esc) inString = !inString;
+                if (!inString) {
+                    if (ch === '{') openBraces++;
+                    if (ch === '}') openBraces--;
+                    if (ch === '[') openBrackets++;
+                    if (ch === ']') openBrackets--;
+                }
+                esc = false;
+            }
+            if (inString) attempt += '"';
+            while (openBrackets > 0) { attempt += ']'; openBrackets--; }
+            while (openBraces > 0) { attempt += '}'; openBraces--; }
+            return JSON.parse(attempt);
+        }
+    } catch (e2) {}
+
+    return null;
+}
+
 const extractJSON = (text) => {
+    if (!text || typeof text !== 'string') {
+        throw new Error("Respons AI kosong.");
+    }
     try {
         return JSON.parse(text.replace(/```json/gi, '').replace(/```/g, '').trim());
     } catch (e) {
-        console.warn("Gagal parse langsung, mencoba ekstraksi regex...");
+        console.warn("Gagal parse langsung, mencoba ekstraksi regex & repair...");
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
             try {
                 return JSON.parse(match[0]);
             } catch (err2) {
-                console.error("Gagal parse regex:", match[0]);
-                throw new Error("JSON terdeteksi tapi strukturnya rusak (malformed).");
+                // Jangan langsung throw, coba repairTruncatedJson
             }
         }
         
@@ -84,12 +210,17 @@ const extractJSON = (text) => {
         if (arrayMatch) {
             try {
                 return JSON.parse(arrayMatch[0]);
-            } catch (err3) {
-                 console.error("Gagal parse array regex:", arrayMatch[0]);
-            }
+            } catch (err3) {}
         }
         
-        throw new Error("Tidak ada struktur JSON yang ditemukan dalam respons AI.");
+        // Coba repair cerdas jika respons AI terpotong atau malformed
+        const repaired = repairTruncatedJson(text);
+        if (repaired && Object.keys(repaired).length > 0) {
+            console.log("[JSON Repair] Berhasil memulihkan JSON terpotong:", Object.keys(repaired));
+            return repaired;
+        }
+
+        throw new Error("Tidak ada struktur JSON yang valid dalam respons AI.");
     }
 };
 
@@ -302,34 +433,145 @@ Patuhi aturan ini dengan KETAT:
             }
 
             // ---------------------------------------------------------
+            // [MEMBER FREE] PERAPI & STRUKTURISASI BAHAN AJAR DENGAN AI
+            // ---------------------------------------------------------
+            case 'refine-mem-free-material': {
+                const { category, title: inputTitle, rawText } = payload;
+                if (!rawText || rawText.trim().length < 15) {
+                    return res.status(400).json({ error: 'Teks materi terlalu singkat untuk dirapikan (minimal 15 karakter).' });
+                }
+
+                const cleanInput = sanitizeText(rawText);
+                const safeInput = cleanInput.length > 20000 ? cleanInput.substring(0, 20000) + '... [Bagian Lanjutan Disesuaikan]' : cleanInput;
+
+                const categoryLabels = {
+                    'pengetahuan-umum': 'Pengetahuan Umum (Kaidah Ejaan EYD V, Tata Bahasa, & Kosakata Baku KBBI)',
+                    'pengetahuan-inti': 'Pengetahuan Inti (Struktur Narasi, Penokohan, Alur, & Eksplorasi Cerita)',
+                    'pengetahuan-khusus': 'Pengetahuan Khusus (Stilistika Sastra, Diksi Puitis, & Majas)',
+                    'pengetahuan-mendalam': 'Pengetahuan Mendalam (Filsafat Sastra, Analisis Wacana, & Kritik Esai)'
+                };
+                const catContext = categoryLabels[category] || category || 'Literasi Bahasa & Sastra Indonesia';
+
+                const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Pakar Silabus Literasi di Cendekia Aksara.
+Tugas Anda: Menganalisis materi mentah dari pengajar/admin dan menyusunnya menjadi modul kurikulum pembelajaran yang SANGAT RAPI, BERBOBOT, MENARIK, dan SIAP BACA untuk siswa Member Free.
+
+PEDOMAN STRUKTUR MATERI WAJIB:
+1. JUDUL: Rancang judul yang profesional, berbobot, dan mencerminkan esensi materi (pertahankan konteks "${inputTitle || ''}" jika sudah sesuai).
+2. RINGKASAN: Tuliskan ringkasan esensial 1-2 kalimat padat yang langsung menjelaskan kompetensi inti materi.
+3. ISI MATERI (CONTENT): Susun materi dalam format Markdown berstruktur tinggi:
+   - Gunakan subjudul dengan "### [Nama Sub-Bab / Topik]".
+   - Gunakan poin penjelasan esensial dengan "- **[Istilah Kunci / Konsep]**: Penjelasan mendalam, lugas, dan mudah dipahami pembaca...".
+   - Gunakan penomoran untuk aturan/tahapan "1. **[Aturan / Kaidah]**: Penjelasan rinci...".
+   - Sisipkan kotak wawasan/tips dengan format "> **Catatan Kritis / Tips Literasi**: [Poin kunci penting]...".
+   - DILARANG teks menumpuk tanpa jeda paragraf! Gunakan baris kosong antar-poin agar nyaman dibaca.
+4. CONTOH / KASUS NYATA (EXAMPLES): Berikan contoh konkret (misal pasangan kata baku vs tidak baku, kutipan sastra, atau studi kasus kalimat yang jelas).
+5. KATA KUNCI (KEY_CONCEPTS): Ekstrak 5-8 istilah penting untuk bahan pembuatan latihan/kuis.
+6. PEMBAGIAN SUB-MODUL (CHUNKS): Jika materi panjang (> 3.500 karakter), berikan pembagian 2-3 sub-modul logis agar siswa dapat belajar bertahap.
+
+Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
+{
+  "title": "Judul Modul Lengkap",
+  "summary": "Ringkasan esensial 1-2 kalimat.",
+  "content": "Isi materi terstruktur dengan Markdown ### dan poin berpeluru...",
+  "examples": "Contoh kasus konkret dan studi penerapan...",
+  "key_concepts": ["Istilah 1", "Istilah 2", "Istilah 3", "Istilah 4", "Istilah 5"]
+}`;
+
+                let lastErr = null;
+                // 1. Coba Groq LPU
+                if (groq) {
+                    const groqModels = ['qwen/qwen3.8-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+                    for (const mName of groqModels) {
+                        try {
+                            console.log(`[Refine Material] Memanggil Groq AI (${mName})...`);
+                            const completion = await groq.chat.completions.create({
+                                model: mName,
+                                messages: [
+                                    { role: "system", content: systemPrompt },
+                                    { role: "user", content: `KATEGORI: ${catContext}\nJUDUL AWAL: ${inputTitle || 'Belum Ditentukan'}\n\nTEKS BAHAN AJAR MENTAH:\n${safeInput}` }
+                                ],
+                                temperature: 0.3,
+                                max_tokens: 3000
+                            });
+                            const text = completion.choices[0]?.message?.content || "";
+                            const parsed = extractJSON(text);
+                            if (parsed && (parsed.content || parsed.title)) {
+                                return res.status(200).json({ success: true, modelUsed: mName, material: parsed });
+                            }
+                        } catch (err) {
+                            console.warn(`[Refine Material] Groq model ${mName} gagal:`, err.message);
+                            lastErr = err;
+                        }
+                    }
+                }
+
+                // 2. Fallback ke Gemini (Kapasitas token 1M+ & JSON mode)
+                if (genAI) {
+                    try {
+                        console.log(`[Refine Material] Menjalankan Fallback Gemini (gemini-2.5-flash)...`);
+                        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                        const prompt = `${systemPrompt}\n\nKATEGORI: ${catContext}\nJUDUL AWAL: ${inputTitle || 'Belum Ditentukan'}\n\nTEKS BAHAN AJAR MENTAH:\n${safeInput}`;
+                        const result = await model.generateContent({
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                temperature: 0.3,
+                                responseMimeType: "application/json"
+                            },
+                            safetySettings
+                        });
+                        const text = result.response.text();
+                        const parsed = extractJSON(text);
+                        if (parsed && (parsed.content || parsed.title)) {
+                            return res.status(200).json({ success: true, modelUsed: 'gemini-2.5-flash', material: parsed });
+                        }
+                    } catch (gErr) {
+                        console.error("[Refine Material] Gemini fallback gagal:", gErr.message);
+                        lastErr = gErr;
+                    }
+                }
+
+                return res.status(500).json({ error: "Gagal merapikan materi dengan AI: " + (lastErr?.message || "Format tidak valid") });
+            }
+
+            // ---------------------------------------------------------
             // [MEMBER FREE] GENERATOR SOAL HARIAN BERLAKU 24 JAM
             // ---------------------------------------------------------
             case 'generate-mem-free-daily': {
-                if (!groq) return res.status(500).json({ error: 'Server AI Groq belum dikonfigurasi.' });
-
                 const { materials } = payload;
                 if (!materials || (Array.isArray(materials) && materials.length === 0)) {
                     return res.status(400).json({ error: 'Bahan ajar materi kosong. Harap unggah materi di Admin terlebih dahulu.' });
                 }
 
-                // Susun teks kurikulum referensi dari Firestore
+                // Chunking & intisari cerdas bahan ajar agar bebas token overflow
                 let combinedText = "";
                 if (Array.isArray(materials)) {
-                    combinedText = materials.map(m => {
-                        return `=== [KATEGORI: ${m.category || m.id || 'Materi'}] ===\nJUDUL: ${m.title || 'Materi Pembelajaran'}\nRINGKASAN: ${m.summary || '-'}\nISI BAHAN AJAR:\n${m.content || '-'}\nCONTOH / KASUS:\n${m.examples || '-'}`;
+                    combinedText = materials.map((m, idx) => {
+                        const cat = m.category || m.id || `Modul-${idx + 1}`;
+                        const title = m.title || 'Materi Pembelajaran';
+                        const summary = m.summary || '';
+                        let contentChunk = (m.content || '').trim();
+                        // Ambil intisari maksimal 1.200 karakter per modul
+                        if (contentChunk.length > 1200) {
+                            contentChunk = contentChunk.slice(0, 1200) + '... [Intisari Kaidah Terpilih]';
+                        }
+                        let examplesChunk = (m.examples || '').trim();
+                        if (examplesChunk.length > 350) {
+                            examplesChunk = examplesChunk.slice(0, 350) + '...';
+                        }
+                        return `=== MODUL [${cat.toUpperCase()}]: ${title} ===\nRINGKASAN: ${summary}\nMATERI POKOK & KAIDAH:\n${contentChunk}\nCONTOH / KASUS:\n${examplesChunk}`;
                     }).join('\n\n------------------------------------\n\n');
                 } else if (typeof materials === 'string') {
-                    combinedText = materials;
+                    combinedText = materials.slice(0, 3500);
                 } else if (typeof materials === 'object') {
-                    combinedText = JSON.stringify(materials, null, 2);
+                    combinedText = JSON.stringify(materials).slice(0, 3500);
                 }
 
                 if (!combinedText || combinedText.trim().length < 15) {
                     return res.status(400).json({ error: 'Bahan ajar materi terlalu singkat untuk dijadikan referensi soal.' });
                 }
 
-                // Sabuk pengaman token (maksimal 25.000 karakter)
-                const safeMateri = combinedText.length > 25000 ? combinedText.substring(0, 25000) + '... [BAGIAN DILANJUTKAN]' : combinedText;
+                // Sabuk pengaman token (maksimal 3.500 karakter referensi padat)
+                const safeMateri = combinedText.length > 3500 ? combinedText.substring(0, 3500) + '... [Bagian Intisari]' : combinedText;
 
                 const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Perancang Kurikulum Soal Literasi di Cendekia Aksara.
 Tugas Anda: Menganalisis materi referensi bahan ajar yang diberikan dan menyusun 1 paket lengkap soal latihan harian dan permainan literasi untuk siswa Member Free.
@@ -337,106 +579,138 @@ Tugas Anda: Menganalisis materi referensi bahan ajar yang diberikan dan menyusun
 ATURAN SANGAT KETAT:
 1. SEMUA soal, tebakan kata, teka-teki, dan latihan WAJIB berakar 100% pada isi materi referensi yang diberikan (fakta, kosakata, kaidah ejaan EYD, istilah sastra, atau contoh). DILARANG mengarang topik acak di luar materi!
 2. DILARANG menggunakan kata rujukan teks seperti "Berdasarkan materi di atas...", "Menurut wacana...", atau "Dalam teks...". Tiap soal harus mandiri (self-contained).
-3. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
-4. Struktur JSON WAJIB memiliki seluruh properti berikut dengan format presisi:
+3. Penjelasan (exp/desc) harus padat dan ringkas (1-2 kalimat edukatif).
+4. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
+
+STRUKTUR JSON YANG DIHASILKAN:
 {
   "kuis_pintar": [
     {
-      "q": "Pertanyaan pilihan ganda mengenai konsep dari materi?",
+      "q": "Pertanyaan pilihan ganda seputar konsep materi?",
       "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
       "answer": 0,
-      "exp": "Pembahasan edukatif ringkas mengapa opsi tersebut tepat sesuai kaidah materi."
+      "exp": "Pembahasan edukatif ringkas 1 kalimat."
     }
   ],
   "tebak_kata": [
     {
-      "word": "KOSAKATA",
-      "clue": "Deskripsi atau petunjuk makna kata dari materi (Wajib kata tunggal HURUF KAPITAL tanpa spasi, 4-10 huruf)"
+      "word": "KATA",
+      "clue": "Petunjuk makna istilah dari materi (Wajib kata tunggal HURUF KAPITAL tanpa spasi, 4-10 huruf)"
     }
   ],
   "susun_kata": [
     {
-      "word": "SASTRA",
-      "clue": "Petunjuk makna istilah dari materi untuk ditebak dengan menyusun huruf acak"
+      "word": "ISTILAH",
+      "clue": "Petunjuk makna istilah dari materi"
     }
   ],
   "teka_teki": [
     {
-      "riddle": "Teka-teki analogis/imajinatif mengenai konsep di materi?",
-      "answer": "BUKU",
-      "clue": "Petunjuk singkat teka-teki"
+      "riddle": "Teka-teki analogis/kreatif seputar materi?",
+      "answer": "JAWABAN",
+      "clue": "Petunjuk singkat"
     }
   ],
   "tebak_sastra": [
     {
-      "quote": "Kutipan, latar karya, atau ringkasan tokoh sastra dari materi",
-      "question": "Pertanyaan analisis atau wawasan dari kutipan di atas?",
+      "quote": "Kutipan atau latar karya dari materi",
+      "question": "Pertanyaan analisis kutipan?",
       "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
       "answer": 0,
-      "desc": "Penjelasan wawasan literasi dari materi"
+      "desc": "Penjelasan wawasan literasi."
     }
   ],
   "sambung_cerita": [
     {
       "theme": "Tema naratif sesuai materi",
-      "prompt": "Paragraf pembuka cerita yang menarik perhatian...",
-      "guidance": "Instruksi kreatif untuk siswa melanjutkan jalan cerita"
+      "prompt": "Paragraf pembuka cerita...",
+      "guidance": "Instruksi kreatif untuk siswa"
     }
   ],
   "perbaiki_kalimat": [
     {
-      "err": "Kalimat yang mengandung kesalahan ejaan/struktur/diksi sesuai pembahasan materi.",
+      "err": "Kalimat yang mengandung kesalahan tata bahasa/ejaan dari materi.",
       "options": ["Versi perbaikan A", "Versi perbaikan B", "Versi perbaikan C"],
       "correct": 0,
-      "exp": "Penjelasan kaidah perbaikan yang benar."
+      "exp": "Penjelasan kaidah ringkas."
     }
   ],
   "tantangan_cepat": [
     {
-      "word": "PRAKTIK",
+      "word": "KATA",
       "isBaku": true
     }
   ]
 }
 
-JUMLAH BUTIR WAJIB:
+JUMLAH BUTIR TARGET:
 - kuis_pintar: tepat 5 butir
 - tebak_kata: tepat 5 butir
 - susun_kata: tepat 5 butir
 - teka_teki: tepat 5 butir
-- tebak_sastra: tepat 5 butir
-- sambung_cerita: tepat 3 butir
-- perbaiki_kalimat: tepat 5 butir
-- tantangan_cepat: tepat 10 butir (campuran kata baku [isBaku: true] dan kata tidak baku [isBaku: false] yang ada atau terkait dengan materi)`;
+- tebak_sastra: tepat 3 butir
+- sambung_cerita: tepat 2 butir
+- perbaiki_kalimat: tepat 3 butir
+- tantangan_cepat: tepat 5 butir`;
 
                 let lastErr = null;
-                const modelsToTry = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+                // 1. Coba Groq LPU dengan model stabil
+                if (groq) {
+                    const groqModels = ['qwen/qwen3.8-27b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+                    for (const modelName of groqModels) {
+                        try {
+                            console.log(`[MemFree Daily] Memanggil Groq AI dengan model: ${modelName}...`);
+                            const completion = await groq.chat.completions.create({
+                                model: modelName,
+                                messages: [
+                                    { role: "system", content: systemPrompt },
+                                    { role: "user", content: `MATERI REFERENSI KURIKULUM CENDEKIA AKSARA:\n\n${safeMateri}` }
+                                ],
+                                temperature: 0.2,
+                                max_tokens: 3500
+                            });
 
-                for (const modelName of modelsToTry) {
-                    try {
-                        console.log(`[MemFree Daily] Memanggil Groq AI dengan model: ${modelName}...`);
-                        const completion = await groq.chat.completions.create({
-                            model: modelName,
-                            messages: [
-                                { role: "system", content: systemPrompt },
-                                { role: "user", content: `MATERI REFERENSI KURIKULUM CENDEKIA AKSARA:\n\n${safeMateri}` }
-                            ],
-                            temperature: 0.2
-                        });
+                            const textResponse = completion.choices[0]?.message?.content || "";
+                            const parsed = extractJSON(textResponse);
 
-                        const textResponse = completion.choices[0]?.message?.content || "";
-                        const parsed = extractJSON(textResponse);
-
-                        if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
-                            return res.status(200).json({ success: true, modelUsed: modelName, questions: parsed });
+                            if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
+                                return res.status(200).json({ success: true, modelUsed: modelName, questions: parsed });
+                            }
+                        } catch (err) {
+                            console.warn(`[MemFree Daily] Model ${modelName} gagal:`, err.message);
+                            lastErr = err;
                         }
-                    } catch (err) {
-                        console.warn(`[MemFree Daily] Model ${modelName} gagal:`, err.message);
-                        lastErr = err;
                     }
                 }
 
-                return res.status(500).json({ error: "Gagal memproses soal harian dengan AI Groq: " + (lastErr?.message || "Format respons tidak valid") });
+                // 2. Fallback ke Gemini (Kapasitas token 1M+, dijamin bebas token limit, output JSON native)
+                if (genAI) {
+                    try {
+                        console.log(`[MemFree Daily] Menjalankan Fallback Gemini (gemini-2.5-flash)...`);
+                        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                        const fullPrompt = `${systemPrompt}\n\nMATERI REFERENSI KURIKULUM CENDEKIA AKSARA:\n\n${safeMateri}`;
+                        const result = await model.generateContent({
+                            contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+                            generationConfig: {
+                                temperature: 0.2,
+                                responseMimeType: "application/json"
+                            },
+                            safetySettings
+                        });
+
+                        const text = result.response.text();
+                        const parsed = extractJSON(text);
+
+                        if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
+                            return res.status(200).json({ success: true, modelUsed: 'gemini-2.5-flash', questions: parsed });
+                        }
+                    } catch (gemErr) {
+                        console.error(`[MemFree Daily] Gemini fallback gagal:`, gemErr.message);
+                        lastErr = gemErr;
+                    }
+                }
+
+                return res.status(500).json({ error: "Gagal memproses soal harian dengan AI: " + (lastErr?.message || "Format respons tidak valid") });
             }
 
             // ---------------------------------------------------------
