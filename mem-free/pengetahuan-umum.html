@@ -66,7 +66,9 @@
                     <div class="header-brand-sub">Fondasi Bahasa &amp; Kosakata Baku</div>
                 </div>
             </div>
-            <span class="badge-tier-free" id="xpBadge">+20 XP Baca</span>
+            <span class="badge-tier-free" id="xpBadge" style="background:#e0f2fe; color:#0369a1; font-weight:800;">
+                <i data-lucide="book-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:2px;"></i> Akses Bebas
+            </span>
         </header>
 
         <main class="app-body">
@@ -157,12 +159,26 @@
                     }
 
                     html += `
-                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:10px;" onclick="completeReading()">
-                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca (+20 XP)
+                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:10px;" onclick="completeReading('${encodeURIComponent(material.title || 'Materi Pengetahuan Umum')}')">
+                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca Modul Ini
                         </button>
                     </div>`;
 
                     container.innerHTML = html;
+
+                    // Support direct-link via ?id=...
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('id')) {
+                        const targetCard = document.querySelector('.module-card');
+                        if (targetCard) {
+                            setTimeout(() => {
+                                targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                targetCard.style.outline = '2px solid #0284c7';
+                                targetCard.style.transition = 'outline 0.3s ease';
+                                setTimeout(() => { targetCard.style.outline = 'none'; }, 2000);
+                            }, 300);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Gagal memuat materi:", err);
@@ -180,16 +196,13 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        let hasEarnedReadingXP = false;
-        function completeReading() {
-            if (hasEarnedReadingXP) return;
-            hasEarnedReadingXP = true;
-            CendekiaApp.addXP(20, 'Menyelesaikan Bacaan: Pengetahuan Umum');
+        function completeReading(encodedTitle) {
+            const rawTitle = encodedTitle ? decodeURIComponent(encodedTitle) : 'Materi Pengetahuan Umum';
+            CendekiaApp.recordMaterialRead(CATEGORY_ID, rawTitle);
             const btn = document.getElementById('btnFinishRead');
             if (btn) {
-                btn.disabled = true;
                 btn.style.background = '#059669';
-                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Berhasil Diselesaikan (+20 XP Diperoleh)';
+                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Telah Selesai Dibaca ✓ (Bisa Dibaca Kapan Saja)';
                 if (window.lucide) lucide.createIcons();
             }
         }

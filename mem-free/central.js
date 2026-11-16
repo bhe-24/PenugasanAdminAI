@@ -298,7 +298,9 @@ const CendekiaApp = (function () {
         if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
         user.stats.materialsLearned = (user.stats.materialsLearned || 0) + 1;
         saveUser(user);
-        addXP(20, 'Menyelesaikan Bacaan: ' + (title || category));
+        // Sesuai aturan: Modul materi dapat dibaca berulang kali secara penuh tanpa XP
+        logActivity('Membaca Modul: ' + (title || category), 'book-open', 'read');
+        checkAndAwardBadges(user);
     }
 
     function recordGameCompleted(gameName, score) {
@@ -401,16 +403,22 @@ const CendekiaApp = (function () {
     function logActivity(title, icon = 'check-circle-2', type = 'info', value = null) {
         try {
             let history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '[]');
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
             history.unshift({
                 id: 'act_' + Date.now(),
                 title,
                 icon,
                 type,
                 value,
-                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-                date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+                time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+                date: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+                isoDate: `${yyyy}-${mm}-${dd}`,
+                timestamp: Date.now()
             });
-            if (history.length > 20) history = history.slice(0, 20);
+            if (history.length > 40) history = history.slice(0, 40);
             localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
         } catch (e) {}
     }
@@ -421,6 +429,133 @@ const CendekiaApp = (function () {
         } catch (e) {
             return [];
         }
+    }
+
+    // ANALITIK AKTIVITAS REALTIME PEKAN INI (SENIN - MINGGU DARI SELURUH SUMBER DATA)
+    function getWeeklyActivityStats() {
+        const history = getHistory();
+        const works = getWorks();
+        const ideas = getIdeas();
+
+        const now = new Date();
+        const currentDayOfWeek = (now.getDay() + 6) % 7; // 0 = Senin, ..., 6 = Minggu
+        
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - currentDayOfWeek);
+        monday.setHours(0, 0, 0, 0);
+
+        const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+        const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+        const dayDates = [];
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dayNum = String(d.getDate()).padStart(2, '0');
+            dayDates.push(`${y}-${m}-${dayNum}`);
+        }
+
+        // 1. Aktivitas dari history log
+        if (Array.isArray(history)) {
+            history.forEach(item => {
+                let itemDate = item.isoDate;
+                if (!itemDate && item.timestamp) {
+                    const d = new Date(item.timestamp);
+                    itemDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                }
+                if (itemDate) {
+                    const idx = dayDates.indexOf(itemDate);
+                    if (idx !== -1) {
+                        dayCounts[idx]++;
+                    }
+                }
+            });
+        }
+
+        // 2. Aktivitas dari naskah karya yang dibuat / diperbarui
+        if (Array.isArray(works)) {
+            works.forEach(w => {
+                const dateSource = w.updatedAt || w.createdAt;
+                if (dateSource) {
+                    const d = new Date(dateSource);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayNum = String(d.getDate()).padStart(2, '0');
+                    const dateStr = `${y}-${m}-${dayNum}`;
+                    const idx = dayDates.indexOf(dateStr);
+                    if (idx !== -1) {
+                        dayCounts[idx]++;
+                    }
+                }
+            });
+        }
+
+        // 3. Aktivitas dari ide kreasi yang diarsipkan
+        if (Array.isArray(ideas)) {
+            ideas.forEach(idItem => {
+                const dateSource = idItem.createdAt;
+                if (dateSource) {
+                    const d = new Date(dateSource);
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayNum = String(d.getDate()).padStart(2, '0');
+                    const dateStr = `${y}-${m}-${dayNum}`;
+                    const idx = dayDates.indexOf(dateStr);
+                    if (idx !== -1) {
+                        dayCounts[idx]++;
+                    }
+                }
+            });
+        }
+
+        // 4. Aktivitas dari tantangan harian
+        dayDates.forEach((dateStr, idx) => {
+            try {
+                const compl = localStorage.getItem('cendekia_completed_challenges_' + dateStr);
+                if (compl) {
+                    const parsed = JSON.parse(compl);
+                    dayCounts[idx] += Object.keys(parsed).length;
+                }
+            } catch (e) {}
+        });
+
+        const totalActivities = dayCounts.reduce((a, b) => a + b, 0);
+        const maxDayCount = Math.max(...dayCounts, 1);
+        let activeDaysCount = 0;
+        dayCounts.forEach((c, i) => {
+            if (i <= currentDayOfWeek && c > 0) activeDaysCount++;
+        });
+
+        const elapsedDays = currentDayOfWeek + 1;
+        const consistencyRate = Math.round((activeDaysCount / elapsedDays) * 100);
+
+        const resultDays = days.map((label, idx) => {
+            const count = dayCounts[idx];
+            const isToday = idx === currentDayOfWeek;
+            const isFuture = idx > currentDayOfWeek;
+            let heightPercent = 0;
+            if (count > 0) {
+                heightPercent = Math.min(100, Math.max(20, Math.round((count / maxDayCount) * 100)));
+            }
+            return {
+                label,
+                dateStr: dayDates[idx],
+                count,
+                heightPercent,
+                isToday,
+                isFuture
+            };
+        });
+
+        return {
+            days: resultDays,
+            totalActivities,
+            activeDays: activeDaysCount,
+            consistency: consistencyRate,
+            currentDayIdx: currentDayOfWeek
+        };
     }
 
     // 5. TANTANGAN HARIAN SISTEM (BERBASIS POOL HARIAN ASLI TANPA DUMMY)
@@ -1160,6 +1295,7 @@ const CendekiaApp = (function () {
         addXP,
         logActivity,
         getHistory,
+        getWeeklyActivityStats,
         getDailyChallenges,
         completeChallenge,
         getWorks,

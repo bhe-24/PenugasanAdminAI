@@ -267,7 +267,7 @@
                 </div>
             </section>
 
-            <!-- 5. GRAFIK PERKEMBANGAN SINGKAT -->
+            <!-- 5. GRAFIK PERKEMBANGAN SINGKAT (REALTIME DARI SELURUH SUMBER DATA AKTIVITAS) -->
             <section>
                 <div class="section-header">
                     <h2 class="section-title">
@@ -278,40 +278,11 @@
                     </a>
                 </div>
 
-                <div class="chart-preview-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.75rem; color:var(--text-muted);">Aktivitas Harian (XP Diperoleh)</span>
-                        <span style="font-size:0.75rem; font-weight:800; color:var(--primary);">Konsistensi: 85%</span>
-                    </div>
-
-                    <div class="chart-bars-row">
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 35%;"></div>
-                            <span class="chart-day-label">Sen</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 50%;"></div>
-                            <span class="chart-day-label">Sel</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 30%;"></div>
-                            <span class="chart-day-label">Rab</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 65%;"></div>
-                            <span class="chart-day-label">Kam</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 45%;"></div>
-                            <span class="chart-day-label">Jum</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill today" style="height: 80%;"></div>
-                            <span class="chart-day-label" style="color:var(--accent-dark); font-weight:800;">Sab</span>
-                        </div>
-                        <div class="chart-bar-col">
-                            <div class="chart-bar-pill" style="height: 15%; opacity:0.4;"></div>
-                            <span class="chart-day-label">Min</span>
+                <div id="weeklyChartContainer">
+                    <div class="chart-preview-card">
+                        <div style="text-align:center; padding:15px; color:var(--text-muted); font-size:0.75rem;">
+                            <i data-lucide="loader" style="width:18px; height:18px; animation:spin 1s linear infinite; margin-bottom:6px;"></i>
+                            <div>Memuat data perkembangan realtime...</div>
                         </div>
                     </div>
                 </div>
@@ -456,7 +427,7 @@
             }
         }
 
-        // 2. RENDER REKOMENDASI MODUL (DIAKAC SETIAP HARI DARI BAHAN AJAR DATABASE)
+        // 2. RENDER REKOMENDASI MODUL (DIAKAC SETIAP JAM 00.00 WAKTU LOKAL DARI BAHAN AJAR DATABASE)
         async function renderRecommendedModules() {
             const container = document.getElementById('recomModulesList');
             if (!container) return;
@@ -476,11 +447,16 @@
                     return;
                 }
 
-                // Daily deterministic shuffle (diacak setiap hari berdasarkan seed tanggal hari ini YYYY-MM-DD)
-                const todayStr = new Date().toISOString().slice(0, 10);
+                // Pengacakan harian: Seed berdasarkan tanggal lokal (YYYY-MM-DD), berganti otomatis tepat jam 00.00
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const localDateStr = `${yyyy}-${mm}-${dd}`;
+
                 let dateSeed = 0;
-                for (let i = 0; i < todayStr.length; i++) {
-                    dateSeed = ((dateSeed << 5) - dateSeed) + todayStr.charCodeAt(i);
+                for (let i = 0; i < localDateStr.length; i++) {
+                    dateSeed = ((dateSeed << 5) - dateSeed) + localDateStr.charCodeAt(i);
                     dateSeed |= 0;
                 }
                 dateSeed = Math.abs(dateSeed);
@@ -496,35 +472,38 @@
                     shuffled[i] = t;
                 }
 
-                // Ambil maksimal 2-3 rekomendasi teratas
+                // Ambil 3 rekomendasi teratas untuk hari ini
                 const recommendations = shuffled.slice(0, 3);
 
                 const categoryMeta = {
-                    'umum': { name: 'Pengetahuan Umum', link: '/mem-free/pengetahuan-umum.html', icon: 'globe-2', bg: '#e0f2fe', color: '#0284c7' },
-                    'inti': { name: 'Pengetahuan Inti', link: '/mem-free/pengetahuan-inti.html', icon: 'book-marked', bg: '#fef3c7', color: '#b45309' },
-                    'khusus': { name: 'Pengetahuan Khusus', link: '/mem-free/pengetahuan-khusus.html', icon: 'graduation-cap', bg: '#e0e7ff', color: '#4338ca' },
-                    'mendalam': { name: 'Pengetahuan Mendalam', link: '/mem-free/pengetahuan-mendalam.html', icon: 'brain', bg: '#f3e8ff', color: '#7e22ce' }
+                    'umum': { name: 'Pengetahuan Umum', file: '/mem-free/pengetahuan-umum.html', icon: 'globe-2', bg: '#e0f2fe', color: '#0284c7' },
+                    'inti': { name: 'Pengetahuan Inti', file: '/mem-free/pengetahuan-inti.html', icon: 'book-marked', bg: '#fef3c7', color: '#b45309' },
+                    'khusus': { name: 'Pengetahuan Khusus', file: '/mem-free/pengetahuan-khusus.html', icon: 'graduation-cap', bg: '#e0e7ff', color: '#4338ca' },
+                    'mendalam': { name: 'Pengetahuan Mendalam', file: '/mem-free/pengetahuan-mendalam.html', icon: 'brain', bg: '#f3e8ff', color: '#7e22ce' }
                 };
 
                 let html = '';
                 recommendations.forEach(mod => {
-                    const meta = categoryMeta[mod.category] || { name: mod.category || 'Materi Literasi', link: '/mem-free/belajar.html', icon: 'book-open', bg: '#f1f5f9', color: 'var(--primary)' };
+                    const catKey = (mod.category || 'umum').toLowerCase();
+                    const meta = categoryMeta[catKey] || { name: mod.category || 'Materi Literasi', file: '/mem-free/pengetahuan-umum.html', icon: 'book-open', bg: '#f1f5f9', color: 'var(--primary)' };
                     const wordCount = (mod.content || '').split(/\s+/).filter(Boolean).length;
                     const readTimeMin = Math.max(3, Math.min(10, Math.ceil(wordCount / 120)));
-                    const xpReward = 15 + (wordCount > 300 ? 5 : 0);
+                    
+                    // Langsung membuka halaman materi spesifik
+                    const directUrl = `${meta.file}?id=${encodeURIComponent(mod.id)}`;
 
                     html += `
-                        <a href="${meta.link}" class="recom-item">
+                        <a href="${directUrl}" class="recom-item">
                             <div class="recom-left">
                                 <div class="recom-icon" style="background:${meta.bg}; color:${meta.color};">
                                     <i data-lucide="${meta.icon}" style="width:20px; height:20px;"></i>
                                 </div>
                                 <div class="recom-info">
                                     <strong>${mod.title || 'Modul Pembelajaran'}</strong>
-                                    <span>${meta.name} &bull; ${readTimeMin} Menit</span>
+                                    <span>${meta.name} &bull; ${readTimeMin} Menit Baca Penuh</span>
                                 </div>
                             </div>
-                            <span class="recom-badge">+${xpReward} XP</span>
+                            <span class="recom-badge" style="background:#f0fdf4; color:#15803d; font-weight:800;">Buka Materi &rarr;</span>
                         </a>
                     `;
                 });
@@ -567,11 +546,55 @@
             if (window.lucide) lucide.createIcons();
         }
 
+        // 4. RENDER GRAFIK PEKAN INI SECARA REALTIME DARI SELURUH DATA SUMBER AKTIVITAS
+        function renderWeeklyProgress() {
+            const container = document.getElementById('weeklyChartContainer');
+            if (!container) return;
+
+            const stats = CendekiaApp.getWeeklyActivityStats();
+
+            let barsHtml = '';
+            stats.days.forEach(d => {
+                const barClass = d.isToday ? 'chart-bar-pill today' : 'chart-bar-pill';
+                const opacityStyle = d.isFuture ? 'opacity: 0.35;' : (d.count === 0 ? 'opacity: 0.25;' : '');
+                const labelStyle = d.isToday ? 'color:var(--accent-dark); font-weight:800;' : '';
+                
+                barsHtml += `
+                    <div class="chart-bar-col" title="${d.label} (${d.dateStr}): ${d.count} Aktivitas">
+                        <div class="${barClass}" style="height: ${d.heightPercent > 0 ? d.heightPercent : 4}%; ${opacityStyle}"></div>
+                        <span class="chart-day-label" style="${labelStyle}">${d.label}</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div class="chart-preview-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div>
+                            <span style="font-size:0.75rem; color:var(--text-muted);">Aktivitas Harian Realtime</span>
+                            <span style="font-size:0.68rem; color:var(--primary); font-weight:700; display:block;">Total: ${stats.totalActivities} Aktivitas Pekan Ini</span>
+                        </div>
+                        <span style="font-size:0.75rem; font-weight:800; color:var(--primary);">Konsistensi: ${stats.consistency}%</span>
+                    </div>
+
+                    <div class="chart-bars-row">
+                        ${barsHtml}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:0.65rem; color:var(--text-muted);">
+                        <span><i data-lucide="activity" style="width:11px; height:11px; display:inline-block; vertical-align:middle;"></i> Sumber: modul, game, karya, &amp; latihan</span>
+                        <span>${stats.activeDays}/7 Hari Aktif</span>
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('beranda');
             renderTodayChallenge();
             renderRecommendedModules();
             renderHomeBadges();
+            renderWeeklyProgress();
 
             // Render Recent Works jika ada di local storage
             const works = CendekiaApp.getWorks();

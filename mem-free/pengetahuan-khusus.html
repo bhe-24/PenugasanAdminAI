@@ -64,7 +64,9 @@
                     <div class="header-brand-sub">Stilistika Sastra &amp; Eksplorasi Diksi</div>
                 </div>
             </div>
-            <span class="badge-tier-free">+25 XP Baca</span>
+            <span class="badge-tier-free" style="background:#fef3c7; color:#b45309; font-weight:800;">
+                <i data-lucide="lock" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:2px;"></i> Wajib Member 5K
+            </span>
         </header>
 
         <main class="app-body">
@@ -93,6 +95,37 @@
 
         async function loadCategoryMaterial() {
             const container = document.getElementById('materialContentArea');
+            const user = CendekiaApp.getUser();
+
+            // Proteksi Tier Member Free: Kategori ini wajib Member 5K
+            if (user.tier === 'Member Free' || !user.tier || user.tier === 'free') {
+                container.innerHTML = `
+                    <div class="empty-state-card" style="border:1.5px dashed #cbd5e1; padding:36px 20px; background:white;">
+                        <div class="empty-icon-circle" style="background:#fef3c7; color:#b45309; width:64px; height:64px;">
+                            <i data-lucide="lock" style="width:30px; height:30px;"></i>
+                        </div>
+                        <span style="font-size:0.65rem; font-weight:800; background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:var(--radius-full); display:inline-block; margin-bottom:8px;">
+                            Eksklusif Member 5K
+                        </span>
+                        <h3 style="font-size:1.1rem; font-weight:800; color:var(--primary); margin-bottom:8px;">
+                            Modul Pengetahuan Khusus Terkunci
+                        </h3>
+                        <p style="font-size:0.75rem; color:var(--text-body); line-height:1.5; max-width:320px; margin:0 auto 20px;">
+                            Kategori ini memuat materi teknik penulisan lintas genre (puisi kontemporer, kurasi esai, &amp; naskah drama pementasan). Akses modul terbuka penuh bagi Member 5K.
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:10px; max-width:280px; margin:0 auto;">
+                            <a href="/mem-free/langganan.html?pkg=5k" class="btn-primary-challenge" style="text-decoration:none; justify-content:center; padding:12px;">
+                                <i data-lucide="sparkles" style="width:16px; height:16px;"></i> Tingkatkan ke Member 5K
+                            </a>
+                            <a href="/mem-free/belajar.html" style="font-size:0.75rem; color:var(--text-muted); text-decoration:none; font-weight:700; padding:6px;">
+                                &larr; Kembali ke Pilihan Kategori
+                            </a>
+                        </div>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
 
             try {
                 const material = await CendekiaApp.getMaterialByCategory(CATEGORY_ID);
@@ -152,8 +185,8 @@
                     }
 
                     html += `
-                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:10px;" onclick="completeReading()">
-                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca (+25 XP)
+                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:10px;" onclick="completeReading('${encodeURIComponent(material.title || 'Materi Pengetahuan Khusus')}')">
+                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca Modul Ini
                         </button>
                     </div>`;
 
@@ -175,16 +208,13 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        let hasEarnedReadingXP = false;
-        function completeReading() {
-            if (hasEarnedReadingXP) return;
-            hasEarnedReadingXP = true;
-            CendekiaApp.addXP(25, 'Menyelesaikan Bacaan: Pengetahuan Khusus');
+        function completeReading(encodedTitle) {
+            const rawTitle = encodedTitle ? decodeURIComponent(encodedTitle) : 'Materi Pengetahuan Khusus';
+            CendekiaApp.recordMaterialRead(CATEGORY_ID, rawTitle);
             const btn = document.getElementById('btnFinishRead');
             if (btn) {
-                btn.disabled = true;
                 btn.style.background = '#059669';
-                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Berhasil Diselesaikan (+25 XP Diperoleh)';
+                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Telah Selesai Dibaca ✓';
                 if (window.lucide) lucide.createIcons();
             }
         }
