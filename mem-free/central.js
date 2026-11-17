@@ -331,7 +331,7 @@ const CendekiaApp = (function () {
         } catch(e) {}
 
         // Tampilkan Notifikasi Toast
-        showXPToast(`+${points} XP: ${reason}!`);
+        showFloatingXP(points, (reason && reason.toLowerCase().includes('bonus')) ? 'Bonus Cepat! ⚡' : '');
 
         if (leveledUp) {
             showLevelUpModal(user.level, user.levelTitle);
@@ -422,19 +422,14 @@ const CendekiaApp = (function () {
     }
 
     function showXPToast(text) {
-        let toast = document.getElementById('cendekiaXPToast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'cendekiaXPToast';
-            toast.className = 'xp-toast';
-            document.body.appendChild(toast);
-        }
-        toast.innerHTML = `<i data-lucide="sparkles" style="color:var(--accent); width:18px; height:18px;"></i> <span>${text}</span>`;
-        if (window.lucide) lucide.createIcons();
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2800);
+        // Hapus elemen toast lama jika ada
+        const oldToast = document.getElementById('cendekiaXPToast');
+        if (oldToast) oldToast.remove();
+        // Redirect ke floating XP toast tunggal tanpa background gelap
+        const match = (text || '').match(/\+(\d+)\s*XP/i);
+        const amount = match ? parseInt(match[1]) : 20;
+        const isBonus = (text || '').toLowerCase().includes('bonus');
+        showFloatingXP(amount, isBonus ? 'Bonus Cepat! ⚡' : '');
     }
 
     function showLevelUpModal(level, title) {
@@ -1894,6 +1889,36 @@ const CendekiaApp = (function () {
         "clue": "Bentuk bahasa yang maknanya mirip atau sama dengan bentuk bahasa yang lain."
     },
     {
+        "id": "tk_s_11",
+        "difficulty": "santai",
+        "word": "ANTONIM",
+        "clue": "Bentuk bahasa yang maknanya berlawanan atau berkebalikan dari bentuk bahasa lain."
+    },
+    {
+        "id": "tk_s_12",
+        "difficulty": "santai",
+        "word": "PARAGRAF",
+        "clue": "Bagian bab karangan yang memuat satu ide pokok dan beberapa kalimat pengembang."
+    },
+    {
+        "id": "tk_s_13",
+        "difficulty": "santai",
+        "word": "RANGKUMAN",
+        "clue": "Hasil menyarikan intisari atau pokok-pokok penting dari suatu wacana bacaan."
+    },
+    {
+        "id": "tk_s_14",
+        "difficulty": "santai",
+        "word": "RINGKASAN",
+        "clue": "Penyajian singkat karangan asli dengan mempertahankan urutan isi dan sudut pandang."
+    },
+    {
+        "id": "tk_s_15",
+        "difficulty": "santai",
+        "word": "PROSA",
+        "clue": "Karangan bebas yang tidak terikat oleh rima, bait, atau jumlah suku kata."
+    },
+    {
         "id": "tk_t_1",
         "difficulty": "tantangan",
         "word": "ARKAIS",
@@ -1952,6 +1977,36 @@ const CendekiaApp = (function () {
         "difficulty": "tantangan",
         "word": "REDUNDANSI",
         "clue": "Kelebihan pemakaian unsur bahasa yang tidak menambah kejelasan makna (kemubaziran)."
+    },
+    {
+        "id": "tk_t_11",
+        "difficulty": "tantangan",
+        "word": "DEKONSTRUKSI",
+        "clue": "Metode analisis sastra yang membongkar stabilitas makna teks untuk menguak kontradiksi tersembunyi."
+    },
+    {
+        "id": "tk_t_12",
+        "difficulty": "tantangan",
+        "word": "EKSEGESIS",
+        "clue": "Penjelasan kritis atau interpretasi mendalam terhadap teks sastra atau naskah kuno."
+    },
+    {
+        "id": "tk_t_13",
+        "difficulty": "tantangan",
+        "word": "ONOMATOPE",
+        "clue": "Penamaan benda atau perbuatan berdasarkan tiruan bunyi yang dihasilkannya (seperti desir, gemerisik)."
+    },
+    {
+        "id": "tk_t_14",
+        "difficulty": "tantangan",
+        "word": "SOLILOKUI",
+        "clue": "Monolog tokoh berbicara sendiri pada lakon sandiwara untuk mengungkapkan isi batin kepada penonton."
+    },
+    {
+        "id": "tk_t_15",
+        "difficulty": "tantangan",
+        "word": "KATARSIS",
+        "clue": "Pelepasan emosi, kelegaan batin, atau pemurnian jiwa yang dialami pembaca usai menyaksikan klimaks tragedi."
     }
 ];
 
@@ -2017,6 +2072,36 @@ const CendekiaApp = (function () {
         "clue": "Pengulangan bunyi yang berselang, baik di dalam larik maupun pada akhir larik sajak."
     },
     {
+        "id": "sk_s_11",
+        "difficulty": "santai",
+        "word": "KALBU",
+        "clue": "Pangkal perasaan batin atau hati nurani yang peka terhadap nilai estetis dan kebenaran."
+    },
+    {
+        "id": "sk_s_12",
+        "difficulty": "santai",
+        "word": "KARYA",
+        "clue": "Hasil ciptaan atau buah gagasan yang memiliki nilai estetika dan budi pekerti."
+    },
+    {
+        "id": "sk_s_13",
+        "difficulty": "santai",
+        "word": "NASKAH",
+        "clue": "Karangan atau draf tulisan yang disusun untuk diterbitkan atau dipentaskan di panggung."
+    },
+    {
+        "id": "sk_s_14",
+        "difficulty": "santai",
+        "word": "DONGENG",
+        "clue": "Cerita rakyat khayalan yang penuh keajaiban dan sarat akan pesan budi pekerti."
+    },
+    {
+        "id": "sk_s_15",
+        "difficulty": "santai",
+        "word": "BABAK",
+        "clue": "Bagian besar dalam lakon drama atau sandiwara yang menandai pergeseran peristiwa."
+    },
+    {
         "id": "sk_t_1",
         "difficulty": "tantangan",
         "word": "PROTAGONIS",
@@ -2075,6 +2160,36 @@ const CendekiaApp = (function () {
         "difficulty": "tantangan",
         "word": "EKSPRESI",
         "clue": "Pengungkapan atau proses menyatakan perasaan, batin, dan gagasan melalui karya seni."
+    },
+    {
+        "id": "sk_t_11",
+        "difficulty": "tantangan",
+        "word": "ANAKRONISME",
+        "clue": "Ketidaksesuaian latar waktu, benda, atau peristiwa dengan era sejarah yang sedang dikisahkan."
+    },
+    {
+        "id": "sk_t_12",
+        "difficulty": "tantangan",
+        "word": "POLISINDETON",
+        "clue": "Gaya bahasa yang mempergunakan konjungsi secara berulang-ulang untuk memperlambat tempo narasi."
+    },
+    {
+        "id": "sk_t_13",
+        "difficulty": "tantangan",
+        "word": "ALEGORI",
+        "clue": "Cerita kiasan metaforis yang maknanya melambangkan ajaran moral atau kebenaran filosofis."
+    },
+    {
+        "id": "sk_t_14",
+        "difficulty": "tantangan",
+        "word": "RETORIKA",
+        "clue": "Keterampilan bertutur kata secara persuasif, logis, dan memikat daya pikat pendengar."
+    },
+    {
+        "id": "sk_t_15",
+        "difficulty": "tantangan",
+        "word": "ASINDETON",
+        "clue": "Gaya bahasa yang meniadakan kata penghubung antarunsur kalimat yang setara untuk mempercepat ritme."
     }
 ];
 
@@ -2160,6 +2275,46 @@ const CendekiaApp = (function () {
         "explanation": "Koran atau surat kabar adalah media cetak berkala yang memuat warta berita."
     },
     {
+        "id": "tt_s_11",
+        "difficulty": "santai",
+        "prompt": "Aku adalah tanda baca tegak lurus dengan titik di bawahnya, berseru memerintah atau meluapkan rasa kagum yang membara. Siapakah aku?",
+        "answer": "SERU",
+        "hint": "Tanda baca perintah atau kekaguman",
+        "explanation": "Tanda seru (!) digunakan untuk mengakhiri kalimat seruan, perintah, atau luapan emosi."
+    },
+    {
+        "id": "tt_s_12",
+        "difficulty": "santai",
+        "prompt": "Aku adalah buku tempat mengumpulkan coretan gagasan, bait puisi, dan sketsa cerita yang kau bawa ke mana pun kau melangkah. Siapakah aku?",
+        "answer": "CATATAN",
+        "hint": "Buku jurnal harian",
+        "explanation": "Buku catatan adalah tempat menghimpun gagasan dan draf tulisan."
+    },
+    {
+        "id": "tt_s_13",
+        "difficulty": "santai",
+        "prompt": "Bila dua kata bertemu membentuk arti baru yang berbeda dari asalnya, ilmu bahasa menyebutku sebagai kata...",
+        "answer": "MAJEMUK",
+        "hint": "Kata bentukan dari dua morfem bebas",
+        "explanation": "Kata majemuk adalah gabungan dua kata dasar yang membentuk makna baru (contoh: rumah sakit, kacamata)."
+    },
+    {
+        "id": "tt_s_14",
+        "difficulty": "santai",
+        "prompt": "Aku mengisahkan riwayat hidup seorang tokoh hebat yang ditulis oleh orang lain dari masa kecil hingga kesuksesannya. Siapakah aku?",
+        "answer": "BIOGRAFI",
+        "hint": "Riwayat hidup tokoh oleh orang lain",
+        "explanation": "Biografi adalah karya tulis yang menceritakan riwayat hidup seseorang yang disusun oleh penulis lain."
+    },
+    {
+        "id": "tt_s_15",
+        "difficulty": "santai",
+        "prompt": "Di dalam kalimat aku adalah pelaku yang melakukan tindakan atau berada dalam keadaan tertentu. Unsur apakah aku?",
+        "answer": "SUBJEK",
+        "hint": "Unsur inti kalimat selain predikat",
+        "explanation": "Subjek adalah unsur pokok kalimat yang menjadi pokok pembicaraan atau pelaku tindakan."
+    },
+    {
         "id": "tt_t_1",
         "difficulty": "tantangan",
         "prompt": "Aku adalah puncak ketegangan tertinggi dalam drama atau novel, di mana nasib para tokoh dipertaruhkan sebelum lerai. Siapakah aku?",
@@ -2238,6 +2393,46 @@ const CendekiaApp = (function () {
         "answer": "GLOSARIUM",
         "hint": "Daftar istilah dan artinya di belakang buku",
         "explanation": "Glosarium adalah daftar alfabetis kata-kata sulit atau istilah khusus beserta definisinya."
+    },
+    {
+        "id": "tt_t_11",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah pengulangan konsonan bunyi yang sama secara beruntun pada satu larik sajak untuk menghasilkan efek musikalitas merdu. Gaya apakah aku?",
+        "answer": "ALITERASI",
+        "hint": "Purwakanti bunyi konsonan",
+        "explanation": "Aliterasi adalah majas penegasan berupa perulangan bunyi konsonan yang sama pada kata-kata yang berurutan."
+    },
+    {
+        "id": "tt_t_12",
+        "difficulty": "tantangan",
+        "prompt": "Sebaliknya, akulah yang mengulang bunyi vokal merdu di tengah baris sajak agar terdengar selaras di telinga pendengar. Gaya apakah aku?",
+        "answer": "ASONANSI",
+        "hint": "Perulangan bunyi vokal",
+        "explanation": "Asonansi adalah majas berupa pengulangan bunyi vokal yang sama dalam deretan kata puisi."
+    },
+    {
+        "id": "tt_t_13",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah bagian naskah lakon yang memuat percakapan antara dua tokoh atau lebih di atas panggung sandiwara. Istilahku adalah...",
+        "answer": "DIALOG",
+        "hint": "Percakapan antartokoh",
+        "explanation": "Dialog adalah percakapan timbal balik antar-tokoh dalam karya drama atau narasi sastra."
+    },
+    {
+        "id": "tt_t_14",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah ragam bahasa kiasan yang mengganti nama benda dengan nama jenama, atribut, atau ciri khas yang sangat lekat dengannya. Majas apakah aku?",
+        "answer": "METONIMIA",
+        "hint": "Majas bertaut jenama/atribut",
+        "explanation": "Metonimia adalah majas yang menggunakan nama ciri atau label dagang suatu barang untuk menyebut barang itu sendiri."
+    },
+    {
+        "id": "tt_t_15",
+        "difficulty": "tantangan",
+        "prompt": "Aku berupa ucapan atau tulisan persembahan di halaman depan buku sebagai tanda penghormatan pengarang kepada orang tercinta. Istilahku adalah...",
+        "answer": "DEDIKASI",
+        "hint": "Halaman persembahan buku",
+        "explanation": "Dedikasi adalah lembar persembahan atau tanda penghormatan tulus pengarang dalam penerbitan karyanya."
     }
 ];
 
@@ -2385,21 +2580,40 @@ const CendekiaApp = (function () {
 
         if (Array.isArray(history)) {
             history.forEach(item => {
-                if (item.isoDate === todayKey && item.type === 'award' && typeof item.value === 'number') {
-                    total += item.value;
+                const itemDate = item.isoDate || (item.timestamp ? new Date(item.timestamp).toISOString().split('T')[0] : '');
+                if (itemDate === todayKey) {
+                    if (typeof item.value === 'number' && (item.type === 'xp' || item.type === 'award' || item.icon === 'award')) {
+                        total += item.value;
+                    } else if (typeof item.title === 'string') {
+                        const match = item.title.match(/\+(\d+)\s*XP/i);
+                        if (match) {
+                            total += parseInt(match[1]);
+                        }
+                    }
                 }
             });
         }
-        return total;
+
+        // Akumulasi dari game result hari ini jika ada
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki'];
+        let gameResultsTotal = 0;
+        gameKeys.forEach(gk => {
+            const res = getGameResult(gk);
+            if (res && typeof res.xpEarned === 'number' && res.xpEarned > 0) {
+                gameResultsTotal += res.xpEarned;
+            }
+        });
+
+        return Math.max(total, gameResultsTotal);
     }
 
     // Mendeteksi draft game yang belum tuntas untuk seluruh 4 arena
     function getUnfinishedGames() {
         const list = [
             { key: 'kuis_pintar', title: 'Kuis Pintar', link: '/mem-free/permainan/kuis-pintar.html', total: 15, icon: 'brain', color: '#7c3aed', bg: '#ede9fe' },
-            { key: 'tebak_kata', title: 'Tebak Kata', link: '/mem-free/permainan/tebak-kata.html', total: 5, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
-            { key: 'susun_kata', title: 'Susun Kata', link: '/mem-free/permainan/susun-kata.html', total: 5, icon: 'combine', color: '#059669', bg: '#d1fae5' },
-            { key: 'teka_teki', title: 'Teka-Teki Aksara', link: '/mem-free/permainan/teka-teki.html', total: 5, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
+            { key: 'tebak_kata', title: 'Tebak Kata', link: '/mem-free/permainan/tebak-kata.html', total: 10, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
+            { key: 'susun_kata', title: 'Susun Kata', link: '/mem-free/permainan/susun-kata.html', total: 10, icon: 'combine', color: '#059669', bg: '#d1fae5' },
+            { key: 'teka_teki', title: 'Teka-Teki Aksara', link: '/mem-free/permainan/teka-teki.html', total: 10, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
         ];
 
         const unfinished = [];
@@ -2421,7 +2635,8 @@ const CendekiaApp = (function () {
                 answered = draft.rIndex;
             }
 
-            if (answered > 0 && answered < g.total) {
+            // Jika permainan sedang berjalan dan belum tuntas
+            if (answered < g.total && (draft.questions || answered > 0)) {
                 unfinished.push({
                     ...g,
                     answeredCount: answered,
@@ -2947,7 +3162,7 @@ const CendekiaApp = (function () {
             // 2. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
             const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
             const activeMode = options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
-            const targetCount = gameKey === 'kuis_pintar' ? 15 : 5;
+            const targetCount = gameKey === 'kuis_pintar' ? 15 : 10;
 
             // 3. Periksa apakah ada paket soal dari pool harian (jika ada, masukkan ke Bank Soal agar tersimpan permanen)
             try {
@@ -3002,7 +3217,7 @@ const CendekiaApp = (function () {
         } catch (err) {
             console.error('[Cendekia Central] Error ensureDailyGame:', err);
             // Fallback aman ke Bank Soal internal
-            const fallbackSelected = selectQuestionsFromBank(gameKey, gameKey === 'kuis_pintar' ? 15 : 5, 'santai');
+            const fallbackSelected = selectQuestionsFromBank(gameKey, gameKey === 'kuis_pintar' ? 15 : 10, 'santai');
             if (fallbackSelected && fallbackSelected.length > 0 && onReady) {
                 onReady(fallbackSelected, { mode: 'santai', source: 'default_bank' });
             } else if (onNoMaterials) {

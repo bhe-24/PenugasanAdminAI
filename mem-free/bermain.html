@@ -130,7 +130,7 @@
                             <i data-lucide="text-search" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Tebak Kata</div>
-                        <div class="feature-desc">Temukan kata tersembunyi berdasarkan petunjuk definisi.</div>
+                        <div class="feature-desc">10 kata kosakata KBBI berdasarkan petunjuk makna.</div>
                         <div id="status_slot_tebak_kata"></div>
                     </a>
 
@@ -140,7 +140,7 @@
                             <i data-lucide="combine" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Susun Kata</div>
-                        <div class="feature-desc">Rangkai huruf acak menjadi kosakata sastra bermakna.</div>
+                        <div class="feature-desc">10 kata acak istilah sastra &amp; linguistik bermakna.</div>
                         <div id="status_slot_susun_kata"></div>
                     </a>
 
@@ -150,7 +150,7 @@
                             <i data-lucide="puzzle" style="width:22px; height:22px;"></i>
                         </div>
                         <div class="feature-title">Teka-Teki Aksara</div>
-                        <div class="feature-desc">Teka-teki silang sastra bertema sastra Indonesia.</div>
+                        <div class="feature-desc">10 teka-teki aksara bertema sastra Indonesia.</div>
                         <div id="status_slot_teka_teki"></div>
                     </a>
 
@@ -376,22 +376,25 @@
         }
 
         function updateGameCardStatuses() {
+            const savedMode = localStorage.getItem('cendekia_active_game_mode') || 'santai';
             const games = [
-                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda', total: 15 },
-                { key: 'tebak_kata', defaultDesc: 'Tebak Kosakata KBBI', total: 5 },
-                { key: 'susun_kata', defaultDesc: 'Susun Huruf Acak', total: 5 },
-                { key: 'teka_teki', defaultDesc: 'Teka-Teki Aksara', total: 5 }
+                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda', total: 15, url: '/mem-free/permainan/kuis-pintar.html' },
+                { key: 'tebak_kata', defaultDesc: '10 Kosakata KBBI', total: 10, url: '/mem-free/permainan/tebak-kata.html' },
+                { key: 'susun_kata', defaultDesc: '10 Kata Acak Sastra', total: 10, url: '/mem-free/permainan/susun-kata.html' },
+                { key: 'teka_teki', defaultDesc: '10 Teka-Teki Aksara', total: 10, url: '/mem-free/permainan/teka-teki.html' }
             ];
 
             games.forEach(g => {
                 const slot = document.getElementById(`status_slot_${g.key}`);
+                const card = document.getElementById(`card_${g.key}`);
                 if (!slot) return;
 
                 const res = CendekiaApp.getGameResult(g.key);
                 if (res) {
+                    if (card) card.href = `${g.url}?mode=${savedMode}&review=1`;
                     slot.innerHTML = `
                         <div style="font-size:0.68rem; font-weight:800; color:#059669; background:#ecfdf5; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> Skor: ${res.score}/100 (Selesai)
+                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> Skor: ${res.score}/100 (Selesai &bull; Review)
                         </div>
                     `;
                 } else {
@@ -410,13 +413,17 @@
                     }
 
                     if (answered > 0 && answered < g.total) {
-                        const remaining = g.total - answered;
+                        const nextNum = answered + 1;
+                        if (card) card.href = `${g.url}?mode=${savedMode}&resume=1`;
                         slot.innerHTML = `
-                            <div style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                                <i data-lucide="bookmark" style="width:11px; height:11px;"></i> Lanjutkan (${remaining} Belum Selesai)
+                            <div style="margin-top:6px;">
+                                <span style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; border:1.5px solid #93c5fd; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(37,99,235,0.12);">
+                                    <i data-lucide="play-circle" style="width:12px; height:12px; color:#2563eb;"></i> Lanjutkan (Soal ke-${nextNum}) &rarr;
+                                </span>
                             </div>
                         `;
                     } else {
+                        if (card) card.href = `${g.url}?mode=${savedMode}`;
                         slot.innerHTML = `
                             <div style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
                                 <i data-lucide="play" style="width:10px; height:10px;"></i> ${g.defaultDesc}
@@ -439,14 +446,30 @@
             setInterval(update, 1000);
         }
 
+        function refreshAllRealtimeStates() {
+            updateTodayEarnedXP();
+            updateGameCardStatuses();
+            renderUnfinishedGamesReminder();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
             const savedMode = localStorage.getItem('cendekia_active_game_mode') || 'santai';
             switchMode(savedMode, null);
-            renderUnfinishedGamesReminder();
-            updateTodayEarnedXP();
-            updateGameCardStatuses();
+            refreshAllRealtimeStates();
             startCountdownTimer();
+        });
+
+        // Event listener saat kembali dari halaman game (bfcache / back button)
+        window.addEventListener('pageshow', () => {
+            refreshAllRealtimeStates();
+        });
+
+        // Event listener saat tab browser aktif kembali
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                refreshAllRealtimeStates();
+            }
         });
     </script>
 </body>

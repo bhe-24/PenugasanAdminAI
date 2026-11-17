@@ -91,7 +91,7 @@
             <!-- GAME CONTAINER -->
             <div class="riddle-card" id="gameContainer" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
-                    <span>Teka-Teki <span id="riddleIdx">1</span> dari <span id="riddleTotal">5</span></span>
+                    <span>Teka-Teki <span id="riddleIdx">1</span> dari <span id="riddleTotal">10</span></span>
                     <span style="color:var(--accent-dark);"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
                 </div>
 
@@ -212,9 +212,18 @@
                         setTimeout(() => {
                             CendekiaApp.showEncouragementToast(`Melanjutkan teka-teki ke-${rIndex + 1} dari ronde sebelumnya! ✍️`);
                         }, 500);
+                    } else {
+                        // Draft awal agar sistem mendeteksi ronde sedang berjalan
+                        CendekiaApp.saveGameDraft('teka_teki', {
+                            questions: riddles,
+                            currentIndex: 0,
+                            score: 0,
+                            playedRecords: [],
+                            mode: currentMode
+                        });
                     }
 
-                    document.getElementById('tekaSubMeta').textContent = `Teka-Teki Aksara • Reset Jam 00:00 WIB`;
+                    document.getElementById('tekaSubMeta').textContent = `10 Teka-Teki Aksara • Reset Jam 00:00 WIB`;
                     loadCurrentRiddle();
                 }
             });
@@ -287,11 +296,9 @@
                 document.getElementById('gameScore').textContent = score;
 
                 if (isFast) {
-                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Cepat & Tepat');
-                    CendekiaApp.showFloatingXP(earnedPoints, 'Bonus Cepat! ⚡');
+                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Cepat & Tepat', true);
                 } else {
                     CendekiaApp.addXP(earnedPoints, 'Teka-Teki Aksara Terpecahkan');
-                    CendekiaApp.showFloatingXP(earnedPoints);
                 }
 
                 fb.style.background = '#ecfdf5';
@@ -344,11 +351,13 @@
         async function finishGameRound() {
             if (encouragementTimer) clearTimeout(encouragementTimer);
 
-            const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (riddles.length || 1)) * 100));
+            const total = riddles.length || 10;
+            const correctCount = playedRecords.filter(r => r.isCorrect).length;
+            const finalScore = Math.min(100, Math.round((correctCount / total) * 100));
             const resultData = {
                 score: finalScore,
-                correctCount: playedRecords.filter(r => r.isCorrect).length,
-                totalCount: riddles.length,
+                correctCount: correctCount,
+                totalCount: total,
                 xpEarned: score,
                 questions: playedRecords,
                 mode: currentMode
@@ -357,35 +366,132 @@
             await CendekiaApp.saveGameResult('teka_teki', resultData);
             CendekiaApp.clearGameDraft('teka_teki');
             CendekiaApp.completeChallenge('tc_3');
-            CendekiaApp.showFloatingXP(finalScore, 'Teka-Teki Selesai! 🏆');
             showCompletedScreen(resultData);
         }
 
         function showCompletedScreen(data) {
             const container = document.getElementById('gameContainer');
-            container.innerHTML = `
-                <div style="text-align:center; padding:20px 10px;">
-                    <div style="width:68px; height:68px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.6rem; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-                        <i data-lucide="award" style="width:36px; height:36px;"></i>
-                    </div>
-                    <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Teka-Teki Aksara Selesai!</h2>
-                    <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
-                        <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini
-                    </div>
+            const total = data.totalCount || 10;
+            const correct = data.correctCount || 0;
+            const wrong = total - correct;
+            const records = data.questions || [];
 
-                    <div style="background:#f8fafc; border-radius:12px; padding:16px; margin-bottom:16px; border:1px solid #e2e8f0;">
-                        <div style="font-size:1.8rem; font-weight:800; color:var(--primary);">${data.score || 0} / 100</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                            Berhasil memecahkan <b>${data.correctCount || 0}</b> dari <b>${data.totalCount || 5}</b> teka-teki
+            // Susun Lembar Pembahasan Soal Review
+            let reviewHtml = '';
+            records.forEach((item, idx) => {
+                const isCorrect = item.isCorrect;
+                const cleanQ = (item.q || '').replace(/^Teka-Teki:\s*"?/i, '').replace(/"?$/i, '');
+                reviewHtml += `
+                    <div style="background:white; border-radius:var(--radius-sm); border:1px solid ${isCorrect ? '#a7f3d0' : '#fecaca'}; padding:12px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.7rem; font-weight:800; background:var(--primary); color:white; padding:2px 8px; border-radius:4px;">
+                                Teka-Teki #${idx + 1}
+                            </span>
+                            <span style="font-size:0.68rem; font-weight:800; color:${isCorrect ? '#059669' : '#dc2626'}; background:${isCorrect ? '#ecfdf5' : '#fef2f2'}; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
+                                <i data-lucide="${isCorrect ? 'check-circle' : 'x-circle'}" style="width:11px; height:11px;"></i> ${isCorrect ? 'Benar (+20 XP)' : 'Gagal'}
+                            </span>
+                        </div>
+                        <div style="font-size:0.76rem; color:var(--text-body); margin-bottom:8px; line-height:1.4;">
+                            <strong>Soal Teka-Teki:</strong> "${cleanQ}"
+                        </div>
+                        ${item.clue ? `
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">
+                                <strong>Petunjuk:</strong> ${item.clue}
+                            </div>
+                        ` : ''}
+                        <div style="font-size:0.72rem; background:${isCorrect ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${isCorrect ? '#bbf7d0' : '#fecaca'}; border-radius:6px; padding:6px 10px; margin-bottom:6px; color:${isCorrect ? '#166534' : '#991b1b'};">
+                            ${isCorrect 
+                                ? `<b>Jawaban Anda:</b> <span style="font-weight:800; letter-spacing:0.5px;">${item.selectedText}</span> ✓`
+                                : `<b>Jawaban Anda:</b> ${item.selectedText} &bull; <b>Kunci Jawaban:</b> <span style="font-weight:800; letter-spacing:0.5px; color:#166534;">${item.correctText}</span>`
+                            }
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); font-style:italic; line-height:1.35;">
+                            ${item.exp || `Jawaban teka-teki aksara: ${item.correctText}.`}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Susun Koleksi Kosakata / Kaidah Aksara Glosarium
+            let vocabHtml = '';
+            records.forEach(item => {
+                const word = item.correctText || '';
+                const cleanClue = (item.clue || item.exp || '').replace(/^Petunjuk:\s*"?/i, '').replace(/".*$/i, '');
+                vocabHtml += `
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.85rem; font-weight:800; color:var(--primary); letter-spacing:0.5px;">
+                                ${word}
+                            </span>
+                            <span style="font-size:0.62rem; font-weight:700; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;">
+                                Kaidah Aksara &amp; Sastra
+                            </span>
+                        </div>
+                        <div style="font-size:0.72rem; color:var(--text-body); line-height:1.4;">
+                            ${cleanClue}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div style="padding:10px 0;">
+                    <!-- REKAP HASIL UTAMA -->
+                    <div style="text-align:center; padding:20px 14px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); margin-bottom:16px;">
+                        <div style="width:78px; height:78px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.9rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; border:3px solid #a7f3d0;">
+                            ${data.score || 0}
+                        </div>
+                        <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Hasil Teka-Teki Aksara</h2>
+                        <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
+                            <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini &bull; Mode: <b>${data.mode || 'Santai'}</b>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Benar</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#059669;">${correct} Teka-Teki</div>
+                            </div>
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Salah</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#dc2626;">${wrong} Teka-Teki</div>
+                            </div>
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Poin XP</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#7c3aed;">+${data.xpEarned || 0} XP</div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:10px; width:100%;" onclick="downloadTekaTekiPDF()">
+                            <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                        </button>
+
+                        <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+                            Latihan berikutnya dibuka kembali <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
                         </div>
                     </div>
 
-                    <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:14px;" onclick="downloadTekaTekiPDF()">
-                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
-                    </button>
+                    <!-- SECTION 1: LEMBAR PEMBAHASAN SOAL (REVIEW) -->
+                    <div style="margin-bottom:18px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="font-size:0.88rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="clipboard-check" style="width:16px; height:16px; color:#2563eb;"></i> Lembar Pembahasan Soal
+                            </h3>
+                            <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${total} Butir Soal</span>
+                        </div>
+                        ${reviewHtml}
+                    </div>
 
-                    <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
-                        Teka-Teki Aksara berikutnya akan dibuka kembali pada <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                    <!-- SECTION 2: KOLEKSI KOSAKATA & ISTILAH SASTRA -->
+                    <div style="margin-bottom:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="font-size:0.88rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="book-marked" style="width:16px; height:16px; color:#b45309;"></i> Koleksi Kosakata &amp; Istilah Sastra
+                            </h3>
+                            <span style="font-size:0.68rem; color:#b45309; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">Kaidah Aksara</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${vocabHtml}
+                        </div>
                     </div>
                 </div>
             `;
