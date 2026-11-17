@@ -1434,6 +1434,1034 @@ const CendekiaApp = (function () {
         return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
+    
+    // ========================================================
+    // BANK SOAL TERPUSAT, ANTI-REPETISI 7 HARI & SELEKSI MODE
+    // ========================================================
+    const DEFAULT_BANK_KUIS_PINTAR = [
+    {
+        "id": "kp_s_1",
+        "difficulty": "santai",
+        "question": "Manakah penulisan kata baku yang tepat menurut Pedoman Umum Ejaan Bahasa Indonesia (EYD V)?",
+        "options": [
+            "Antri",
+            "Antre",
+            "Antree",
+            "Ngangtri"
+        ],
+        "correctIndex": 1,
+        "explanation": "Bentuk baku menurut KBBI dan EYD V adalah 'antre', bukan 'antri'. Kata turunannya adalah 'mengantre'."
+    },
+    {
+        "id": "kp_s_2",
+        "difficulty": "santai",
+        "question": "Penulisan kata depan 'di' yang menunjukkan keterangan tempat yang benar adalah...",
+        "options": [
+            "di rumah",
+            "dirumah",
+            "di-rumah",
+            "dirumahkan"
+        ],
+        "correctIndex": 0,
+        "explanation": "Kata depan 'di' yang menyatakan arah atau lokasi tempat ditulis terpisah dari kata yang mengikutinya ('di rumah')."
+    },
+    {
+        "id": "kp_s_3",
+        "difficulty": "santai",
+        "question": "Manakah kalimat berikut yang menggunakan huruf kapital secara tepat?",
+        "options": [
+            "Ibu membeli jeruk bali di pasar tradisional.",
+            "Ibu membeli jeruk Bali di pasar tradisional.",
+            "Ibu membeli Jeruk bali di pasar Tradisional.",
+            "Ibu membeli Jeruk Bali Di Pasar Tradisional."
+        ],
+        "correctIndex": 0,
+        "explanation": "Nama jenis tanaman atau buah tidak ditulis dengan huruf kapital meskipun menggunakan nama geografi ('jeruk bali', 'kunci inggris', 'pisang ambon')."
+    },
+    {
+        "id": "kp_s_4",
+        "difficulty": "santai",
+        "question": "Bentuk kata serapan yang baku di bawah ini adalah...",
+        "options": [
+            "Praktek",
+            "Praktik",
+            "Praktekan",
+            "Praktikan"
+        ],
+        "correctIndex": 1,
+        "explanation": "Bentuk baku serapan dari bahasa Belanda 'praktijk' adalah 'praktik' (menggunakan fonem 'i'). Kata turunannya adalah 'praktikum'."
+    },
+    {
+        "id": "kp_s_5",
+        "difficulty": "santai",
+        "question": "Unsur intrinsik karya sastra yang merupakan ide pokok atau gagasan sentral yang menjiwai seluruh cerita disebut...",
+        "options": [
+            "Amanat",
+            "Latar",
+            "Tema",
+            "Sudut Pandang"
+        ],
+        "correctIndex": 2,
+        "explanation": "Tema adalah gagasan pokok atau landasan konseptual utama yang melandasi jalannya suatu cerita sastra."
+    },
+    {
+        "id": "kp_s_6",
+        "difficulty": "santai",
+        "question": "Manakah pasangan kata baku dan tidak baku berikut yang paling tepat?",
+        "options": [
+            "Izin (baku) - Ijin (tidak baku)",
+            "Nasehat (baku) - Nasihat (tidak baku)",
+            "Jaman (baku) - Zaman (tidak baku)",
+            "Faham (baku) - Paham (tidak baku)"
+        ],
+        "correctIndex": 0,
+        "explanation": "Bentuk baku adalah 'izin' dengan fonem 'z', sedangkan 'ijin' merupakan bentuk tidak baku."
+    },
+    {
+        "id": "kp_s_7",
+        "difficulty": "santai",
+        "question": "Gaya bahasa yang membandingkan benda mati seolah-olah memiliki sifat dan perilaku seperti manusia disebut...",
+        "options": [
+            "Metafora",
+            "Personifikasi",
+            "Hiperbola",
+            "Litotes"
+        ],
+        "correctIndex": 1,
+        "explanation": "Personifikasi adalah majas yang memberikan sifat-sifat insani kepada benda mati atau gagasan abstrak (contoh: 'angin berbisik lembut')."
+    },
+    {
+        "id": "kp_s_8",
+        "difficulty": "santai",
+        "question": "Penulisan gabungan kata yang sudah padu senyawa dan harus ditulis serangkai adalah...",
+        "options": [
+            "tanda tangan",
+            "tanggung jawab",
+            "olahraga",
+            "terima kasih"
+        ],
+        "correctIndex": 2,
+        "explanation": "'Olahraga' ditulis serangkai karena sudah dianggap senyawa padu, sedangkan 'tanda tangan', 'tanggung jawab', dan 'terima kasih' ditulis terpisah."
+    },
+    {
+        "id": "kp_s_9",
+        "difficulty": "santai",
+        "question": "Manakah penggunaan tanda koma (,) yang benar dalam kalimat majemuk bertingkat?",
+        "options": [
+            "Karena hujan lebat, jalanan protokol menjadi macet parah.",
+            "Jalanan protokol menjadi macet parah, karena hujan lebat.",
+            "Karena hujan lebat jalanan protokol, menjadi macet parah.",
+            "Jalanan protokol, menjadi macet parah karena hujan lebat."
+        ],
+        "correctIndex": 0,
+        "explanation": "Jika anak kalimat mendahului induk kalimat, tanda koma wajib diletakkan di antara anak kalimat dan induk kalimat."
+    },
+    {
+        "id": "kp_s_10",
+        "difficulty": "santai",
+        "question": "Pilihan kata yang tepat dan selaras dalam penggunaannya untuk mengungkapkan gagasan dalam karya tulis disebut...",
+        "options": [
+            "Sintaksis",
+            "Diksi",
+            "Morfologi",
+            "Fonologi"
+        ],
+        "correctIndex": 1,
+        "explanation": "Diksi adalah ketepatan pemilihan dan penggunaan kata oleh penulis untuk menyatakan gagasan dan memberikan efek estetis tertentu."
+    },
+    {
+        "id": "kp_s_11",
+        "difficulty": "santai",
+        "question": "Bentuk kata ulang berikut yang bermakna 'saling' adalah...",
+        "options": [
+            "Rumah-rumah",
+            "Tarik-menarik",
+            "Kemerah-merahan",
+            "Pohon-pohonan"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Tarik-menarik' adalah bentuk perulangan kata berimbuhan yang bermakna resiprokal atau saling melakukan pekerjaan."
+    },
+    {
+        "id": "kp_s_12",
+        "difficulty": "santai",
+        "question": "Manakah penulisan gelar akademik yang sesuai dengan kaidah EYD V?",
+        "options": [
+            "Dr. Budi Santoso, S.Pd.",
+            "Dr Budi Santoso S.Pd",
+            "Dr. Budi Santoso, SPd",
+            "Dr. Budi Santoso S.Pd."
+        ],
+        "correctIndex": 0,
+        "explanation": "Gelar akademik di belakang nama dipisahkan tanda koma dan tiap singkatan kata diakhiri tanda titik ('S.Pd.')."
+    },
+    {
+        "id": "kp_s_13",
+        "difficulty": "santai",
+        "question": "Kata penghubung antarparagraf yang tepat untuk menunjukkan hubungan pertentangan adalah...",
+        "options": [
+            "Selain itu",
+            "Oleh karena itu",
+            "Namun demikian",
+            "Sebagai kesimpulan"
+        ],
+        "correctIndex": 2,
+        "explanation": "'Namun demikian' atau 'Meskipun demikian' digunakan sebagai konjungsi antarkalimat/antarparagraf yang menyatakan pertentangan."
+    },
+    {
+        "id": "kp_s_14",
+        "difficulty": "santai",
+        "question": "Pesan moral atau ajaran kebaikan yang ingin disampaikan pengarang kepada pembaca dalam karya fiksi disebut...",
+        "options": [
+            "Amanat",
+            "Sudut pandang",
+            "Konflik",
+            "Klimaks"
+        ],
+        "correctIndex": 0,
+        "explanation": "Amanat adalah pesan moral atau nilai keteladanan yang disampaikan pengarang melalui jalan cerita."
+    },
+    {
+        "id": "kp_s_15",
+        "difficulty": "santai",
+        "question": "Penulisan partikel '-pun' yang tepat berikut ini adalah...",
+        "options": [
+            "Meskipun hari hujan, dia tetap datang.",
+            "Meski pun hari hujan, dia tetap datang.",
+            "Walau pun hari hujan, dia tetap datang.",
+            "Kapan pun dia datang, saya selalu ada."
+        ],
+        "correctIndex": 0,
+        "explanation": "Partikel 'pun' pada kata penghubung yang lazim ditulis serangkai seperti 'meskipun', 'walaupun', 'bagaimanapun', 'sungguhpun'."
+    },
+    {
+        "id": "kp_t_1",
+        "difficulty": "tantangan",
+        "question": "Perhatikan kalimat: 'Meskipun pembangunan gedung perpustakaan itu terhambat, tetapi anggaran renovasi tetap dialokasikan secara penuh.' Kesalahan utama pada kalimat majemuk bertingkat di atas adalah...",
+        "options": [
+            "Penggunaan konjungsi ganda yang menyebabkan kalimat tidak memiliki induk kalimat mandiri.",
+            "Penulisan kata 'perpustakaan' yang seharusnya diawali huruf kapital.",
+            "Penggunaan tanda koma sebelum kata 'tetapi' yang seharusnya dihilangkan.",
+            "Pemilihan kata 'dialokasikan' yang tidak sesuai dengan kaidah pembentukan kata kerja pasif."
+        ],
+        "correctIndex": 0,
+        "explanation": "Konjungsi subordinatif konsesif 'meskipun' tidak boleh disandingkan dengan konjungsi koordinatif 'tetapi' dalam satu kalimat karena membuat kalimat kehilangan induk kalimat (kehilangan klausul bebas)."
+    },
+    {
+        "id": "kp_t_2",
+        "difficulty": "tantangan",
+        "question": "Kalimat di bawah ini yang memenuhi prinsip keparalelan bentuk (kesejajaran gramatikal) dalam kalimat efektif adalah...",
+        "options": [
+            "Kegiatan literasi di sekolah meliputi membaca buku, pembuatan resensi naskah, dan berdiskusi kelompok.",
+            "Kegiatan literasi di sekolah meliputi membaca buku, membuat resensi naskah, dan mendiskusikan gagasan kelompok.",
+            "Kegiatan literasi di sekolah meliputi pembacaan buku, membuat resensi naskah, dan berdiskusi kelompok.",
+            "Kegiatan literasi di sekolah meliputi dibacanya buku, pembuatan resensi naskah, dan mendiskusikan gagasan."
+        ],
+        "correctIndex": 1,
+        "explanation": "Keparalelan mensyaratkan bentuk verba yang setara: 'membaca', 'membuat', dan 'mendiskusikan' (semuanya verba aktif transitif berprefiks me-)."
+    },
+    {
+        "id": "kp_t_3",
+        "difficulty": "tantangan",
+        "question": "Manakah kalimat yang bebas dari unsur kemubaziran kata (pleonasme)?",
+        "options": [
+            "Semua para siswa berkumpul di aula utama sekolah.",
+            "Peserta seminar diminta untuk maju ke depan panggung.",
+            "Kita harus saling tolong-menolong dalam kebajikan.",
+            "Para cendekiawan berkumpul di aula utama perpustakaan."
+        ],
+        "correctIndex": 3,
+        "explanation": "Kalimat 'Para cendekiawan berkumpul...' hemat dan cermat. Opsi lain mengandung pleonasme: 'semua para', 'maju ke depan', dan 'saling tolong-menolong'."
+    },
+    {
+        "id": "kp_t_4",
+        "difficulty": "tantangan",
+        "question": "Perhatikan kalimat: 'Karena sering terlambat mengumpulkan naskah antologi, redaktur majalah sastra itu menegurnya secara lisan.' Subjek pada anak kalimat di atas adalah...",
+        "options": [
+            "Redaktur majalah sastra",
+            "Naskah antologi",
+            "Bersifat implisit mengacu pada pihak yang ditegur (dia)",
+            "Terlambat mengumpulkan"
+        ],
+        "correctIndex": 2,
+        "explanation": "Anak kalimat 'Karena sering terlambat mengumpulkan naskah antologi' mengalami pelesapan subjek yang secara anaforis merujuk kepada pronomina persona orang ketiga yang menjadi objek teguran."
+    },
+    {
+        "id": "kp_t_5",
+        "difficulty": "tantangan",
+        "question": "Majas yang memperlihatkan pertentangan nyata antara dua hal yang tampak mustahil atau bertolak belakang namun sesungguhnya mengandung kebenaran mendalam disebut...",
+        "options": [
+            "Oksimoron",
+            "Paradoks",
+            "Antitesis",
+            "Sinekdoke"
+        ],
+        "correctIndex": 1,
+        "explanation": "Paradoks adalah majas yang memuat pertentangan semu antara fakta yang tampak kontradiktif dengan kebenaran hakiki (contoh: 'Ia merasa kesepian di tengah hiruk-pikuk pesta kota metropolitan')."
+    },
+    {
+        "id": "kp_t_6",
+        "difficulty": "tantangan",
+        "question": "Manakah penulisan kata berimbuhan gabungan (konfiks) pada kata dasar majemuk yang tepat?",
+        "options": [
+            "Menandatangani, pertanggungjawaban, mengkambinghitamkan",
+            "Menanda tangani, pertanggung jawaban, mengkambing hitamkan",
+            "Menandatangani, pertanggung jawaban, mengambinghitamkan",
+            "Menandatangani, pertanggungjawaban, mengambinghitamkan"
+        ],
+        "correctIndex": 3,
+        "explanation": "Jika gabungan kata mendapat awalan dan akhiran sekaligus (konfiks), penulisannya diserangkai: 'menandatangani', 'pertanggungjawaban', dan fonem /k/ pada 'kambing' luluh menjadi 'mengambinghitamkan'."
+    },
+    {
+        "id": "kp_t_7",
+        "difficulty": "tantangan",
+        "question": "Penggunaan tanda titik koma (;) yang tepat menurut kaidah EYD V adalah...",
+        "options": [
+            "Ibu membeli apel; jeruk; dan anggur di pasar swalayan.",
+            "Hari sudah malam; anak-anak masih asyik menyelesaikan cerpennya.",
+            "Dia sangat rajin membaca buku; sehingga nilainya selalu memuaskan.",
+            "Meskipun sudah larut malam; dia belum tidur."
+        ],
+        "correctIndex": 1,
+        "explanation": "Tanda titik koma dapat dipakai sebagai pengganti kata penghubung untuk memisahkan kalimat setara di dalam kalimat majemuk."
+    },
+    {
+        "id": "kp_t_8",
+        "difficulty": "tantangan",
+        "question": "Kalimat di bawah ini yang memiliki struktur sintaksis yang rancu (kontaminasi) adalah...",
+        "options": [
+            "Dalam buku ini membahas problematika pendidikan pedesaan.",
+            "Buku ini membahas problematika pendidikan pedesaan.",
+            "Di dalam buku ini dibahas problematika pendidikan pedesaan.",
+            "Penulis membahas problematika pendidikan pedesaan di dalam buku ini."
+        ],
+        "correctIndex": 0,
+        "explanation": "Kalimat 'Dalam buku ini membahas...' kehilangan subjek karena predikat transitif 'membahas' didahului frasa preposisional 'dalam buku ini'."
+    },
+    {
+        "id": "kp_t_9",
+        "difficulty": "tantangan",
+        "question": "Penyerapan istilah asing yang mengadaptasi ejaan dan lafal Indonesia secara tepat terdapat pada kata...",
+        "options": [
+            "Standarisasi",
+            "Kwalitas",
+            "Fasilitir",
+            "Standarisasi",
+            "Standardisasi"
+        ],
+        "correctIndex": 4,
+        "explanation": "Bentuk baku serapan dari 'standardization' adalah 'standardisasi' (bukan standarisasi), karena imbuhan -isasi diserap dari -ization pada kata dasar standard."
+    },
+    {
+        "id": "kp_t_10",
+        "difficulty": "tantangan",
+        "question": "Perhatikan teks cerpen: 'Matanya menatap jendela yang basah oleh rinai gerimis. Dalam benaknya, ingatan tentang masa kecil di tepi Sungai Musi mendadak meluap.' Sudut pandang yang digunakan oleh pengarang adalah...",
+        "options": [
+            "Orang pertama pelaku utama",
+            "Orang pertama pelaku sampingan",
+            "Orang ketiga serbatahu (omniscien)",
+            "Orang ketiga pengamat terbatas"
+        ],
+        "correctIndex": 2,
+        "explanation": "Pengarang menggunakan kata ganti orang ketiga ('matanya', 'benaknya') dan mengetahui isi pikiran serta gejolak batin tokoh secara bebas (sudut pandang serbatahu)."
+    },
+    {
+        "id": "kp_t_11",
+        "difficulty": "tantangan",
+        "question": "Penulisan bilangan dan lambang angka yang benar sesuai kaidah EYD V adalah...",
+        "options": [
+            "15 orang peserta seminar sastra berhasil mendapatkan piagam kehormatan.",
+            "Sebanyak 15 orang peserta seminar sastra berhasil mendapatkan piagam kehormatan.",
+            "Sebanyak lima belas peserta seminar sastra berhasil mendapatkan piagam kehormatan.",
+            "Peserta seminar sastra yang hadir berjumlah 15 orang."
+        ],
+        "correctIndex": 1,
+        "explanation": "Bilangan pada awal kalimat tidak boleh ditulis dengan lambang angka. Jika awal kalimat harus memuat angka besar, susunan kalimat diubah atau didahului kata keterangan (misal: 'Sebanyak 15 orang...')."
+    },
+    {
+        "id": "kp_t_12",
+        "difficulty": "tantangan",
+        "question": "Manakah frasa berikut yang tergolong idiom (ungkapan kiasan)?",
+        "options": [
+            "Meja hijau",
+            "Buku tebal",
+            "Rumah megah",
+            "Kertas putih"
+        ],
+        "correctIndex": 0,
+        "explanation": "'Meja hijau' merupakan ungkapan idiomatis yang bermakna pengadilan, bukan meja yang dicat warna hijau secara harfiah."
+    },
+    {
+        "id": "kp_t_13",
+        "difficulty": "tantangan",
+        "question": "Bentuk penulisan kata ulang gabungan dengan kata berimbuhan berikut yang paling tepat adalah...",
+        "options": [
+            "Surat-surat kabar",
+            "Surat kabar-surat kabar",
+            "Surat kabar-kabar",
+            "Surat kabar-kabaran"
+        ],
+        "correctIndex": 0,
+        "explanation": "Bentuk jamak dari kata majemuk diulang pada unsur pertamanya: 'surat-surat kabar', 'kereta-kereta api', 'meja-meja tulis'."
+    },
+    {
+        "id": "kp_t_14",
+        "difficulty": "tantangan",
+        "question": "Perbedaan mendasar antara kalimat fakta dan kalimat opini dalam artikel adalah...",
+        "options": [
+            "Fakta bersifat subjektif dan memuat saran, opini bersifat objektif dan memuat data.",
+            "Fakta memuat data terverifikasi dan kenyataan empiris, opini memuat pendapat, tafsiran, atau penilaian pribadi.",
+            "Fakta selalu menggunakan kata kerja aktif, sedangkan opini selalu menggunakan kata kerja pasif.",
+            "Fakta hanya terdapat di paragraf pembuka, sedangkan opini selalu di paragraf penutup."
+        ],
+        "correctIndex": 1,
+        "explanation": "Fakta berlandaskan kenyataan objektif dan data yang dapat dibuktikan kebenarannya, sedangkan opini berisi sikap, pandangan, atau interpretasi subjektif penulis."
+    },
+    {
+        "id": "kp_t_15",
+        "difficulty": "tantangan",
+        "question": "Ciri utama dari struktur teks argumentasi yang kokoh adalah...",
+        "options": [
+            "Mengutamakan keindahan rima dan bait puisi.",
+            "Menyajikan tesis, argumen logis yang ditopang fakta/data valid, serta simpulan penegasan.",
+            "Menyusun urutan dialog antar-tokoh fiktif dari awal sampai akhir.",
+            "Menghadirkan kejutan di akhir cerita tanpa penjelasan logis."
+        ],
+        "correctIndex": 1,
+        "explanation": "Teks argumentasi dibangun atas pernyataan sikap (tesis), rangkaian alasan logis berbasis pembuktian data faktual (argumen), dan penegasan kembali (kesimpulan)."
+    }
+];
+
+    const DEFAULT_BANK_TEBAK_KATA = [
+    {
+        "id": "tk_s_1",
+        "difficulty": "santai",
+        "word": "LITERASI",
+        "clue": "Kemampuan membaca, menulis, dan mengolah informasi secara kritis dalam kehidupan sehari-hari."
+    },
+    {
+        "id": "tk_s_2",
+        "difficulty": "santai",
+        "word": "PUSTAKA",
+        "clue": "Kitab atau buku tempat tersimpannya khazanah ilmu pengetahuan dan karya sastra."
+    },
+    {
+        "id": "tk_s_3",
+        "difficulty": "santai",
+        "word": "AKSARA",
+        "clue": "Sistem lambang atau grafem yang digunakan manusia untuk menuliskan bahasa dan ujaran."
+    },
+    {
+        "id": "tk_s_4",
+        "difficulty": "santai",
+        "word": "NARASI",
+        "clue": "Teks atau wacana yang menceritakan rangkaian peristiwa berdasarkan urutan waktu (kronologis)."
+    },
+    {
+        "id": "tk_s_5",
+        "difficulty": "santai",
+        "word": "KALIMAT",
+        "clue": "Satuan bahasa terkecil yang mengungkapkan pikiran utuh secara gramatikal dan intonasi."
+    },
+    {
+        "id": "tk_s_6",
+        "difficulty": "santai",
+        "word": "METAFORA",
+        "clue": "Majas kiasan perbandingan langsung tanpa kata pembanding (seperti, laksana, bagai)."
+    },
+    {
+        "id": "tk_s_7",
+        "difficulty": "santai",
+        "word": "DIKSI",
+        "clue": "Pilihan kata yang tepat dan selaras untuk mewakili gagasan atau nuansa emosi tertentu."
+    },
+    {
+        "id": "tk_s_8",
+        "difficulty": "santai",
+        "word": "PUISI",
+        "clue": "Bentuk karya sastra yang terikat oleh rima, matra, irama, bait, dan kepadatan makna."
+    },
+    {
+        "id": "tk_s_9",
+        "difficulty": "santai",
+        "word": "CERPEN",
+        "clue": "Cerita fiksi berbentuk prosa naratif pendek yang fokus pada satu peristiwa sentral tokoh."
+    },
+    {
+        "id": "tk_s_10",
+        "difficulty": "santai",
+        "word": "SINONIM",
+        "clue": "Bentuk bahasa yang maknanya mirip atau sama dengan bentuk bahasa yang lain."
+    },
+    {
+        "id": "tk_t_1",
+        "difficulty": "tantangan",
+        "word": "ARKAIS",
+        "clue": "Kata atau ungkapan yang berhubungan dengan masa lampau dan tidak lazim digunakan lagi saat ini."
+    },
+    {
+        "id": "tk_t_2",
+        "difficulty": "tantangan",
+        "word": "PARADOKS",
+        "clue": "Pernyataan yang seolah-olah bertentangan dengan akal sehat namun mengandung kebenaran hakiki."
+    },
+    {
+        "id": "tk_t_3",
+        "difficulty": "tantangan",
+        "word": "HIPERBOLA",
+        "clue": "Gaya bahasa yang melebih-lebihkan suatu kenyataan hingga melampaui batas kewajaran."
+    },
+    {
+        "id": "tk_t_4",
+        "difficulty": "tantangan",
+        "word": "EUFEMISME",
+        "clue": "Penggunaan ungkapan yang lebih halus dan sopan untuk menggantikan kata yang dianggap kasar atau tabu."
+    },
+    {
+        "id": "tk_t_5",
+        "difficulty": "tantangan",
+        "word": "ANALOGI",
+        "clue": "Persamaan atau persesuaian antara dua benda atau hal yang berlainan untuk memperjelas konsep."
+    },
+    {
+        "id": "tk_t_6",
+        "difficulty": "tantangan",
+        "word": "HOMONIM",
+        "clue": "Kata yang sama lafal dan ejaannya, tetapi berbeda maknanya karena tidak seakar kata."
+    },
+    {
+        "id": "tk_t_7",
+        "difficulty": "tantangan",
+        "word": "AMBIGUITAS",
+        "clue": "Sifat atau keadaan yang bermakna ganda, kabur, atau menimbulkan lebih dari satu penafsiran."
+    },
+    {
+        "id": "tk_t_8",
+        "difficulty": "tantangan",
+        "word": "PERSUASIF",
+        "clue": "Sifat komunikasi yang bertujuan membujuk atau meyakinkan pembaca agar menyetujui pendapat penulis."
+    },
+    {
+        "id": "tk_t_9",
+        "difficulty": "tantangan",
+        "word": "ELABORASI",
+        "clue": "Penggarapan suatu gagasan secara tekun, mendalam, dan terperinci hingga tuntas."
+    },
+    {
+        "id": "tk_t_10",
+        "difficulty": "tantangan",
+        "word": "REDUNDANSI",
+        "clue": "Kelebihan pemakaian unsur bahasa yang tidak menambah kejelasan makna (kemubaziran)."
+    }
+];
+
+    const DEFAULT_BANK_SUSUN_KATA = [
+    {
+        "id": "sk_s_1",
+        "difficulty": "santai",
+        "word": "BAHASA",
+        "clue": "Sistem lambang bunyi arbitrer yang digunakan masyarakat untuk berinteraksi dan berkomunikasi."
+    },
+    {
+        "id": "sk_s_2",
+        "difficulty": "santai",
+        "word": "SASTRA",
+        "clue": "Karya tulisan yang memiliki nilai estetika, keindahan bahasa, dan kedalaman makna budi pekerti."
+    },
+    {
+        "id": "sk_s_3",
+        "difficulty": "santai",
+        "word": "NOVEL",
+        "clue": "Karangan prosa panjang yang mengandung rangkaian cerita kehidupan seseorang dengan orang di sekelilingnya."
+    },
+    {
+        "id": "sk_s_4",
+        "difficulty": "santai",
+        "word": "TEMA",
+        "clue": "Gagasan dasar atau ide sentral yang menopang keseluruhan cerita sastra."
+    },
+    {
+        "id": "sk_s_5",
+        "difficulty": "santai",
+        "word": "ALUR",
+        "clue": "Rangkaian jalinan peristiwa yang disusun berdasarkan hukum sebab-akibat (kausalitas)."
+    },
+    {
+        "id": "sk_s_6",
+        "difficulty": "santai",
+        "word": "TOKOH",
+        "clue": "Individu rekaan yang mengalami peristiwa atau berperilaku dalam berbagai babak cerita."
+    },
+    {
+        "id": "sk_s_7",
+        "difficulty": "santai",
+        "word": "MAJAS",
+        "clue": "Pemanfaatan kekayaan bahasa untuk memperoleh efek estetis dan memikat hati pembaca."
+    },
+    {
+        "id": "sk_s_8",
+        "difficulty": "santai",
+        "word": "RIMBA",
+        "clue": "Hutan lebat luas yang kerap menjadi latar petualangan kisah fiksi."
+    },
+    {
+        "id": "sk_s_9",
+        "difficulty": "santai",
+        "word": "CITRA",
+        "clue": "Gambaran angan indrawi yang dibangkitkan oleh rangkaian kata puitis dalam puisi."
+    },
+    {
+        "id": "sk_s_10",
+        "difficulty": "santai",
+        "word": "RIMA",
+        "clue": "Pengulangan bunyi yang berselang, baik di dalam larik maupun pada akhir larik sajak."
+    },
+    {
+        "id": "sk_t_1",
+        "difficulty": "tantangan",
+        "word": "PROTAGONIS",
+        "clue": "Tokoh utama dalam karya sastra yang menjadi pusat perhatian dan pembawa nilai positif."
+    },
+    {
+        "id": "sk_t_2",
+        "difficulty": "tantangan",
+        "word": "INTRINSIK",
+        "clue": "Unsur-unsur pembangun struktur karya sastra yang bersumber dari dalam naskah itu sendiri."
+    },
+    {
+        "id": "sk_t_3",
+        "difficulty": "tantangan",
+        "word": "EKSTRINSIK",
+        "clue": "Unsur di luar karya sastra seperti latar belakang pengarang dan nilai sosial budaya pengarang."
+    },
+    {
+        "id": "sk_t_4",
+        "difficulty": "tantangan",
+        "word": "PANTUN",
+        "clue": "Puisi lama Melayu yang tiap baitnya terdiri atas empat baris berima a-b-a-b (sampiran dan isi)."
+    },
+    {
+        "id": "sk_t_5",
+        "difficulty": "tantangan",
+        "word": "SYAIR",
+        "clue": "Puisi lama yang berasal dari tradisi Arab-Persia dengan pola rima akhir sama rata a-a-a-a."
+    },
+    {
+        "id": "sk_t_6",
+        "difficulty": "tantangan",
+        "word": "SONETA",
+        "clue": "Bentuk puisi empat belas baris yang terdiri atas dua quatrain dan dua terzina."
+    },
+    {
+        "id": "sk_t_7",
+        "difficulty": "tantangan",
+        "word": "ALUSI",
+        "clue": "Gaya bahasa kiasan yang menunjuk secara tidak langsung pada tokoh, peristiwa, atau mitos terkenal."
+    },
+    {
+        "id": "sk_t_8",
+        "difficulty": "tantangan",
+        "word": "PLEONASME",
+        "clue": "Pemakaian kata yang berlebih-lebihan yang sebenarnya tidak diperlukan dalam kalimat."
+    },
+    {
+        "id": "sk_t_9",
+        "difficulty": "tantangan",
+        "word": "AFORISME",
+        "clue": "Ungkapan ringkas padat yang menyatakan kebenaran umum atau prinsip moral kehidupan."
+    },
+    {
+        "id": "sk_t_10",
+        "difficulty": "tantangan",
+        "word": "EKSPRESI",
+        "clue": "Pengungkapan atau proses menyatakan perasaan, batin, dan gagasan melalui karya seni."
+    }
+];
+
+    const DEFAULT_BANK_TEKA_TEKI = [
+    {
+        "id": "tt_s_1",
+        "difficulty": "santai",
+        "prompt": "Aku memiliki lembaran putih tak bersuara, tetapi jika kau buka, aku berbicara tentang seribu cerita dan ilmu dunia. Siapakah aku?",
+        "answer": "BUKU",
+        "hint": "Benda berlembar-lembar kertas dijilid",
+        "explanation": "Buku adalah kumpulan kertas berisi tulisan atau gambar yang menyimpan ilmu dan cerita."
+    },
+    {
+        "id": "tt_s_2",
+        "difficulty": "santai",
+        "prompt": "Aku selalu berdiri di awal kalimat, memimpin rekan-rekanku dengan tubuh yang lebih tegak dan besar daripada huruf lainnya. Siapakah aku?",
+        "answer": "KAPITAL",
+        "hint": "Jenis huruf besar di awal kalimat",
+        "explanation": "Huruf kapital digunakan sebagai huruf pertama pada awal kalimat menurut kaidah EYD V."
+    },
+    {
+        "id": "tt_s_3",
+        "difficulty": "santai",
+        "prompt": "Bentukku bundar kecil tak kasat kata jika diucapkan, tetapi di akhir kalimat berita akulah yang menghentikan pembicaraan. Siapakah aku?",
+        "answer": "TITIK",
+        "hint": "Tanda baca pengakhir kalimat deklaratif",
+        "explanation": "Tanda titik (.) dipakai pada akhir kalimat pernyataan atau deklaratif."
+    },
+    {
+        "id": "tt_s_4",
+        "difficulty": "santai",
+        "prompt": "Aku hanya sebuah garis lengkung berkait ke bawah, tetapi berkatku pembaca dapat menarik napas sejenak sebelum kalimat selesai. Siapakah aku?",
+        "answer": "KOMA",
+        "hint": "Tanda jeda antarklausa",
+        "explanation": "Tanda koma (,) berfungsi memberikan jeda pendek di antara unsur-unsur kalimat."
+    },
+    {
+        "id": "tt_s_5",
+        "difficulty": "santai",
+        "prompt": "Aku diciptakan dari kata-kata yang singkat padat, penuh rima dan irama merdu yang menyentuh relung sanubari. Siapakah aku?",
+        "answer": "SAJAK",
+        "hint": "Persamaan bunyi atau sinonim puisi",
+        "explanation": "Sajak adalah karya sastra berirama dan berima yang memadatkan curahan rasa."
+    },
+    {
+        "id": "tt_s_6",
+        "difficulty": "santai",
+        "prompt": "Aku bertugas mengantar jalannya cerita, mulai dari orientasi, komplikasi, hingga resolusi akhir. Siapakah aku?",
+        "answer": "ALUR",
+        "hint": "Jalan rangkaian peristiwa cerita",
+        "explanation": "Alur atau plot adalah rangkaian peristiwa yang membentuk suatu kesatuan cerita utuh."
+    },
+    {
+        "id": "tt_s_7",
+        "difficulty": "santai",
+        "prompt": "Di dalam kamus aku bertahta sebagai tolok ukur kebenaran ejaan resmi bangsa. Kata apakah yang mengikutiku?",
+        "answer": "BAKU",
+        "hint": "Lawan dari kata tidak baku",
+        "explanation": "Kata baku adalah ragam bahasa resmi yang sesuai dengan pedoman ejaan dan KBBI."
+    },
+    {
+        "id": "tt_s_8",
+        "difficulty": "santai",
+        "prompt": "Aku adalah watak yang berdiri melawan tokoh utama, sering kali menebar konflik dan ketegangan naskah. Siapakah aku?",
+        "answer": "ANTAGONIS",
+        "hint": "Tokoh penentang tokoh utama",
+        "explanation": "Antagonis adalah tokoh dalam karya sastra yang menjadi penentang protagonis."
+    },
+    {
+        "id": "tt_s_9",
+        "difficulty": "santai",
+        "prompt": "Aku selalu mendahului nama tempat atau arah tujuan, tetapi jangan sambungkan tubuhku dengan kata setelahku. Siapakah aku?",
+        "answer": "PREPOSISI",
+        "hint": "Istilah tata bahasa untuk kata depan",
+        "explanation": "Preposisi (seperti 'di', 'ke', 'dari') ditulis terpisah dari kata yang mengikutinya."
+    },
+    {
+        "id": "tt_s_10",
+        "difficulty": "santai",
+        "prompt": "Aku terbit setiap hari atau pekanan, memuat berita terkini yang dicetak di atas lembaran kertas koran besar. Siapakah aku?",
+        "answer": "KORAN",
+        "hint": "Surat kabar harian",
+        "explanation": "Koran atau surat kabar adalah media cetak berkala yang memuat warta berita."
+    },
+    {
+        "id": "tt_t_1",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah puncak ketegangan tertinggi dalam drama atau novel, di mana nasib para tokoh dipertaruhkan sebelum lerai. Siapakah aku?",
+        "answer": "KLIMAKS",
+        "hint": "Titik puncak konflik cerita",
+        "explanation": "Klimaks adalah titik balik atau momen paling intens dan menegangkan dalam perkembangan alur cerita."
+    },
+    {
+        "id": "tt_t_2",
+        "difficulty": "tantangan",
+        "prompt": "Aku menyandingkan dua kata yang berlawanan arti secara berdampingan untuk menimbulkan kesan kontras yang tajam (seperti 'manis-getir'). Siapakah aku?",
+        "answer": "OKSIMORON",
+        "hint": "Gaya bahasa kontras berjejer",
+        "explanation": "Oksimoron adalah majas yang menempatkan dua istilah berlawanan berdampingan untuk menciptakan kontras dramatis."
+    },
+    {
+        "id": "tt_t_3",
+        "difficulty": "tantangan",
+        "prompt": "Aku berupa tulisan ulasan kritis mengenai kelebihan dan kelemahan suatu buku baru agar pembaca mengetahuinya. Siapakah aku?",
+        "answer": "RESENSI",
+        "hint": "Timbangan buku atau ulasan karya",
+        "explanation": "Resensi adalah ulasan atau penilaian kritis terhadap kualitas suatu karya tulis atau buku."
+    },
+    {
+        "id": "tt_t_4",
+        "difficulty": "tantangan",
+        "prompt": "Aku menyebutkan sebagian kecil untuk mewakili keseluruhan, atau menyebutkan seluruhnya untuk menggambarkan yang sedikit. Majas apakah aku?",
+        "answer": "SINEKDOKE",
+        "hint": "Majas pars pro toto dan totem pro parte",
+        "explanation": "Sinekdoke adalah majas penyebutan sebagian untuk seluruhnya (pars pro toto) atau seluruhnya untuk sebagian (totem pro parte)."
+    },
+    {
+        "id": "tt_t_5",
+        "difficulty": "tantangan",
+        "prompt": "Aku berbicara seolah-olah merendahkan diri, mengecilkan kenyataan agar tidak terkesan sombong di hadapan orang lain. Majas apakah aku?",
+        "answer": "LITOTES",
+        "hint": "Majas merendahkan diri secara santun",
+        "explanation": "Litotes adalah majas yang menggunakan ungkapan penurunan kualitas atau merendahkan kenyataan untuk menjaga kesantunan."
+    },
+    {
+        "id": "tt_t_6",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah himpunan kata-kata pilihan dari berbagai pengarang yang dibukukan menjadi satu jilid indah bernama...",
+        "answer": "ANTOLOGI",
+        "hint": "Bunga rampai karya sastra",
+        "explanation": "Antologi (bunga rampai) adalah buku kumpulan karya sastra pilihan dari satu atau beberapa penulis."
+    },
+    {
+        "id": "tt_t_7",
+        "difficulty": "tantangan",
+        "prompt": "Di balik karya fiksi, aku bersembunyi di balik nama samaran pengarang agar identitas asliku tetap rahasia. Apakah istilahku?",
+        "answer": "PSEUDONIM",
+        "hint": "Nama pena fiktif penulis",
+        "explanation": "Pseudonim adalah nama samaran yang dipakai pengarang untuk menyamarkan identitas aslinya."
+    },
+    {
+        "id": "tt_t_8",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah bagian babak pembuka dalam naskah drama yang bertugas memperkenalkan latar dan situasi awal tokoh. Siapakah aku?",
+        "answer": "PROLOG",
+        "hint": "Pengantar awal lakon drama",
+        "explanation": "Prolog adalah pengantar naratif di awal naskah lakon atau sandiwara sastra."
+    },
+    {
+        "id": "tt_t_9",
+        "difficulty": "tantangan",
+        "prompt": "Sebaliknya, akulah yang menutup pertunjukan panggung, menyampaikan simpulan pesan moral kepada para penonton. Siapakah aku?",
+        "answer": "EPILOG",
+        "hint": "Kata penutup lakon cerita",
+        "explanation": "Epilog adalah bagian penutup naskah sastra yang memuat amanat akhir atau nasib para tokoh."
+    },
+    {
+        "id": "tt_t_10",
+        "difficulty": "tantangan",
+        "prompt": "Aku adalah kumpulan kamus istilah khusus mengenai makna kata-kata sulit yang dicantumkan pada bagian akhir buku ilmiah. Siapakah aku?",
+        "answer": "GLOSARIUM",
+        "hint": "Daftar istilah dan artinya di belakang buku",
+        "explanation": "Glosarium adalah daftar alfabetis kata-kata sulit atau istilah khusus beserta definisinya."
+    }
+];
+
+    function getQuestionBank(gameKey) {
+        try {
+            const key = 'cendekia_qbank_' + gameKey;
+            const raw = localStorage.getItem(key);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) {}
+
+        let fallback = [];
+        if (gameKey === 'kuis_pintar') fallback = DEFAULT_BANK_KUIS_PINTAR;
+        else if (gameKey === 'tebak_kata') fallback = DEFAULT_BANK_TEBAK_KATA;
+        else if (gameKey === 'susun_kata') fallback = DEFAULT_BANK_SUSUN_KATA;
+        else if (gameKey === 'teka_teki') fallback = DEFAULT_BANK_TEKA_TEKI;
+
+        try {
+            localStorage.setItem('cendekia_qbank_' + gameKey, JSON.stringify(fallback));
+        } catch (e) {}
+        return fallback.slice();
+    }
+
+    function addToQuestionBank(gameKey, items) {
+        if (!Array.isArray(items) || items.length === 0) return;
+        try {
+            const current = getQuestionBank(gameKey);
+            let addedCount = 0;
+
+            items.forEach((item, idx) => {
+                const text = (item.question || item.q || item.word || item.prompt || '').trim().toLowerCase();
+                const exists = current.some(c => {
+                    const cText = (c.question || c.q || c.word || c.prompt || '').trim().toLowerCase();
+                    return cText && cText === text;
+                });
+                if (!exists) {
+                    const newItem = {
+                        id: item.id || (`ai_${gameKey}_${Date.now()}_${idx}`),
+                        difficulty: item.difficulty || (idx % 2 === 0 ? 'santai' : 'tantangan'),
+                        ...item
+                    };
+                    current.push(newItem);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                localStorage.setItem('cendekia_qbank_' + gameKey, JSON.stringify(current));
+            }
+        } catch (e) {
+            console.warn('[Cendekia Central] Gagal menambahkan soal ke Bank Soal:', e);
+        }
+    }
+
+    function getServedQuestionHistory(gameKey) {
+        try {
+            const raw = localStorage.getItem('cendekia_served_' + gameKey);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function markQuestionsServed(gameKey, questionIds) {
+        if (!Array.isArray(questionIds) || questionIds.length === 0) return;
+        try {
+            const history = getServedQuestionHistory(gameKey);
+            const now = Date.now();
+            questionIds.forEach(id => {
+                if (id) history[id] = now;
+            });
+            localStorage.setItem('cendekia_served_' + gameKey, JSON.stringify(history));
+        } catch (e) {}
+    }
+
+    function selectQuestionsFromBank(gameKey, count, mode = 'santai') {
+        const bank = getQuestionBank(gameKey);
+        if (!bank || bank.length === 0) return [];
+
+        const normalizedMode = (mode || 'santai').toLowerCase();
+
+        // 1. Filter berdasarkan mode permainan
+        let filtered = bank.slice();
+        if (normalizedMode === 'santai') {
+            const santaiOnly = filtered.filter(q => q.difficulty === 'santai');
+            filtered = santaiOnly.length >= count ? santaiOnly : filtered;
+        } else if (normalizedMode === 'tantangan') {
+            const tantanganOnly = filtered.filter(q => q.difficulty === 'tantangan');
+            filtered = tantanganOnly.length >= count ? tantanganOnly : filtered;
+        }
+
+        // 2. Filter Anti-Repetisi 7 Hari (Cooldown 7x24 jam)
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const servedHistory = getServedQuestionHistory(gameKey);
+
+        const eligible = [];
+        const cooledDown = [];
+
+        filtered.forEach(q => {
+            const servedTime = servedHistory[q.id];
+            if (!servedTime || (now - servedTime >= SEVEN_DAYS_MS)) {
+                eligible.push(q);
+            } else {
+                cooledDown.push({ q, servedTime });
+            }
+        });
+
+        // 3. Acak urutan kumpulan soal yang eligible (Fisher-Yates Shuffle)
+        for (let i = eligible.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+        }
+
+        let selected = eligible.slice(0, count);
+
+        // 4. Jika jumlah soal eligible < count, ambil sisa dari soal yang paling lama tidak disajikan
+        if (selected.length < count) {
+            cooledDown.sort((a, b) => (a.servedTime || 0) - (b.servedTime || 0));
+            const needed = count - selected.length;
+            for (let i = 0; i < needed && i < cooledDown.length; i++) {
+                selected.push(cooledDown[i].q);
+            }
+        }
+
+        // Acak sekali lagi susunan paket soal
+        for (let i = selected.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [selected[i], selected[j]] = [selected[j], selected[i]];
+        }
+
+        // 5. Tandai soal-soal terpilih agar tertahan 7 hari ke depan untuk pengguna ini
+        markQuestionsServed(gameKey, selected.map(q => q.id));
+
+        return selected;
+    }
+
+    // Menghitung akumulasi XP aktual yang didapatkan user hari ini
+    function getTodayEarnedXP() {
+        const todayKey = getTodayDateKeyWIB();
+        const history = getHistory();
+        let total = 0;
+
+        if (Array.isArray(history)) {
+            history.forEach(item => {
+                if (item.isoDate === todayKey && item.type === 'award' && typeof item.value === 'number') {
+                    total += item.value;
+                }
+            });
+        }
+        return total;
+    }
+
+    // Mendeteksi draft game yang belum tuntas untuk seluruh 4 arena
+    function getUnfinishedGames() {
+        const list = [
+            { key: 'kuis_pintar', title: 'Kuis Pintar', link: '/mem-free/permainan/kuis-pintar.html', total: 15, icon: 'brain', color: '#7c3aed', bg: '#ede9fe' },
+            { key: 'tebak_kata', title: 'Tebak Kata', link: '/mem-free/permainan/tebak-kata.html', total: 5, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
+            { key: 'susun_kata', title: 'Susun Kata', link: '/mem-free/permainan/susun-kata.html', total: 5, icon: 'combine', color: '#059669', bg: '#d1fae5' },
+            { key: 'teka_teki', title: 'Teka-Teki Aksara', link: '/mem-free/permainan/teka-teki.html', total: 5, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
+        ];
+
+        const unfinished = [];
+
+        list.forEach(g => {
+            if (isGameCompletedToday(g.key)) return;
+
+            const draft = getGameDraft(g.key);
+            if (!draft) return;
+
+            let answered = 0;
+            if (g.key === 'kuis_pintar') {
+                answered = Object.keys(draft.answers || {}).length;
+            } else if (draft.currentIndex !== undefined) {
+                answered = draft.currentIndex;
+            } else if (draft.pIndex !== undefined) {
+                answered = draft.pIndex;
+            } else if (draft.rIndex !== undefined) {
+                answered = draft.rIndex;
+            }
+
+            if (answered > 0 && answered < g.total) {
+                unfinished.push({
+                    ...g,
+                    answeredCount: answered,
+                    remainingCount: g.total - answered,
+                    mode: draft.mode || 'santai',
+                    savedAt: draft.savedAt
+                });
+            }
+        });
+
+        return unfinished;
+    }
+
+    // Notifikasi XP Melayang Naik & Memudar (Tanpa Background Hitam / Modal Nyangkut)
+    function showFloatingXP(amount, bonusLabel = '') {
+        try {
+            const toast = document.createElement('div');
+            toast.className = 'floating-xp-toast' + (bonusLabel ? ' bonus' : '');
+            toast.innerHTML = `+${amount} XP${bonusLabel ? ' <b>' + bonusLabel + '</b>' : ''}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                if (toast && toast.parentElement) toast.remove();
+            }, 1900);
+        } catch (e) {}
+    }
+
+    // Balon Motivasi Melayang Naik & Memudar Otomatis
+    function showEncouragementToast(message = 'Semangat, sebentar lagi! ✨') {
+        try {
+            const toast = document.createElement('div');
+            toast.className = 'floating-encouragement-toast';
+            toast.innerHTML = `<i data-lucide="sparkles" style="width:14px; height:14px; color:#f59e0b; flex-shrink:0;"></i> <span>${message}</span>`;
+            document.body.appendChild(toast);
+            if (window.lucide) lucide.createIcons();
+            setTimeout(() => {
+                if (toast && toast.parentElement) toast.remove();
+            }, 2400);
+        } catch (e) {}
+    }
+
     // ========================================================
     // AUTOSAVE DRAFT & PERSISTENSI HASIL KUIS/GAME
     // ========================================================
@@ -1903,46 +2931,83 @@ const CendekiaApp = (function () {
         return poolDoc;
     }
 
-    // Helper sinkronisasi latihan harian untuk game/kuis (menangani user pertama dan caching 24 jam)
+    // Helper sinkronisasi latihan harian untuk game/kuis (Bank Soal terkurasi, Anti-Repetisi 7 Hari, AI Sync & Seleksi Mode)
     async function ensureDailyGame(gameKey, options = {}) {
         const { onLoading, onNoMaterials, onReady } = options;
-        if (onLoading) onLoading("Memeriksa kesiapan latihan harian...");
+        if (onLoading) onLoading("Memeriksa kesiapan latihan harian & bank soal...");
 
         try {
-            // 1. Cek apakah paket soal harian 24 jam sudah aktif
-            const poolRes = await getDailyPool();
-            if (poolRes.active && poolRes.data && poolRes.data.questions) {
-                const gameData = poolRes.data.questions[gameKey];
-                if (gameData && (!Array.isArray(gameData) || gameData.length > 0)) {
-                    if (onReady) onReady(gameData, poolRes.data);
-                    return;
-                }
+            // 1. Cek apakah ada draft hari ini untuk game ini agar user melanjutkan pengerjaan
+            const draft = getGameDraft(gameKey);
+            if (draft && draft.questions && draft.questions.length > 0) {
+                if (onReady) onReady(draft.questions, { mode: draft.mode || 'santai', isDraft: true, draftData: draft });
+                return;
             }
 
-            // 2. Pool belum ada atau sudah lewat 24 jam -> Cek bahan ajar dari Admin
+            // 2. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
+            const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
+            const activeMode = options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const targetCount = gameKey === 'kuis_pintar' ? 15 : 5;
+
+            // 3. Periksa apakah ada paket soal dari pool harian (jika ada, masukkan ke Bank Soal agar tersimpan permanen)
+            try {
+                const poolRes = await getDailyPool();
+                if (poolRes.active && poolRes.data && poolRes.data.questions) {
+                    const poolQuestions = poolRes.data.questions[gameKey];
+                    if (Array.isArray(poolQuestions) && poolQuestions.length > 0) {
+                        addToQuestionBank(gameKey, poolQuestions);
+                    }
+                }
+            } catch (err) {}
+
+            // 4. Seleksi soal dari Bank Soal dengan mode aktif & anti-repetisi 7 hari
+            const selectedQuestions = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+            if (selectedQuestions && selectedQuestions.length > 0) {
+                if (onReady) onReady(selectedQuestions, { mode: activeMode, source: 'bank_soal' });
+                return;
+            }
+
+            // 5. Fallback ke pembacaan bahan ajar jika bank soal lokal belum siap
             if (onLoading) onLoading("Mengecek ketersediaan bahan ajar kurikulum dari Admin...");
             const materials = await getAllMaterials();
 
             if (!materials || materials.length === 0) {
+                // Bank soal default selalu tersedia sebagai jaminan
+                const fallbackQ = getQuestionBank(gameKey);
+                if (fallbackQ && fallbackQ.length > 0) {
+                    const fallbackSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                    if (onReady) onReady(fallbackSelected, { mode: activeMode, source: 'default_bank' });
+                    return;
+                }
+
                 if (onNoMaterials) {
-                    onNoMaterials("Bahan ajar materi belum diunggah oleh Admin di sistem. Soal latihan harian belum dapat digenerate.");
+                    onNoMaterials("Bahan ajar materi belum diunggah oleh Admin di sistem. Soal latihan harian belum dapat disiapkan.");
                 }
                 return;
             }
 
-            // 3. User pertama yang membuka sistem memicu pembuatan soal harian 24 jam!
-            if (onLoading) onLoading("Sistem sedang menganalisis materi kurikulum & memproses paket soal latihan 24 jam dengan AI Groq...");
+            // 6. User pertama memicu generate via AI Groq lalu ditampung ke Bank Soal
+            if (onLoading) onLoading("Sistem sedang menganalisis materi kurikulum & memproses paket soal latihan 24 jam...");
             const newPool = await generateDailyPoolFromMaterials(materials);
+            const poolGameData = newPool.questions[gameKey];
 
-            const gameData = newPool.questions[gameKey];
-            if (gameData && (!Array.isArray(gameData) || gameData.length > 0)) {
-                if (onReady) onReady(gameData, newPool);
+            if (poolGameData && Array.isArray(poolGameData) && poolGameData.length > 0) {
+                addToQuestionBank(gameKey, poolGameData);
+                const finalSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                if (onReady) onReady(finalSelected, newPool);
             } else {
-                if (onNoMaterials) onNoMaterials("Paket latihan untuk permainan ini belum dapat disiapkan dari materi yang tersedia.");
+                const fallbackSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                if (onReady) onReady(fallbackSelected, { mode: activeMode, source: 'default_bank' });
             }
         } catch (err) {
             console.error('[Cendekia Central] Error ensureDailyGame:', err);
-            if (onNoMaterials) onNoMaterials("Terjadi kendala saat memuat latihan harian: " + err.message);
+            // Fallback aman ke Bank Soal internal
+            const fallbackSelected = selectQuestionsFromBank(gameKey, gameKey === 'kuis_pintar' ? 15 : 5, 'santai');
+            if (fallbackSelected && fallbackSelected.length > 0 && onReady) {
+                onReady(fallbackSelected, { mode: 'santai', source: 'default_bank' });
+            } else if (onNoMaterials) {
+                onNoMaterials("Terjadi kendala saat memuat latihan harian: " + err.message);
+            }
         }
     }
 
@@ -2071,6 +3136,15 @@ const CendekiaApp = (function () {
         getTransactions,
         recordTransaction,
         upgradeUserTier,
+        getQuestionBank,
+        addToQuestionBank,
+        getServedQuestionHistory,
+        markQuestionsServed,
+        selectQuestionsFromBank,
+        getTodayEarnedXP,
+        getUnfinishedGames,
+        showFloatingXP,
+        showEncouragementToast,
         init,
         BADGE_CATALOG,
         LEVELS

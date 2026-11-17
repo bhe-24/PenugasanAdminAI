@@ -373,9 +373,14 @@
 
                 <!-- STICKY ACTION & STATUS BAR -->
                 <div class="quiz-sticky-header">
-                    <div class="progress-pill">
-                        <i data-lucide="check-circle" style="width:13px; height:13px; color:#10b981;"></i>
-                        <span id="answeredCountDisplay">0 / 15 Terjawab</span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span id="quizModeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9; text-transform:capitalize;">
+                            Santai
+                        </span>
+                        <div class="progress-pill">
+                            <i data-lucide="check-circle" style="width:13px; height:13px; color:#10b981;"></i>
+                            <span id="answeredCountDisplay">0 / 15 Terjawab</span>
+                        </div>
                     </div>
                     <button type="button" class="btn-jump-unanswered" id="btnJumpUnanswered" onclick="jumpToFirstUnanswered()">
                         <i data-lucide="arrow-down" style="width:12px; height:12px;"></i> Cari yang Belum
@@ -427,6 +432,7 @@
         let userAnswers = {}; // { 0: selectedOptionIndex, 1: ... }
         let isSubmitted = false;
         let activeResultData = null;
+        let currentMode = 'santai';
 
         // Inisialisasi Kuis Pintar
         async function initQuiz() {
@@ -437,7 +443,28 @@
 
             startWIBCountdownTimer();
 
-            // 1. Cek apakah kuis hari ini sudah pernah disubmit
+            // 1. Baca parameter mode permainan
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modePill = document.getElementById('quizModeBadgePill');
+            if (modePill) {
+                modePill.textContent = currentMode;
+                if (currentMode === 'tantangan') {
+                    modePill.style.background = '#fef3c7';
+                    modePill.style.color = '#b45309';
+                    modePill.innerHTML = '<i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan ⚡';
+                } else if (currentMode === 'acak') {
+                    modePill.style.background = '#e0e7ff';
+                    modePill.style.color = '#4338ca';
+                    modePill.innerHTML = '<i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Acak';
+                } else {
+                    modePill.style.background = '#ede9fe';
+                    modePill.style.color = '#6d28d9';
+                    modePill.innerHTML = '<i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai';
+                }
+            }
+
+            // 2. Cek apakah kuis hari ini sudah pernah disubmit
             const completedResult = CendekiaApp.getGameResult(GAME_KEY);
             if (completedResult) {
                 isSubmitted = true;
@@ -456,8 +483,9 @@
                 return;
             }
 
-            // 2. Jika belum submit, muat paket soal harian dari Firestore / Backend
+            // 3. Jika belum submit, muat paket 15 soal dari Bank Soal (anti-repetisi 7 hari & seleksi mode)
             await CendekiaApp.ensureDailyGame(GAME_KEY, {
+                mode: currentMode,
                 onLoading: (msg) => {
                     loadingState.style.display = 'block';
                     emptyState.style.display = 'none';
@@ -477,18 +505,27 @@
 
                     rawQuestions = gameQuestions || [];
 
-                    // Muat draft tersimpan jika ada
-                    const draft = CendekiaApp.getGameDraft(GAME_KEY);
+                    // Muat draft tersimpan jika ada (Resume System)
+                    const draft = (poolMeta && poolMeta.draftData) || CendekiaApp.getGameDraft(GAME_KEY);
+                    let shouldJump = false;
                     if (draft && draft.answers) {
                         userAnswers = draft.answers;
                         const answeredCount = Object.keys(userAnswers).length;
-                        if (answeredCount > 0) {
+                        if (answeredCount > 0 && answeredCount < rawQuestions.length) {
                             document.getElementById('resumeBanner').style.display = 'flex';
+                            shouldJump = true;
+                            setTimeout(() => {
+                                CendekiaApp.showEncouragementToast(`Melanjutkan ${answeredCount} soal yang tersimpan! ✍️`);
+                            }, 500);
                         }
                     }
 
                     renderQuestionsList(false);
                     updateProgressDisplay();
+
+                    if (shouldJump) {
+                        setTimeout(() => jumpToFirstUnanswered(), 400);
+                    }
                 }
             });
         }
@@ -573,8 +610,12 @@
 
             userAnswers[qIdx] = optIdx;
 
-            // Simpan ke autosave draft lokal
-            CendekiaApp.saveGameDraft(GAME_KEY, { answers: userAnswers });
+            // Simpan ke autosave draft lokal (menyertakan mode dan daftar butir soal)
+            CendekiaApp.saveGameDraft(GAME_KEY, {
+                questions: rawQuestions,
+                answers: userAnswers,
+                mode: currentMode
+            });
 
             // Perbarui visual opsi kartu yang dipilih
             const card = document.getElementById(`qCard_${qIdx}`);
@@ -708,6 +749,8 @@
             };
 
             await CendekiaApp.saveGameResult(GAME_KEY, resultData);
+            CendekiaApp.clearGameDraft(GAME_KEY);
+            CendekiaApp.showFloatingXP(finalScore, 'Kuis Selesai! 🏆');
 
             isSubmitted = true;
             activeResultData = resultData;

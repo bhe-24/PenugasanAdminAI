@@ -56,8 +56,13 @@
                     <div class="header-brand-sub" id="susunSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
-            <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
-                Skor: <span id="gameScore">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="modeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9; text-transform:capitalize;">
+                    Santai
+                </span>
+                <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                    Skor: <span id="gameScore">0</span>
+                </div>
             </div>
         </header>
 
@@ -130,8 +135,10 @@
         let currentTarget = "";
         let currentPlaced = [];
         let scrambledLetters = [];
-
         let playedRecords = [];
+        let currentMode = 'santai';
+        let qStartTime = Date.now();
+        let encouragementTimer = null;
 
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
@@ -139,7 +146,28 @@
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
 
-            // Cek apakah game hari ini sudah selesai
+            // 1. Baca parameter mode
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modePill = document.getElementById('modeBadgePill');
+            if (modePill) {
+                modePill.textContent = currentMode;
+                if (currentMode === 'tantangan') {
+                    modePill.style.background = '#fef3c7';
+                    modePill.style.color = '#b45309';
+                    modePill.innerHTML = '<i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan ⚡';
+                } else if (currentMode === 'acak') {
+                    modePill.style.background = '#e0e7ff';
+                    modePill.style.color = '#4338ca';
+                    modePill.innerHTML = '<i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Mode Acak';
+                } else {
+                    modePill.style.background = '#ede9fe';
+                    modePill.style.color = '#6d28d9';
+                    modePill.innerHTML = '<i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai';
+                }
+            }
+
+            // 2. Cek apakah game hari ini sudah selesai
             const completed = CendekiaApp.getGameResult('susun_kata');
             if (completed) {
                 loadingState.style.display = 'none';
@@ -149,7 +177,9 @@
                 return;
             }
 
+            // 3. Muat latihan dari Bank Soal (atau pulihkan draft jika ada)
             await CendekiaApp.ensureDailyGame('susun_kata', {
+                mode: currentMode,
                 onLoading: (msg) => {
                     loadingState.style.display = 'block';
                     emptyState.style.display = 'none';
@@ -163,15 +193,30 @@
                     document.getElementById('emptyReason').textContent = reason;
                     if (window.lucide) lucide.createIcons();
                 },
-                onReady: (gamePuzzles, poolMeta) => {
+                onReady: (gamePuzzles, meta) => {
                     loadingState.style.display = 'none';
                     emptyState.style.display = 'none';
                     gameContainer.style.display = 'block';
 
                     puzzles = (gamePuzzles || []).map(p => ({
+                        id: p.id,
                         word: (p.word || '').toUpperCase().trim(),
-                        clue: p.clue || ''
+                        clue: p.clue || '',
+                        difficulty: p.difficulty || 'santai'
                     }));
+
+                    // Cek pemulihan pengerjaan sebelumnya (Resume Draft)
+                    const draft = (meta && meta.draftData) || CendekiaApp.getGameDraft('susun_kata');
+                    if (draft && draft.currentIndex > 0 && draft.currentIndex < puzzles.length) {
+                        pIndex = draft.currentIndex;
+                        score = draft.score || 0;
+                        playedRecords = draft.playedRecords || [];
+                        document.getElementById('gameScore').textContent = score;
+
+                        setTimeout(() => {
+                            CendekiaApp.showEncouragementToast(`Melanjutkan kata ke-${pIndex + 1} dari ronde sebelumnya! ✍️`);
+                        }, 500);
+                    }
 
                     document.getElementById('susunSubMeta').textContent = `Susun Kata • Reset Jam 00:00 WIB`;
                     loadPuzzle();
@@ -181,6 +226,11 @@
 
         function loadPuzzle() {
             if (!puzzles || puzzles.length === 0) return;
+            if (pIndex >= puzzles.length) {
+                finishGameRound();
+                return;
+            }
+
             const p = puzzles[pIndex];
             currentTarget = p.word;
             document.getElementById('puzIdx').textContent = pIndex + 1;
@@ -188,9 +238,15 @@
             document.getElementById('scrambleClue').textContent = `"${p.clue}"`;
             document.getElementById('resultFeedback').style.display = 'none';
 
+            // Reset Timer Kecepatan & Motivasi
+            qStartTime = Date.now();
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+            encouragementTimer = setTimeout(() => {
+                CendekiaApp.showEncouragementToast('Semangat, susunan katanya hampir ketemu! ✨');
+            }, 16000);
+
             // Acak huruf secara adil
             scrambledLetters = currentTarget.split('').sort(() => Math.random() - 0.5);
-            // Pastikan tidak sama persis dengan aslinya saat pertama kali diacak
             if (scrambledLetters.join('') === currentTarget && currentTarget.length > 2) {
                 scrambledLetters.reverse();
             }
@@ -269,26 +325,42 @@
                 return;
             }
 
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
             const p = puzzles[pIndex];
             if (assembled === currentTarget) {
+                const elapsedSec = Math.round((Date.now() - qStartTime) / 1000);
+                const isFast = elapsedSec <= 7;
+                const earnedPoints = isFast ? 25 : 20;
+
+                score += earnedPoints;
+                document.getElementById('gameScore').textContent = score;
+
+                if (isFast) {
+                    CendekiaApp.addXP(earnedPoints, 'Susun Kata Cepat & Tepat');
+                    CendekiaApp.showFloatingXP(earnedPoints, 'Bonus Cepat! ⚡');
+                } else {
+                    CendekiaApp.addXP(earnedPoints, 'Susun Kata Tepat');
+                    CendekiaApp.showFloatingXP(earnedPoints);
+                }
+
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
                 fb.style.border = '1px solid #a7f3d0';
-                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Kata yang tersusun benar: <b>${currentTarget}</b>.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="proceedNextPuzzle(true)">Lanjut Kata Berikutnya &rarr;</button>`;
-                score += 20;
-                document.getElementById('gameScore').textContent = score;
-                CendekiaApp.addXP(20, 'Susun Kata Tepat');
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Kata yang tersusun benar: <b>${currentTarget}</b> (${elapsedSec} detik)${isFast ? ' &bull; <i>Bonus Cepat +5 XP!</i>' : ''}.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:6px 14px; font-size:0.75rem;" onclick="proceedNextPuzzle(true)">Lanjut Kata Berikutnya &rarr;</button>`;
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
                 fb.style.border = '1px solid #fecaca';
-                fb.innerHTML = `Susunan kata belum tepat. Coba susun kembali, atau lewati jika mengalami kendala.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:5px 10px; font-size:0.72rem; background:#64748b;" onclick="proceedNextPuzzle(false)">Lewati Kata Ini &rarr;</button>`;
+                fb.innerHTML = `Susunan kata belum tepat. Coba susun kembali, atau lewati jika ingin melanjutkan.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; background:#64748b;" onclick="proceedNextPuzzle(false)">Lewati Kata Ini &rarr;</button>`;
             }
         }
 
         function proceedNextPuzzle(isSuccess) {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
             const p = puzzles[pIndex];
             const assembled = currentPlaced.map(item => item.char).join('');
             playedRecords.push({
@@ -298,6 +370,16 @@
                 correctText: currentTarget,
                 exp: `Petunjuk: "${p.clue}". Bentuk kata baku yang benar adalah ${currentTarget}.`
             });
+
+            // Simpan progres ke autosave draft
+            CendekiaApp.saveGameDraft('susun_kata', {
+                questions: puzzles,
+                currentIndex: pIndex + 1,
+                score: score,
+                playedRecords: playedRecords,
+                mode: currentMode
+            });
+
             nextPuzzle();
         }
 
@@ -306,19 +388,28 @@
             if (pIndex < puzzles.length) {
                 loadPuzzle();
             } else {
-                const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (puzzles.length || 1)) * 100));
-                const resultData = {
-                    score: finalScore,
-                    correctCount: playedRecords.filter(r => r.isCorrect).length,
-                    totalCount: puzzles.length,
-                    xpEarned: score,
-                    questions: playedRecords
-                };
-
-                await CendekiaApp.saveGameResult('susun_kata', resultData);
-                CendekiaApp.completeChallenge('tc_3');
-                showCompletedScreen(resultData);
+                finishGameRound();
             }
+        }
+
+        async function finishGameRound() {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
+            const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (puzzles.length || 1)) * 100));
+            const resultData = {
+                score: finalScore,
+                correctCount: playedRecords.filter(r => r.isCorrect).length,
+                totalCount: puzzles.length,
+                xpEarned: score,
+                questions: playedRecords,
+                mode: currentMode
+            };
+
+            await CendekiaApp.saveGameResult('susun_kata', resultData);
+            CendekiaApp.clearGameDraft('susun_kata');
+            CendekiaApp.completeChallenge('tc_3');
+            CendekiaApp.showFloatingXP(finalScore, 'Susun Kata Selesai! 🏆');
+            showCompletedScreen(resultData);
         }
 
         function showCompletedScreen(data) {

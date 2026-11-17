@@ -61,8 +61,8 @@
                     <div class="header-brand-sub">8 Permainan Asah Literasi &amp; Kata</div>
                 </div>
             </div>
-            <span class="badge-tier-free">
-                <i data-lucide="award" style="width:12px; height:12px; color:var(--accent);"></i> XP Booster
+            <span class="badge-tier-free" id="headerTodayEarnedXpBadge" title="Total XP yang kamu peroleh hari ini">
+                <i data-lucide="sparkles" style="width:12px; height:12px; color:#f59e0b;"></i> <b id="todayGameXpVal">0</b> XP Hari Ini
             </span>
         </header>
 
@@ -78,10 +78,13 @@
                 </div>
                 <h2 style="font-size:1.05rem; font-weight:800; margin-bottom:4px;">Bermain Sambil Mengasah Diksi</h2>
                 <p style="font-size:0.72rem; color:#ede9fe; line-height:1.4;">Tingkatkan kelincahan berbahasa, wawasan sastrawan, dan kosakata baku lewat permainan interaktif.</p>
-                <div id="poolSyncPill" style="display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.18); padding:4px 12px; border-radius:var(--radius-full); font-size:0.68rem; font-weight:700; color:white; margin-top:8px;">
-                    <i data-lucide="clock" style="width:12px; height:12px;"></i> Siklus Harian &bull; Reset Jam 00:00 WIB (<span id="bannerCountdownWib">--:--:--</span>)
+                <div id="poolSyncPill" style="display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.18); padding:3px 8px; border-radius:var(--radius-full); font-size:0.62rem; font-weight:700; color:white; margin-top:8px; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis;">
+                    <i data-lucide="clock" style="width:11px; height:11px; flex-shrink:0;"></i> <span>Reset 00:00 WIB &bull; <b id="bannerCountdownWib">--:--:--</b></span>
                 </div>
             </div>
+
+            <!-- KONTEN PENGINGAT PERMAINAN BELUM SELESAI -->
+            <div id="unfinishedGamesContainer" style="display:none; margin-top:14px;"></div>
 
             <!-- TIGA MODE PERMAINAN -->
             <section>
@@ -270,24 +273,114 @@
 
         function switchMode(mode, btn) {
             document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            if (btn) btn.classList.add('active');
+            else {
+                const targetBtn = document.querySelector(`.mode-tab[onclick*="'${mode}'"]`);
+                if (targetBtn) targetBtn.classList.add('active');
+            }
+
+            try {
+                localStorage.setItem('cendekia_active_game_mode', mode);
+            } catch(e) {}
+
+            // Perbarui tautan 4 permainan aktif agar menyertakan parameter mode
+            const gameCards = [
+                { id: 'card_kuis_pintar', url: '/mem-free/permainan/kuis-pintar.html' },
+                { id: 'card_tebak_kata', url: '/mem-free/permainan/tebak-kata.html' },
+                { id: 'card_susun_kata', url: '/mem-free/permainan/susun-kata.html' },
+                { id: 'card_teka_teki', url: '/mem-free/permainan/teka-teki.html' }
+            ];
+
+            gameCards.forEach(c => {
+                const el = document.getElementById(c.id);
+                if (el) el.href = `${c.url}?mode=${mode}`;
+            });
 
             const descEl = document.getElementById('modeDescription');
+            if (!descEl) return;
+
             if (mode === 'santai') {
-                descEl.innerHTML = '<b>Mode Santai:</b> Mainkan teka-teki dan kuis tanpa batasan waktu mundur. Cocok untuk relaksasi dan belajar santai.';
+                descEl.innerHTML = '<b>Mode Santai:</b> Soal-soal ringan berfokus pada pemahaman dasar kaidah &amp; diksi. Waktu leluasa tanpa tekanan untuk belajar santai.';
             } else if (mode === 'tantangan') {
-                descEl.innerHTML = '<b>Mode Tantangan:</b> Waktu terbatas per soal dengan pengganda bonus XP 1.5x lipat untuk jawaban cepat &amp; tepat!';
+                descEl.innerHTML = '<b>Mode Tantangan:</b> Soal-soal analitis, kritis, dan membutuhkan ketelitian ekstra (Bonus XP 1.5x lipat untuk jawaban cepat &amp; tepat!).';
             } else if (mode === 'acak') {
-                descEl.innerHTML = '<b>Mode Acak:</b> Sistem memilih jenis permainan secara acak untuk menguji kesiapan literasimu.';
+                descEl.innerHTML = '<b>Mode Acak:</b> Kombinasi berimbang antara soal santai dan tantangan untuk menguji kesiapan literasimu secara menyeluruh.';
+            }
+        }
+
+        function renderUnfinishedGamesReminder() {
+            const container = document.getElementById('unfinishedGamesContainer');
+            if (!container) return;
+
+            if (typeof CendekiaApp.getUnfinishedGames !== 'function') {
+                container.style.display = 'none';
+                return;
+            }
+
+            const unfinished = CendekiaApp.getUnfinishedGames();
+            if (!unfinished || unfinished.length === 0) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            let cardsHtml = '';
+            unfinished.forEach(g => {
+                cardsHtml += `
+                    <div class="resume-game-hero-card" style="margin-bottom:8px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="resume-game-icon" style="background:${g.bg}; color:${g.color};">
+                                <i data-lucide="${g.icon}" style="width:20px; height:20px;"></i>
+                            </div>
+                            <div>
+                                <div style="font-size:0.65rem; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.5px;">
+                                    Pengerjaan Belum Selesai
+                                </div>
+                                <div style="font-weight:800; font-size:0.88rem; color:var(--primary); margin:1px 0;">
+                                    ${g.title}
+                                </div>
+                                <div style="font-size:0.7rem; color:var(--text-muted);">
+                                    Tersisa <b>${g.remainingCount} butir</b> lagi (${g.answeredCount}/${g.total} terjawab) &bull; Mode: <b>${g.mode}</b>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="${g.link}?mode=${g.mode}" class="btn-resume-action" title="Lanjutkan pengerjaan soal yang tersisa">
+                            Lanjutkan <i data-lucide="arrow-right" style="width:13px; height:13px;"></i>
+                        </a>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:0.75rem; font-weight:800; color:var(--primary); display:inline-flex; align-items:center; gap:5px;">
+                        <i data-lucide="bookmark" style="width:14px; height:14px; color:#2563eb;"></i> Lanjutkan Pengerjaan
+                    </span>
+                    <span style="font-size:0.68rem; color:#2563eb; font-weight:700;">Tersimpan Otomatis</span>
+                </div>
+                ${cardsHtml}
+            `;
+            container.style.display = 'block';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function updateTodayEarnedXP() {
+            const valEl = document.getElementById('todayGameXpVal');
+            if (!valEl) return;
+            if (typeof CendekiaApp.getTodayEarnedXP === 'function') {
+                const total = CendekiaApp.getTodayEarnedXP();
+                valEl.textContent = total;
+            } else {
+                valEl.textContent = '0';
             }
         }
 
         function updateGameCardStatuses() {
             const games = [
-                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda' },
-                { key: 'tebak_kata', defaultDesc: 'Tebak Kosakata KBBI' },
-                { key: 'susun_kata', defaultDesc: 'Susun Huruf Acak' },
-                { key: 'teka_teki', defaultDesc: 'Teka-Teki Aksara' }
+                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda', total: 15 },
+                { key: 'tebak_kata', defaultDesc: 'Tebak Kosakata KBBI', total: 5 },
+                { key: 'susun_kata', defaultDesc: 'Susun Huruf Acak', total: 5 },
+                { key: 'teka_teki', defaultDesc: 'Teka-Teki Aksara', total: 5 }
             ];
 
             games.forEach(g => {
@@ -303,11 +396,24 @@
                     `;
                 } else {
                     const draft = CendekiaApp.getGameDraft(g.key);
-                    if (draft && Object.keys(draft.answers || {}).length > 0) {
-                        const count = Object.keys(draft.answers).length;
+                    let answered = 0;
+                    if (draft) {
+                        if (g.key === 'kuis_pintar') {
+                            answered = Object.keys(draft.answers || {}).length;
+                        } else if (draft.currentIndex !== undefined) {
+                            answered = draft.currentIndex;
+                        } else if (draft.pIndex !== undefined) {
+                            answered = draft.pIndex;
+                        } else if (draft.rIndex !== undefined) {
+                            answered = draft.rIndex;
+                        }
+                    }
+
+                    if (answered > 0 && answered < g.total) {
+                        const remaining = g.total - answered;
                         slot.innerHTML = `
                             <div style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                                <i data-lucide="bookmark" style="width:11px; height:11px;"></i> Lanjutkan (${count} Terjawab)
+                                <i data-lucide="bookmark" style="width:11px; height:11px;"></i> Lanjutkan (${remaining} Belum Selesai)
                             </div>
                         `;
                     } else {
@@ -335,6 +441,10 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
+            const savedMode = localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            switchMode(savedMode, null);
+            renderUnfinishedGamesReminder();
+            updateTodayEarnedXP();
             updateGameCardStatuses();
             startCountdownTimer();
         });

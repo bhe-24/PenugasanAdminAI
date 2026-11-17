@@ -55,8 +55,13 @@
                     <div class="header-brand-sub" id="tekaSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
-            <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
-                Skor: <span id="gameScore">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="modeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9; text-transform:capitalize;">
+                    Santai
+                </span>
+                <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                    Skor: <span id="gameScore">0</span>
+                </div>
             </div>
         </header>
 
@@ -125,6 +130,9 @@
         let rIndex = 0;
         let score = 0;
         let playedRecords = [];
+        let currentMode = 'santai';
+        let qStartTime = Date.now();
+        let encouragementTimer = null;
 
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
@@ -132,7 +140,28 @@
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
 
-            // Cek apakah game hari ini sudah diselesaikan
+            // 1. Baca parameter mode
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modePill = document.getElementById('modeBadgePill');
+            if (modePill) {
+                modePill.textContent = currentMode;
+                if (currentMode === 'tantangan') {
+                    modePill.style.background = '#fef3c7';
+                    modePill.style.color = '#b45309';
+                    modePill.innerHTML = '<i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan ⚡';
+                } else if (currentMode === 'acak') {
+                    modePill.style.background = '#e0e7ff';
+                    modePill.style.color = '#4338ca';
+                    modePill.innerHTML = '<i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Mode Acak';
+                } else {
+                    modePill.style.background = '#ede9fe';
+                    modePill.style.color = '#6d28d9';
+                    modePill.innerHTML = '<i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai';
+                }
+            }
+
+            // 2. Cek apakah game hari ini sudah diselesaikan
             const completed = CendekiaApp.getGameResult('teka_teki');
             if (completed) {
                 loadingState.style.display = 'none';
@@ -142,7 +171,9 @@
                 return;
             }
 
+            // 3. Muat latihan dari Bank Soal (atau pulihkan draft jika ada)
             await CendekiaApp.ensureDailyGame('teka_teki', {
+                mode: currentMode,
                 onLoading: (msg) => {
                     loadingState.style.display = 'block';
                     emptyState.style.display = 'none';
@@ -156,16 +187,32 @@
                     document.getElementById('emptyReason').textContent = reason;
                     if (window.lucide) lucide.createIcons();
                 },
-                onReady: (gameRiddles, poolMeta) => {
+                onReady: (gameRiddles, meta) => {
                     loadingState.style.display = 'none';
                     emptyState.style.display = 'none';
                     gameContainer.style.display = 'block';
 
                     riddles = (gameRiddles || []).map(r => ({
-                        riddle: r.riddle || r.question || '',
+                        id: r.id,
+                        riddle: r.prompt || r.riddle || r.question || '',
                         answer: (r.answer || '').toUpperCase().trim(),
-                        clue: r.clue || ''
+                        clue: r.hint || r.clue || '',
+                        explanation: r.explanation || '',
+                        difficulty: r.difficulty || 'santai'
                     }));
+
+                    // Cek pemulihan pengerjaan sebelumnya (Resume Draft)
+                    const draft = (meta && meta.draftData) || CendekiaApp.getGameDraft('teka_teki');
+                    if (draft && draft.currentIndex > 0 && draft.currentIndex < riddles.length) {
+                        rIndex = draft.currentIndex;
+                        score = draft.score || 0;
+                        playedRecords = draft.playedRecords || [];
+                        document.getElementById('gameScore').textContent = score;
+
+                        setTimeout(() => {
+                            CendekiaApp.showEncouragementToast(`Melanjutkan teka-teki ke-${rIndex + 1} dari ronde sebelumnya! ✍️`);
+                        }, 500);
+                    }
 
                     document.getElementById('tekaSubMeta').textContent = `Teka-Teki Aksara • Reset Jam 00:00 WIB`;
                     loadCurrentRiddle();
@@ -175,12 +222,24 @@
 
         function loadCurrentRiddle() {
             if (!riddles || riddles.length === 0) return;
+            if (rIndex >= riddles.length) {
+                finishGameRound();
+                return;
+            }
+
             const cur = riddles[rIndex];
             document.getElementById('riddleIdx').textContent = rIndex + 1;
             document.getElementById('riddleTotal').textContent = riddles.length;
             document.getElementById('riddleText').textContent = `"${cur.riddle}"`;
             document.getElementById('clueHintText').textContent = cur.clue ? `Petunjuk: ${cur.clue} (${cur.answer.length} Huruf)` : `(${cur.answer.length} Huruf)`;
             document.getElementById('ttsFeedback').style.display = 'none';
+
+            // Reset Timer Kecepatan & Motivasi
+            qStartTime = Date.now();
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+            encouragementTimer = setTimeout(() => {
+                CendekiaApp.showEncouragementToast('Semangat, jawabannya ada di ujung pikiranmu! ✨');
+            }, 16000);
 
             const container = document.getElementById('inputsRow');
             container.innerHTML = '';
@@ -217,34 +276,59 @@
             const fb = document.getElementById('ttsFeedback');
             fb.style.display = 'block';
 
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
             if (entered === cur.answer) {
-                score += 20;
+                const elapsedSec = Math.round((Date.now() - qStartTime) / 1000);
+                const isFast = elapsedSec <= 7;
+                const earnedPoints = isFast ? 25 : 20;
+
+                score += earnedPoints;
                 document.getElementById('gameScore').textContent = score;
-                CendekiaApp.addXP(20, 'Teka-Teki Aksara Terpecahkan');
+
+                if (isFast) {
+                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Cepat & Tepat');
+                    CendekiaApp.showFloatingXP(earnedPoints, 'Bonus Cepat! ⚡');
+                } else {
+                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Aksara Terpecahkan');
+                    CendekiaApp.showFloatingXP(earnedPoints);
+                }
 
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
                 fb.style.border = '1px solid #a7f3d0';
-                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b>.<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="proceedNextRiddle(true, '${entered}')">Teka-Teki Berikutnya &rarr;</button>`;
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b> (${elapsedSec} detik)${isFast ? ' &bull; <i>Bonus Cepat +5 XP!</i>' : ''}.<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 14px; font-size:0.75rem;" onclick="proceedNextRiddle(true, '${entered}')">Teka-Teki Berikutnya &rarr;</button>`;
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
                 fb.style.border = '1px solid #fecaca';
-                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan petunjuknya dan coba lagi, atau lewati jika mengalami kesulitan.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:5px 10px; font-size:0.72rem; background:#64748b;" onclick="proceedNextRiddle(false, '${entered}')">Lewati Soal Ini &rarr;</button>`;
+                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan petunjuknya dan coba lagi, atau lewati jika ingin melanjutkan.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:5px 12px; font-size:0.72rem; background:#64748b;" onclick="proceedNextRiddle(false, '${entered}')">Lewati Soal Ini &rarr;</button>`;
             }
         }
 
         function proceedNextRiddle(isCorrect, enteredVal) {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
             const cur = riddles[rIndex];
             playedRecords.push({
                 q: `Teka-Teki: "${cur.riddle}"`,
                 isCorrect: isCorrect,
                 selectedText: enteredVal || '(Dilewati)',
                 correctText: cur.answer,
-                exp: `Petunjuk: "${cur.clue || '-'}". Jawaban teka-teki aksara yang tepat adalah "${cur.answer}".`
+                exp: cur.explanation || `Petunjuk: "${cur.clue || '-'}". Jawaban teka-teki aksara yang tepat adalah "${cur.answer}".`
             });
+
+            // Simpan progres ke autosave draft
+            CendekiaApp.saveGameDraft('teka_teki', {
+                questions: riddles,
+                currentIndex: rIndex + 1,
+                score: score,
+                playedRecords: playedRecords,
+                mode: currentMode
+            });
+
             nextRiddle();
         }
 
@@ -253,19 +337,28 @@
             if (rIndex < riddles.length) {
                 loadCurrentRiddle();
             } else {
-                const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (riddles.length || 1)) * 100));
-                const resultData = {
-                    score: finalScore,
-                    correctCount: playedRecords.filter(r => r.isCorrect).length,
-                    totalCount: riddles.length,
-                    xpEarned: score,
-                    questions: playedRecords
-                };
-
-                await CendekiaApp.saveGameResult('teka_teki', resultData);
-                CendekiaApp.completeChallenge('tc_3');
-                showCompletedScreen(resultData);
+                finishGameRound();
             }
+        }
+
+        async function finishGameRound() {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
+            const finalScore = Math.min(100, Math.round((playedRecords.filter(r => r.isCorrect).length / (riddles.length || 1)) * 100));
+            const resultData = {
+                score: finalScore,
+                correctCount: playedRecords.filter(r => r.isCorrect).length,
+                totalCount: riddles.length,
+                xpEarned: score,
+                questions: playedRecords,
+                mode: currentMode
+            };
+
+            await CendekiaApp.saveGameResult('teka_teki', resultData);
+            CendekiaApp.clearGameDraft('teka_teki');
+            CendekiaApp.completeChallenge('tc_3');
+            CendekiaApp.showFloatingXP(finalScore, 'Teka-Teki Selesai! 🏆');
+            showCompletedScreen(resultData);
         }
 
         function showCompletedScreen(data) {
