@@ -11,6 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDFMake Library for PDF Evaluation Report -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
     <link rel="stylesheet" href="/mem-5k/central.css">
 
     <style>
@@ -52,8 +55,13 @@
                     <div class="header-brand-sub" id="tekaSubMeta">Latihan Sinkron 24 Jam</div>
                 </div>
             </div>
-            <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
-                Skor: <span id="gameScore">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="modeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9; text-transform:capitalize;">
+                    Santai
+                </span>
+                <div style="background:#fef3c7; color:#b45309; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                    Skor: <span id="gameScore">0</span>
+                </div>
             </div>
         </header>
 
@@ -83,7 +91,7 @@
             <!-- GAME CONTAINER -->
             <div class="riddle-card" id="gameContainer" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
-                    <span>Teka-Teki <span id="riddleIdx">1</span> dari <span id="riddleTotal">5</span></span>
+                    <span>Teka-Teki <span id="riddleIdx">1</span> dari <span id="riddleTotal">10</span></span>
                     <span style="color:var(--accent-dark);"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
                 </div>
 
@@ -121,6 +129,10 @@
         let riddles = [];
         let rIndex = 0;
         let score = 0;
+        let playedRecords = [];
+        let currentMode = 'santai';
+        let qStartTime = Date.now();
+        let encouragementTimer = null;
 
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
@@ -128,7 +140,40 @@
             const gameContainer = document.getElementById('gameContainer');
             const loadingSub = document.getElementById('loadingSubtitle');
 
+            // 1. Baca parameter mode
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modePill = document.getElementById('modeBadgePill');
+            if (modePill) {
+                modePill.textContent = currentMode;
+                if (currentMode === 'tantangan') {
+                    modePill.style.background = '#fef3c7';
+                    modePill.style.color = '#b45309';
+                    modePill.innerHTML = '<i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan ⚡';
+                } else if (currentMode === 'acak') {
+                    modePill.style.background = '#e0e7ff';
+                    modePill.style.color = '#4338ca';
+                    modePill.innerHTML = '<i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Mode Acak';
+                } else {
+                    modePill.style.background = '#ede9fe';
+                    modePill.style.color = '#6d28d9';
+                    modePill.innerHTML = '<i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai';
+                }
+            }
+
+            // 2. Cek apakah game hari ini sudah diselesaikan
+            const completed = CendekiaApp.getGameResult('teka_teki');
+            if (completed) {
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'none';
+                gameContainer.style.display = 'block';
+                showCompletedScreen(completed);
+                return;
+            }
+
+            // 3. Muat latihan dari Bank Soal (atau pulihkan draft jika ada)
             await CendekiaApp.ensureDailyGame('teka_teki', {
+                mode: currentMode,
                 onLoading: (msg) => {
                     loadingState.style.display = 'block';
                     emptyState.style.display = 'none';
@@ -142,20 +187,43 @@
                     document.getElementById('emptyReason').textContent = reason;
                     if (window.lucide) lucide.createIcons();
                 },
-                onReady: (gameRiddles, poolMeta) => {
+                onReady: (gameRiddles, meta) => {
                     loadingState.style.display = 'none';
                     emptyState.style.display = 'none';
                     gameContainer.style.display = 'block';
 
                     riddles = (gameRiddles || []).map(r => ({
-                        riddle: r.riddle || r.question || '',
+                        id: r.id,
+                        riddle: r.prompt || r.riddle || r.question || '',
                         answer: (r.answer || '').toUpperCase().trim(),
-                        clue: r.clue || ''
+                        clue: r.hint || r.clue || '',
+                        explanation: r.explanation || '',
+                        difficulty: r.difficulty || 'santai'
                     }));
 
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('tekaSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+                    // Cek pemulihan pengerjaan sebelumnya (Resume Draft)
+                    const draft = (meta && meta.draftData) || CendekiaApp.getGameDraft('teka_teki');
+                    if (draft && draft.currentIndex > 0 && draft.currentIndex < riddles.length) {
+                        rIndex = draft.currentIndex;
+                        score = draft.score || 0;
+                        playedRecords = draft.playedRecords || [];
+                        document.getElementById('gameScore').textContent = score;
 
+                        setTimeout(() => {
+                            CendekiaApp.showEncouragementToast(`Melanjutkan teka-teki ke-${rIndex + 1} dari ronde sebelumnya! ✍️`);
+                        }, 500);
+                    } else {
+                        // Draft awal agar sistem mendeteksi ronde sedang berjalan
+                        CendekiaApp.saveGameDraft('teka_teki', {
+                            questions: riddles,
+                            currentIndex: 0,
+                            score: 0,
+                            playedRecords: [],
+                            mode: currentMode
+                        });
+                    }
+
+                    document.getElementById('tekaSubMeta').textContent = `10 Teka-Teki Aksara • Reset Jam 00:00 WIB`;
                     loadCurrentRiddle();
                 }
             });
@@ -163,12 +231,24 @@
 
         function loadCurrentRiddle() {
             if (!riddles || riddles.length === 0) return;
+            if (rIndex >= riddles.length) {
+                finishGameRound();
+                return;
+            }
+
             const cur = riddles[rIndex];
             document.getElementById('riddleIdx').textContent = rIndex + 1;
             document.getElementById('riddleTotal').textContent = riddles.length;
             document.getElementById('riddleText').textContent = `"${cur.riddle}"`;
             document.getElementById('clueHintText').textContent = cur.clue ? `Petunjuk: ${cur.clue} (${cur.answer.length} Huruf)` : `(${cur.answer.length} Huruf)`;
             document.getElementById('ttsFeedback').style.display = 'none';
+
+            // Reset Timer Kecepatan & Motivasi
+            qStartTime = Date.now();
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+            encouragementTimer = setTimeout(() => {
+                CendekiaApp.showEncouragementToast('Semangat, jawabannya ada di ujung pikiranmu! ✨');
+            }, 16000);
 
             const container = document.getElementById('inputsRow');
             container.innerHTML = '';
@@ -205,32 +285,240 @@
             const fb = document.getElementById('ttsFeedback');
             fb.style.display = 'block';
 
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
             if (entered === cur.answer) {
-                score += 20;
+                const elapsedSec = Math.round((Date.now() - qStartTime) / 1000);
+                const isFast = elapsedSec <= 7;
+                const earnedPoints = isFast ? 25 : 20;
+
+                score += earnedPoints;
                 document.getElementById('gameScore').textContent = score;
-                CendekiaApp.addXP(20, 'Teka-Teki Aksara Terpecahkan');
+
+                if (isFast) {
+                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Cepat & Tepat', true);
+                } else {
+                    CendekiaApp.addXP(earnedPoints, 'Teka-Teki Aksara Terpecahkan');
+                }
 
                 fb.style.background = '#ecfdf5';
                 fb.style.color = '#065f46';
-                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b>.<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextRiddle()">Teka-Teki Berikutnya &rarr;</button>`;
+                fb.style.border = '1px solid #a7f3d0';
+                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> Jawabannya adalah <b>${cur.answer}</b> (${elapsedSec} detik)${isFast ? ' &bull; <i>Bonus Cepat +5 XP!</i>' : ''}.<br><br>
+                    <button type="button" class="btn-primary-challenge" style="padding:6px 14px; font-size:0.75rem;" onclick="proceedNextRiddle(true, '${entered}')">Teka-Teki Berikutnya &rarr;</button>`;
             } else {
                 fb.style.background = '#fef2f2';
                 fb.style.color = '#991b1b';
-                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan kembali petunjuknya dan coba lagi!`;
+                fb.style.border = '1px solid #fecaca';
+                fb.innerHTML = `Jawabanmu belum tepat. Perhatikan petunjuknya dan coba lagi, atau lewati jika ingin melanjutkan.<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:5px 12px; font-size:0.72rem; background:#64748b;" onclick="proceedNextRiddle(false, '${entered}')">Lewati Soal Ini &rarr;</button>`;
             }
         }
 
-        function nextRiddle() {
+        function proceedNextRiddle(isCorrect, enteredVal) {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
+            const cur = riddles[rIndex];
+            playedRecords.push({
+                q: `Teka-Teki: "${cur.riddle}"`,
+                isCorrect: isCorrect,
+                selectedText: enteredVal || '(Dilewati)',
+                correctText: cur.answer,
+                exp: cur.explanation || `Petunjuk: "${cur.clue || '-'}". Jawaban teka-teki aksara yang tepat adalah "${cur.answer}".`
+            });
+
+            // Simpan progres ke autosave draft
+            CendekiaApp.saveGameDraft('teka_teki', {
+                questions: riddles,
+                currentIndex: rIndex + 1,
+                score: score,
+                playedRecords: playedRecords,
+                mode: currentMode
+            });
+
+            nextRiddle();
+        }
+
+        async function nextRiddle() {
             rIndex++;
             if (rIndex < riddles.length) {
                 loadCurrentRiddle();
             } else {
-                const fb = document.getElementById('ttsFeedback');
-                fb.style.background = '#f0fdf4';
-                fb.style.color = '#166534';
-                fb.innerHTML = `<strong>Selamat! Seluruh Teka-Teki Telah Terpecahkan! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
+                finishGameRound();
             }
+        }
+
+        async function finishGameRound() {
+            if (encouragementTimer) clearTimeout(encouragementTimer);
+
+            const total = riddles.length || 10;
+            const correctCount = playedRecords.filter(r => r.isCorrect).length;
+            const finalScore = Math.min(100, Math.round((correctCount / total) * 100));
+            const resultData = {
+                score: finalScore,
+                correctCount: correctCount,
+                totalCount: total,
+                xpEarned: score,
+                questions: playedRecords,
+                mode: currentMode
+            };
+
+            await CendekiaApp.saveGameResult('teka_teki', resultData);
+            CendekiaApp.clearGameDraft('teka_teki');
+            CendekiaApp.completeChallenge('tc_3');
+            showCompletedScreen(resultData);
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('gameContainer');
+            const total = data.totalCount || 10;
+            const correct = data.correctCount || 0;
+            const wrong = total - correct;
+            const records = data.questions || [];
+
+            // Susun Lembar Pembahasan Soal Review
+            let reviewHtml = '';
+            records.forEach((item, idx) => {
+                const isCorrect = item.isCorrect;
+                const cleanQ = (item.q || '').replace(/^Teka-Teki:\s*"?/i, '').replace(/"?$/i, '');
+                reviewHtml += `
+                    <div style="background:white; border-radius:var(--radius-sm); border:1px solid ${isCorrect ? '#a7f3d0' : '#fecaca'}; padding:12px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.7rem; font-weight:800; background:var(--primary); color:white; padding:2px 8px; border-radius:4px;">
+                                Teka-Teki #${idx + 1}
+                            </span>
+                            <span style="font-size:0.68rem; font-weight:800; color:${isCorrect ? '#059669' : '#dc2626'}; background:${isCorrect ? '#ecfdf5' : '#fef2f2'}; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">
+                                <i data-lucide="${isCorrect ? 'check-circle' : 'x-circle'}" style="width:11px; height:11px;"></i> ${isCorrect ? 'Benar (+20 XP)' : 'Gagal'}
+                            </span>
+                        </div>
+                        <div style="font-size:0.76rem; color:var(--text-body); margin-bottom:8px; line-height:1.4;">
+                            <strong>Soal Teka-Teki:</strong> "${cleanQ}"
+                        </div>
+                        ${item.clue ? `
+                            <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:6px;">
+                                <strong>Petunjuk:</strong> ${item.clue}
+                            </div>
+                        ` : ''}
+                        <div style="font-size:0.72rem; background:${isCorrect ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${isCorrect ? '#bbf7d0' : '#fecaca'}; border-radius:6px; padding:6px 10px; margin-bottom:6px; color:${isCorrect ? '#166534' : '#991b1b'};">
+                            ${isCorrect 
+                                ? `<b>Jawaban Anda:</b> <span style="font-weight:800; letter-spacing:0.5px;">${item.selectedText}</span> ✓`
+                                : `<b>Jawaban Anda:</b> ${item.selectedText} &bull; <b>Kunci Jawaban:</b> <span style="font-weight:800; letter-spacing:0.5px; color:#166534;">${item.correctText}</span>`
+                            }
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); font-style:italic; line-height:1.35;">
+                            ${item.exp || `Jawaban teka-teki aksara: ${item.correctText}.`}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Susun Koleksi Kosakata / Kaidah Aksara Glosarium
+            let vocabHtml = '';
+            records.forEach(item => {
+                const word = item.correctText || '';
+                const cleanClue = (item.clue || item.exp || '').replace(/^Petunjuk:\s*"?/i, '').replace(/".*$/i, '');
+                vocabHtml += `
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.85rem; font-weight:800; color:var(--primary); letter-spacing:0.5px;">
+                                ${word}
+                            </span>
+                            <span style="font-size:0.62rem; font-weight:700; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;">
+                                Kaidah Aksara &amp; Sastra
+                            </span>
+                        </div>
+                        <div style="font-size:0.72rem; color:var(--text-body); line-height:1.4;">
+                            ${cleanClue}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = `
+                <div style="padding:10px 0;">
+                    <!-- REKAP HASIL UTAMA -->
+                    <div style="text-align:center; padding:20px 14px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); margin-bottom:16px;">
+                        <div style="width:78px; height:78px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.9rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; border:3px solid #a7f3d0;">
+                            ${data.score || 0}
+                        </div>
+                        <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Hasil Teka-Teki Aksara</h2>
+                        <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;">
+                            <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini &bull; Mode: <b>${data.mode || 'Santai'}</b>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Benar</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#059669;">${correct} Teka-Teki</div>
+                            </div>
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Salah</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#dc2626;">${wrong} Teka-Teki</div>
+                            </div>
+                            <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Poin XP</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#7c3aed;">+${data.xpEarned || 0} XP</div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-primary-challenge" style="padding:12px; font-size:0.82rem; margin-bottom:10px; width:100%;" onclick="downloadTekaTekiPDF()">
+                            <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                        </button>
+
+                        <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4;">
+                            Latihan berikutnya dibuka kembali <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                        </div>
+                    </div>
+
+                    <!-- SECTION 1: LEMBAR PEMBAHASAN SOAL (REVIEW) -->
+                    <div style="margin-bottom:18px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="font-size:0.88rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="clipboard-check" style="width:16px; height:16px; color:#2563eb;"></i> Lembar Pembahasan Soal
+                            </h3>
+                            <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${total} Butir Soal</span>
+                        </div>
+                        ${reviewHtml}
+                    </div>
+
+                    <!-- SECTION 2: KOLEKSI KOSAKATA & ISTILAH SASTRA -->
+                    <div style="margin-bottom:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3 style="font-size:0.88rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="book-marked" style="width:16px; height:16px; color:#b45309;"></i> Koleksi Kosakata &amp; Istilah Sastra
+                            </h3>
+                            <span style="font-size:0.68rem; color:#b45309; font-weight:700; background:#fef3c7; padding:2px 8px; border-radius:10px;">Kaidah Aksara</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${vocabHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (window.lucide) lucide.createIcons();
+            startCountdownTimer();
+        }
+
+        window.downloadTekaTekiPDF = () => {
+            const res = CendekiaApp.getGameResult('teka_teki');
+            if (res) {
+                const user = CendekiaApp.getUser();
+                CendekiaApp.downloadEvaluationPDF({
+                    ...res,
+                    title: 'Laporan Evaluasi Pembelajaran - Teka-Teki Aksara'
+                }, user);
+            }
+        };
+
+        function startCountdownTimer() {
+            const update = () => {
+                const text = CendekiaApp.formatCountdownToMidnightWIB();
+                const els = document.querySelectorAll('.resetCountdownText');
+                els.forEach(e => e.textContent = text);
+            };
+            update();
+            setInterval(update, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {

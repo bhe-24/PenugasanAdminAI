@@ -95,9 +95,11 @@
 
         async function loadCategoryMaterial() {
             const container = document.getElementById('materialContentArea');
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedId = urlParams.get('id') || null;
 
             try {
-                const material = await CendekiaApp.getMaterialByCategory(CATEGORY_ID);
+                const material = await CendekiaApp.getMaterialByCategory(CATEGORY_ID, requestedId);
 
                 if (!material || !material.content || material.content.trim().length === 0) {
                     container.innerHTML = `
@@ -120,13 +122,20 @@
                     const updatedStr = material.updatedAt ? new Date(material.updatedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : 'Terbaru';
                     const words = ((material.content || '') + ' ' + (material.summary || '')).split(/\s+/).filter(Boolean).length;
                     const readTime = Math.max(1, Math.ceil(words / 140));
+                    const rollMeta = material._rollingMeta || { index: 1, total: 1 };
+                    const rollingPill = rollMeta.total > 1
+                        ? `<span class="module-badge" style="background:#e0f2fe; color:#0284c7; margin-bottom:0;"><i data-lucide="shuffle" style="width:11px; height:11px;"></i> Rolling Hari Ini (#${rollMeta.index}/${rollMeta.total})</span>`
+                        : '';
 
                     let html = `
                         <div class="module-card">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
-                                <span class="module-badge">
-                                    <i data-lucide="book-marked" style="width:12px; height:12px;"></i> Modul Kurikulum &bull; ${updatedStr}
-                                </span>
+                                <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                                    <span class="module-badge" style="margin-bottom:0;">
+                                        <i data-lucide="book-marked" style="width:12px; height:12px;"></i> Modul Kurikulum &bull; ${updatedStr}
+                                    </span>
+                                    ${rollingPill}
+                                </div>
                                 <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">
                                     <i data-lucide="clock" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> ~${readTime} Menit Baca
                                 </span>

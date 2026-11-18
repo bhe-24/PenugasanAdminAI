@@ -504,12 +504,15 @@
                     return;
                 }
 
-                // Pengacakan harian: Seed berdasarkan tanggal lokal (YYYY-MM-DD), berganti otomatis tepat jam 00.00
-                const now = new Date();
-                const yyyy = now.getFullYear();
-                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                const dd = String(now.getDate()).padStart(2, '0');
-                const localDateStr = `${yyyy}-${mm}-${dd}`;
+                // Pengacakan harian per-user: Seed berdasarkan UID + tanggal WIB (YYYY-MM-DD), berganti otomatis tepat jam 00.00 WIB
+                const currentUser = CendekiaApp.getUser();
+                const accessibleMaterials = materials.filter(mod => {
+                    const c = CendekiaApp.normalizeCategoryKey(mod.category, mod.id);
+                    return c === 'pengetahuan-umum' || c === 'pengetahuan-inti';
+                });
+                const poolMaterials = accessibleMaterials.length > 0 ? accessibleMaterials : materials;
+
+                const localDateStr = `${currentUser.uid || currentUser.email || 'guest'}_${CendekiaApp.getTodayDateKeyWIB()}`;
 
                 let dateSeed = 0;
                 for (let i = 0; i < localDateStr.length; i++) {
@@ -518,7 +521,7 @@
                 }
                 dateSeed = Math.abs(dateSeed);
 
-                const shuffled = [...materials];
+                const shuffled = [...poolMaterials];
                 let m = shuffled.length, t, i;
                 let s = dateSeed;
                 while (m) {
@@ -533,16 +536,16 @@
                 const recommendations = shuffled.slice(0, 3);
 
                 const categoryMeta = {
-                    'umum': { name: 'Pengetahuan Umum', file: '/mem-free/pengetahuan-umum.html', icon: 'globe-2', bg: '#e0f2fe', color: '#0284c7' },
-                    'inti': { name: 'Pengetahuan Inti', file: '/mem-free/pengetahuan-inti.html', icon: 'book-marked', bg: '#fef3c7', color: '#b45309' },
-                    'khusus': { name: 'Pengetahuan Khusus', file: '/mem-free/pengetahuan-khusus.html', icon: 'graduation-cap', bg: '#e0e7ff', color: '#4338ca' },
-                    'mendalam': { name: 'Pengetahuan Mendalam', file: '/mem-free/pengetahuan-mendalam.html', icon: 'brain', bg: '#f3e8ff', color: '#7e22ce' }
+                    'pengetahuan-umum': { name: 'Pengetahuan Umum', file: '/mem-free/pengetahuan-umum.html', icon: 'globe-2', bg: '#e0f2fe', color: '#0284c7' },
+                    'pengetahuan-inti': { name: 'Pengetahuan Inti', file: '/mem-free/pengetahuan-inti.html', icon: 'book-marked', bg: '#fef3c7', color: '#b45309' },
+                    'pengetahuan-khusus': { name: 'Pengetahuan Khusus', file: '/mem-free/pengetahuan-khusus.html', icon: 'graduation-cap', bg: '#e0e7ff', color: '#4338ca' },
+                    'pengetahuan-mendalam': { name: 'Pengetahuan Mendalam', file: '/mem-free/pengetahuan-mendalam.html', icon: 'brain', bg: '#f3e8ff', color: '#7e22ce' }
                 };
 
                 let html = '';
                 recommendations.forEach(mod => {
-                    const catKey = (mod.category || 'umum').toLowerCase();
-                    const meta = categoryMeta[catKey] || { name: mod.category || 'Materi Literasi', file: '/mem-free/pengetahuan-umum.html', icon: 'book-open', bg: '#f1f5f9', color: 'var(--primary)' };
+                    const catKey = CendekiaApp.normalizeCategoryKey(mod.category, mod.id);
+                    const meta = categoryMeta[catKey] || categoryMeta['pengetahuan-umum'];
                     const wordCount = (mod.content || '').split(/\s+/).filter(Boolean).length;
                     const readTimeMin = Math.max(3, Math.min(10, Math.ceil(wordCount / 120)));
                     
@@ -718,6 +721,14 @@
             renderHomeBadges();
             renderWeeklyProgress();
             renderMyRankCard();
+
+            // Re-render realtime begitu Cloud Memory Firestore selesai disinkronkan
+            window.addEventListener('cendekia:synced', () => {
+                renderTodayChallenge();
+                renderHomeBadges();
+                renderWeeklyProgress();
+                renderMyRankCard();
+            });
 
             // Render Recent Works jika ada di local storage
             const works = CendekiaApp.getWorks();

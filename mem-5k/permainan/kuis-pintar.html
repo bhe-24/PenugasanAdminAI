@@ -3,42 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kuis Pintar - Member 5K Cendekia</title>
+    <title>Kuis Pintar Pilihan Ganda - Member 5K Cendekia</title>
     
     <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- ICONS & LIBS -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- PDFMAKE CDN UNTUK DOWNLOAD LEMBAR EVALUASI PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
+
     <link rel="stylesheet" href="/mem-5k/central.css">
 
     <style>
-        .quiz-card {
-            background: white; border-radius: var(--radius-md); padding: 18px;
-            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        /* STICKY ACTION & STATUS BAR */
+        .quiz-sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(8px);
+            border-bottom: 1.5px solid var(--border-soft);
+            padding: 10px 16px;
+            margin: -16px -16px 16px -16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
-        .question-meta {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin-bottom: 12px;
+
+        .progress-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            color: var(--primary);
+            background: #f1f5f9;
+            padding: 4px 12px;
+            border-radius: var(--radius-full);
         }
-        .question-text {
-            font-size: 0.96rem; font-weight: 800; color: var(--primary);
-            line-height: 1.45; margin-bottom: 16px;
+
+        .btn-jump-unanswered {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
-        .ans-btn {
-            display: block; width: 100%; text-align: left; padding: 12px 14px;
-            border-radius: var(--radius-md); border: 1.5px solid var(--border-soft);
-            background: #ffffff; font-size: 0.8rem; font-weight: 600; color: var(--text-dark);
-            margin-bottom: 10px; cursor: pointer; transition: all 0.2s;
+
+        /* RESUME SESSION BANNER */
+        .resume-banner {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            border-left: 4px solid #3b82f6;
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.78rem;
         }
-        .ans-btn:hover { border-color: var(--purple); background: #faf5ff; }
-        .ans-btn.correct { background: #ecfdf5; border-color: #059669; color: #065f46; font-weight: 800; }
-        .ans-btn.wrong { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
-        .explanation-box {
-            background: #f8fafc; border: 1px solid var(--border-soft); border-radius: var(--radius-md);
-            padding: 12px; font-size: 0.74rem; color: var(--text-body); line-height: 1.45;
-            margin-top: 14px; display: none;
+
+        /* DAFTAR SOAL KE BAWAH */
+        .questions-scroll-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .question-item-card {
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-soft);
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            transition: all 0.2s ease;
+        }
+
+        .question-item-card.answered {
+            border-color: #cbd5e1;
+        }
+
+        .question-item-card:focus-within {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+        }
+
+        .q-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .q-num-badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .q-status-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+        }
+
+        .q-status-tag.done {
+            color: #059669;
+        }
+
+        .q-text-body {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+
+        /* PILIHAN JAWABAN VERTICAL */
+        .options-vertical-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-label-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid #e2e8f0;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .option-label-card:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .option-label-card.selected {
+            background: #f0fdf4;
+            border-color: #22c55e;
+            box-shadow: 0 0 0 1px #22c55e;
+        }
+
+        .option-label-card input[type="radio"] {
+            display: none;
+        }
+
+        .opt-letter-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: var(--text-dark);
+            font-weight: 800;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .option-label-card.selected .opt-letter-circle {
+            background: #22c55e;
+            color: white;
+        }
+
+        .opt-text-val {
+            font-size: 0.82rem;
+            color: var(--text-dark);
+            line-height: 1.45;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .option-label-card.selected .opt-text-val {
+            font-weight: 700;
+            color: #065f46;
+        }
+
+        /* EVALUASI HASIL SETELAH SUBMIT */
+        .q-eval-result-box {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.78rem;
+            line-height: 1.5;
+        }
+
+        .q-eval-correct {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+
+        .q-eval-wrong {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .q-eval-explanation {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(0,0,0,0.12);
+            font-style: italic;
+            color: #334155;
+            font-size: 0.76rem;
+        }
+
+        /* CARD SKOR AKHIR */
+        .result-summary-card {
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border-soft);
+            padding: 24px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .score-big-circle {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #003366 0%, #0284c7 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 4px 14px rgba(0, 51, 102, 0.25);
+        }
+
+        .btn-pdf-download {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius-full);
+            font-weight: 800;
+            font-size: 0.84rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: all 0.2s;
+            margin-top: 14px;
+        }
+        .btn-pdf-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
         }
     </style>
 </head>
@@ -56,11 +303,12 @@
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
                         <i data-lucide="brain" style="width:18px; height:18px; color:var(--purple);"></i> Kuis Pintar
                     </h1>
-                    <div class="header-brand-sub" id="quizSubMeta">Latihan Sinkron 24 Jam</div>
+                    <div class="header-brand-sub" id="quizSubMeta">Latihan Literasi &bull; Reset Jam 00:00 WIB</div>
                 </div>
             </div>
-            <div id="gameScorePill" style="background:#ede9fe; color:#7c3aed; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
-                Skor: <span id="currentScore">0</span>
+            <div id="countdownPill" style="background:#fef3c7; color:#b45309; font-size:0.68rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); display:flex; align-items:center; gap:4px;">
+                <i data-lucide="clock" style="width:11px; height:11px;"></i>
+                <span id="countdownText">--:--:--</span>
             </div>
         </header>
 
@@ -69,8 +317,8 @@
             <!-- LOADING STATE -->
             <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
                 <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
-                <h3 id="loadingTitle" style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Kuis Harian...</h3>
-                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+                <h3 id="loadingTitle" style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan 15 Soal Literasi...</h3>
+                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Menghubungkan paket kurikulum terverifikasi...</p>
             </div>
 
             <!-- EMPTY STATE (JIKA BELUM ADA MATERI DARI ADMIN) -->
@@ -78,52 +326,95 @@
                 <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
                     <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
                 </div>
-                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Soal Belum Tersedia</h3>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Bahan Ajar Belum Tersedia</h3>
                 <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
-                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
+                    Admin belum mengunggah bahan ajar materi di sistem. Soal kuis literasi akan muncul otomatis setelah materi diterbitkan.
                 </p>
                 <a href="/mem-5k/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
                     <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
                 </a>
             </div>
 
-            <!-- QUIZ BOX AKTIF -->
-            <div class="quiz-card" id="quizBox" style="display:none;">
-                <div class="question-meta">
-                    <span>Pertanyaan <span id="qIndex">1</span> dari <span id="qTotal">5</span></span>
-                    <span style="color:var(--accent-dark);"><i data-lucide="award" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> +10 XP</span>
+            <!-- CARD HASIL KUIS (HANYA MUNCUL JIKA SUDAH SELESAI HARI INI) -->
+            <div class="result-summary-card" id="resultSummaryBox" style="display:none;">
+                <div class="score-big-circle" id="scoreCircle">0</div>
+                <h2 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Hasil Kuis Literasi</h2>
+                <div style="font-size:0.75rem; color:#059669; font-weight:700; margin-bottom:14px;" id="resultStatusText">
+                    <i data-lucide="check-circle-2" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Selesai Dikerjakan Hari Ini
                 </div>
-                <div class="question-text" id="qText">Memuat pertanyaan...</div>
-                
-                <div id="answersContainer"></div>
 
-                <div class="explanation-box" id="explanationBox">
-                    <strong style="color:var(--primary); display:block; margin-bottom:4px;">
-                        <i data-lucide="info" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Pembahasan Jawaban:
-                    </strong>
-                    <span id="explanationText"></span>
-                    <button type="button" id="btnNext" class="btn-primary-challenge" style="margin-top:10px;" onclick="nextQuestion()">
-                        Soal Berikutnya <i data-lucide="arrow-right" style="width:14px; height:14px;"></i>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+                    <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Benar</div>
+                        <div style="font-size:1rem; font-weight:800; color:#059669;" id="resCorrectCount">0</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Salah</div>
+                        <div style="font-size:1rem; font-weight:800; color:#dc2626;" id="resWrongCount">0</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:10px 6px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Poin XP</div>
+                        <div style="font-size:1rem; font-weight:800; color:#7c3aed;" id="resXpCount">+0</div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-pdf-download" onclick="handleDownloadPDF()">
+                    <i data-lucide="file-down" style="width:18px; height:18px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                </button>
+
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:14px; line-height:1.4;">
+                    <i data-lucide="rotate-ccw" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> 
+                    Kuis baru dapat dikerjakan kembali setelah <strong>jam 00:00 WIB</strong> (Tersisa: <span class="resetCountdownText">--:--:--</span>).
+                </div>
+            </div>
+
+            <!-- CONTAINER LEMBAR SOAL AKTIF (DAFTAR SOAL KE BAWAH) -->
+            <div id="quizContainerArea" style="display:none;">
+
+                <!-- STICKY ACTION & STATUS BAR -->
+                <div class="quiz-sticky-header">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span id="quizModeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9; text-transform:capitalize;">
+                            Santai
+                        </span>
+                        <div class="progress-pill">
+                            <i data-lucide="check-circle" style="width:13px; height:13px; color:#10b981;"></i>
+                            <span id="answeredCountDisplay">0 / 15 Terjawab</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-jump-unanswered" id="btnJumpUnanswered" onclick="jumpToFirstUnanswered()">
+                        <i data-lucide="arrow-down" style="width:12px; height:12px;"></i> Cari yang Belum
                     </button>
                 </div>
+
+                <!-- RESUME SESSIONS BANNER -->
+                <div class="resume-banner" id="resumeBanner" style="display:none;">
+                    <div>
+                        <strong style="color:#1d4ed8; display:block; margin-bottom:2px;">
+                            <i data-lucide="bookmark" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Sesi Sebelumnya Tersimpan
+                        </strong>
+                        <span>Jawaban Anda otomatis tersimpan. Anda dapat melanjutkan pengerjaan.</span>
+                    </div>
+                </div>
+
+                <!-- DAFTAR SEMUA SOAL (TERJEJER KE BAWAH) -->
+                <div class="questions-scroll-container" id="questionsListArea">
+                    <!-- Dinamis dibuat oleh JS -->
+                </div>
+
+                <!-- TOMBOL KUMPULKAN KUIS (HANYA AKTIF JIKA BELUM SUBMIT) -->
+                <div id="submitActionArea" style="margin-top:24px; padding-bottom:20px;">
+                    <button type="button" id="btnSubmitQuiz" class="btn-primary-challenge" style="padding:14px; font-size:0.86rem;" onclick="handleSubmitQuiz()">
+                        <i data-lucide="send" style="width:16px; height:16px;"></i> Kumpulkan &amp; Selesaikan Kuis
+                    </button>
+                    <div style="font-size:0.72rem; color:var(--text-muted); text-align:center; margin-top:8px;">
+                        Pastikan seluruh 15 soal telah terisi sebelum mengumpulkan.
+                    </div>
+                </div>
+
             </div>
 
-            <!-- HASIL KUIS -->
-            <div class="quiz-card" id="resultBox" style="display:none; text-align:center;">
-                <div style="width:64px; height:64px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:1.8rem;">
-                    <i data-lucide="trophy" style="width:32px; height:32px;"></i>
-                </div>
-                <h3 style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Luar Biasa!</h3>
-                <p style="font-size:0.76rem; color:var(--text-muted); margin-bottom:14px;">Kamu telah menyelesaikan Kuis Pintar Literasi Harian.</p>
-                <div style="background:#f8fafc; border-radius:var(--radius-md); padding:12px; margin-bottom:16px; font-size:0.84rem; font-weight:800; color:var(--primary);">
-                    Skor Akhir: <span id="finalScore" style="color:var(--purple); font-size:1.2rem;">0</span><br>
-                    <span style="font-size:0.72rem; color:var(--accent-dark);" id="finalXpText">+30 XP telah ditambahkan ke akunmu!</span>
-                </div>
-                <button type="button" class="btn-primary-challenge" onclick="restartQuiz()">
-                    <i data-lucide="rotate-ccw" style="width:15px; height:15px;"></i> Coba Lagi
-                </button>
-            </div>
-
+            <!-- COPYRIGHT FOOTER -->
             <div class="app-footer-copyright">
                 &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
             </div>
@@ -132,29 +423,77 @@
 
     </div>
 
+    <!-- CENTRAL JS -->
     <script src="/mem-5k/central.js"></script>
-    <script>
-        let questions = [];
-        let currentIndex = 0;
-        let score = 0;
-        let answered = false;
 
-        async function initQuizEngine() {
+    <script>
+        const GAME_KEY = 'kuis_pintar';
+        let rawQuestions = [];
+        let userAnswers = {}; // { 0: selectedOptionIndex, 1: ... }
+        let isSubmitted = false;
+        let activeResultData = null;
+        let currentMode = 'santai';
+
+        // Inisialisasi Kuis Pintar
+        async function initQuiz() {
             const loadingState = document.getElementById('gameLoadingState');
             const emptyState = document.getElementById('gameEmptyState');
-            const quizBox = document.getElementById('quizBox');
-            const loadingSub = document.getElementById('loadingSubtitle');
+            const quizArea = document.getElementById('quizContainerArea');
+            const resultBox = document.getElementById('resultSummaryBox');
 
-            await CendekiaApp.ensureDailyGame('kuis_pintar', {
+            startWIBCountdownTimer();
+
+            // 1. Baca parameter mode permainan
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modePill = document.getElementById('quizModeBadgePill');
+            if (modePill) {
+                modePill.textContent = currentMode;
+                if (currentMode === 'tantangan') {
+                    modePill.style.background = '#fef3c7';
+                    modePill.style.color = '#b45309';
+                    modePill.innerHTML = '<i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan ⚡';
+                } else if (currentMode === 'acak') {
+                    modePill.style.background = '#e0e7ff';
+                    modePill.style.color = '#4338ca';
+                    modePill.innerHTML = '<i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Acak';
+                } else {
+                    modePill.style.background = '#ede9fe';
+                    modePill.style.color = '#6d28d9';
+                    modePill.innerHTML = '<i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai';
+                }
+            }
+
+            // 2. Cek apakah kuis hari ini sudah pernah disubmit
+            const completedResult = CendekiaApp.getGameResult(GAME_KEY);
+            if (completedResult) {
+                isSubmitted = true;
+                activeResultData = completedResult;
+                loadingState.style.display = 'none';
+                emptyState.style.display = 'none';
+                quizArea.style.display = 'block';
+                resultBox.style.display = 'block';
+                document.getElementById('submitActionArea').style.display = 'none';
+                document.getElementById('btnJumpUnanswered').style.display = 'none';
+
+                // Render tampilan hasil evaluasi
+                rawQuestions = completedResult.questions || [];
+                renderSummaryCard(completedResult);
+                renderQuestionsList(true); // mode review/evaluasi
+                return;
+            }
+
+            // 3. Jika belum submit, muat paket 15 soal dari Bank Soal (anti-repetisi 7 hari & seleksi mode)
+            await CendekiaApp.ensureDailyGame(GAME_KEY, {
+                mode: currentMode,
                 onLoading: (msg) => {
                     loadingState.style.display = 'block';
                     emptyState.style.display = 'none';
-                    quizBox.style.display = 'none';
-                    if (loadingSub) loadingSub.textContent = msg;
+                    quizArea.style.display = 'none';
                 },
                 onNoMaterials: (reason) => {
                     loadingState.style.display = 'none';
-                    quizBox.style.display = 'none';
+                    quizArea.style.display = 'none';
                     emptyState.style.display = 'block';
                     document.getElementById('emptyReason').textContent = reason;
                     if (window.lucide) lucide.createIcons();
@@ -162,91 +501,325 @@
                 onReady: (gameQuestions, poolMeta) => {
                     loadingState.style.display = 'none';
                     emptyState.style.display = 'none';
-                    quizBox.style.display = 'block';
+                    quizArea.style.display = 'block';
 
-                    questions = gameQuestions;
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('quizSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
+                    rawQuestions = gameQuestions || [];
 
-                    loadQuestion();
+                    // Muat draft tersimpan jika ada (Resume System)
+                    const draft = (poolMeta && poolMeta.draftData) || CendekiaApp.getGameDraft(GAME_KEY);
+                    let shouldJump = false;
+                    if (draft && draft.answers) {
+                        userAnswers = draft.answers;
+                        const answeredCount = Object.keys(userAnswers).length;
+                        if (answeredCount > 0 && answeredCount < rawQuestions.length) {
+                            document.getElementById('resumeBanner').style.display = 'flex';
+                            shouldJump = true;
+                            setTimeout(() => {
+                                CendekiaApp.showEncouragementToast(`Melanjutkan ${answeredCount} soal yang tersimpan! ✍️`);
+                            }, 500);
+                        }
+                    } else {
+                        // Draft awal agar sistem mendeteksi kuis aktif
+                        CendekiaApp.saveGameDraft(GAME_KEY, {
+                            questions: rawQuestions,
+                            answers: {},
+                            mode: currentMode
+                        });
+                    }
+
+                    renderQuestionsList(false);
+                    updateProgressDisplay();
+
+                    if (shouldJump) {
+                        setTimeout(() => jumpToFirstUnanswered(), 400);
+                    }
                 }
             });
         }
 
-        function loadQuestion() {
-            if (!questions || questions.length === 0) return;
-            answered = false;
-            const q = questions[currentIndex];
-            document.getElementById('qIndex').textContent = currentIndex + 1;
-            document.getElementById('qTotal').textContent = questions.length;
-            document.getElementById('qText').textContent = q.q || q.question;
-            document.getElementById('explanationBox').style.display = 'none';
-
-            const container = document.getElementById('answersContainer');
+        // Render seluruh 15 butir soal ke bawah
+        function renderQuestionsList(isReviewMode = false) {
+            const container = document.getElementById('questionsListArea');
             container.innerHTML = '';
 
-            const opts = q.options || [];
-            opts.forEach((opt, idx) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'ans-btn';
-                btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
-                btn.onclick = () => selectAnswer(idx, btn);
-                container.appendChild(btn);
+            rawQuestions.forEach((q, idx) => {
+                const qNum = idx + 1;
+                const isAnswered = userAnswers[idx] !== undefined;
+                const selectedOpt = userAnswers[idx];
+
+                const card = document.createElement('div');
+                card.className = `question-item-card ${isAnswered ? 'answered' : ''}`;
+                card.id = `qCard_${idx}`;
+
+                let optionsHtml = '';
+                const opts = q.options || [];
+
+                opts.forEach((opt, optIdx) => {
+                    const isSelected = selectedOpt === optIdx;
+                    const letter = String.fromCharCode(65 + optIdx);
+                    // Bersihkan awalan 'A. ' jika ada
+                    const cleanOpt = opt.replace(/^[A-D]\.\s*/i, '');
+
+                    optionsHtml += `
+                        <label class="option-label-card ${isSelected ? 'selected' : ''}" onclick="handleOptionSelect(${idx}, ${optIdx})">
+                            <input type="radio" name="opt_radio_${idx}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${isReviewMode ? 'disabled' : ''}>
+                            <span class="opt-letter-circle">${letter}</span>
+                            <span class="opt-text-val">${cleanOpt}</span>
+                        </label>
+                    `;
+                });
+
+                // Area Pembahasan (Hanya muncul jika sudah disubmit)
+                let evalHtml = '';
+                if (isReviewMode) {
+                    const correctIdx = q.answer !== undefined ? q.answer : (q.answerIndex || 0);
+                    const isCorrect = selectedOpt === correctIdx;
+                    const correctLetter = String.fromCharCode(65 + correctIdx);
+                    const correctText = (opts[correctIdx] || '').replace(/^[A-D]\.\s*/i, '');
+
+                    evalHtml = `
+                        <div class="q-eval-result-box ${isCorrect ? 'q-eval-correct' : 'q-eval-wrong'}">
+                            <div>
+                                <strong>${isCorrect ? '✓ Jawaban Anda Tepat!' : '✗ Jawaban Belum Tepat'}</strong><br>
+                                ${!isCorrect ? `Kunci Jawaban Benar: <strong>${correctLetter}. ${correctText}</strong>` : ''}
+                            </div>
+                            <div class="q-eval-explanation">
+                                <strong>Kaidah &amp; Pembahasan:</strong> ${q.exp || q.explanation || 'Pembahasan tertera pada kaidah materi kurikulum.'}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="q-top-row">
+                        <span class="q-num-badge">Nomor ${qNum}</span>
+                        <span class="q-status-tag ${isAnswered ? 'done' : ''}" id="statusTag_${idx}">
+                            <i data-lucide="${isAnswered ? 'check-circle-2' : 'circle'}" style="width:13px; height:13px;"></i>
+                            ${isAnswered ? 'Terjawab' : 'Belum Dijawab'}
+                        </span>
+                    </div>
+                    <div class="q-text-body">${q.q || q.question}</div>
+                    <div class="options-vertical-list">
+                        ${optionsHtml}
+                    </div>
+                    ${evalHtml}
+                `;
+
+                container.appendChild(card);
             });
 
             if (window.lucide) lucide.createIcons();
         }
 
-        function selectAnswer(selectedIdx, btn) {
-            if (answered) return;
-            answered = true;
-            const q = questions[currentIndex];
-            const correctIdx = q.answer !== undefined ? q.answer : (q.answerIndex || 0);
-            const buttons = document.querySelectorAll('.ans-btn');
+        // Handler saat siswa memilih opsi jawaban
+        window.handleOptionSelect = (qIdx, optIdx) => {
+            if (isSubmitted) return; // Mode evaluasi terkunci
 
-            buttons.forEach(b => b.disabled = true);
+            userAnswers[qIdx] = optIdx;
 
-            if (selectedIdx === correctIdx) {
-                btn.classList.add('correct');
-                score += 10;
-                document.getElementById('currentScore').textContent = score;
-                CendekiaApp.addXP(10, 'Jawaban Benar Kuis Pintar');
-            } else {
-                btn.classList.add('wrong');
-                if (buttons[correctIdx]) buttons[correctIdx].classList.add('correct');
+            // Simpan ke autosave draft lokal (menyertakan mode dan daftar butir soal)
+            CendekiaApp.saveGameDraft(GAME_KEY, {
+                questions: rawQuestions,
+                answers: userAnswers,
+                mode: currentMode
+            });
+
+            // Perbarui visual opsi kartu yang dipilih
+            const card = document.getElementById(`qCard_${qIdx}`);
+            if (card) {
+                card.classList.add('answered');
+                const labels = card.querySelectorAll('.option-label-card');
+                labels.forEach((lbl, idx) => {
+                    if (idx === optIdx) {
+                        lbl.classList.add('selected');
+                        const radio = lbl.querySelector('input[type="radio"]');
+                        if (radio) radio.checked = true;
+                    } else {
+                        lbl.classList.remove('selected');
+                    }
+                });
+
+                // Perbarui status tag
+                const tag = document.getElementById(`statusTag_${qIdx}`);
+                if (tag) {
+                    tag.className = 'q-status-tag done';
+                    tag.innerHTML = '<i data-lucide="check-circle-2" style="width:13px; height:13px;"></i> Terjawab';
+                    if (window.lucide) lucide.createIcons();
+                }
             }
 
-            document.getElementById('explanationText').textContent = q.exp || q.explanation || 'Pembahasan jawaban benar sesuai kaidah bahan ajar.';
-            document.getElementById('explanationBox').style.display = 'block';
+            updateProgressDisplay();
+        };
+
+        // Perbarui pill indikator jumlah soal terjawab
+        function updateProgressDisplay() {
+            const answeredCount = Object.keys(userAnswers).length;
+            const total = rawQuestions.length || 15;
+            const display = document.getElementById('answeredCountDisplay');
+            if (display) {
+                display.textContent = `${answeredCount} / ${total} Terjawab`;
+            }
+
+            const btnJump = document.getElementById('btnJumpUnanswered');
+            if (btnJump) {
+                btnJump.style.display = answeredCount >= total ? 'none' : 'inline-flex';
+            }
+        }
+
+        // Lompat otomatis ke soal pertama yang belum dijawab
+        window.jumpToFirstUnanswered = () => {
+            for (let i = 0; i < rawQuestions.length; i++) {
+                if (userAnswers[i] === undefined) {
+                    const card = document.getElementById(`qCard_${i}`);
+                    if (card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        card.style.outline = '2px solid var(--accent-blue)';
+                        setTimeout(() => { card.style.outline = 'none'; }, 1800);
+                        return;
+                    }
+                }
+            }
+        };
+
+        // Kumpulkan & Selesaikan Kuis
+        window.handleSubmitQuiz = async () => {
+            const total = rawQuestions.length;
+            const answeredCount = Object.keys(userAnswers).length;
+
+            if (answeredCount < total) {
+                const unans = total - answeredCount;
+                const confirm = await Swal.fire({
+                    title: 'Masih Ada Soal Belum Terjawab',
+                    text: `Anda baru menjawab ${answeredCount} dari ${total} soal. Terdapat ${unans} soal yang masih kosong. Tetap kumpulkan sekarang?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#003366',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, Tetap Kumpulkan',
+                    cancelButtonText: 'Periksa Kembali'
+                });
+
+                if (!confirm.isConfirmed) {
+                    jumpToFirstUnanswered();
+                    return;
+                }
+            } else {
+                const confirm = await Swal.fire({
+                    title: 'Kumpulkan Kuis?',
+                    text: 'Seluruh soal telah dijawab. Nilai dan lembar evaluasi akan dihitung secara permanen untuk hari ini.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#003366',
+                    confirmButtonText: 'Kumpulkan Sekarang',
+                    cancelButtonText: 'Periksa Dulu'
+                });
+
+                if (!confirm.isConfirmed) return;
+            }
+
+            // Hitung Skor
+            let correctCount = 0;
+            const evaluatedQuestions = rawQuestions.map((q, idx) => {
+                const selectedIdx = userAnswers[idx];
+                const correctIdx = q.answer !== undefined ? q.answer : (q.answerIndex || 0);
+                const isCorrect = selectedIdx === correctIdx;
+                if (isCorrect) correctCount++;
+
+                const opts = q.options || [];
+                return {
+                    q: q.q || q.question,
+                    options: opts,
+                    selectedIdx: selectedIdx !== undefined ? selectedIdx : -1,
+                    correctIdx: correctIdx,
+                    isCorrect: isCorrect,
+                    selectedText: selectedIdx !== undefined && opts[selectedIdx] ? opts[selectedIdx] : '(Tidak dijawab)',
+                    correctText: opts[correctIdx] || '-',
+                    exp: q.exp || q.explanation || ''
+                };
+            });
+
+            const finalScore = Math.round((correctCount / total) * 100);
+            const xpEarned = correctCount * 10;
+
+            // Catat XP ke akun siswa
+            CendekiaApp.addXP(xpEarned, 'Menyelesaikan Kuis Pintar Literasi');
+            CendekiaApp.recordGameCompleted(GAME_KEY, finalScore);
+            CendekiaApp.completeChallenge('tc_2');
+
+            // Simpan hasil kuis harian (Reset jam 00:00 WIB)
+            const resultData = {
+                score: finalScore,
+                correctCount: correctCount,
+                totalCount: total,
+                xpEarned: xpEarned,
+                questions: evaluatedQuestions
+            };
+
+            await CendekiaApp.saveGameResult(GAME_KEY, resultData);
+            CendekiaApp.clearGameDraft(GAME_KEY);
+
+            isSubmitted = true;
+            activeResultData = resultData;
+
+            // Tampilkan notifikasi keberhasilan
+            Swal.fire({
+                icon: 'success',
+                title: `Kuis Selesai! Skor: ${finalScore}/100`,
+                text: `Anda berhasil menjawab ${correctCount} dari ${total} soal dengan tepat (+${xpEarned} XP). Laporan evaluasi dan kartu nilai PDF siap diunduh!`,
+                confirmButtonColor: '#003366',
+                confirmButtonText: 'Lihat Evaluasi & Unduh PDF'
+            });
+
+            // Tampilkan Card Hasil & Mode Evaluasi
+            document.getElementById('submitActionArea').style.display = 'none';
+            document.getElementById('btnJumpUnanswered').style.display = 'none';
+            document.getElementById('resumeBanner').style.display = 'none';
+            document.getElementById('resultSummaryBox').style.display = 'block';
+
+            renderSummaryCard(resultData);
+            renderQuestionsList(true);
+
+            // Scroll ke kartu hasil di bagian atas
+            document.getElementById('resultSummaryBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        // Render informasi di card ringkasan hasil
+        function renderSummaryCard(data) {
+            document.getElementById('scoreCircle').textContent = data.score;
+            document.getElementById('resCorrectCount').textContent = `${data.correctCount} Soal`;
+            document.getElementById('resWrongCount').textContent = `${data.totalCount - data.correctCount} Soal`;
+            document.getElementById('resXpCount').textContent = `+${data.xpEarned || (data.correctCount * 10)} XP`;
+
             if (window.lucide) lucide.createIcons();
         }
 
-        function nextQuestion() {
-            currentIndex++;
-            if (currentIndex < questions.length) {
-                loadQuestion();
-            } else {
-                document.getElementById('quizBox').style.display = 'none';
-                document.getElementById('resultBox').style.display = 'block';
-                document.getElementById('finalScore').textContent = score;
-                CendekiaApp.completeChallenge('tc_2');
-                if (window.lucide) lucide.createIcons();
+        // Unduh Lembar Evaluasi & Kartu Nilai PDF
+        window.handleDownloadPDF = () => {
+            if (!activeResultData) {
+                return Swal.fire('Data Belum Siap', 'Silakan selesaikan kuis terlebih dahulu untuk mengunduh laporan PDF.', 'warning');
             }
-        }
 
-        function restartQuiz() {
-            currentIndex = 0;
-            score = 0;
-            document.getElementById('currentScore').textContent = '0';
-            document.getElementById('resultBox').style.display = 'none';
-            document.getElementById('quizBox').style.display = 'block';
-            loadQuestion();
+            const user = CendekiaApp.getUser();
+            CendekiaApp.downloadEvaluationPDF(activeResultData, user);
+        };
+
+        // Hitung mundur menuju jam 00:00 WIB
+        function startWIBCountdownTimer() {
+            const updateTimer = () => {
+                const formatted = CendekiaApp.formatCountdownToMidnightWIB();
+                const el = document.getElementById('countdownText');
+                if (el) el.textContent = formatted;
+                const els = document.querySelectorAll('.resetCountdownText');
+                els.forEach(e => e.textContent = formatted);
+            };
+
+            updateTimer();
+            setInterval(updateTimer, 1000);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');
-            initQuizEngine();
+            initQuiz();
         });
     </script>
 </body>

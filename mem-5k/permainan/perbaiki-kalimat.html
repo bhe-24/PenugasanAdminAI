@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
     <link rel="stylesheet" href="/mem-5k/central.css">
 
     <style>
@@ -34,7 +36,6 @@
 
     <div class="mobile-app-wrapper">
 
-        <!-- HEADER -->
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
                 <a href="/mem-5k/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
@@ -44,60 +45,41 @@
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
                         <i data-lucide="spell-check" style="width:18px; height:18px; color:#e11d48;"></i> Perbaiki Kalimat
                     </h1>
-                    <div class="header-brand-sub" id="kalimatSubMeta">Latihan Sinkron 24 Jam</div>
+                    <div class="header-brand-sub">10 Koreksi EYD V &bull; Reset Jam 00:00 WIB</div>
                 </div>
             </div>
-            <div style="background:#ffe4e6; color:#e11d48; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
-                Skor: <span id="gameScore">0</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span id="modeBadgePill" style="font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:var(--radius-full); background:#ede9fe; color:#6d28d9;">Santai</span>
+                <div style="background:#ffe4e6; color:#be123c; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                    Skor: <span id="gameScore">0</span>
+                </div>
             </div>
         </header>
 
         <main class="app-body">
 
-            <!-- LOADING STATE -->
             <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
                 <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
-                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Perbaikan Kalimat...</h3>
-                <p id="loadingSubtitle" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">Memeriksa paket soal 24 jam dari kurikulum Admin...</p>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Menyiapkan Latihan Kalimat...</h3>
+                <p style="font-size:0.75rem; color:var(--text-muted);">Menyeleksi 10 soal koreksi kalimat baku...</p>
             </div>
 
-            <!-- EMPTY STATE -->
-            <div id="gameEmptyState" style="display:none; text-align:center; padding:40px 20px; background:white; border-radius:var(--radius-md); border:1px dashed #cbd5e1;">
-                <div style="width:54px; height:54px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-                    <i data-lucide="alert-circle" style="width:28px; height:28px;"></i>
-                </div>
-                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Latihan Belum Tersedia</h3>
-                <p id="emptyReason" style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
-                    Admin belum mengunggah bahan ajar materi di sistem. Soal latihan harian belum dapat digenerate.
-                </p>
-                <a href="/mem-5k/bermain.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; padding:8px 18px; font-size:0.75rem;">
-                    <i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Kembali ke Menu Bermain
-                </a>
-            </div>
-
-            <!-- GAME CONTAINER -->
             <div id="gameContainer" style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm); display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); font-weight:700;">
-                    <span>Soal <span id="eIdx">1</span> dari <span id="eTotal">5</span></span>
+                    <span>Soal <span id="eIdx">1</span> dari <span id="eTotal">10</span></span>
                     <span style="color:#e11d48;"><i data-lucide="award" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> +20 XP</span>
                 </div>
 
-                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-top:10px;">Kalimat yang Mengandung Kekeliruan:</div>
+                <div style="font-size:0.74rem; font-weight:700; color:var(--text-muted); margin-top:10px;">Kalimat yang Mengandung Kekeliruan:</div>
                 <div class="err-sentence-card" id="errText">...</div>
-
-                <div style="font-size:0.78rem; font-weight:800; color:var(--primary); margin-bottom:10px;">
-                    Pilih Bentuk Perbaikan yang Paling Tepat &amp; Efektif:
-                </div>
-
+                <div style="font-size:0.78rem; font-weight:800; color:var(--primary); margin-bottom:10px;">Pilih Perbaikan Kalimat Paling Tepat &amp; Efektif:</div>
                 <div id="fixOptions"></div>
-
                 <div id="feedbackBox" style="margin-top:14px; display:none; padding:12px; border-radius:var(--radius-sm); font-size:0.76rem; line-height:1.45;"></div>
             </div>
 
             <div class="app-footer-copyright">
                 &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
             </div>
-
         </main>
 
     </div>
@@ -107,105 +89,211 @@
         let exercises = [];
         let eIndex = 0;
         let score = 0;
+        let playedRecords = [];
+        let currentMode = 'santai';
+        let qStartTime = Date.now();
+        let locked = false;
 
         async function initGameEngine() {
             const loadingState = document.getElementById('gameLoadingState');
-            const emptyState = document.getElementById('gameEmptyState');
             const gameContainer = document.getElementById('gameContainer');
-            const loadingSub = document.getElementById('loadingSubtitle');
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const pill = document.getElementById('modeBadgePill');
+            if (pill) pill.textContent = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
+
+            const completed = CendekiaApp.getGameResult('perbaiki_kalimat');
+            if (completed) {
+                loadingState.style.display = 'none';
+                gameContainer.style.display = 'block';
+                showCompletedScreen(completed);
+                return;
+            }
 
             await CendekiaApp.ensureDailyGame('perbaiki_kalimat', {
-                onLoading: (msg) => {
-                    loadingState.style.display = 'block';
-                    emptyState.style.display = 'none';
-                    gameContainer.style.display = 'none';
-                    if (loadingSub) loadingSub.textContent = msg;
-                },
-                onNoMaterials: (reason) => {
+                mode: currentMode,
+                onReady: (items, meta) => {
                     loadingState.style.display = 'none';
-                    gameContainer.style.display = 'none';
-                    emptyState.style.display = 'block';
-                    document.getElementById('emptyReason').textContent = reason;
-                    if (window.lucide) lucide.createIcons();
-                },
-                onReady: (gameExercises, poolMeta) => {
-                    loadingState.style.display = 'none';
-                    emptyState.style.display = 'none';
                     gameContainer.style.display = 'block';
+                    exercises = items || [];
 
-                    exercises = gameExercises || [];
-
-                    const expHours = poolMeta?.expiresAt ? Math.max(1, Math.round((poolMeta.expiresAt - Date.now()) / 3600000)) : 24;
-                    document.getElementById('kalimatSubMeta').textContent = `Aktif Berlaku (${expHours} Jam Tersisa)`;
-
+                    const draft = (meta && meta.draftData) || CendekiaApp.getGameDraft('perbaiki_kalimat');
+                    if (draft && draft.currentIndex > 0 && draft.currentIndex < exercises.length) {
+                        eIndex = draft.currentIndex;
+                        score = draft.score || 0;
+                        playedRecords = draft.playedRecords || [];
+                        document.getElementById('gameScore').textContent = score;
+                        setTimeout(() => CendekiaApp.showEncouragementToast(`Melanjutkan Perbaiki Kalimat ke-${eIndex + 1}! ✍️`), 400);
+                    } else {
+                        CendekiaApp.saveGameDraft('perbaiki_kalimat', {
+                            questions: exercises,
+                            currentIndex: 0,
+                            score: 0,
+                            playedRecords: [],
+                            mode: currentMode
+                        });
+                    }
                     loadExercise();
                 }
             });
         }
 
         function loadExercise() {
-            if (!exercises || exercises.length === 0) return;
-            const item = exercises[eIndex];
+            if (eIndex >= exercises.length) { finishGameRound(); return; }
+            locked = false;
+            qStartTime = Date.now();
+            const cur = exercises[eIndex];
             document.getElementById('eIdx').textContent = eIndex + 1;
             document.getElementById('eTotal').textContent = exercises.length;
-            document.getElementById('errText').textContent = `"${item.err || item.incorrect || ''}"`;
+            document.getElementById('errText').textContent = `"${cur.err || cur.incorrect || ''}"`;
             document.getElementById('feedbackBox').style.display = 'none';
 
-            const container = document.getElementById('fixOptions');
-            container.innerHTML = '';
+            // Acak posisi opsi tapi tetap melacak indeks yang benar
+            const rawOpts = cur.options || [];
+            const correctRawIdx = cur.correct !== undefined ? cur.correct : 0;
+            const correctSentence = rawOpts[correctRawIdx] || cur.corrected || '';
+            const indexedOpts = rawOpts.map((text, idx) => ({ text, isCorrect: idx === correctRawIdx }));
+            for (let i = indexedOpts.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indexedOpts[i], indexedOpts[j]] = [indexedOpts[j], indexedOpts[i]];
+            }
 
-            const opts = item.options || [];
-            opts.forEach((opt, idx) => {
+            const optWrap = document.getElementById('fixOptions');
+            optWrap.innerHTML = '';
+            indexedOpts.forEach((optObj, idx) => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'fix-opt-btn';
-                btn.textContent = `${String.fromCharCode(65 + idx)}. ${opt}`;
-                btn.onclick = () => submitFix(idx, btn);
-                container.appendChild(btn);
+                btn.textContent = `${String.fromCharCode(65 + idx)}. ${optObj.text}`;
+                btn.onclick = () => selectFix(optObj, indexedOpts, correctSentence);
+                optWrap.appendChild(btn);
             });
-
             if (window.lucide) lucide.createIcons();
         }
 
-        function submitFix(chosenIdx, btn) {
-            const item = exercises[eIndex];
-            const correctIdx = item.correct !== undefined ? item.correct : 0;
-            const buttons = document.querySelectorAll('.fix-opt-btn');
-            buttons.forEach(b => b.disabled = true);
+        function selectFix(chosenObj, allOpts, correctSentence) {
+            if (locked) return;
+            locked = true;
+            const cur = exercises[eIndex];
+            const isCorrect = chosenObj.isCorrect;
+
+            document.querySelectorAll('.fix-opt-btn').forEach((b, i) => {
+                b.disabled = true;
+                if (allOpts[i].isCorrect) b.classList.add('correct');
+                else if (allOpts[i].text === chosenObj.text && !isCorrect) b.classList.add('wrong');
+            });
+
+            if (isCorrect) {
+                const fast = (Date.now() - qStartTime) / 1000 <= 8;
+                const pts = fast ? 25 : 20;
+                score += pts;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(pts, fast ? 'Perbaiki Kalimat Bonus Cepat' : 'Perbaiki Kalimat Tepat');
+            }
+
+            playedRecords.push({
+                q: `Kalimat awal: "${cur.err || cur.incorrect || ''}"`,
+                isCorrect,
+                selectedText: chosenObj.text,
+                correctText: correctSentence,
+                exp: cur.exp || cur.explanation || ''
+            });
+
+            CendekiaApp.saveGameDraft('perbaiki_kalimat', {
+                questions: exercises,
+                currentIndex: eIndex + 1,
+                score,
+                playedRecords,
+                mode: currentMode
+            });
 
             const fb = document.getElementById('feedbackBox');
             fb.style.display = 'block';
-
-            if (chosenIdx === correctIdx) {
-                btn.classList.add('correct');
-                score += 20;
-                document.getElementById('gameScore').textContent = score;
-                CendekiaApp.addXP(20, 'Perbaikan Kalimat Tepat');
-                fb.style.background = '#ecfdf5';
-                fb.style.color = '#065f46';
-                fb.innerHTML = `<strong>Tepat Sekali! 🎉</strong> ${item.exp || item.explanation || ''}<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextExercise()">Kalimat Berikutnya &rarr;</button>`;
-            } else {
-                btn.classList.add('wrong');
-                if (buttons[correctIdx]) buttons[correctIdx].classList.add('correct');
-                fb.style.background = '#fef2f2';
-                fb.style.color = '#991b1b';
-                fb.innerHTML = `Kurang tepat. ${item.exp || item.explanation || ''}<br><br>
-                    <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.75rem;" onclick="nextExercise()">Lanjut &rarr;</button>`;
-            }
+            fb.style.background = isCorrect ? '#ecfdf5' : '#fef2f2';
+            fb.style.color = isCorrect ? '#065f46' : '#991b1b';
+            fb.style.border = `1px solid ${isCorrect ? '#a7f3d0' : '#fecaca'}`;
+            fb.innerHTML = `
+                <strong>${isCorrect ? 'Sempurna! 🎉' : 'Belum Tepat'}</strong><br>
+                ${cur.exp || `Bentuk efektif: ${correctSentence}`}<br><br>
+                <button type="button" class="btn-primary-challenge" style="padding:7px 14px; font-size:0.75rem;" onclick="nextExercise()">
+                    ${eIndex + 1 < exercises.length ? 'Soal Berikutnya &rarr;' : 'Lihat Evaluasi Lengkap &rarr;'}
+                </button>
+            `;
         }
 
         function nextExercise() {
             eIndex++;
-            if (eIndex < exercises.length) {
-                loadExercise();
-            } else {
-                const fb = document.getElementById('feedbackBox');
-                fb.style.background = '#f0fdf4';
-                fb.style.color = '#166534';
-                fb.innerHTML = `<strong>Luar Biasa! Seluruh Kalimat Selesai Diperiksa! 🏆</strong><br>Skor Akhir: <b>${score}</b>`;
-            }
+            loadExercise();
         }
+
+        async function finishGameRound() {
+            const total = exercises.length || 10;
+            const correctCount = playedRecords.filter(r => r.isCorrect).length;
+            const finalScore = Math.min(100, Math.round((correctCount / total) * 100));
+            const resultData = { score: finalScore, correctCount, totalCount: total, xpEarned: score, questions: playedRecords, mode: currentMode };
+            await CendekiaApp.saveGameResult('perbaiki_kalimat', resultData);
+            CendekiaApp.clearGameDraft('perbaiki_kalimat');
+            CendekiaApp.completeChallenge('tc_3');
+            showCompletedScreen(resultData);
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('gameContainer');
+            const total = data.totalCount || 10;
+            const correct = data.correctCount || 0;
+            const wrong = total - correct;
+            const records = data.questions || [];
+
+            let reviewHtml = records.map((item, idx) => `
+                <div style="background:white; border-radius:var(--radius-sm); border:1px solid ${item.isCorrect ? '#a7f3d0' : '#fecaca'}; padding:12px; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="font-size:0.7rem; font-weight:800; background:var(--primary); color:white; padding:2px 8px; border-radius:4px;">Kalimat #${idx + 1}</span>
+                        <span style="font-size:0.68rem; font-weight:800; color:${item.isCorrect ? '#059669' : '#dc2626'};">${item.isCorrect ? 'Benar ✓' : 'Salah ✗'}</span>
+                    </div>
+                    <div style="font-size:0.74rem; color:#9f1239; margin-bottom:6px;">${item.q}</div>
+                    <div style="font-size:0.72rem; background:${item.isCorrect ? '#f0fdf4' : '#fef2f2'}; padding:6px 10px; border-radius:6px; margin-bottom:5px; color:${item.isCorrect ? '#166534' : '#991b1b'};">
+                        ${item.isCorrect ? `<b>Jawaban Anda:</b> ${item.selectedText} ✓` : `<b>Jawaban Anda:</b> ${item.selectedText}<br><b>Perbaikan Baku:</b> ${item.correctText}`}
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); font-style:italic;">${item.exp || ''}</div>
+                </div>
+            `).join('');
+
+            let vocabHtml = records.map(item => `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
+                    <strong style="font-size:0.8rem; color:var(--primary); display:block; margin-bottom:3px;">${item.correctText}</strong>
+                    <div style="font-size:0.7rem; color:var(--text-body);">${item.exp || '-'}</div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div style="text-align:center; padding:14px 6px 18px; border-bottom:1px solid #e2e8f0; margin-bottom:16px;">
+                    <div style="width:76px; height:76px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.85rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; border:3px solid #a7f3d0;">${data.score || 0}</div>
+                    <h2 style="font-size:1.12rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Hasil Perbaiki Kalimat</h2>
+                    <div style="font-size:0.74rem; color:#059669; font-weight:700; margin-bottom:12px;">Selesai Dikerjakan Hari Ini &bull; Mode: <b>${data.mode || 'Santai'}</b></div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;">
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">Benar</div><div style="font-size:1rem; font-weight:800; color:#059669;">${correct}</div></div>
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">Salah</div><div style="font-size:1rem; font-weight:800; color:#dc2626;">${wrong}</div></div>
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">XP</div><div style="font-size:1rem; font-weight:800; color:#7c3aed;">+${data.xpEarned || 0}</div></div>
+                    </div>
+                    <button type="button" class="btn-primary-challenge" style="width:100%; padding:11px; margin-bottom:8px;" onclick="downloadKalimatPDF()">
+                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                    </button>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">Reset kembali jam <strong>00:00 WIB</strong> (<span class="resetCountdownText">--:--:--</span>)</div>
+                </div>
+                <h3 style="font-size:0.86rem; font-weight:800; color:var(--primary); margin-bottom:10px;">Lembar Pembahasan Kalimat (${total} Butir)</h3>
+                ${reviewHtml}
+                <h3 style="font-size:0.86rem; font-weight:800; color:var(--primary); margin:16px 0 10px;">Koleksi Kaidah Kalimat Efektif</h3>
+                <div style="display:flex; flex-direction:column; gap:8px;">${vocabHtml}</div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            const tick = () => document.querySelectorAll('.resetCountdownText').forEach(el => el.textContent = CendekiaApp.formatCountdownToMidnightWIB());
+            tick(); setInterval(tick, 1000);
+        }
+
+        window.downloadKalimatPDF = () => {
+            const res = CendekiaApp.getGameResult('perbaiki_kalimat');
+            if (res) CendekiaApp.downloadEvaluationPDF({ ...res, title: 'Laporan Evaluasi Pembelajaran - Perbaiki Kalimat (Member 5K)' }, CendekiaApp.getUser());
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('bermain');

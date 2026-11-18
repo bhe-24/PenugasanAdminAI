@@ -7,6 +7,10 @@
  */
 
 const CendekiaApp = (function () {
+    const IS_MEM_5K = typeof window !== 'undefined' && window.location && window.location.pathname.startsWith('/mem-5k');
+    const PORTAL_PREFIX = IS_MEM_5K ? '/mem-5k' : '/mem-free';
+    const MEMBERSHIP_DURATION_DAYS = 40;
+
     const STORAGE_KEY_USER = 'cendekia_free_user';
     const STORAGE_KEY_WORKS = 'cendekia_free_works';
     const STORAGE_KEY_IDEAS = 'cendekia_free_ideas';
@@ -172,6 +176,11 @@ const CendekiaApp = (function () {
                 if (l.nis || l.nomorInduk || l.idSiswa) user.nis = l.nis || l.nomorInduk || l.idSiswa;
                 if (l.ips !== undefined) user.ips = l.ips;
                 if (typeof l.xp === 'number' && l.xp > (user.xp || 0)) user.xp = l.xp;
+                if (l.tier) user.tier = l.tier;
+                if (l.packageId) user.packageId = l.packageId;
+                if (l.packageName) user.packageName = l.packageName;
+                if (l.membershipStartedAt !== undefined) user.membershipStartedAt = l.membershipStartedAt;
+                if (l.membershipExpiresAt !== undefined) user.membershipExpiresAt = l.membershipExpiresAt;
             }
 
             // Fallback pembacaan foto mandiri dari localStorage
@@ -186,6 +195,14 @@ const CendekiaApp = (function () {
             if (standaloneName && (!user.name || user.name === 'Siswa Cendekia')) user.name = standaloneName;
             const standaloneSem = localStorage.getItem('user_semester');
             if (standaloneSem) user.semester = parseInt(standaloneSem) || user.semester || 1;
+            const standalonePkg = localStorage.getItem('user_package');
+            if (standalonePkg && !user.packageId) user.packageId = standalonePkg;
+
+            // Pastikan label tier konsisten di portal mem-5k jika packageId 5k
+            if ((user.packageId === '5k' || IS_MEM_5K) && (!user.tier || user.tier === 'Member Free') && user.packageId !== 'free') {
+                user.tier = 'Member 5K';
+                user.packageId = '5k';
+            }
 
         } catch (e) {}
 
@@ -193,7 +210,7 @@ const CendekiaApp = (function () {
         if (user.photoURL && !user.photo) user.photo = user.photoURL;
         if (user.photo && !user.photoURL) user.photoURL = user.photo;
 
-        // Hitung streak otomatis
+        // Hitung streak otomatis berbasis kalender WIB
         checkStreak(user);
 
         // Selaraskan Level & Title dengan XP aktual secara presisi
@@ -211,7 +228,73 @@ const CendekiaApp = (function () {
         return user;
     }
 
-    function saveUser(user) {
+    let _cloudSyncTimer = null;
+    function scheduleCloudMemorySync() {
+        if (_cloudSyncTimer) clearTimeout(_cloudSyncTimer);
+        _cloudSyncTimer = setTimeout(() => {
+            syncMemoryToFirestore().catch(() => {});
+        }, 900);
+    }
+
+    async function syncMemoryToFirestore() {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb || !fb.auth || !fb.auth.currentUser) return;
+            const uid = fb.auth.currentUser.uid;
+            const user = getUser();
+            const todayKey = getTodayDateKeyWIB();
+
+            // 1. Update ringkasan progres & streak pada dokumen utama users/{uid}
+            await fb.setDoc(fb.doc(fb.db, "users", uid), {
+                xp: user.xp || 0,
+                level: user.level || 1,
+                levelTitle: user.levelTitle || LEVELS[0].title,
+                streak: user.streak || 1,
+                streakStatus: user.streakStatus || 'active',
+                lastActiveDate: user.lastActiveDate || todayKey,
+                lastVisitDate: user.lastVisitDate || user.lastActiveDate || todayKey,
+                visitDates: Array.isArray(user.visitDates) ? user.visitDates.slice(-60) : [todayKey],
+                badges: Array.isArray(user.badges) ? user.badges : [],
+                stats: user.stats || {},
+                lastActive: new Date().toISOString()
+            }, { merge: true });
+
+            // 2. Simpan memori lengkap (riwayat aktivitas, karya, ide, tantangan hari ini, hasil game hari ini)
+            let completedToday = {};
+            try {
+                completedToday = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + todayKey) || '{}');
+            } catch (e) {}
+
+            let readToday = null;
+            try {
+                readToday = JSON.parse(localStorage.getItem('cendekia_read_today_' + todayKey) || 'null');
+            } catch (e) {}
+
+            const allGameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
+            const todayResults = {};
+            allGameKeys.forEach(gk => {
+                const r = getGameResult(gk);
+                if (r) todayResults[gk] = r;
+            });
+
+            await fb.setDoc(fb.doc(fb.db, "mem_user_memory", uid), {
+                uid,
+                email: user.email || fb.auth.currentUser.email || '',
+                history: getHistory().slice(0, 40),
+                works: getWorks().slice(0, 50),
+                ideas: getIdeas().slice(0, 50),
+                todayDateKey: todayKey,
+                completedChallengesToday: completedToday,
+                readToday: readToday,
+                gameResultsToday: todayResults,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+        } catch (err) {
+            console.warn('[Cendekia Central] Cloud memory sync warn:', err);
+        }
+    }
+
+    function saveUser(user, skipCloudSync = false) {
         try {
             // Pastikan properti photo dan photoURL sinkron
             if (user.photoURL && !user.photo) user.photo = user.photoURL;
@@ -223,6 +306,7 @@ const CendekiaApp = (function () {
             if (user.semester) localStorage.setItem('user_semester', user.semester);
             if (user.name) localStorage.setItem('user_name', user.name);
             if (user.photoURL) localStorage.setItem('user_photo', user.photoURL);
+            if (user.packageId) localStorage.setItem('user_package', user.packageId);
 
             try {
                 const legacy = localStorage.getItem('cendekia_user');
@@ -238,35 +322,242 @@ const CendekiaApp = (function () {
                 if (user.tanggalLahir) legObj.tanggalLahir = user.tanggalLahir;
                 if (user.alamat) legObj.alamat = user.alamat;
                 if (user.bioSingkat) legObj.bioSingkat = user.bioSingkat;
+                if (user.tier) legObj.tier = user.tier;
+                if (user.packageId) legObj.packageId = user.packageId;
+                if (user.packageName) legObj.packageName = user.packageName;
+                if (user.membershipStartedAt !== undefined) legObj.membershipStartedAt = user.membershipStartedAt;
+                if (user.membershipExpiresAt !== undefined) legObj.membershipExpiresAt = user.membershipExpiresAt;
+                if (typeof user.xp === 'number') legObj.xp = user.xp;
+                if (typeof user.streak === 'number') legObj.streak = user.streak;
                 localStorage.setItem('cendekia_user', JSON.stringify(legObj));
             } catch(e) {}
+
+            if (!skipCloudSync) {
+                scheduleCloudMemorySync();
+            }
         } catch (e) {}
     }
 
-    // 2. STREAK ENGINE (BERBASIS TANGGAL REALTIME WIB)
+    // 2. STREAK API ENGINE BERTINGKAT (BERBASIS KALENDER REALTIME WIB)
+    // - Masuk hari berturut-turut (diff=1): Api menyala & hari +1
+    // - Tidak berkunjung 1 hari (diff=2): Api sempat mati/redup, saat masuk dinyalakan kembali tanpa hangus
+    // - Tidak berkunjung 2 hari penuh (diff>=3): Api padam total & mulai lagi dari 1 hari
+    function parseYMDToUTC(ymd) {
+        if (!ymd || typeof ymd !== 'string') return NaN;
+        const parts = ymd.split('-').map(Number);
+        if (parts.length !== 3 || parts.some(isNaN)) return NaN;
+        return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function getStreakFlameInfo(streak = 1, status = 'active') {
+        const count = Math.max(1, parseInt(streak) || 1);
+        const st = (status || 'active').toLowerCase();
+
+        if (st === 'dead' || st === 'extinguished') {
+            return {
+                tierLevel: 0,
+                tierName: 'Api Padam',
+                emoji: '🕯️',
+                flameColor: '#94a3b8',
+                textColor: '#cbd5e1',
+                bgStyle: 'rgba(148, 163, 184, 0.18)',
+                borderStyle: 'rgba(148, 163, 184, 0.5)',
+                glowStyle: 'none',
+                statusLabel: 'Padam (Mulai Lagi)',
+                isLit: false
+            };
+        }
+
+        if (count >= 30) {
+            return {
+                tierLevel: 5,
+                tierName: 'Api Abadi Legendaris',
+                emoji: '👑🔥',
+                flameColor: '#fde047',
+                textColor: '#fef08a',
+                bgStyle: 'linear-gradient(135deg, rgba(124, 58, 237, 0.85), rgba(212, 175, 55, 0.85))',
+                borderStyle: '#fde047',
+                glowStyle: '0 0 14px rgba(212, 175, 55, 0.65)',
+                statusLabel: 'Menyala Abadi',
+                isLit: true
+            };
+        }
+        if (count >= 14) {
+            return {
+                tierLevel: 4,
+                tierName: 'Api Biru Cendekia',
+                emoji: '💙🔥',
+                flameColor: '#38bdf8',
+                textColor: '#e0f2fe',
+                bgStyle: 'linear-gradient(135deg, rgba(2, 132, 199, 0.85), rgba(14, 165, 233, 0.7))',
+                borderStyle: '#7dd3fc',
+                glowStyle: '0 0 12px rgba(56, 189, 248, 0.55)',
+                statusLabel: 'Menyala Biru',
+                isLit: true
+            };
+        }
+        if (count >= 7) {
+            return {
+                tierLevel: 3,
+                tierName: 'Api Membara',
+                emoji: '🔥',
+                flameColor: '#fb923c',
+                textColor: '#ffedd5',
+                bgStyle: 'linear-gradient(135deg, rgba(220, 38, 38, 0.82), rgba(234, 88, 12, 0.78))',
+                borderStyle: '#fdba74',
+                glowStyle: '0 0 12px rgba(239, 68, 68, 0.5)',
+                statusLabel: 'Membara Hebat',
+                isLit: true
+            };
+        }
+        if (count >= 3) {
+            return {
+                tierLevel: 2,
+                tierName: 'Api Menyala',
+                emoji: '🔥',
+                flameColor: '#f97316',
+                textColor: '#fef3c7',
+                bgStyle: 'linear-gradient(135deg, rgba(234, 88, 12, 0.7), rgba(245, 158, 11, 0.6))',
+                borderStyle: '#fbbf24',
+                glowStyle: '0 0 10px rgba(249, 115, 22, 0.45)',
+                statusLabel: 'Menyala Terang',
+                isLit: true
+            };
+        }
+
+        return {
+            tierLevel: 1,
+            tierName: st === 'reset' ? 'Api Baru Dimulai' : (st === 'rekindled' ? 'Api Dinyalakan Kembali' : 'Percikan Awal'),
+            emoji: '🔥',
+            flameColor: '#fbbf24',
+            textColor: '#fef08a',
+            bgStyle: 'rgba(245, 158, 11, 0.24)',
+            borderStyle: 'rgba(251, 191, 36, 0.75)',
+            glowStyle: '0 0 8px rgba(245, 158, 11, 0.35)',
+            statusLabel: st === 'rekindled' ? 'Menyala Kembali' : 'Menyala',
+            isLit: true
+        };
+    }
+
+    let _streakToastShownKey = null;
     function checkStreak(user) {
         const today = getTodayDateKeyWIB ? getTodayDateKeyWIB() : new Date().toISOString().split('T')[0];
-        if (!user.lastActiveDate) {
+        if (!Array.isArray(user.visitDates)) user.visitDates = [];
+
+        const lastRecorded = user.lastVisitDate || user.lastActiveDate;
+        if (!lastRecorded) {
+            user.lastVisitDate = today;
             user.lastActiveDate = today;
-            user.streak = 1;
+            user.streak = Math.max(1, parseInt(user.streak) || 1);
+            user.streakStatus = 'active';
+            if (!user.visitDates.includes(today)) user.visitDates.push(today);
             saveUser(user);
             return;
         }
 
-        if (user.lastActiveDate !== today) {
-            const last = new Date(user.lastActiveDate);
-            const now = new Date(today);
-            const diffDays = Math.round((now - last) / (1000 * 60 * 60 * 24));
+        if (lastRecorded !== today) {
+            const lastMs = parseYMDToUTC(lastRecorded);
+            const nowMs = parseYMDToUTC(today);
+            const diffDays = (!isNaN(lastMs) && !isNaN(nowMs))
+                ? Math.round((nowMs - lastMs) / (1000 * 60 * 60 * 24))
+                : 0;
 
             if (diffDays === 1) {
-                user.streak += 1;
-            } else if (diffDays > 1) {
-                // Pertahankan api keaktifan, reset ke 1
+                // Berkunjung lagi keesokan harinya -> api menyala & bertambah +1 hari
+                user.streak = (parseInt(user.streak) || 1) + 1;
+                user.streakStatus = 'active';
+                if (_streakToastShownKey !== today && typeof document !== 'undefined') {
+                    _streakToastShownKey = today;
+                    setTimeout(() => showEncouragementToast(`Api menyala! Kunjungan beruntun ${user.streak} Hari 🔥`), 700);
+                }
+            } else if (diffDays === 2) {
+                // Tidak berkunjung 1 hari penuh -> api sempat mati sementara, dinyalakan kembali saat masuk hari ini
+                user.streak = Math.max(1, parseInt(user.streak) || 1);
+                user.streakStatus = 'rekindled';
+                if (_streakToastShownKey !== today && typeof document !== 'undefined') {
+                    _streakToastShownKey = today;
+                    setTimeout(() => showEncouragementToast(`Api sempat mati 1 hari, berhasil dinyalakan lagi (${user.streak} Hari)! 🔥`), 700);
+                }
+            } else if (diffDays >= 3) {
+                // 2 hari penuh atau lebih tidak berkunjung -> api padam total & mulai lagi dari 1
+                user.previousStreak = user.streak || 1;
                 user.streak = 1;
+                user.streakStatus = 'reset';
+                if (_streakToastShownKey !== today && typeof document !== 'undefined') {
+                    _streakToastShownKey = today;
+                    setTimeout(() => showEncouragementToast(`Api padam karena 2 hari tidak berkunjung. Mulai nyalakan lagi dari Hari ke-1! 🔥`), 700);
+                }
             }
+
+            user.lastVisitDate = today;
             user.lastActiveDate = today;
+            if (!user.visitDates.includes(today)) {
+                user.visitDates.push(today);
+                if (user.visitDates.length > 60) user.visitDates = user.visitDates.slice(-60);
+            }
             saveUser(user);
+        } else {
+            if (!user.streak || user.streak < 1) user.streak = 1;
+            if (!user.streakStatus) user.streakStatus = 'active';
+            if (!user.visitDates.includes(today)) {
+                user.visitDates.push(today);
+                saveUser(user, true);
+            }
         }
+    }
+
+    function showStreakInfoModal() {
+        const existing = document.getElementById('cendekiaStreakInfoModal');
+        if (existing) existing.remove();
+        const user = getUser();
+        const info = getStreakFlameInfo(user.streak, user.streakStatus);
+
+        const overlay = document.createElement('div');
+        overlay.id = 'cendekiaStreakInfoModal';
+        overlay.className = 'app-modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.zIndex = '9999';
+        overlay.innerHTML = `
+            <div class="app-modal-card" style="text-align:left; max-width:360px;">
+                <div style="text-align:center; margin-bottom:12px;">
+                    <div style="width:62px; height:62px; border-radius:50%; background:${info.bgStyle}; border:2px solid ${info.borderStyle}; box-shadow:${info.glowStyle}; color:${info.flameColor}; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:1.6rem;">
+                        <i data-lucide="flame" style="width:32px; height:32px; color:${info.flameColor};"></i>
+                    </div>
+                    <span style="font-size:0.65rem; font-weight:800; color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:99px; text-transform:uppercase;">
+                        Tingkat ${info.tierLevel} &bull; ${info.tierName}
+                    </span>
+                    <h3 style="font-size:1.25rem; font-weight:800; color:var(--primary); margin:8px 0 2px;">${user.streak || 1} Hari Berturut-turut</h3>
+                    <div style="font-size:0.72rem; color:#059669; font-weight:700;">Status Hari Ini: ${info.statusLabel} ✓</div>
+                </div>
+
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; font-size:0.72rem; color:#334155; line-height:1.55; margin-bottom:12px;">
+                    <strong style="color:var(--primary); display:block; margin-bottom:4px;">Aturan Nyala Api Keaktifan:</strong>
+                    • <b>Masuk tiap hari:</b> Api menyala &amp; hari bertambah <b>+1</b>.<br>
+                    • <b>Absen 1 hari:</b> Api sempat mati sementara (segera masuk untuk menyalakannya lagi).<br>
+                    • <b>2 hari tidak berkunjung:</b> Api <b>padam total</b> &amp; hitungan mulai lagi dari <b>1 Hari</b>.
+                </div>
+
+                <div style="font-size:0.68rem; color:#475569; margin-bottom:14px;">
+                    <strong style="color:var(--primary); display:block; margin-bottom:5px;">Tingkatan Api:</strong>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:4px 7px;"><b>1–2 Hr:</b> Percikan Awal</div>
+                        <div style="background:#fff7ed; border:1px solid #fdba74; border-radius:6px; padding:4px 7px;"><b>3–6 Hr:</b> Api Menyala</div>
+                        <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:4px 7px;"><b>7–13 Hr:</b> Api Membara</div>
+                        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:4px 7px;"><b>14–29 Hr:</b> Api Biru</div>
+                    </div>
+                    <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:6px; padding:4px 7px; margin-top:5px; text-align:center;">
+                        <b>30+ Hari:</b> 👑 Api Abadi Legendaris
+                    </div>
+                </div>
+
+                <button type="button" class="btn-modal-primary" style="background:var(--primary); width:100%;" onclick="document.getElementById('cendekiaStreakInfoModal').remove()">
+                    Siap Jaga Api Setiap Hari!
+                </button>
+            </div>
+        `;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+        if (window.lucide) lucide.createIcons();
     }
 
     // 3. GAMIFIKASI: XP, LEVEL UP & TOAST
@@ -459,18 +750,19 @@ const CendekiaApp = (function () {
             const mm = String(now.getMonth() + 1).padStart(2, '0');
             const dd = String(now.getDate()).padStart(2, '0');
             history.unshift({
-                id: 'act_' + Date.now(),
+                id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
                 title,
                 icon,
                 type,
                 value,
                 time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
                 date: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
-                isoDate: `${yyyy}-${mm}-${dd}`,
+                isoDate: getTodayDateKeyWIB ? getTodayDateKeyWIB() : `${yyyy}-${mm}-${dd}`,
                 timestamp: Date.now()
             });
             if (history.length > 40) history = history.slice(0, 40);
             localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+            scheduleCloudMemorySync();
         } catch (e) {}
     }
 
@@ -561,12 +853,18 @@ const CendekiaApp = (function () {
             });
         }
 
-        // 4. Aktivitas dari game latihan, modul bacaan, & tantangan harian
-        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki'];
+        // 4. Aktivitas dari game latihan, modul bacaan, tantangan harian, & kunjungan
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
+        const userObj = getUser();
+        const visitDates = Array.isArray(userObj.visitDates) ? userObj.visitDates : [];
+
         dayDates.forEach((dateStr, idx) => {
+            if (visitDates.includes(dateStr) && dayCounts[idx] === 0) {
+                dayCounts[idx] += 1;
+            }
             gameKeys.forEach(gk => {
                 try {
-                    if (localStorage.getItem(`cendekia_game_result_${gk}_${dateStr}`)) {
+                    if (localStorage.getItem(`cendekia_result_${gk}_${dateStr}`) || localStorage.getItem(`cendekia_game_result_${gk}_${dateStr}`)) {
                         dayCounts[idx]++;
                     }
                 } catch(e) {}
@@ -720,11 +1018,15 @@ const CendekiaApp = (function () {
             } catch(e) {}
         }
 
-        // 3. Cek Game Kata (Tebak/Susun/Teka-Teki)
+        // 3. Cek Game Kata & Sastra
         const tebakRes = getGameResult('tebak_kata');
         const susunRes = getGameResult('susun_kata');
         const tekaRes = getGameResult('teka_teki');
-        const isGameDone = !!(tebakRes || susunRes || tekaRes) || !!completedMap['tc_game'] || !!completedMap['tc_3'];
+        const sastraRes = getGameResult('tebak_sastra');
+        const sambungRes = getGameResult('sambung_cerita');
+        const kalimatRes = getGameResult('perbaiki_kalimat');
+        const cepatRes = getGameResult('tantangan_cepat');
+        const isGameDone = !!(tebakRes || susunRes || tekaRes || sastraRes || sambungRes || kalimatRes || cepatRes) || !!completedMap['tc_game'] || !!completedMap['tc_3'];
 
         // 4. Cek Naskah Tulisan
         let isWriteDone = !!completedMap['tc_write'] || !!completedMap['tc_4'];
@@ -745,7 +1047,7 @@ const CendekiaApp = (function () {
                 title: 'Kuis Pintar Kaidah EYD V',
                 desc: 'Selesaikan 15 butir soal pilihan ganda literasi & kata baku.',
                 rewardXp: 25,
-                link: '/mem-free/permainan/kuis-pintar.html',
+                link: `${PORTAL_PREFIX}/permainan/kuis-pintar.html`,
                 actionText: 'Mulai Kuis',
                 completed: isQuizDone,
                 progressText: isQuizDone ? (kuisRes ? `Skor: ${kuisRes.score}/100 ✓` : 'Selesai ✓') : '15 Soal Menanti'
@@ -755,9 +1057,11 @@ const CendekiaApp = (function () {
                 badge: 'Literasi Modul',
                 icon: 'book-open',
                 title: 'Jelajahi 1 Modul Pembelajaran',
-                desc: 'Baca tuntas materi Pengetahuan Umum atau Pengetahuan Inti.',
+                desc: IS_MEM_5K
+                    ? 'Baca tuntas materi Pengetahuan Umum, Inti, atau Khusus.'
+                    : 'Baca tuntas materi Pengetahuan Umum atau Pengetahuan Inti.',
                 rewardXp: 15,
-                link: '/mem-free/belajar.html',
+                link: `${PORTAL_PREFIX}/belajar.html`,
                 actionText: 'Baca Modul',
                 completed: isReadDone,
                 progressText: isReadDone ? 'Selesai Dibaca ✓' : 'Belum Dibaca'
@@ -767,9 +1071,9 @@ const CendekiaApp = (function () {
                 badge: 'Arena Kata',
                 icon: 'gamepad-2',
                 title: 'Asah Kosakata di Arena Permainan',
-                desc: 'Pecahkan minimal 1 sesi Tebak Kata, Susun Kata, atau Teka-Teki.',
+                desc: 'Pecahkan minimal 1 sesi permainan asah literasi hari ini.',
                 rewardXp: 20,
-                link: '/mem-free/bermain.html',
+                link: `${PORTAL_PREFIX}/bermain.html`,
                 actionText: 'Mainkan Game',
                 completed: isGameDone,
                 progressText: isGameDone ? 'Game Ditaklukkan ✓' : 'Belum Dimainkan'
@@ -781,7 +1085,7 @@ const CendekiaApp = (function () {
                 title: 'Goreskan Draf Tulisan Baru',
                 desc: 'Tulis ide puisi, cerpen, atau catatan gagasan di Ruang Menulis.',
                 rewardXp: 20,
-                link: '/mem-free/berkarya/ruang-menulis.html',
+                link: `${PORTAL_PREFIX}/berkarya/ruang-menulis.html`,
                 actionText: 'Mulai Menulis',
                 completed: isWriteDone,
                 progressText: isWriteDone ? 'Karya Tersimpan ✓' : 'Belum Menulis'
@@ -917,14 +1221,75 @@ const CendekiaApp = (function () {
         }
     }
 
+    function getMembershipInfo(userObj) {
+        const u = userObj || getUser();
+        const pkg = String(u.packageId || '').toLowerCase();
+        const tier = String(u.tier || '').toLowerCase();
+        const is5k = pkg === '5k' || pkg === 'mem-5k' || tier.includes('5k');
+        const isPro = pkg === '10k' || pkg === '15k' || pkg === '20k' || pkg === 'pro' || pkg === 'mem-pro'
+            || tier.includes('10k') || tier.includes('15k') || tier.includes('20k') || tier.includes('pro');
+        const isPaid = is5k || isPro;
+
+        let expiresAtMs = null;
+        let isExpired = false;
+        let daysRemaining = 0;
+        let formattedExpiry = '-';
+
+        if (u.membershipExpiresAt) {
+            const parsedMs = new Date(u.membershipExpiresAt).getTime();
+            if (!isNaN(parsedMs)) {
+                expiresAtMs = parsedMs;
+                const diffMs = parsedMs - Date.now();
+                isExpired = diffMs <= 0;
+                daysRemaining = isExpired ? 0 : Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                formattedExpiry = new Date(parsedMs).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            }
+        }
+
+        return {
+            isPaid,
+            is5k,
+            isPro,
+            isExpired,
+            expiresAtMs,
+            daysRemaining,
+            formattedExpiry,
+            durationDays: MEMBERSHIP_DURATION_DAYS
+        };
+    }
+
     async function upgradeUserTier(tierName, packageId = '5k') {
         const user = getUser();
+        const now = Date.now();
+        const durationMs = MEMBERSHIP_DURATION_DAYS * 24 * 60 * 60 * 1000; // 40 Hari Penuh
+
+        // Jika sudah aktif & masih ada sisa masa aktif, perpanjang +40 hari dari tanggal berakhir sebelumnya
+        let baseStartMs = now;
+        if (user.membershipExpiresAt) {
+            const prevExp = new Date(user.membershipExpiresAt).getTime();
+            if (!isNaN(prevExp) && prevExp > now) {
+                baseStartMs = prevExp;
+            }
+        }
+        const startedIso = user.membershipStartedAt && baseStartMs > now
+            ? user.membershipStartedAt
+            : new Date(now).toISOString();
+        const expiresIso = new Date(baseStartMs + durationMs).toISOString();
+
         user.tier = tierName;
         user.role = 'siswa';
         user.status = 'registered';
         user.packageId = packageId;
         user.packageName = tierName;
-        saveUser(user);
+        user.membershipStartedAt = startedIso;
+        user.membershipExpiresAt = expiresIso;
+        user.membershipDurationDays = MEMBERSHIP_DURATION_DAYS;
+        user.membershipStatus = 'active';
+        saveUser(user, true);
 
         // Update di session legacy juga
         try {
@@ -934,29 +1299,80 @@ const CendekiaApp = (function () {
             legacy.status = 'registered';
             legacy.packageId = packageId;
             legacy.packageName = tierName;
+            legacy.membershipStartedAt = startedIso;
+            legacy.membershipExpiresAt = expiresIso;
+            legacy.membershipDurationDays = MEMBERSHIP_DURATION_DAYS;
+            legacy.membershipStatus = 'active';
             localStorage.setItem('cendekia_user', JSON.stringify(legacy));
             localStorage.setItem('user_status', 'registered');
             localStorage.setItem('user_package', packageId);
         } catch (e) {}
 
-        // Sync ke Firestore users/{uid}
+        // Sync ke Firestore users/{uid} dengan merge: true agar selalu tersimpan utuh
         try {
             const fb = await getFirebaseBridge();
             if (fb && fb.auth && fb.auth.currentUser) {
-                await fb.updateDoc(fb.doc(fb.db, "users", fb.auth.currentUser.uid), {
+                await fb.setDoc(fb.doc(fb.db, "users", fb.auth.currentUser.uid), {
                     tier: tierName,
                     role: 'siswa',
                     status: 'registered',
                     packageId: packageId,
                     packageName: tierName,
+                    membershipStartedAt: startedIso,
+                    membershipExpiresAt: expiresIso,
+                    membershipDurationDays: MEMBERSHIP_DURATION_DAYS,
+                    membershipStatus: 'active',
                     updatedAt: new Date().toISOString()
-                });
+                }, { merge: true });
             }
         } catch (err) {
             console.warn('[Cendekia Central] Update tier Firestore warning:', err);
         }
 
         updateDOMStats();
+        return user;
+    }
+
+    // Downgrade manual ke Member Free (masa aktif & kuota Member 5K hangus permanen)
+    async function downgradeToFree() {
+        const user = getUser();
+        const prevPkg = user.packageId || '5k';
+        const nowIso = new Date().toISOString();
+
+        const patch = {
+            tier: 'Member Free',
+            packageId: 'free',
+            packageName: 'Member Free',
+            membershipStartedAt: null,
+            membershipExpiresAt: null,
+            membershipDurationDays: 0,
+            membershipStatus: 'downgraded',
+            downgradedFrom: prevPkg,
+            downgradedAt: nowIso,
+            curationQuota: 0,
+            updatedAt: nowIso
+        };
+
+        Object.assign(user, patch);
+        saveUser(user, true);
+
+        try {
+            const legacy = JSON.parse(localStorage.getItem('cendekia_user') || '{}');
+            Object.assign(legacy, patch);
+            localStorage.setItem('cendekia_user', JSON.stringify(legacy));
+            localStorage.setItem('user_package', 'free');
+        } catch (e) {}
+
+        try {
+            const fb = await getFirebaseBridge();
+            if (fb && fb.auth && fb.auth.currentUser) {
+                await fb.setDoc(fb.doc(fb.db, "users", fb.auth.currentUser.uid), patch, { merge: true });
+            }
+        } catch (err) {
+            console.warn('[Cendekia Central] Downgrade Firestore warning:', err);
+        }
+
+        logActivity('Downgrade ke Member Free (Kuota paket sebelumnya hangus)', 'arrow-down-circle', 'info');
         return user;
     }
 
@@ -1014,32 +1430,31 @@ const CendekiaApp = (function () {
         return sem >= 3 ? '/dashboard/inkubasi.html' : '/dashboard/index.html';
     }
 
-    // 9. NAVBAR RENDERER (UNIFORM STICKY BOTTOM NAV)
+    // 9. NAVBAR RENDERER (UNIFORM STICKY BOTTOM NAV - OTOMATIS SESUAI PORTAL FREE / 5K)
     function renderBottomNav(activePage = 'beranda') {
-        const classTarget = getClassDashboardUrl();
         const navHtml = `
             <nav class="bottom-nav">
-                <a href="/mem-free/index.html" class="nav-item ${activePage === 'beranda' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/index.html" class="nav-item ${activePage === 'beranda' ? 'active' : ''}">
                     <i data-lucide="home"></i>
                     <span>Beranda</span>
                 </a>
-                <a href="/mem-free/belajar.html" class="nav-item ${activePage === 'belajar' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/belajar.html" class="nav-item ${activePage === 'belajar' ? 'active' : ''}">
                     <i data-lucide="book-open-check"></i>
                     <span>Belajar</span>
                 </a>
-                <a href="/mem-free/bermain.html" class="nav-item ${activePage === 'bermain' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/bermain.html" class="nav-item ${activePage === 'bermain' ? 'active' : ''}">
                     <i data-lucide="gamepad-2"></i>
                     <span>Bermain</span>
                 </a>
-                <a href="/mem-free/berkarya.html" class="nav-item ${activePage === 'berkarya' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/berkarya.html" class="nav-item ${activePage === 'berkarya' ? 'active' : ''}">
                     <i data-lucide="pen-tool"></i>
                     <span>Berkarya</span>
                 </a>
-                <a href="/mem-free/dashboard-kelas.html" class="nav-item ${activePage === 'kelas' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/dashboard-kelas.html" class="nav-item ${activePage === 'kelas' ? 'active' : ''}">
                     <i data-lucide="school"></i>
                     <span>Kelas</span>
                 </a>
-                <a href="/mem-free/profil.html" class="nav-item ${activePage === 'profil' ? 'active' : ''}">
+                <a href="${PORTAL_PREFIX}/profil.html" class="nav-item ${activePage === 'profil' ? 'active' : ''}">
                     <i data-lucide="user-round"></i>
                     <span>Profil</span>
                 </a>
@@ -1056,7 +1471,60 @@ const CendekiaApp = (function () {
         if (window.lucide) lucide.createIcons();
     }
 
-    // 10. UPDATE DOM STATS BINDINGS
+    // 9B. ASISTEN AI AKSABOT / MENTOR AI (KHUSUS MEMBER 5K - TERHUBUNG LANGSUNG KE /api/aksabot & FALLBACK /api/central)
+    async function askAksaBotAI(message, history = []) {
+        const user = getUser();
+        // 1. Prioritas utama: Endpoint resmi AksaBot (/api/aksabot)
+        try {
+            const res = await fetch('/api/aksabot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message,
+                    userName: user.name || 'Siswa Cendekia',
+                    history: Array.isArray(history) ? history.slice(-8) : []
+                })
+            });
+            const data = await res.json().catch(() => null);
+            if (data && data.reply && !data.error) {
+                return { success: true, reply: data.reply, source: 'aksabot', model: data.model || 'AksaBot' };
+            }
+        } catch (err) {
+            console.warn('[AksaBot] /api/aksabot fallback ke mentor-consultation:', err);
+        }
+
+        // 2. Fallback: Endpoint Mentor AI Literasi (/api/central)
+        try {
+            const res = await fetch('/api/central', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'mentor-consultation',
+                    payload: {
+                        message,
+                        history: Array.isArray(history) ? history.slice(-8) : [],
+                        topic: 'literasi',
+                        userName: user.name || 'Siswa Cendekia'
+                    }
+                })
+            });
+            const data = await res.json().catch(() => null);
+            if (data && data.reply) {
+                return { success: true, reply: data.reply, source: 'mentor-ai' };
+            }
+        } catch (err2) {
+            console.error('[Mentor AI Error]', err2);
+        }
+
+        return {
+            success: false,
+            reply: 'Mohon maaf, koneksi ke server AksaBot sedang sibuk. Silakan coba kirim pertanyaanmu kembali dalam beberapa detik ya! 🙏'
+        };
+    }
+
+    const askMentorAI = askAksaBotAI;
+
+    // 10. UPDATE DOM STATS BINDINGS (TERMASUK VISUAL API STREAK BERTINGKAT)
     function updateDOMStats() {
         const user = getUser();
         
@@ -1076,7 +1544,6 @@ const CendekiaApp = (function () {
         xpEls.forEach(el => el.textContent = user.xp);
 
         const currentLvlConfig = LEVELS.find(l => l.level === user.level) || LEVELS[0];
-        const nextLvlConfig = LEVELS.find(l => l.level === user.level + 1) || { minXp: currentLvlConfig.maxXp, maxXp: currentLvlConfig.maxXp };
         
         const maxXpEls = document.querySelectorAll('[data-bind="userMaxXp"]');
         maxXpEls.forEach(el => el.textContent = currentLvlConfig.maxXp);
@@ -1090,9 +1557,28 @@ const CendekiaApp = (function () {
             el.style.width = percent + '%';
         });
 
-        // Streak
+        // Streak + Dinamika Tingkatan Api
         const streakEls = document.querySelectorAll('[data-bind="userStreak"]');
-        streakEls.forEach(el => el.textContent = user.streak);
+        streakEls.forEach(el => el.textContent = user.streak || 1);
+
+        const flameInfo = getStreakFlameInfo(user.streak || 1, user.streakStatus || 'active');
+        const streakPills = document.querySelectorAll('.hero-streak-pill');
+        streakPills.forEach(pill => {
+            pill.style.background = flameInfo.bgStyle;
+            pill.style.borderColor = flameInfo.borderStyle;
+            pill.style.boxShadow = flameInfo.glowStyle;
+            pill.style.color = flameInfo.textColor;
+            pill.style.cursor = 'pointer';
+            pill.title = `${flameInfo.tierName} (${user.streak || 1} Hari) — Ketuk untuk melihat detail tingkatan api`;
+
+            const flameIcon = pill.querySelector('svg, [data-lucide="flame"]');
+            if (flameIcon) flameIcon.style.color = flameInfo.flameColor;
+
+            if (!pill.dataset.streakModalBound) {
+                pill.dataset.streakModalBound = '1';
+                pill.addEventListener('click', () => showStreakInfoModal());
+            }
+        });
 
         // Photo / Avatar
         const photoEls = document.querySelectorAll('[data-bind="userPhoto"]');
@@ -1111,7 +1597,7 @@ const CendekiaApp = (function () {
         });
     }
 
-    // Sinkronisasi Sesi Firebase & Firestore Otomatis
+    // Sinkronisasi Sesi Firebase, Cloud Memory (Ingatan), Auto-Expiry 40 Hari, & Kunci Portal Member 5K
     async function syncWithFirebaseUser() {
         try {
             const fb = await getFirebaseBridge();
@@ -1122,7 +1608,27 @@ const CendekiaApp = (function () {
                 if (authUser) {
                     let updated = false;
                     let currentUser = getUser();
+                    const prevUid = currentUser.uid;
+                    const isDifferentAccount = prevUid && !prevUid.startsWith('guest_') && prevUid !== authUser.uid;
 
+                    if (isDifferentAccount) {
+                        // Reset memori lokal dari akun berbeda agar tidak tercampur
+                        currentUser = { ...defaultUser, uid: authUser.uid, email: authUser.email || '' };
+                        try {
+                            localStorage.removeItem(STORAGE_KEY_HISTORY);
+                            localStorage.removeItem(STORAGE_KEY_WORKS);
+                            localStorage.removeItem(STORAGE_KEY_IDEAS);
+                        } catch (e) {}
+                        updated = true;
+                    } else if (currentUser.uid !== authUser.uid) {
+                        currentUser.uid = authUser.uid;
+                        updated = true;
+                    }
+
+                    if (authUser.email && currentUser.email !== authUser.email) {
+                        currentUser.email = authUser.email;
+                        updated = true;
+                    }
                     if (authUser.photoURL && (!currentUser.photoURL || currentUser.photoURL !== authUser.photoURL)) {
                         currentUser.photoURL = authUser.photoURL;
                         updated = true;
@@ -1132,6 +1638,7 @@ const CendekiaApp = (function () {
                         updated = true;
                     }
 
+                    // 1. Baca dokumen utama users/{uid}
                     try {
                         const snap = await fb.getDoc(fb.doc(fb.db, "users", authUser.uid));
                         if (snap.exists()) {
@@ -1146,38 +1653,186 @@ const CendekiaApp = (function () {
                                 currentUser.name = d.name;
                                 updated = true;
                             }
-                            if (d.noHp && !currentUser.noHp) {
-                                currentUser.noHp = d.noHp;
-                                updated = true;
-                            }
-                            if (d.alamat && !currentUser.alamat) {
-                                currentUser.alamat = d.alamat;
-                                updated = true;
-                            }
-                            if (d.tanggalLahir && !currentUser.tanggalLahir) {
-                                currentUser.tanggalLahir = d.tanggalLahir;
-                                updated = true;
-                            }
-                            if (d.bioSingkat && !currentUser.bioSingkat) {
-                                currentUser.bioSingkat = d.bioSingkat;
-                                updated = true;
-                            }
-                            if (typeof d.xp === 'number' && d.xp > (currentUser.xp || 0)) {
+                            if (d.noHp && !currentUser.noHp) { currentUser.noHp = d.noHp; updated = true; }
+                            if (d.alamat && !currentUser.alamat) { currentUser.alamat = d.alamat; updated = true; }
+                            if (d.tanggalLahir && !currentUser.tanggalLahir) { currentUser.tanggalLahir = d.tanggalLahir; updated = true; }
+                            if (d.bioSingkat && !currentUser.bioSingkat) { currentUser.bioSingkat = d.bioSingkat; updated = true; }
+                            if (d.ips !== undefined) { currentUser.ips = d.ips; updated = true; }
+                            if (d.semester) { currentUser.semester = parseInt(d.semester) || currentUser.semester; updated = true; }
+
+                            // Sinkronkan XP & Statistik dari Cloud (Ingatan lintas perangkat & sesi)
+                            if (typeof d.xp === 'number' && (isDifferentAccount || d.xp > (currentUser.xp || 0))) {
                                 currentUser.xp = d.xp;
                                 updated = true;
                             }
-                            if (d.semester) {
-                                currentUser.semester = parseInt(d.semester) || currentUser.semester;
+                            if (Array.isArray(d.badges) && d.badges.length > (currentUser.badges?.length || 0)) {
+                                currentUser.badges = Array.from(new Set([...(currentUser.badges || []), ...d.badges]));
                                 updated = true;
+                            }
+                            if (d.stats && typeof d.stats === 'object') {
+                                currentUser.stats = {
+                                    quizCompleted: Math.max(currentUser.stats?.quizCompleted || 0, d.stats.quizCompleted || 0),
+                                    gamesCompleted: Math.max(currentUser.stats?.gamesCompleted || 0, d.stats.gamesCompleted || 0),
+                                    materialsLearned: Math.max(currentUser.stats?.materialsLearned || 0, d.stats.materialsLearned || 0),
+                                    worksCreated: Math.max(currentUser.stats?.worksCreated || 0, d.stats.worksCreated || 0),
+                                    ideasArchived: Math.max(currentUser.stats?.ideasArchived || 0, d.stats.ideasArchived || 0)
+                                };
+                                updated = true;
+                            }
+
+                            // Sinkronkan Streak & Riwayat Kunjungan dari Cloud
+                            const cloudLastVisit = d.lastVisitDate || d.lastActiveDate;
+                            if (cloudLastVisit) {
+                                const cloudVisitList = Array.isArray(d.visitDates) ? d.visitDates : [];
+                                currentUser.visitDates = Array.from(new Set([...(currentUser.visitDates || []), ...cloudVisitList])).sort().slice(-60);
+                                // Ambil streak & lastVisitDate cloud lalu evaluasi terhadap hari ini
+                                if (typeof d.streak === 'number' && (isDifferentAccount || !currentUser.lastVisitDate || cloudLastVisit >= currentUser.lastVisitDate)) {
+                                    currentUser.streak = d.streak;
+                                    currentUser.lastVisitDate = cloudLastVisit;
+                                    currentUser.lastActiveDate = cloudLastVisit;
+                                    currentUser.streakStatus = d.streakStatus || 'active';
+                                    updated = true;
+                                }
+                            }
+
+                            // Sinkronkan Membership (Tier, PackageId, Masa Aktif 40 Hari) dari Firestore (Authoritative)
+                            const cloudPkg = String(d.packageId || '').toLowerCase();
+                            const cloudTier = String(d.tier || '').toLowerCase();
+                            const isCloud5k = cloudPkg === '5k' || cloudPkg === 'mem-5k' || cloudTier.includes('5k');
+                            const isCloudPro = cloudPkg === '10k' || cloudPkg === '15k' || cloudPkg === '20k' || cloudPkg === 'pro' || cloudPkg === 'mem-pro'
+                                || cloudTier.includes('10k') || cloudTier.includes('15k') || cloudTier.includes('pro');
+
+                            if (isCloud5k || isCloudPro) {
+                                let expIso = d.membershipExpiresAt || null;
+                                let startIso = d.membershipStartedAt || null;
+
+                                if (!expIso) {
+                                    // Akun Member 5K/Pro lama yang belum punya expiry -> tetapkan 40 hari dari sekarang
+                                    startIso = new Date().toISOString();
+                                    expIso = new Date(Date.now() + (MEMBERSHIP_DURATION_DAYS * 86400000)).toISOString();
+                                    fb.setDoc(fb.doc(fb.db, "users", authUser.uid), {
+                                        membershipStartedAt: startIso,
+                                        membershipExpiresAt: expIso,
+                                        membershipDurationDays: MEMBERSHIP_DURATION_DAYS,
+                                        membershipStatus: 'active'
+                                    }, { merge: true }).catch(() => {});
+                                }
+
+                                const expMs = new Date(expIso).getTime();
+                                if (!isNaN(expMs) && Date.now() > expMs) {
+                                    // MASA AKTIF 40 HARI SUDAH HABIS -> AUTO-DOWNGRADE KE MEMBER FREE
+                                    const expPatch = {
+                                        tier: 'Member Free',
+                                        packageId: 'free',
+                                        packageName: 'Member Free',
+                                        membershipExpiresAt: null,
+                                        membershipStatus: 'expired',
+                                        lastAutoDowngradeAt: new Date().toISOString()
+                                    };
+                                    Object.assign(currentUser, expPatch);
+                                    updated = true;
+                                    await fb.setDoc(fb.doc(fb.db, "users", authUser.uid), expPatch, { merge: true }).catch(() => {});
+
+                                    if (IS_MEM_5K) {
+                                        saveUser(currentUser, true);
+                                        alert('Masa aktif Member 5K Anda (40 hari) telah berakhir. Akun Anda otomatis beralih ke Member Free. Anda dapat memperpanjang kapan saja di menu Profil.');
+                                        window.location.replace('/mem-free/index.html');
+                                        return;
+                                    }
+                                } else {
+                                    currentUser.tier = isCloud5k ? 'Member 5K' : (d.tier || d.packageName || 'Member Pro');
+                                    currentUser.packageId = isCloud5k ? '5k' : (d.packageId || '15k');
+                                    currentUser.packageName = d.packageName || currentUser.tier;
+                                    currentUser.membershipStartedAt = startIso;
+                                    currentUser.membershipExpiresAt = expIso;
+                                    currentUser.membershipStatus = 'active';
+                                    updated = true;
+
+                                    // PORTAL LOCK GUARD: Member 5K aktif terkunci di /mem-5k/ (tidak boleh nyasar ke /mem-free/)
+                                    const pathNow = window.location.pathname || '';
+                                    if (isCloud5k && pathNow.startsWith('/mem-free') && !pathNow.includes('langganan')) {
+                                        saveUser(currentUser, true);
+                                        window.location.replace('/mem-5k/index.html');
+                                        return;
+                                    }
+                                }
+                            } else {
+                                // Akun Member Free (atau sudah di-downgrade)
+                                currentUser.tier = 'Member Free';
+                                currentUser.packageId = 'free';
+                                currentUser.packageName = 'Member Free';
+                                currentUser.membershipExpiresAt = null;
+                                currentUser.membershipStartedAt = null;
+                                updated = true;
+
+                                // PORTAL LOCK GUARD: Member Free tidak boleh masuk portal /mem-5k/
+                                if (IS_MEM_5K) {
+                                    saveUser(currentUser, true);
+                                    window.location.replace('/mem-free/index.html');
+                                    return;
+                                }
                             }
                         }
                     } catch (e) {
                         console.warn('[Cendekia Central] Sync firestore doc warn:', e);
                     }
 
-                    if (updated) {
-                        saveUser(currentUser);
-                        updateDOMStats();
+                    // 2. Pulihkan Cloud Memory (history, works, ideas, tantangan & hasil game hari ini)
+                    try {
+                        const memSnap = await fb.getDoc(fb.doc(fb.db, "mem_user_memory", authUser.uid));
+                        if (memSnap.exists()) {
+                            const m = memSnap.data();
+                            const todayKey = getTodayDateKeyWIB();
+
+                            if (Array.isArray(m.history) && m.history.length > 0) {
+                                const localHist = getHistory();
+                                const mapH = new Map();
+                                [...m.history, ...localHist].forEach(h => { if (h && h.id) mapH.set(h.id, h); });
+                                const mergedH = Array.from(mapH.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 40);
+                                localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(mergedH));
+                            }
+                            if (Array.isArray(m.works) && m.works.length > 0) {
+                                const localWorks = getWorks();
+                                const mapW = new Map();
+                                [...m.works, ...localWorks].forEach(w => { if (w && w.id) mapW.set(w.id, w); });
+                                localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(Array.from(mapW.values())));
+                            }
+                            if (Array.isArray(m.ideas) && m.ideas.length > 0) {
+                                const localIdeas = getIdeas();
+                                const mapI = new Map();
+                                [...m.ideas, ...localIdeas].forEach(i => { if (i && i.id) mapI.set(i.id, i); });
+                                localStorage.setItem(STORAGE_KEY_IDEAS, JSON.stringify(Array.from(mapI.values())));
+                            }
+                            if (m.todayDateKey === todayKey) {
+                                if (m.completedChallengesToday && typeof m.completedChallengesToday === 'object') {
+                                    const curC = JSON.parse(localStorage.getItem('cendekia_completed_challenges_' + todayKey) || '{}');
+                                    localStorage.setItem('cendekia_completed_challenges_' + todayKey, JSON.stringify({ ...m.completedChallengesToday, ...curC }));
+                                }
+                                if (m.readToday && !localStorage.getItem('cendekia_read_today_' + todayKey)) {
+                                    localStorage.setItem('cendekia_read_today_' + todayKey, JSON.stringify(m.readToday));
+                                }
+                                if (m.gameResultsToday && typeof m.gameResultsToday === 'object') {
+                                    Object.keys(m.gameResultsToday).forEach(gk => {
+                                        const rKey = getResultStorageKey(gk);
+                                        if (!localStorage.getItem(rKey)) {
+                                            localStorage.setItem(rKey, JSON.stringify(m.gameResultsToday[gk]));
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    } catch (memErr) {
+                        console.warn('[Cendekia Central] Restore cloud memory warn:', memErr);
+                    }
+
+                    // Evaluasi ulang streak berbasis cloud data terbaru
+                    checkStreak(currentUser);
+                    saveUser(currentUser, true);
+                    updateDOMStats();
+                    scheduleCloudMemorySync();
+
+                    if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('cendekia:synced', { detail: currentUser }));
                     }
                 }
             });
@@ -1326,23 +1981,16 @@ const CendekiaApp = (function () {
         return html;
     }
 
-    // Ambil materi spesifik berdasarkan kategori
-    async function getMaterialByCategory(categoryId) {
-        try {
-            const fb = await getFirebaseBridge();
-            if (!fb) return null;
-            const snap = await fb.getDoc(fb.doc(fb.db, "mem_free_materials", categoryId));
-            if (snap.exists()) {
-                return { id: snap.id, ...snap.data() };
-            }
-            return null;
-        } catch (err) {
-            console.error('[Cendekia Central] Gagal membaca materi:', err);
-            return null;
-        }
+    function normalizeCategoryKey(rawCat, docId = '') {
+        const val = String(rawCat || docId || '').toLowerCase();
+        if (val.includes('umum')) return 'pengetahuan-umum';
+        if (val.includes('inti')) return 'pengetahuan-inti';
+        if (val.includes('khusus')) return 'pengetahuan-khusus';
+        if (val.includes('mendalam')) return 'pengetahuan-mendalam';
+        return val || 'pengetahuan-umum';
     }
 
-    // Ambil seluruh bahan ajar yang sudah diunggah oleh admin
+    // Ambil seluruh bahan ajar yang sudah diunggah oleh admin (mendukung multi-materi per kategori)
     async function getAllMaterials() {
         try {
             const fb = await getFirebaseBridge();
@@ -1351,9 +1999,22 @@ const CendekiaApp = (function () {
             const list = [];
             q.forEach(d => {
                 const data = d.data();
-                if (data.content && data.content.trim().length > 0) {
-                    list.push({ id: d.id, ...data });
+                if (data && data.content && data.content.trim().length > 0) {
+                    const normCat = normalizeCategoryKey(data.category, d.id);
+                    list.push({
+                        ...data,
+                        id: d.id,
+                        docId: d.id,
+                        category: normCat
+                    });
                 }
+            });
+            // Urutkan deterministik berdasarkan createdAt / id agar index rolling stabil untuk semua siswa
+            list.sort((a, b) => {
+                const ta = new Date(a.createdAt || a.updatedAt || 0).getTime();
+                const tb = new Date(b.createdAt || b.updatedAt || 0).getTime();
+                if (ta !== tb) return ta - tb;
+                return String(a.id).localeCompare(String(b.id));
             });
             return list;
         } catch (err) {
@@ -1362,30 +2023,125 @@ const CendekiaApp = (function () {
         }
     }
 
-    // Simpan bahan ajar materi ke Firestore
-    async function saveMaterial(categoryId, materialData) {
+    // Ambil seluruh daftar materi dalam satu kategori tertentu
+    async function getMaterialsByCategory(categoryId) {
+        const normTarget = normalizeCategoryKey(categoryId);
+        const all = await getAllMaterials();
+        return all.filter(m => m.category === normTarget);
+    }
+
+    // Ambil materi spesifik (jika ?id= diberikan) ATAU rolling otomatis harian per-siswa dari bank kategori
+    async function getMaterialByCategory(categoryId, specificDocId = null) {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb) return null;
+
+            // 1. Jika ada permintaan docId spesifik (misal klik dari Rekomendasi Modul)
+            if (specificDocId) {
+                try {
+                    const directSnap = await fb.getDoc(fb.doc(fb.db, "mem_free_materials", specificDocId));
+                    if (directSnap.exists()) {
+                        const dt = directSnap.data();
+                        if (dt && dt.content && dt.content.trim().length > 0) {
+                            const normCat = normalizeCategoryKey(dt.category, directSnap.id);
+                            const catAll = await getMaterialsByCategory(normCat);
+                            const pos = catAll.findIndex(x => x.id === directSnap.id);
+                            return {
+                                ...dt,
+                                id: directSnap.id,
+                                docId: directSnap.id,
+                                category: normCat,
+                                _rollingMeta: {
+                                    index: pos >= 0 ? pos + 1 : 1,
+                                    total: Math.max(1, catAll.length),
+                                    dateKey: getTodayDateKeyWIB(),
+                                    isDirectPick: true
+                                }
+                            };
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 2. Ambil seluruh materi pada kategori tersebut untuk di-rolling harian per-siswa
+            const catList = await getMaterialsByCategory(categoryId);
+            if (!catList || catList.length === 0) {
+                // Fallback cek dokumen legacy persis sesuai categoryId
+                const legacySnap = await fb.getDoc(fb.doc(fb.db, "mem_free_materials", categoryId));
+                if (legacySnap.exists()) {
+                    return {
+                        ...legacySnap.data(),
+                        id: legacySnap.id,
+                        docId: legacySnap.id,
+                        category: normalizeCategoryKey(legacySnap.data().category, legacySnap.id),
+                        _rollingMeta: { index: 1, total: 1, dateKey: getTodayDateKeyWIB() }
+                    };
+                }
+                return null;
+            }
+
+            if (catList.length === 1) {
+                return {
+                    ...catList[0],
+                    _rollingMeta: { index: 1, total: 1, dateKey: getTodayDateKeyWIB() }
+                };
+            }
+
+            // 3. Rolling deterministik: berbeda antar-siswa & berganti otomatis setiap hari (00:00 WIB)
+            const user = getUser();
+            const userSeedStr = `${user.uid || user.email || 'guest'}_${normalizeCategoryKey(categoryId)}`;
+            let userHash = 0;
+            for (let i = 0; i < userSeedStr.length; i++) {
+                userHash = ((userHash << 5) - userHash) + userSeedStr.charCodeAt(i);
+                userHash |= 0;
+            }
+            const wibNow = getWIBDate();
+            const daysSinceEpoch = Math.floor(Date.UTC(wibNow.getFullYear(), wibNow.getMonth(), wibNow.getDate()) / 86400000);
+            const rollingIdx = (Math.abs(userHash) + daysSinceEpoch) % catList.length;
+
+            return {
+                ...catList[rollingIdx],
+                _rollingMeta: {
+                    index: rollingIdx + 1,
+                    total: catList.length,
+                    dateKey: getTodayDateKeyWIB(),
+                    isRolling: true
+                }
+            };
+        } catch (err) {
+            console.error('[Cendekia Central] Gagal membaca materi:', err);
+            return null;
+        }
+    }
+
+    // Simpan / tambahkan bahan ajar materi baru ke Firestore (tanpa menimpa yang lama jika docId baru)
+    async function saveMaterial(categoryId, materialData, existingDocId = null) {
         const fb = await getFirebaseBridge();
         if (!fb) throw new Error("Koneksi database tidak tersedia.");
-        const docRef = fb.doc(fb.db, "mem_free_materials", categoryId);
+        const normCat = normalizeCategoryKey(categoryId);
+        const docId = existingDocId || `${normCat}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const docRef = fb.doc(fb.db, "mem_free_materials", docId);
+        const nowIso = new Date().toISOString();
         await fb.setDoc(docRef, {
-            id: categoryId,
-            category: categoryId,
+            id: docId,
+            category: normCat,
             title: materialData.title || '',
             summary: materialData.summary || '',
             content: materialData.content || '',
             examples: materialData.examples || '',
             charCount: (materialData.content || '').length,
-            updatedAt: new Date().toISOString(),
+            createdAt: materialData.createdAt || nowIso,
+            updatedAt: nowIso,
             updatedBy: fb.auth.currentUser?.email || 'admin'
         });
-        return true;
+        return docId;
     }
 
-    // Hapus materi dari Firestore
-    async function deleteMaterial(categoryId) {
+    // Hapus materi spesifik dari Firestore berdasarkan docId
+    async function deleteMaterial(docId) {
         const fb = await getFirebaseBridge();
         if (!fb) throw new Error("Koneksi database tidak tersedia.");
-        await fb.deleteDoc(fb.doc(fb.db, "mem_free_materials", categoryId));
+        await fb.deleteDoc(fb.doc(fb.db, "mem_free_materials", docId));
         return true;
     }
 
@@ -2436,6 +3192,94 @@ const CendekiaApp = (function () {
     }
 ];
 
+    const DEFAULT_BANK_TEBAK_SASTRA = [
+        { id: "ts_s_1", difficulty: "santai", quote: "Aku ingin mencintaimu dengan sederhana: dengan kata yang tak sempat diucapkan kayu kepada api yang menjadikannya abu.", question: "Siapakah penyair legendaris penulis puisi 'Aku Ingin' di atas?", options: ["Sapardi Djoko Damono", "Chairil Anwar", "W.S. Rendra", "Goenawan Mohamad"], answer: 0, exp: "Puisi 'Aku Ingin' (1989) adalah mahakarya Sapardi Djoko Damono yang terkenal akan kesederhanaan diksi dan kedalaman metaforanya." },
+        { id: "ts_s_2", difficulty: "santai", quote: "Kalau sampai waktuku, 'ku mau tak seorang 'kan merayu, tidak juga kau. Tak perlu sedu sedan itu. Aku ini binatang jalang...", question: "Kutipan puisi penuh semangat kebebasan berjudul 'Aku' tersebut merupakan karya...", options: ["Amir Hamzah", "Chairil Anwar", "Taufik Ismail", "Sutardji Calzoum Bachri"], answer: 1, exp: "Puisi 'Aku' (1943) adalah karya monumental Chairil Anwar, pelopor Angkatan '45 dalam sastra Indonesia." },
+        { id: "ts_s_3", difficulty: "santai", quote: "Angin malam berbisik lirih di antara dedaunan cemara, menyampaikan salam dingin dari puncak bukit.", question: "Majas apakah yang dominan digunakan pada kutipan prosa di atas?", options: ["Hiperbola", "Personifikasi", "Ironi", "Litotes"], answer: 1, exp: "Personifikasi memberikan sifat insani ('berbisik', 'menyampaikan salam') kepada benda mati ('angin malam')." },
+        { id: "ts_s_4", difficulty: "santai", quote: "Tuhan, kami telah terlalu banyak berdosa, namun pintu ampunan-Mu tetap terbuka bagai samudra tak bertepi.", question: "Gaya bahasa perbandingan yang menggunakan kata 'bagai' disebut majas...", options: ["Simile (Asosiasi)", "Metafora", "Metonimia", "Paradoks"], answer: 0, exp: "Simile membandingkan dua hal secara eksplisit menggunakan kata penghubung seperti 'bagai', 'laksana', 'bak', atau 'seperti'." },
+        { id: "ts_s_5", difficulty: "santai", quote: "Ia bekerja membanting tulang dari fajar menyingsing hingga senja tenggelam demi pendidikan adik-adiknya.", question: "Ungkapan 'membanting tulang' dalam kalimat sastra tersebut bermakna...", options: ["Bekerja keras sekuat tenaga", "Berolahraga di pagi hari", "Beristirahat setelah lelah", "Menyerah pada keadaan"], answer: 0, exp: "Idiom 'membanting tulang' bermakna bekerja sangat keras untuk memenuhi kebutuhan hidup." },
+        { id: "ts_s_6", difficulty: "santai", quote: "Laskar Pelangi menceritakan perjuangan sepuluh anak Belitung mempertahankan sekolah Muhammadiyah yang nyaris roboh.", question: "Siapakah novelis penulis 'Laskar Pelangi' yang mengangkat kisah pendidikan di Belitung?", options: ["Andrea Hirata", "Tere Liye", "Habiburrahman El Shirazy", "Ahmad Fuadi"], answer: 0, exp: "Andrea Hirata menulis tetralogi Laskar Pelangi (2005) yang terinspirasi dari masa kecilnya di Pulau Belitung." },
+        { id: "ts_s_7", difficulty: "santai", quote: "Pena adalah pedang yang tak melukai raga, melainkan membelah gelapnya kebodohan sepanjang zaman.", question: "Perbandingan langsung 'Pena adalah pedang' tanpa kata pembanding merupakan majas...", options: ["Metafora", "Sinekdoke", "Eufemisme", "Aliterasi"], answer: 0, exp: "Metafora membandingkan dua objek secara langsung tanpa kata penghubung seperti 'bagai' atau 'seperti'." },
+        { id: "ts_s_8", difficulty: "santai", quote: "Suaranya menggelegar membelah langit dan mengguncang seluruh penjuru negeri.", question: "Majas yang melebih-lebihkan kenyataan untuk efek dramatis pada kalimat di atas adalah...", options: ["Litotes", "Hiperbola", "Sarkasme", "Oksimoron"], answer: 1, exp: "Hiperbola adalah majas yang menyatakan sesuatu secara berlebih-lebihan melampaui batas kewajaran." },
+        { id: "ts_s_9", difficulty: "santai", quote: "Terimalah pemberian kecil ini, sekadar pelepas dahaga di perjalanan panjangmu.", question: "Sikap merendahkan diri dengan mengecilkan nilai pemberian dalam sastra disebut majas...", options: ["Hiperbola", "Litotes", "Pleonasme", "Antitesis"], answer: 1, exp: "Litotes digunakan untuk merendahkan diri dengan mengungkapkan sesuatu yang lebih kecil dari keadaan sebenarnya." },
+        { id: "ts_s_10", difficulty: "santai", quote: "Burung pun bernyanyi menyambut mentari pagi yang tersenyum ramah di ufuk timur.", question: "Citraan (imaji) utama yang dibangun oleh kalimat 'Burung pun bernyanyi' adalah...", options: ["Citraan pendengaran (auditif)", "Citraan pencecapan", "Citraan penciuman", "Citraan perabaan"], answer: 0, exp: "Citraan auditif mengajak pembaca seolah-olah mendengar bunyi atau suara dalam karya sastra." },
+        { id: "ts_t_1", difficulty: "tantangan", quote: "Seseorang harus adil sejak dalam pikiran, apalagi dalam perbuatan.", question: "Kalimat filosofis terkenal ini berasal dari roman sejarah 'Bumi Manusia' karya...", options: ["Pramoedya Ananta Toer", "Mochtar Lubis", "Y.B. Mangunwijaya", "Nh. Dini"], answer: 0, exp: "Kutipan ini diucapkan Jean Marais kepada Minke dalam novel 'Bumi Manusia' karya Pramoedya Ananta Toer." },
+        { id: "ts_t_2", difficulty: "tantangan", quote: "Kesepian yang ramai menghantui setiap sudut kota metropolitan di tengah gemerlap lampu neon.", question: "Penggabungan dua kata berlawanan makna secara berdampingan ('kesepian yang ramai') disebut majas...", options: ["Oksimoron", "Klimaks", "Anafora", "Alusi"], answer: 0, exp: "Oksimoron menempatkan dua unsur yang bertentangan secara langsung dalam satu frasa untuk efek makna mendalam." },
+        { id: "ts_t_3", difficulty: "tantangan", quote: "Dari Sabang sampai Merauke, bendera berkibar megah; setiap pasang mata menatap penuh harap.", question: "Penggunaan frasa 'setiap pasang mata' untuk mewakili manusia secara keseluruhan merupakan majas...", options: ["Sinekdoke Pars Pro Toto", "Sinekdoke Totem Pro Parte", "Metonimia", "Antonomasia"], answer: 0, exp: "Pars pro toto menyebut sebagian ('sepasang mata') untuk menyatakan keseluruhan (seluruh manusia)." },
+        { id: "ts_t_4", difficulty: "tantangan", quote: "Bukan beta bijak berperi, pandai menggubah madahan syair; bukan beta budak negeri, musti menurut undangan mair.", question: "Gaya perulangan kata di awal baris secara berturut-turut ('Bukan beta...') disebut majas...", options: ["Anafora", "Epifora", "Tautologi", "Asindeton"], answer: 0, exp: "Anafora adalah repetisi kata atau frasa yang sama pada awal larik atau kalimat berurutan." },
+        { id: "ts_t_5", difficulty: "tantangan", quote: "Dalam novel 'Sitti Nurbaya', konflik utama berpusat pada pertentangan adat kawin paksa dengan semangat modernitas.", question: "Siapakah pengarang roman klasik Angkatan Balai Pustaka 'Sitti Nurbaya' (1922)?", options: ["Marah Rusli", "Abdul Muis", "Sutan Takdir Alisjahbana", "Merari Siregar"], answer: 0, exp: "Marah Rusli adalah penulis roman 'Sitti Nurbaya: Kasih Tak Sampai' yang terbit pada tahun 1922." },
+        { id: "ts_t_6", difficulty: "tantangan", quote: "Ia duduk termangu di beranda senja, membiarkan kenangan lama mengetuk pelan pintu batinnya yang mulai berkarat.", question: "Sudut pandang (point of view) yang digunakan narator dalam penggalan cerita di atas adalah...", options: ["Orang ketiga serbatahu", "Orang pertama pelaku utama", "Orang pertama sampingan", "Orang kedua instruktif"], answer: 0, exp: "Penggunaan pronomina 'ia' dan pengetahuan narator atas kondisi batin tokoh menandakan sudut pandang orang ketiga serbatahu." },
+        { id: "ts_t_7", difficulty: "tantangan", quote: "Puisi mantra yang membebaskan kata dari beban makna kamus demi energi bunyi dipelopori oleh penulis kumpulan 'O Amuk Kapak'.", question: "Siapakah penyair yang dikenal sebagai Presiden Penyair Indonesia lewat karya tersebut?", options: ["Sutardji Calzoum Bachri", "Joko Pinurbo", "Rendra", "Subagio Sastrowardoyo"], answer: 0, exp: "Sutardji Calzoum Bachri memperkenalkan kredo puisi mantra dalam kumpulan 'O, Amuk, Kapak'." },
+        { id: "ts_t_8", difficulty: "tantangan", quote: "Rapi sekali tulisanmu hari ini, sampai-sampai butuh mikroskop dan penerjemah kuno untuk membacanya.", question: "Sindiran halus dengan menyatakan kebalikan dari maksud sebenarnya disebut majas...", options: ["Ironi", "Eufemisme", "Sinekdoke", "Inversi"], answer: 0, exp: "Ironi adalah gaya bahasa sindiran yang menyatakan hal bertolak belakang dengan kenyataan yang dimaksud." },
+        { id: "ts_t_9", difficulty: "tantangan", quote: "Negeri ini bukan milik segelintir penguasa; negeri ini lahir dari keringat petani, peluh nelayan, dan doa ibu di beranda sunyi.", question: "Struktur sejajar 'keringat petani, peluh nelayan, dan doa ibu' menggunakan teknik retorika...", options: ["Paralelisme", "Elipsis", "Kiasmus", "Aposiopesis"], answer: 0, exp: "Paralelisme menyejajarkan bentuk gramatikal frasa yang setara untuk memperkuat ritme dan penekanan makna." },
+        { id: "ts_t_10", difficulty: "tantangan", quote: "Peristiwa berputar kembali ke masa lima belas tahun silam ketika hujan deras meruntuhkan jembatan desa.", question: "Teknik pengaluran cerita yang bergerak mundur mengenang peristiwa masa lampau disebut...", options: ["Alur sorot balik (flashback)", "Alur progresif (maju)", "Foreshadowing", "Klimaks"], answer: 0, exp: "Alur sorot balik (regresif/flashback) membawa pembaca menelusuri kejadian masa lalu untuk menjelaskan konflik masa kini." }
+    ];
+
+    const DEFAULT_BANK_PERBAIKI_KALIMAT = [
+        { id: "pk_s_1", difficulty: "santai", err: "Para siswa-siswa diharapkan segera berkumpul di lapangan upacara.", options: ["Para siswa diharapkan segera berkumpul di lapangan upacara.", "Para siswa-siswa harap segera kumpul di lapangan upacara.", "Semua para siswa diharapkan berkumpul dilapangan upacara.", "Siswa-siswa sekalian di harapkan berkumpul di lapangan."], correct: 0, exp: "Kata 'para' sudah menyatakan jamak, sehingga tidak perlu mengulang 'siswa-siswa' agar kalimat efektif dan tidak pleonastis." },
+        { id: "pk_s_2", difficulty: "santai", err: "Dimana kamu meletakkan buku catatan literasi kemarin?", options: ["Di mana kamu meletakkan buku catatan literasi kemarin?", "Dimana kamu meletakan buku catatan literasi kemarin?", "Di mana kamu meletakan buku catatan literasi kemarin?", "Dimanakah kamu meletakkan buku catatan literasi kemarin?"], correct: 0, exp: "Kata depan 'di' yang menunjukkan tempat ('di mana') harus dipisah, dan bentuk baku dari dasar 'letak' + me-kan adalah 'meletakkan'." },
+        { id: "pk_s_3", difficulty: "santai", err: "Saya membeli obat di apotik dekat rumah sakit.", options: ["Saya membeli obat di apotek dekat rumah sakit.", "Saya membeli obat diapootek dekat rumah sakit.", "Saya membeli obat di apotik dekat rumahsakit.", "Saya beli obat di apotik dekat rumah sakit."], correct: 0, exp: "Bentuk baku dalam KBBI adalah 'apotek' (bukan 'apotik'), dan kata depan 'di' harus ditulis terpisah." },
+        { id: "pk_s_4", difficulty: "santai", err: "Walaupun hujan deras, tetapi ia tetap berangkat ke perpustakaan.", options: ["Walaupun hujan deras, ia tetap berangkat ke perpustakaan.", "Walaupun hujan deras, namun ia tetap berangkat ke perpustakaan.", "Meskipun hujan deras tetapi ia tetap berangkat ke perpustakaan.", "Walaupun hujan deras, melainkan ia tetap berangkat."], correct: 0, exp: "Konjungsi intrakalimat 'walaupun' tidak boleh dipasangkan ganda dengan 'tetapi' atau 'namun' dalam satu kalimat." },
+        { id: "pk_s_5", difficulty: "santai", err: "Rapat redaksi majalah sekolah itu di laksanakan pada hari jumat.", options: ["Rapat redaksi majalah sekolah itu dilaksanakan pada hari Jumat.", "Rapat redaksi majalah sekolah itu di laksanakan pada hari Jumat.", "Rapat redaksi majalah sekolah itu dilaksanakan pada Hari jumat.", "Rapat redaksi majalah sekolah itu di laksanakan pada Hari Jumat."], correct: 0, exp: "Imbuhan pasif 'di-' ditulis serangkai ('dilaksanakan') dan nama hari diawali huruf kapital ('Jumat')." },
+        { id: "pk_s_6", difficulty: "santai", err: "Kegiatan literasi ini bertujuan agar supaya siswa gemar membaca.", options: ["Kegiatan literasi ini bertujuan agar siswa gemar membaca.", "Kegiatan literasi ini bertujuan untuk supaya siswa gemar membaca.", "Kegiatan literasi ini tujuannya agar supaya siswa gemar membaca.", "Kegiatan literasi ini bertujuan demi agar siswa gemar membaca."], correct: 0, exp: "Hindari penggunaan konjungsi bersinonim secara bersamaan ('agar supaya'); pilih salah satu ('agar' atau 'supaya')." },
+        { id: "pk_s_7", difficulty: "santai", err: "Dia sangat amat rajin menulis cerpen setiap malam minggu.", options: ["Dia sangat rajin menulis cerpen setiap malam Minggu.", "Dia sangat amat rajin menulis cerpen setiap malam Minggu.", "Dia amat sangat rajin menulis cerpen setiap malam minggu.", "Dia sangat rajin sekali menulis cerpen tiap malam minggu."], correct: 0, exp: "Penggunaan 'sangat amat' bersifat berlebihan (mubazir); cukup 'sangat rajin', dan nama hari 'Minggu' berkapital." },
+        { id: "pk_s_8", difficulty: "santai", err: "Presiden menghadiri peresmian pameran buku nasional di bandung.", options: ["Presiden menghadiri peresmian pameran buku nasional di Bandung.", "presiden menghadiri peresmian pameran buku nasional di Bandung.", "Presiden menghadiri peresmian pameran buku Nasional di bandung.", "Presiden mengahdiri peresmian pameran buku nasional di Bandung."], correct: 0, exp: "Nama unsur geografi/kota ('Bandung') wajib diawali huruf kapital sesuai kaidah EYD V." },
+        { id: "pk_s_9", difficulty: "santai", err: "Kami mengucapkan terimakasih atas partisipasi seluruh peserta.", options: ["Kami mengucapkan terima kasih atas partisipasi seluruh peserta.", "Kami mengucapkan terimakasih atas partisifasi seluruh peserta.", "Kami mengucap terima kasih atas partisipasi semua seluruh peserta.", "Kami mengucapkan terima-kasih atas partisipasi seluruh peserta."], correct: 0, exp: "Gabungan kata 'terima kasih' tanpa imbuhan awalan-akhiran wajib ditulis terpisah." },
+        { id: "pk_s_10", difficulty: "santai", err: "Ia pergi ke toko buku, membeli novel, kamus dan pena.", options: ["Ia pergi ke toko buku, membeli novel, kamus, dan pena.", "Ia pergi ketoko buku, membeli novel, kamus, dan pena.", "Ia pergi ke toko buku membeli novel kamus dan pena.", "Ia pergi ke toko buku; membeli novel, kamus dan pena."], correct: 0, exp: "Pada perincian tiga unsur atau lebih, tanda koma wajib diletakkan sebelum kata penghubung 'dan' (koma serial EYD V)." },
+        { id: "pk_t_1", difficulty: "tantangan", err: "Dalam rapat tersebut membahas tentang strategi peningkatan minat baca.", options: ["Rapat tersebut membahas strategi peningkatan minat baca.", "Dalam rapat tersebut membahas strategi peningkatan minat baca.", "Di dalam rapat tersebut membicarakan tentang strategi minat baca.", "Rapat tersebut membahas tentang strategi peningkatan minat baca."], correct: 0, exp: "Kalimat tanpa subjek karena preposisi 'dalam' di awal, serta kata kerja transitif 'membahas' langsung diikuti objek tanpa 'tentang'." },
+        { id: "pk_t_2", difficulty: "tantangan", err: "Ia berhasil merubah konsep naskah itu menjadi lebih sistimatis.", options: ["Ia berhasil mengubah konsep naskah itu menjadi lebih sistematis.", "Ia berhasil merubah konsep naskah itu menjadi lebih sistematis.", "Ia berhasil mengubah konsep naskah itu menjadi lebih sistimatis.", "Ia berhasil mengubahkan konsep naskah itu menjadi sistematis."], correct: 0, exp: "Kata dasar 'ubah' + me- menjadi 'mengubah' (bukan 'merubah'), dan bentuk baku adalah 'sistematis'." },
+        { id: "pk_t_3", difficulty: "tantangan", err: "Naskah yang mana telah dikirimkan kemarin sudah dikoreksi oleh kurator.", options: ["Naskah yang telah dikirimkan kemarin sudah dikoreksi oleh kurator.", "Naskah dimana telah dikirimkan kemarin sudah dikoreksi kurator.", "Naskah yang mana telah di kirim kemarin sudah dikoreksi kurator.", "Naskah yang telah dikirimkan kemarin sudah di koreksi oleh kurator."], correct: 0, exp: "Kata tanya 'yang mana' bukan konjungsi baku dalam bahasa Indonesia; cukup gunakan 'yang'." },
+        { id: "pk_t_4", difficulty: "tantangan", err: "Atas perhatiannya Bapak dan Ibu sekalian, kami haturkan terima kasih.", options: ["Atas perhatian Bapak dan Ibu, kami mengucapkan terima kasih.", "Atas perhatiannya Bapak/Ibu sekalian, kami ucapkan terimakasih.", "Atas perhatiannya daripada Bapak dan Ibu, kami terima kasih.", "Atas perhatian Bapak dan Ibu sekalian, kami haturkan terimakasih."], correct: 0, exp: "Akhiran '-nya' pada 'perhatiannya' rancu bila diikuti langsung 'Bapak dan Ibu'. Gunakan sapaan langsung yang ringkas dan baku." },
+        { id: "pk_t_5", difficulty: "tantangan", err: "Analisis data itu dilakukan secara kwalitatif dan komprehensip.", options: ["Analisis data itu dilakukan secara kualitatif dan komprehensif.", "Analisa data itu dilakukan secara kualitatif dan komprehensif.", "Analisis data itu dilakukan secara kwalitatif dan komprehensif.", "Analisa data itu dilakukan secara kualitatif dan komprehensip."], correct: 0, exp: "Kata baku KBBI adalah 'analisis', 'kualitatif', dan 'komprehensif'." },
+        { id: "pk_t_6", difficulty: "tantangan", err: "Walaupun ia sibuk bekerja namun ia selalu menyempatkan membaca buku.", options: ["Walaupun sibuk bekerja, ia selalu menyempatkan diri membaca buku.", "Walaupun ia sibuk bekerja tetapi ia selalu menyempatkan membaca buku.", "Meskipun ia sibuk bekerja namun ia selalu menyempatkan membaca buku.", "Walau sibuk bekerja, namun ia selalu menyempatkan membaca buku."], correct: 0, exp: "Konjungsi 'walaupun' cukup diikuti tanda koma di akhir anak kalimat tanpa menambahkan 'namun' atau 'tetapi'." },
+        { id: "pk_t_7", difficulty: "tantangan", err: "Buku itu saya sudah baca sampai halaman terakhir sejak kemarin sore.", options: ["Buku itu sudah saya baca sampai halaman terakhir sejak kemarin sore.", "Buku itu saya telah baca sampai halaman terakhir sejak kemarin sore.", "Buku itu sudah dibaca oleh saya sampai halaman terakhir kemarin sore.", "Buku itu saya sudah membaca sampai halaman terakhir sejak kemarin sore."], correct: 0, exp: "Dalam konstruksi pasif persona pertama, aspek 'sudah' diletakkan sebelum pronomina pelaku: 'sudah saya baca'." },
+        { id: "pk_t_8", difficulty: "tantangan", err: "Para peserta lomba diwajibkan untuk mensubmit naskah sebelum jam 23.59.", options: ["Peserta lomba diwajibkan mengirimkan naskah sebelum pukul 23.59.", "Para peserta lomba diwajibkan untuk mensubmit naskah sebelum pukul 23.59.", "Peserta lomba di wajibkan mengirim naskah sebelum jam 23.59.", "Para peserta lomba wajib mensubmit naskah sebelum jam 23.59."], correct: 0, exp: "Gunakan padanan Indonesia baku ('mengirimkan') bukan 'mensubmit', serta gunakan 'pukul' (bukan 'jam') untuk menunjukkan titik waktu." },
+        { id: "pk_t_9", difficulty: "tantangan", err: "Rumah penulis senior itu terletak diantara dua sungai yang jernih.", options: ["Rumah penulis senior itu terletak di antara dua sungai yang jernih.", "Rumah penulis senior itu terletak diantara dua sungai yang jernih.", "Rumah penulis senior itu di letakkan di antara dua sungai jernih.", "Rumah penulis senior itu ter letak di antara dua sungai yang jernih."], correct: 0, exp: "Preposisi 'di antara' ditulis terpisah karena menunjukkan posisi tempat." },
+        { id: "pk_t_10", difficulty: "tantangan", err: "Karena keterbatasan waktu, maka diskusi sastra terpaksa diakhiri.", options: ["Karena keterbatasan waktu, diskusi sastra terpaksa diakhiri.", "Dikarenakan keterbatasan waktu, maka diskusi sastra terpaksa diakhiri.", "Sebab karena keterbatasan waktu, diskusi sastra terpaksa diakhiri.", "Karena keterbatasan waktu maka daripada itu diskusi diakhiri."], correct: 0, exp: "Hindari penggunaan konjungsi ganda 'karena ... maka ...' dalam satu kalimat majemuk bertingkat." }
+    ];
+
+    const DEFAULT_BANK_TANTANGAN_CEPAT = [
+        { id: "tc_s_1", difficulty: "santai", word: "ANTRE", isBaku: true, bakuForm: "antre", exp: "Baku menurut KBBI (bukan 'antri')." },
+        { id: "tc_s_2", difficulty: "santai", word: "APOTIK", isBaku: false, bakuForm: "apotek", exp: "Tidak baku; bentuk bakunya adalah 'apotek'." },
+        { id: "tc_s_3", difficulty: "santai", word: "AKTIVITAS", isBaku: true, bakuForm: "aktivitas", exp: "Baku menurut KBBI (bukan 'aktifitas')." },
+        { id: "tc_s_4", difficulty: "santai", word: "ANALISA", isBaku: false, bakuForm: "analisis", exp: "Tidak baku; bentuk bakunya adalah 'analisis'." },
+        { id: "tc_s_5", difficulty: "santai", word: "ATLET", isBaku: true, bakuForm: "atlet", exp: "Baku menurut KBBI (bukan 'atlit')." },
+        { id: "tc_s_6", difficulty: "santai", word: "IJASAH", isBaku: false, bakuForm: "ijazah", exp: "Tidak baku; bentuk bakunya adalah 'ijazah'." },
+        { id: "tc_s_7", difficulty: "santai", word: "JADWAL", isBaku: true, bakuForm: "jadwal", exp: "Baku menurut KBBI (bukan 'jadual')." },
+        { id: "tc_s_8", difficulty: "santai", word: "KARIR", isBaku: false, bakuForm: "karier", exp: "Tidak baku; bentuk bakunya adalah 'karier'." },
+        { id: "tc_s_9", difficulty: "santai", word: "KREATIVITAS", isBaku: true, bakuForm: "kreativitas", exp: "Baku menurut KBBI (bukan 'kreatifitas')." },
+        { id: "tc_s_10", difficulty: "santai", word: "KWITANSI", isBaku: false, bakuForm: "kuitansi", exp: "Tidak baku; bentuk bakunya adalah 'kuitansi'." },
+        { id: "tc_s_11", difficulty: "santai", word: "NASIHAT", isBaku: true, bakuForm: "nasihat", exp: "Baku menurut KBBI (bukan 'nasehat')." },
+        { id: "tc_s_12", difficulty: "santai", word: "PRAKTEK", isBaku: false, bakuForm: "praktik", exp: "Tidak baku; bentuk bakunya adalah 'praktik'." },
+        { id: "tc_s_13", difficulty: "santai", word: "RISIKO", isBaku: true, bakuForm: "risiko", exp: "Baku menurut KBBI (bukan 'resiko')." },
+        { id: "tc_s_14", difficulty: "santai", word: "SEKEDAR", isBaku: false, bakuForm: "sekadar", exp: "Tidak baku; bentuk bakunya adalah 'sekadar'." },
+        { id: "tc_s_15", difficulty: "santai", word: "TEKNIK", isBaku: true, bakuForm: "teknik", exp: "Baku menurut KBBI (bukan 'tehnik')." },
+        { id: "tc_t_1", difficulty: "tantangan", word: "ABJAD", isBaku: true, bakuForm: "abjad", exp: "Baku menurut KBBI (bukan 'abjat')." },
+        { id: "tc_t_2", difficulty: "tantangan", word: "ADZAN", isBaku: false, bakuForm: "azan", exp: "Tidak baku; bentuk bakunya dalam KBBI adalah 'azan'." },
+        { id: "tc_t_3", difficulty: "tantangan", word: "AUTHENTIC", isBaku: false, bakuForm: "autentik", exp: "Tidak baku dalam bahasa Indonesia; padanan bakunya adalah 'autentik'." },
+        { id: "tc_t_4", difficulty: "tantangan", word: "CENDERA MATA", isBaku: true, bakuForm: "cendera mata", exp: "Baku menurut KBBI (ditulis terpisah 'cendera mata', bukan 'cinderamata')." },
+        { id: "tc_t_5", difficulty: "tantangan", word: "DIAGNOSA", isBaku: false, bakuForm: "diagnosis", exp: "Tidak baku; bentuk bakunya adalah 'diagnosis'." },
+        { id: "tc_t_6", difficulty: "tantangan", word: "EKOSISTEM", isBaku: true, bakuForm: "ekosistem", exp: "Baku menurut KBBI (bukan 'ekosistim')." },
+        { id: "tc_t_7", difficulty: "tantangan", word: "FONDASI", isBaku: true, bakuForm: "fondasi", exp: "Baku menurut KBBI (bukan 'pondasi')." },
+        { id: "tc_t_8", difficulty: "tantangan", word: "HAKEKAT", isBaku: false, bakuForm: "hakikat", exp: "Tidak baku; bentuk bakunya adalah 'hakikat'." },
+        { id: "tc_t_9", difficulty: "tantangan", word: "HIERARKI", isBaku: true, bakuForm: "hierarki", exp: "Baku menurut KBBI (bukan 'hirarki')." },
+        { id: "tc_t_10", difficulty: "tantangan", word: "HIPOTESA", isBaku: false, bakuForm: "hipotesis", exp: "Tidak baku; bentuk bakunya adalah 'hipotesis'." },
+        { id: "tc_t_11", difficulty: "tantangan", word: "KAIDAH", isBaku: true, bakuForm: "kaidah", exp: "Baku menurut KBBI (bukan 'kaedah')." },
+        { id: "tc_t_12", difficulty: "tantangan", word: "KOMODITI", isBaku: false, bakuForm: "komoditas", exp: "Tidak baku; bentuk bakunya adalah 'komoditas'." },
+        { id: "tc_t_13", difficulty: "tantangan", word: "MATERAI", isBaku: false, bakuForm: "meterai", exp: "Tidak baku; bentuk bakunya adalah 'meterai'." },
+        { id: "tc_t_14", difficulty: "tantangan", word: "OTENTIK", isBaku: false, bakuForm: "autentik", exp: "Tidak baku; bentuk bakunya adalah 'autentik'." },
+        { id: "tc_t_15", difficulty: "tantangan", word: "SINTESIS", isBaku: true, bakuForm: "sintesis", exp: "Baku menurut KBBI (bukan 'sintesa')." }
+    ];
+
+    const DEFAULT_BANK_SAMBUNG_CERITA = [
+        { id: "sc_s_1", difficulty: "santai", opener: "Di sudut paling sunyi perpustakaan tua itu, aku menemukan sebuah buku bersampul kulit cokelat tanpa nama pengarang. Ketika halamannya kubuka, tinta emas di dalamnya mulai bergerak membentuk namaku sendiri...", guide: "Lanjutkan cerita dengan suasana misterius dan sisipkan minimal satu majas personifikasi." },
+        { id: "sc_s_2", difficulty: "santai", opener: "Hujan turun tak henti-henti sejak fajar. Di halte kayu dekat persimpangan desa, seorang kakek menyerahkan sebuah surat tersegel lilin biru kepadaku sebelum ia menghilang di balik kabut...", guide: "Bangun rasa ingin tahu pembaca tentang isi surat dan alasan kakek itu memilih tokoh utama." },
+        { id: "sc_s_3", difficulty: "santai", opener: "Jam dinding di ruang baca berdentang tiga belas kali. Seketika itu pula, suara gemericik ombak terdengar jelas dari balik pintu lemari buku...", guide: "Gambarkan transisi dunia nyata ke dunia imajinasi menggunakan citraan visual dan pendengaran." },
+        { id: "sc_t_1", difficulty: "tantangan", opener: "Kota ini melarang warganya menyimpan kenangan lebih dari sepuluh tahun. Namun malam ini, aku menyembunyikan sebuah buku harian kakekku di bawah papan lantai kayu...", guide: "Kembangkan konflik batin tokoh utama dan hadirkan dialog singkat yang menegangkan." },
+        { id: "sc_t_2", difficulty: "tantangan", opener: "Semua orang mengira mercusuar di ujung karang itu sudah kosong puluhan tahun, hingga cahaya lampu minyaknya menyala kembali tepat di malam gerhana bulan...", guide: "Tulis lanjutan paragraf dengan tempo dramatis, diksi puitis, dan akhiri dengan cliffhanger." },
+        { id: "sc_t_3", difficulty: "tantangan", opener: "Di pasar malam yang hanya muncul setahun sekali, seorang penjual menawarkan botol-botol kaca berisi suara tawa masa kecil yang telah lama hilang...", guide: "Eksplorasi tema nostalgia dengan gaya bahasa metafora dan akhir yang menyentuh hati." }
+    ];
+
     function getQuestionBank(gameKey) {
         try {
             const key = 'cendekia_qbank_' + gameKey;
@@ -2451,6 +3295,10 @@ const CendekiaApp = (function () {
         else if (gameKey === 'tebak_kata') fallback = DEFAULT_BANK_TEBAK_KATA;
         else if (gameKey === 'susun_kata') fallback = DEFAULT_BANK_SUSUN_KATA;
         else if (gameKey === 'teka_teki') fallback = DEFAULT_BANK_TEKA_TEKI;
+        else if (gameKey === 'tebak_sastra') fallback = DEFAULT_BANK_TEBAK_SASTRA;
+        else if (gameKey === 'perbaiki_kalimat') fallback = DEFAULT_BANK_PERBAIKI_KALIMAT;
+        else if (gameKey === 'tantangan_cepat') fallback = DEFAULT_BANK_TANTANGAN_CEPAT;
+        else if (gameKey === 'sambung_cerita') fallback = DEFAULT_BANK_SAMBUNG_CERITA;
 
         try {
             localStorage.setItem('cendekia_qbank_' + gameKey, JSON.stringify(fallback));
@@ -2594,8 +3442,8 @@ const CendekiaApp = (function () {
             });
         }
 
-        // Akumulasi dari game result hari ini jika ada
-        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki'];
+        // Akumulasi dari game result hari ini jika ada (seluruh 8 arena)
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
         let gameResultsTotal = 0;
         gameKeys.forEach(gk => {
             const res = getGameResult(gk);
@@ -2607,14 +3455,23 @@ const CendekiaApp = (function () {
         return Math.max(total, gameResultsTotal);
     }
 
-    // Mendeteksi draft game yang belum tuntas untuk seluruh 4 arena
+    // Mendeteksi draft game yang belum tuntas (4 arena di Member Free, 8 arena di Member 5K)
     function getUnfinishedGames() {
         const list = [
-            { key: 'kuis_pintar', title: 'Kuis Pintar', link: '/mem-free/permainan/kuis-pintar.html', total: 15, icon: 'brain', color: '#7c3aed', bg: '#ede9fe' },
-            { key: 'tebak_kata', title: 'Tebak Kata', link: '/mem-free/permainan/tebak-kata.html', total: 10, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
-            { key: 'susun_kata', title: 'Susun Kata', link: '/mem-free/permainan/susun-kata.html', total: 10, icon: 'combine', color: '#059669', bg: '#d1fae5' },
-            { key: 'teka_teki', title: 'Teka-Teki Aksara', link: '/mem-free/permainan/teka-teki.html', total: 10, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
+            { key: 'kuis_pintar', title: 'Kuis Pintar', link: `${PORTAL_PREFIX}/permainan/kuis-pintar.html`, total: 15, icon: 'brain', color: '#7c3aed', bg: '#ede9fe' },
+            { key: 'tebak_kata', title: 'Tebak Kata', link: `${PORTAL_PREFIX}/permainan/tebak-kata.html`, total: 10, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
+            { key: 'susun_kata', title: 'Susun Kata', link: `${PORTAL_PREFIX}/permainan/susun-kata.html`, total: 10, icon: 'combine', color: '#059669', bg: '#d1fae5' },
+            { key: 'teka_teki', title: 'Teka-Teki Aksara', link: `${PORTAL_PREFIX}/permainan/teka-teki.html`, total: 10, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
         ];
+
+        if (IS_MEM_5K) {
+            list.push(
+                { key: 'tebak_sastra', title: 'Tebak Sastra', link: `${PORTAL_PREFIX}/permainan/tebak-sastra.html`, total: 10, icon: 'book-open', color: '#059669', bg: '#dcfce7' },
+                { key: 'sambung_cerita', title: 'Sambung Cerita', link: `${PORTAL_PREFIX}/permainan/sambung-cerita.html`, total: 3, icon: 'book-text', color: '#2563eb', bg: '#dbeafe' },
+                { key: 'perbaiki_kalimat', title: 'Perbaiki Kalimat', link: `${PORTAL_PREFIX}/permainan/perbaiki-kalimat.html`, total: 10, icon: 'spell-check', color: '#e11d48', bg: '#ffe4e6' },
+                { key: 'tantangan_cepat', title: 'Tantangan Cepat', link: `${PORTAL_PREFIX}/permainan/tantangan-cepat.html`, total: 10, icon: 'timer', color: '#ea580c', bg: '#ffedd5' }
+            );
+        }
 
         const unfinished = [];
 
@@ -2752,8 +3609,9 @@ const CendekiaApp = (function () {
             console.warn('[Cendekia Central] Gagal menyimpan riwayat kuis ke cloud:', err);
         }
 
-        // Catat aktivitas global
-        logActivity('game', `Menyelesaikan ${gameKey.replace(/_/g, ' ')} (Skor: ${resultData.score || 0})`);
+        // Catat aktivitas global & sinkronkan memori cloud
+        logActivity(`Menyelesaikan ${gameKey.replace(/_/g, ' ')} (Skor: ${resultData.score || 0})`, 'gamepad-2', 'game', resultData.xpEarned || 0);
+        scheduleCloudMemorySync();
         return payload;
     }
 
@@ -3162,7 +4020,7 @@ const CendekiaApp = (function () {
             // 2. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
             const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
             const activeMode = options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
-            const targetCount = gameKey === 'kuis_pintar' ? 15 : 10;
+            const targetCount = gameKey === 'kuis_pintar' ? 15 : (gameKey === 'sambung_cerita' ? 3 : 10);
 
             // 3. Periksa apakah ada paket soal dari pool harian (jika ada, masukkan ke Bank Soal agar tersimpan permanen)
             try {
@@ -3324,6 +4182,8 @@ const CendekiaApp = (function () {
         getFirebaseBridge,
         renderFormattedMaterial,
         getMaterialByCategory,
+        getMaterialsByCategory,
+        normalizeCategoryKey,
         getAllMaterials,
         saveMaterial,
         deleteMaterial,
@@ -3351,6 +4211,13 @@ const CendekiaApp = (function () {
         getTransactions,
         recordTransaction,
         upgradeUserTier,
+        downgradeToFree,
+        getMembershipInfo,
+        getStreakFlameInfo,
+        showStreakInfoModal,
+        syncMemoryToFirestore,
+        askAksaBotAI,
+        askMentorAI,
         getQuestionBank,
         addToQuestionBank,
         getServedQuestionHistory,
@@ -3361,6 +4228,9 @@ const CendekiaApp = (function () {
         showFloatingXP,
         showEncouragementToast,
         init,
+        IS_MEM_5K,
+        PORTAL_PREFIX,
+        MEMBERSHIP_DURATION_DAYS,
         BADGE_CATALOG,
         LEVELS
     };

@@ -817,18 +817,85 @@
             }
         };
 
+        function isPaid5kAccount(data) {
+            const pkg = String(data?.packageId || '').toLowerCase();
+            const tier = String(data?.tier || '').toLowerCase();
+            return pkg === '5k' || pkg === 'mem-5k' || tier.includes('5k');
+        }
+
+        function isPaidProAccount(data) {
+            const pkg = String(data?.packageId || '').toLowerCase();
+            const tier = String(data?.tier || '').toLowerCase();
+            return pkg === '10k' || pkg === '15k' || pkg === '20k' || pkg === 'pro' || pkg === 'mem-pro'
+                || tier.includes('10k') || tier.includes('15k') || tier.includes('20k') || tier.includes('pro');
+        }
+
+        async function normalizeMembershipExpiry(uid, data) {
+            if (!data) return data;
+            const is5k = isPaid5kAccount(data);
+            const isPro = isPaidProAccount(data);
+            if (!is5k && !isPro) return data;
+
+            const now = Date.now();
+            if (data.membershipExpiresAt) {
+                const expMs = new Date(data.membershipExpiresAt).getTime();
+                if (!isNaN(expMs) && now > expMs) {
+                    // Masa aktif 40 hari habis -> otomatis turun ke Member Free
+                    const downgradePatch = {
+                        tier: 'Member Free',
+                        packageId: 'free',
+                        packageName: 'Member Free',
+                        membershipExpiresAt: null,
+                        membershipStatus: 'expired',
+                        lastAutoDowngradeAt: new Date().toISOString()
+                    };
+                    Object.assign(data, downgradePatch);
+                    try {
+                        await setDoc(doc(db, 'users', uid), downgradePatch, { merge: true });
+                    } catch (e) {}
+                    return data;
+                }
+            } else {
+                // Akun Member 5K/Pro lama yang belum punya tanggal akhir -> berikan masa aktif 40 hari penuh
+                const startIso = new Date().toISOString();
+                const expIso = new Date(now + (40 * 24 * 60 * 60 * 1000)).toISOString();
+                const initPatch = {
+                    membershipStartedAt: startIso,
+                    membershipExpiresAt: expIso,
+                    membershipDurationDays: 40,
+                    membershipStatus: 'active'
+                };
+                Object.assign(data, initPatch);
+                try {
+                    await setDoc(doc(db, 'users', uid), initPatch, { merge: true });
+                } catch (e) {}
+            }
+            return data;
+        }
+
         function routeUser(data, email) {
             const role = data.role || 'siswa';
             if (role === 'admin' || email === ADMIN_EMAIL) return 'admin/index.html';
             if (role === 'pengajar' || email.endsWith('@ac.id')) return 'pengajar/index.html';
-            // Siswa / Anggota langsung diarahkan ke portal Ruang Belajar Mandiri (Member Free)
+
+            const isExpired = data.membershipExpiresAt && Date.now() > new Date(data.membershipExpiresAt).getTime();
+            if (!isExpired) {
+                if (isPaid5kAccount(data)) return 'mem-5k/index.html';
+                if (isPaidProAccount(data)) return 'mem-pro/index.html';
+            }
+            // Default: Member Free
             return 'mem-free/index.html';
         }
 
         function persistUserSession(user, data) {
             try {
                 const photo = data.photoURL || data.photo || user.photoURL || '';
-                localStorage.setItem('cendekia_user', JSON.stringify({
+                const pkgId = isPaid5kAccount(data) ? '5k' : (isPaidProAccount(data) ? (data.packageId || '15k') : 'free');
+                const resolvedTier = isPaid5kAccount(data)
+                    ? 'Member 5K'
+                    : (isPaidProAccount(data) ? (data.tier || data.packageName || 'Member Pro') : 'Member Free');
+
+                const sessionObj = {
                     uid: user.uid,
                     name: data.name || user.displayName || 'Siswa Cendekia',
                     email: user.email,
@@ -842,13 +909,43 @@
                     semester: parseInt(data.semester) || 1,
                     ips: data.ips || 0,
                     status: data.status || 'active',
-                    packageId: data.packageId || 'free',
-                    packageName: data.packageName || 'Akses Pustaka (Mandiri)'
-                }));
+                    tier: resolvedTier,
+                    packageId: pkgId,
+                    packageName: data.packageName || resolvedTier,
+                    membershipStartedAt: data.membershipStartedAt || null,
+                    membershipExpiresAt: data.membershipExpiresAt || null,
+                    xp: typeof data.xp === 'number' ? data.xp : 0,
+                    streak: typeof data.streak === 'number' ? data.streak : 1,
+                    lastActiveDate: data.lastActiveDate || data.lastVisitDate || '',
+                    lastVisitDate: data.lastVisitDate || data.lastActiveDate || '',
+                    visitDates: Array.isArray(data.visitDates) ? data.visitDates : [],
+                    badges: Array.isArray(data.badges) ? data.badges : [],
+                    stats: data.stats || null
+                };
+
+                localStorage.setItem('cendekia_user', JSON.stringify(sessionObj));
                 localStorage.setItem('user_status', 'registered');
-                localStorage.setItem('user_semester', data.semester || 1);
-                localStorage.setItem('user_package', data.packageId || 'free');
+                localStorage.setItem('user_semester', sessionObj.semester);
+                localStorage.setItem('user_package', pkgId);
                 if (photo) localStorage.setItem('user_photo', photo);
+
+                // Sinkronkan juga ke storage utama portal member agar tidak bentrok dengan akun sebelumnya
+                const prevRaw = localStorage.getItem('cendekia_free_user');
+                let mergedMember = { ...sessionObj };
+                if (prevRaw) {
+                    try {
+                        const prev = JSON.parse(prevRaw);
+                        if (prev.uid === user.uid || (prev.email && prev.email === user.email)) {
+                            mergedMember = {
+                                ...prev,
+                                ...sessionObj,
+                                xp: Math.max(prev.xp || 0, sessionObj.xp || 0),
+                                streak: Math.max(prev.streak || 1, sessionObj.streak || 1)
+                            };
+                        }
+                    } catch (e) {}
+                }
+                localStorage.setItem('cendekia_free_user', JSON.stringify(mergedMember));
             } catch(e) {}
         }
 
@@ -952,6 +1049,7 @@
                             await setDoc(doc(db, 'users', user.uid), { role: 'pengajar' }, { merge: true });
                             data.role = 'pengajar';
                         }
+                        await normalizeMembershipExpiry(user.uid, data);
                         persistUserSession(user, data);
                         window.location.href = routeUser(data, user.email);
                     } else {
@@ -1024,8 +1122,9 @@
                     return;
                 }
 
-                // 3. Lolos semua? Masuk ke sistem
+                // 3. Lolos semua? Periksa masa aktif keanggotaan & masuk ke sistem
                 showLoading('Memasuki Sistem...');
+                await normalizeMembershipExpiry(user.uid, data);
                 await ActivityLogger.logLogin(user.uid, data.name || 'User', user.email);
                 isLoggingIn = false;
                 persistUserSession(user, data);
@@ -1118,6 +1217,7 @@
 
                 isRegistering = false;
                 hideLoading();
+                await normalizeMembershipExpiry(user.uid, data);
                 persistUserSession(user, data);
                 Swal.fire({
                     icon: 'success',

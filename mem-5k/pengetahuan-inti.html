@@ -64,7 +64,9 @@
                     <div class="header-brand-sub">Struktur Narasi &amp; Penokohan</div>
                 </div>
             </div>
-            <span class="badge-tier-5k">+25 XP Baca</span>
+            <span class="badge-tier-5k" style="background:#fef3c7; color:#b45309; font-weight:800;">
+                <i data-lucide="book-marked" style="width:12px; height:12px; display:inline-block; vertical-align:middle; margin-right:2px;"></i> Akses Bebas
+            </span>
         </header>
 
         <main class="app-body">
@@ -93,9 +95,11 @@
 
         async function loadCategoryMaterial() {
             const container = document.getElementById('materialContentArea');
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedId = urlParams.get('id') || null;
 
             try {
-                const material = await CendekiaApp.getMaterialByCategory(CATEGORY_ID);
+                const material = await CendekiaApp.getMaterialByCategory(CATEGORY_ID, requestedId);
 
                 if (!material || !material.content || material.content.trim().length === 0) {
                     container.innerHTML = `
@@ -116,12 +120,26 @@
                     `;
                 } else {
                     const updatedStr = material.updatedAt ? new Date(material.updatedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : 'Terbaru';
-                    
+                    const words = ((material.content || '') + ' ' + (material.summary || '')).split(/\s+/).filter(Boolean).length;
+                    const readTime = Math.max(1, Math.ceil(words / 140));
+                    const rollMeta = material._rollingMeta || { index: 1, total: 1 };
+                    const rollingPill = rollMeta.total > 1
+                        ? `<span class="module-badge" style="background:#e0f2fe; color:#0284c7; margin-bottom:0;"><i data-lucide="shuffle" style="width:11px; height:11px;"></i> Rolling Hari Ini (#${rollMeta.index}/${rollMeta.total})</span>`
+                        : '';
+
                     let html = `
                         <div class="module-card">
-                            <span class="module-badge">
-                                <i data-lucide="book-marked" style="width:12px; height:12px;"></i> Modul Kurikulum &bull; ${updatedStr}
-                            </span>
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                                <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                                    <span class="module-badge" style="margin-bottom:0;">
+                                        <i data-lucide="book-marked" style="width:12px; height:12px;"></i> Modul Kurikulum &bull; ${updatedStr}
+                                    </span>
+                                    ${rollingPill}
+                                </div>
+                                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600;">
+                                    <i data-lucide="clock" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> ~${readTime} Menit Baca
+                                </span>
+                            </div>
                             <h2 class="module-title">${material.title || 'Materi Pengetahuan Inti'}</h2>
                     `;
 
@@ -134,30 +152,59 @@
                         `;
                     }
 
+                    // TOOLBAR PENGATUR FONT
                     html += `
-                        <div class="module-content">
-                            ${material.content}
+                        <div class="reading-toolbar">
+                            <span><i data-lucide="eye" style="width:13px; height:13px; display:inline-block; vertical-align:middle; margin-right:3px;"></i> Tampilan Terstruktur AI</span>
+                            <div class="reading-font-btns">
+                                <span>Ukuran Teks:</span>
+                                <button type="button" class="btn-font-size" onclick="adjustFontSize(-1)" title="Perkecil Huruf">A-</button>
+                                <button type="button" class="btn-font-size" onclick="adjustFontSize(1)" title="Perbesar Huruf">A+</button>
+                            </div>
+                        </div>
+                    `;
+
+                    // RENDER ISI MATERI TERSTRUKTUR DENGAN HELPER AI RENDERER
+                    html += `
+                        <div class="module-content" id="moduleContentText">
+                            ${CendekiaApp.renderFormattedMaterial(material.content)}
                         </div>
                     `;
 
                     if (material.examples) {
                         html += `
                             <div class="example-box">
-                                <strong style="color:var(--primary); display:block; margin-bottom:4px;">
-                                    <i data-lucide="lightbulb" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Contoh / Kasus Penerapan:
+                                <strong style="color:var(--primary); display:block; margin-bottom:6px;">
+                                    <i data-lucide="lightbulb" style="width:14px; height:14px; display:inline-block; vertical-align:middle; color:#f59e0b;"></i> Contoh / Kasus Penerapan:
                                 </strong>
-                                <div style="white-space:pre-line;">${material.examples}</div>
+                                <div style="font-size:0.78rem; line-height:1.6; color:#334155;">
+                                    ${CendekiaApp.renderFormattedMaterial(material.examples)}
+                                </div>
                             </div>
                         `;
                     }
 
                     html += `
-                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:10px;" onclick="completeReading()">
-                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca (+25 XP)
+                        <button type="button" id="btnFinishRead" class="btn-primary-challenge" style="margin-top:14px;" onclick="completeReading('${encodeURIComponent(material.title || 'Materi Pengetahuan Inti')}')">
+                            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i> Tandai Telah Selesai Membaca Modul Ini
                         </button>
                     </div>`;
 
                     container.innerHTML = html;
+
+                    // Support direct-link via ?id=...
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('id')) {
+                        const targetCard = document.querySelector('.module-card');
+                        if (targetCard) {
+                            setTimeout(() => {
+                                targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                targetCard.style.outline = '2px solid #b45309';
+                                targetCard.style.transition = 'outline 0.3s ease';
+                                setTimeout(() => { targetCard.style.outline = 'none'; }, 2000);
+                            }, 300);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Gagal memuat materi:", err);
@@ -175,16 +222,24 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        let hasEarnedReadingXP = false;
-        function completeReading() {
-            if (hasEarnedReadingXP) return;
-            hasEarnedReadingXP = true;
-            CendekiaApp.addXP(25, 'Menyelesaikan Bacaan: Pengetahuan Inti');
+        let currentFontScale = 0;
+        window.adjustFontSize = function(delta) {
+            currentFontScale = Math.max(-2, Math.min(3, currentFontScale + delta));
+            const content = document.getElementById('moduleContentText');
+            if (!content) return;
+            const baseSize = 0.8 + (currentFontScale * 0.08);
+            content.style.fontSize = baseSize + 'rem';
+            const items = content.querySelectorAll('.mat-point-text, .mat-paragraph, .mat-callout-body');
+            items.forEach(el => el.style.fontSize = baseSize + 'rem');
+        };
+
+        function completeReading(encodedTitle) {
+            const rawTitle = encodedTitle ? decodeURIComponent(encodedTitle) : 'Materi Pengetahuan Inti';
+            CendekiaApp.recordMaterialRead(CATEGORY_ID, rawTitle);
             const btn = document.getElementById('btnFinishRead');
             if (btn) {
-                btn.disabled = true;
                 btn.style.background = '#059669';
-                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Berhasil Diselesaikan (+25 XP Diperoleh)';
+                btn.innerHTML = '<i data-lucide="check" style="width:16px; height:16px;"></i> Telah Selesai Dibaca ✓ (Bisa Dibaca Kapan Saja)';
                 if (window.lucide) lucide.createIcons();
             }
         }

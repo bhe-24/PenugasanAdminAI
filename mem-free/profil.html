@@ -565,21 +565,28 @@
         function closeLogoutModal() {
             document.getElementById('modalLogout').style.display = 'none';
         }
-        function executeLogout() {
+        async function executeLogout() {
+            try {
+                if (typeof window.__firebaseSignOut === 'function') {
+                    await window.__firebaseSignOut();
+                }
+            } catch (e) {}
             localStorage.removeItem('cendekia_user');
             localStorage.removeItem('user_status');
             localStorage.removeItem('user_semester');
             localStorage.removeItem('user_package');
             localStorage.removeItem('cendekia_free_user');
-            window.location.replace('/home/');
+            window.location.replace('/login.html');
         }
     </script>
 
     <!-- 2. FIREBASE SINKRONISASI LATAR BELAKANG (NON-BLOCKING) -->
     <script type="module">
         import { db, auth } from "/js/firebase-config.js";
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.__firebaseSignOut = () => signOut(auth);
 
         // Sinkronisasi Sesi Auth di Latar Belakang (Tidak Menahan Navigasi atau UI)
         onAuthStateChanged(auth, async (firebaseUser) => {
