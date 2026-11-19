@@ -613,7 +613,9 @@ const CendekiaApp = (function () {
         const rLower = (reason || '').toLowerCase();
         if (rLower.includes('bacaan') || rLower.includes('membaca') || rLower.includes('modul')) {
             user.stats.materialsLearned = (user.stats.materialsLearned || 0) + 1;
-        } else if (rLower.includes('kuis') || rLower.includes('tebak') || rLower.includes('susun') || rLower.includes('teka-teki') || rLower.includes('perbaikan') || rLower.includes('sambung') || rLower.includes('tantangan') || rLower.includes('game') || rLower.includes('permainan')) {
+        } else if (rLower.includes('kuis')) {
+            user.stats.quizCompleted = (user.stats.quizCompleted || 0) + 1;
+        } else if (rLower.includes('tebak') || rLower.includes('susun') || rLower.includes('teka-teki') || rLower.includes('perbaikan') || rLower.includes('sambung') || rLower.includes('tantangan') || rLower.includes('game') || rLower.includes('permainan')) {
             user.stats.gamesCompleted = (user.stats.gamesCompleted || 0) + 1;
         } else if (rLower.includes('karya') || rLower.includes('menulis') || rLower.includes('naskah')) {
             user.stats.worksCreated = Math.max(user.stats.worksCreated || 0, getWorks().length || 1);
@@ -695,6 +697,66 @@ const CendekiaApp = (function () {
         user.stats.gamesCompleted = (user.stats.gamesCompleted || 0) + 1;
         saveUser(user);
         checkAndAwardBadges(user);
+    }
+
+    function recordQuizCompleted(score) {
+        const user = getUser();
+        if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        user.stats.quizCompleted = (user.stats.quizCompleted || 0) + 1;
+        saveUser(user);
+        checkAndAwardBadges(user);
+    }
+
+    // Statistik aktual dinamis (Kuis Selesai, Game Selesai, Modul Membaca, Karya Dibuat)
+    function getUserStats() {
+        const user = getUser();
+        const works = getWorks();
+        const history = getHistory() || [];
+
+        if (!user.stats) {
+            user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        }
+
+        let quizCount = user.stats.quizCompleted || 0;
+        const quizHistory = history.filter(h => h.type === 'quiz' || (h.title && h.title.toLowerCase().includes('kuis'))).length;
+        quizCount = Math.max(quizCount, quizHistory);
+
+        const todayKey = getTodayDateKeyWIB();
+        ['santai', 'tantangan', 'acak'].forEach(m => {
+            if (getGameResult('kuis_pintar', m)) quizCount = Math.max(quizCount, 1);
+        });
+
+        let matCount = user.stats.materialsLearned || 0;
+        const readHistory = history.filter(h => h.type === 'read' || (h.title && (h.title.toLowerCase().includes('baca') || h.title.toLowerCase().includes('modul')))).length;
+        matCount = Math.max(matCount, readHistory);
+        try {
+            if (localStorage.getItem('cendekia_read_today_' + todayKey)) {
+                matCount = Math.max(matCount, 1);
+            }
+        } catch(e) {}
+
+        let gameCount = user.stats.gamesCompleted || 0;
+        const gameHistory = history.filter(h => h.type === 'game' && !(h.title && h.title.toLowerCase().includes('kuis'))).length;
+        gameCount = Math.max(gameCount, gameHistory);
+        const allGameKeys = ['tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
+        let activeResultsCount = 0;
+        allGameKeys.forEach(gk => {
+            ['santai', 'tantangan', 'acak'].forEach(m => {
+                if (getGameResult(gk, m)) activeResultsCount++;
+            });
+        });
+        gameCount = Math.max(gameCount, activeResultsCount);
+
+        const worksCount = Math.max(user.stats.worksCreated || 0, works.length);
+        const ideasCount = Math.max(user.stats.ideasArchived || 0, getIdeas().length);
+
+        return {
+            quizCompleted: quizCount,
+            gamesCompleted: gameCount,
+            materialsLearned: matCount,
+            worksCreated: worksCount,
+            ideasArchived: ideasCount
+        };
     }
 
     // EVALUASI & NOTIFIKASI 6 LENCANA RESMI
@@ -4020,24 +4082,36 @@ const CendekiaApp = (function () {
         }
     }
 
-    function getServedQuestionHistory(gameKey) {
+    function normalizeGameMode(mode) {
+        if (!mode && typeof window !== 'undefined' && window.location) {
+            const p = new URLSearchParams(window.location.search);
+            mode = p.get('mode') || localStorage.getItem('cendekia_active_game_mode');
+        }
+        mode = String(mode || 'santai').toLowerCase().trim();
+        if (mode !== 'tantangan' && mode !== 'acak') mode = 'santai';
+        return mode;
+    }
+
+    function getServedQuestionHistory(gameKey, mode = 'santai') {
+        const m = normalizeGameMode(mode);
         try {
-            const raw = localStorage.getItem('cendekia_served_' + gameKey);
+            const raw = localStorage.getItem('cendekia_served_' + gameKey + '_' + m);
             return raw ? JSON.parse(raw) : {};
         } catch (e) {
             return {};
         }
     }
 
-    function markQuestionsServed(gameKey, questionIds) {
+    function markQuestionsServed(gameKey, questionIds, mode = 'santai') {
         if (!Array.isArray(questionIds) || questionIds.length === 0) return;
+        const m = normalizeGameMode(mode);
         try {
-            const history = getServedQuestionHistory(gameKey);
+            const history = getServedQuestionHistory(gameKey, m);
             const now = Date.now();
             questionIds.forEach(id => {
                 if (id) history[id] = now;
             });
-            localStorage.setItem('cendekia_served_' + gameKey, JSON.stringify(history));
+            localStorage.setItem('cendekia_served_' + gameKey + '_' + m, JSON.stringify(history));
         } catch (e) {}
     }
 
@@ -4045,22 +4119,37 @@ const CendekiaApp = (function () {
         const bank = getQuestionBank(gameKey);
         if (!bank || bank.length === 0) return [];
 
-        const normalizedMode = (mode || 'santai').toLowerCase();
+        const normalizedMode = normalizeGameMode(mode);
 
-        // 1. Filter berdasarkan mode permainan
-        let filtered = bank.slice();
+        // 1. Filter berbasis mode permainan secara ketat dan mandiri
+        let filtered = [];
         if (normalizedMode === 'santai') {
-            const santaiOnly = filtered.filter(q => q.difficulty === 'santai');
-            filtered = santaiOnly.length >= count ? santaiOnly : filtered;
+            const santaiOnly = bank.filter(q => q.difficulty === 'santai');
+            filtered = santaiOnly.length >= count ? santaiOnly : bank.slice();
         } else if (normalizedMode === 'tantangan') {
-            const tantanganOnly = filtered.filter(q => q.difficulty === 'tantangan');
-            filtered = tantanganOnly.length >= count ? tantanganOnly : filtered;
+            const tantanganOnly = bank.filter(q => q.difficulty === 'tantangan');
+            filtered = tantanganOnly.length >= count ? tantanganOnly : bank.slice();
+        } else if (normalizedMode === 'acak') {
+            // Mode acak: kombinasi berimbang antara santai & tantangan
+            const santaiList = bank.filter(q => q.difficulty === 'santai');
+            const tantanganList = bank.filter(q => q.difficulty === 'tantangan');
+            if (santaiList.length > 0 && tantanganList.length > 0) {
+                const half = Math.ceil(count / 2);
+                const sShuff = santaiList.slice().sort(() => 0.5 - Math.random());
+                const tShuff = tantanganList.slice().sort(() => 0.5 - Math.random());
+                filtered = [...sShuff.slice(0, half), ...tShuff.slice(0, count - half)];
+                filtered.sort(() => 0.5 - Math.random());
+            } else {
+                filtered = bank.slice().sort(() => 0.5 - Math.random());
+            }
+        } else {
+            filtered = bank.slice();
         }
 
-        // 2. Filter Anti-Repetisi 7 Hari (Cooldown 7x24 jam)
+        // 2. Filter Anti-Repetisi 7 Hari (Cooldown 7x24 jam per mode independen)
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
         const now = Date.now();
-        const servedHistory = getServedQuestionHistory(gameKey);
+        const servedHistory = getServedQuestionHistory(gameKey, normalizedMode);
 
         const eligible = [];
         const cooledDown = [];
@@ -4091,14 +4180,20 @@ const CendekiaApp = (function () {
             }
         }
 
+        // Jika masih kurang dari target, ambil sisa dari filtered
+        if (selected.length < count) {
+            const remaining = filtered.filter(q => !selected.some(s => s.id === q.id));
+            selected = selected.concat(remaining.slice(0, count - selected.length));
+        }
+
         // Acak sekali lagi susunan paket soal
         for (let i = selected.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [selected[i], selected[j]] = [selected[j], selected[i]];
         }
 
-        // 5. Tandai soal-soal terpilih agar tertahan 7 hari ke depan untuk pengguna ini
-        markQuestionsServed(gameKey, selected.map(q => q.id));
+        // 5. Tandai soal-soal terpilih agar tertahan 7 hari ke depan untuk mode ini
+        markQuestionsServed(gameKey, selected.map(q => q.id), normalizedMode);
 
         return selected;
     }
@@ -4125,21 +4220,25 @@ const CendekiaApp = (function () {
             });
         }
 
-        // Akumulasi dari game result hari ini jika ada (seluruh 8 arena)
+        // Akumulasi dari game result hari ini jika ada (seluruh 8 arena & 3 mode)
         const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
         let gameResultsTotal = 0;
+        const modes = ['santai', 'tantangan', 'acak'];
         gameKeys.forEach(gk => {
-            const res = getGameResult(gk);
-            if (res && typeof res.xpEarned === 'number' && res.xpEarned > 0) {
-                gameResultsTotal += res.xpEarned;
-            }
+            modes.forEach(m => {
+                const res = getGameResult(gk, m);
+                if (res && typeof res.xpEarned === 'number' && res.xpEarned > 0) {
+                    gameResultsTotal += res.xpEarned;
+                }
+            });
         });
 
         return Math.max(total, gameResultsTotal);
     }
 
-    // Mendeteksi draft game yang belum tuntas (4 arena di Member Free, 8 arena di Member 5K)
-    function getUnfinishedGames() {
+    // Mendeteksi draft game yang belum tuntas per mode
+    function getUnfinishedGames(modeFilter = null) {
+        const activeMode = normalizeGameMode(modeFilter);
         const list = [
             { key: 'kuis_pintar', title: 'Kuis Pintar', link: `${PORTAL_PREFIX}/permainan/kuis-pintar.html`, total: 15, icon: 'brain', color: '#7c3aed', bg: '#ede9fe' },
             { key: 'tebak_kata', title: 'Tebak Kata', link: `${PORTAL_PREFIX}/permainan/tebak-kata.html`, total: 10, icon: 'text-search', color: '#0284c7', bg: '#e0f2fe' },
@@ -4147,7 +4246,7 @@ const CendekiaApp = (function () {
             { key: 'teka_teki', title: 'Teka-Teki Aksara', link: `${PORTAL_PREFIX}/permainan/teka-teki.html`, total: 10, icon: 'puzzle', color: '#b45309', bg: '#fef3c7' }
         ];
 
-        if (IS_MEM_5K) {
+        if (IS_MEM_5K || (typeof IS_MEM_10K !== 'undefined' && IS_MEM_10K)) {
             list.push(
                 { key: 'tebak_sastra', title: 'Tebak Sastra', link: `${PORTAL_PREFIX}/permainan/tebak-sastra.html`, total: 10, icon: 'book-open', color: '#059669', bg: '#dcfce7' },
                 { key: 'sambung_cerita', title: 'Sambung Cerita', link: `${PORTAL_PREFIX}/permainan/sambung-cerita.html`, total: 3, icon: 'book-text', color: '#2563eb', bg: '#dbeafe' },
@@ -4159,9 +4258,9 @@ const CendekiaApp = (function () {
         const unfinished = [];
 
         list.forEach(g => {
-            if (isGameCompletedToday(g.key)) return;
+            if (isGameCompletedToday(g.key, activeMode)) return;
 
-            const draft = getGameDraft(g.key);
+            const draft = getGameDraft(g.key, activeMode);
             if (!draft) return;
 
             let answered = 0;
@@ -4181,7 +4280,7 @@ const CendekiaApp = (function () {
                     ...g,
                     answeredCount: answered,
                     remainingCount: g.total - answered,
-                    mode: draft.mode || 'santai',
+                    mode: activeMode,
                     savedAt: draft.savedAt
                 });
             }
@@ -4218,21 +4317,25 @@ const CendekiaApp = (function () {
     }
 
     // ========================================================
-    // AUTOSAVE DRAFT & PERSISTENSI HASIL KUIS/GAME
+    // AUTOSAVE DRAFT & PERSISTENSI HASIL KUIS/GAME (PER-MODE)
     // ========================================================
-    function getDraftStorageKey(gameKey) {
-        return `cendekia_draft_${gameKey}_${getTodayDateKeyWIB()}`;
+    function getDraftStorageKey(gameKey, mode) {
+        const m = normalizeGameMode(mode);
+        return `cendekia_draft_${gameKey}_${m}_${getTodayDateKeyWIB()}`;
     }
 
-    function getResultStorageKey(gameKey) {
-        return `cendekia_result_${gameKey}_${getTodayDateKeyWIB()}`;
+    function getResultStorageKey(gameKey, mode) {
+        const m = normalizeGameMode(mode);
+        return `cendekia_result_${gameKey}_${m}_${getTodayDateKeyWIB()}`;
     }
 
-    function saveGameDraft(gameKey, draftData) {
+    function saveGameDraft(gameKey, draftData, mode) {
         try {
-            const key = getDraftStorageKey(gameKey);
+            const m = normalizeGameMode(mode || draftData?.mode);
+            const key = getDraftStorageKey(gameKey, m);
             localStorage.setItem(key, JSON.stringify({
                 ...draftData,
+                mode: m,
                 savedAt: Date.now(),
                 dateKey: getTodayDateKeyWIB()
             }));
@@ -4243,42 +4346,58 @@ const CendekiaApp = (function () {
         }
     }
 
-    function getGameDraft(gameKey) {
+    function getGameDraft(gameKey, mode) {
         try {
-            const key = getDraftStorageKey(gameKey);
+            const m = normalizeGameMode(mode);
+            const key = getDraftStorageKey(gameKey, m);
             const raw = localStorage.getItem(key);
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            if (parsed.dateKey === getTodayDateKeyWIB()) {
-                return parsed;
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.dateKey === getTodayDateKeyWIB()) {
+                    return parsed;
+                }
+                localStorage.removeItem(key);
             }
-            localStorage.removeItem(key);
+            if (m === 'santai') {
+                const legacyKey = `cendekia_draft_${gameKey}_${getTodayDateKeyWIB()}`;
+                const legacyRaw = localStorage.getItem(legacyKey);
+                if (legacyRaw) {
+                    const p = JSON.parse(legacyRaw);
+                    if (p.dateKey === getTodayDateKeyWIB()) return p;
+                }
+            }
             return null;
         } catch (e) {
             return null;
         }
     }
 
-    function clearGameDraft(gameKey) {
+    function clearGameDraft(gameKey, mode) {
         try {
-            localStorage.removeItem(getDraftStorageKey(gameKey));
+            const m = normalizeGameMode(mode);
+            localStorage.removeItem(getDraftStorageKey(gameKey, m));
+            if (m === 'santai') {
+                localStorage.removeItem(`cendekia_draft_${gameKey}_${getTodayDateKeyWIB()}`);
+            }
         } catch (e) {}
     }
 
-    async function saveGameResult(gameKey, resultData) {
+    async function saveGameResult(gameKey, resultData, mode) {
+        const m = normalizeGameMode(mode || resultData?.mode);
         const todayKey = getTodayDateKeyWIB();
         const payload = {
             ...resultData,
             gameKey,
+            mode: m,
             dateKey: todayKey,
             completedAt: new Date().toISOString(),
             expiresAt: getNextMidnightWIBTimestamp()
         };
 
-        // 1. Simpan di localStorage
+        // 1. Simpan di localStorage scoped mode
         try {
-            localStorage.setItem(getResultStorageKey(gameKey), JSON.stringify(payload));
-            clearGameDraft(gameKey);
+            localStorage.setItem(getResultStorageKey(gameKey, m), JSON.stringify(payload));
+            clearGameDraft(gameKey, m);
         } catch (e) {}
 
         // 2. Simpan di Firestore jika user terotentikasi
@@ -4286,35 +4405,58 @@ const CendekiaApp = (function () {
             const fb = await getFirebaseBridge();
             if (fb && fb.auth.currentUser) {
                 const uid = fb.auth.currentUser.uid;
-                await fb.setDoc(fb.doc(fb.db, "users", uid, "game_history", `${gameKey}_${todayKey}`), payload);
+                await fb.setDoc(fb.doc(fb.db, "users", uid, "game_history", `${gameKey}_${m}_${todayKey}`), payload);
             }
         } catch (err) {
             console.warn('[Cendekia Central] Gagal menyimpan riwayat kuis ke cloud:', err);
         }
 
-        // Catat aktivitas global & sinkronkan memori cloud
-        logActivity(`Menyelesaikan ${gameKey.replace(/_/g, ' ')} (Skor: ${resultData.score || 0})`, 'gamepad-2', 'game', resultData.xpEarned || 0);
+        // 3. Update statistik user (Kuis Selesai vs Game Selesai)
+        const user = getUser();
+        if (!user.stats) user.stats = { quizCompleted: 0, gamesCompleted: 0, materialsLearned: 0, worksCreated: 0, ideasArchived: 0 };
+        if (gameKey === 'kuis_pintar') {
+            user.stats.quizCompleted = (user.stats.quizCompleted || 0) + 1;
+        } else {
+            user.stats.gamesCompleted = (user.stats.gamesCompleted || 0) + 1;
+        }
+        saveUser(user);
+
+        // 4. Catat aktivitas global dengan label mode & sinkronkan memori cloud
+        const modeLabel = m.charAt(0).toUpperCase() + m.slice(1);
+        const gameTitle = gameKey === 'kuis_pintar' ? 'Kuis Pintar' : gameKey.replace(/_/g, ' ');
+        logActivity(`Menyelesaikan ${gameTitle} [Mode ${modeLabel}] (Skor: ${resultData.score || 0})`, gameKey === 'kuis_pintar' ? 'brain' : 'gamepad-2', gameKey === 'kuis_pintar' ? 'quiz' : 'game', resultData.xpEarned || 0);
         scheduleCloudMemorySync();
         return payload;
     }
 
-    function getGameResult(gameKey) {
+    function getGameResult(gameKey, mode) {
         try {
-            const key = getResultStorageKey(gameKey);
+            const m = normalizeGameMode(mode);
+            const key = getResultStorageKey(gameKey, m);
             const raw = localStorage.getItem(key);
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            if (parsed.dateKey === getTodayDateKeyWIB()) {
-                return parsed;
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.dateKey === getTodayDateKeyWIB()) {
+                    return parsed;
+                }
+                return null;
             }
-            return null; // Sudah lewat jam 00:00 WIB
+            if (m === 'santai') {
+                const legacyKey = `cendekia_result_${gameKey}_${getTodayDateKeyWIB()}`;
+                const legacyRaw = localStorage.getItem(legacyKey);
+                if (legacyRaw) {
+                    const p = JSON.parse(legacyRaw);
+                    if (p.dateKey === getTodayDateKeyWIB() && (!p.mode || p.mode === 'santai')) return p;
+                }
+            }
+            return null;
         } catch (e) {
             return null;
         }
     }
 
-    function isGameCompletedToday(gameKey) {
-        return getGameResult(gameKey) !== null;
+    function isGameCompletedToday(gameKey, mode) {
+        return getGameResult(gameKey, mode) !== null;
     }
 
     // ========================================================
@@ -4693,16 +4835,16 @@ const CendekiaApp = (function () {
         if (onLoading) onLoading("Memeriksa kesiapan latihan harian & bank soal...");
 
         try {
-            // 1. Cek apakah ada draft hari ini untuk game ini agar user melanjutkan pengerjaan
-            const draft = getGameDraft(gameKey);
+            // 1. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
+            const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
+            const activeMode = normalizeGameMode(options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai');
+
+            // 2. Cek apakah ada draft hari ini untuk mode game ini agar user melanjutkan pengerjaan
+            const draft = getGameDraft(gameKey, activeMode);
             if (draft && draft.questions && draft.questions.length > 0) {
-                if (onReady) onReady(draft.questions, { mode: draft.mode || 'santai', isDraft: true, draftData: draft });
+                if (onReady) onReady(draft.questions, { mode: activeMode, isDraft: true, draftData: draft });
                 return;
             }
-
-            // 2. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
-            const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
-            const activeMode = options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
             const targetCount = gameKey === 'kuis_pintar' ? 15 : (gameKey === 'sambung_cerita' ? 3 : 10);
 
             // 3. Periksa apakah ada paket soal dari pool harian (jika ada, masukkan ke Bank Soal agar tersimpan permanen)
@@ -4939,6 +5081,9 @@ const CendekiaApp = (function () {
         formatLevelSemesterTitle,
         recordMaterialRead,
         recordGameCompleted,
+        recordQuizCompleted,
+        getUserStats,
+        normalizeGameMode,
         checkAndAwardBadges,
         showBadgeUnlockedModal,
         getTransactions,

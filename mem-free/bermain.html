@@ -279,11 +279,8 @@
                 if (targetBtn) targetBtn.classList.add('active');
             }
 
-            try {
-                localStorage.setItem('cendekia_active_game_mode', mode);
-            } catch(e) {}
+            try { localStorage.setItem('cendekia_active_game_mode', mode); } catch(e) {}
 
-            // Perbarui tautan 4 permainan aktif agar menyertakan parameter mode
             const gameCards = [
                 { id: 'card_kuis_pintar', url: '/mem-free/permainan/kuis-pintar.html' },
                 { id: 'card_tebak_kata', url: '/mem-free/permainan/tebak-kata.html' },
@@ -297,27 +294,26 @@
             });
 
             const descEl = document.getElementById('modeDescription');
-            if (!descEl) return;
-
-            if (mode === 'santai') {
-                descEl.innerHTML = '<b>Mode Santai:</b> Soal-soal ringan berfokus pada pemahaman dasar kaidah &amp; diksi. Waktu leluasa tanpa tekanan untuk belajar santai.';
-            } else if (mode === 'tantangan') {
-                descEl.innerHTML = '<b>Mode Tantangan:</b> Soal-soal analitis, kritis, dan membutuhkan ketelitian ekstra (Bonus XP 1.5x lipat untuk jawaban cepat &amp; tepat!).';
-            } else if (mode === 'acak') {
-                descEl.innerHTML = '<b>Mode Acak:</b> Kombinasi berimbang antara soal santai dan tantangan untuk menguji kesiapan literasimu secara menyeluruh.';
+            if (descEl) {
+                if (mode === 'santai') {
+                    descEl.innerHTML = '<b>Mode Santai:</b> Soal-soal ringan berfokus pada pemahaman dasar kaidah &amp; diksi. Waktu leluasa tanpa tekanan untuk belajar santai.';
+                } else if (mode === 'tantangan') {
+                    descEl.innerHTML = '<b>Mode Tantangan:</b> Soal-soal analitis, kritis, dan membutuhkan ketelitian ekstra (Bonus XP 1.5x lipat untuk jawaban cepat &amp; tepat!).';
+                } else if (mode === 'acak') {
+                    descEl.innerHTML = '<b>Mode Acak:</b> Kombinasi berimbang antara soal santai dan tantangan untuk menguji kesiapan literasimu secara menyeluruh.';
+                }
             }
+
+            updateGameCardStatuses(mode);
+            renderUnfinishedGamesReminder(mode);
         }
 
-        function renderUnfinishedGamesReminder() {
+        function renderUnfinishedGamesReminder(targetMode) {
             const container = document.getElementById('unfinishedGamesContainer');
-            if (!container) return;
+            if (!container || typeof CendekiaApp.getUnfinishedGames !== 'function') return;
 
-            if (typeof CendekiaApp.getUnfinishedGames !== 'function') {
-                container.style.display = 'none';
-                return;
-            }
-
-            const unfinished = CendekiaApp.getUnfinishedGames();
+            const mode = targetMode || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const unfinished = CendekiaApp.getUnfinishedGames(mode);
             if (!unfinished || unfinished.length === 0) {
                 container.style.display = 'none';
                 container.innerHTML = '';
@@ -334,7 +330,7 @@
                             </div>
                             <div>
                                 <div style="font-size:0.65rem; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.5px;">
-                                    Pengerjaan Belum Selesai
+                                    Pengerjaan Belum Selesai [${g.mode.toUpperCase()}]
                                 </div>
                                 <div style="font-weight:800; font-size:0.88rem; color:var(--primary); margin:1px 0;">
                                     ${g.title}
@@ -344,7 +340,7 @@
                                 </div>
                             </div>
                         </div>
-                        <a href="${g.link}?mode=${g.mode}" class="btn-resume-action" title="Lanjutkan pengerjaan soal yang tersisa">
+                        <a href="${g.link}?mode=${g.mode}&resume=1" class="btn-resume-action">
                             Lanjutkan <i data-lucide="arrow-right" style="width:13px; height:13px;"></i>
                         </a>
                     </div>
@@ -354,7 +350,7 @@
             container.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <span style="font-size:0.75rem; font-weight:800; color:var(--primary); display:inline-flex; align-items:center; gap:5px;">
-                        <i data-lucide="bookmark" style="width:14px; height:14px; color:#2563eb;"></i> Lanjutkan Pengerjaan
+                        <i data-lucide="bookmark" style="width:14px; height:14px; color:#2563eb;"></i> Lanjutkan Pengerjaan [${mode.toUpperCase()}]
                     </span>
                     <span style="font-size:0.68rem; color:#2563eb; font-weight:700;">Tersimpan Otomatis</span>
                 </div>
@@ -375,8 +371,9 @@
             }
         }
 
-        function updateGameCardStatuses() {
-            const savedMode = localStorage.getItem('cendekia_active_game_mode') || 'santai';
+        function updateGameCardStatuses(targetMode) {
+            const savedMode = targetMode || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+            const modeCapital = savedMode.charAt(0).toUpperCase() + savedMode.slice(1);
             const games = [
                 { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda', total: 15, url: '/mem-free/permainan/kuis-pintar.html' },
                 { key: 'tebak_kata', defaultDesc: '10 Kosakata KBBI', total: 10, url: '/mem-free/permainan/tebak-kata.html' },
@@ -389,16 +386,16 @@
                 const card = document.getElementById(`card_${g.key}`);
                 if (!slot) return;
 
-                const res = CendekiaApp.getGameResult(g.key);
+                const res = CendekiaApp.getGameResult(g.key, savedMode);
                 if (res) {
                     if (card) card.href = `${g.url}?mode=${savedMode}&review=1`;
                     slot.innerHTML = `
                         <div style="font-size:0.68rem; font-weight:800; color:#059669; background:#ecfdf5; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> Skor: ${res.score}/100 (Selesai &bull; Review)
+                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> [${modeCapital}] Skor: ${res.score}/100 (Selesai &bull; Review)
                         </div>
                     `;
                 } else {
-                    const draft = CendekiaApp.getGameDraft(g.key);
+                    const draft = CendekiaApp.getGameDraft(g.key, savedMode);
                     let answered = 0;
                     if (draft) {
                         if (g.key === 'kuis_pintar') {
@@ -412,21 +409,29 @@
                         }
                     }
 
-                    if (answered > 0 && answered < g.total) {
+                    if (draft && answered < g.total && (answered > 0 || draft.questions)) {
                         const nextNum = answered + 1;
                         if (card) card.href = `${g.url}?mode=${savedMode}&resume=1`;
                         slot.innerHTML = `
                             <div style="margin-top:6px;">
                                 <span style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; border:1.5px solid #93c5fd; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(37,99,235,0.12);">
-                                    <i data-lucide="play-circle" style="width:12px; height:12px; color:#2563eb;"></i> Lanjutkan (Soal ke-${nextNum}) &rarr;
+                                    <i data-lucide="play-circle" style="width:12px; height:12px; color:#2563eb;"></i> Lanjutkan [${modeCapital}] (Soal ke-${nextNum}) &rarr;
                                 </span>
                             </div>
                         `;
                     } else {
                         if (card) card.href = `${g.url}?mode=${savedMode}`;
+                        let modeBadge = '';
+                        if (savedMode === 'tantangan') {
+                            modeBadge = `<span style="color:#d97706; font-weight:800;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan</span>`;
+                        } else if (savedMode === 'acak') {
+                            modeBadge = `<span style="color:#4f46e5; font-weight:800;"><i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Acak</span>`;
+                        } else {
+                            modeBadge = `<span style="color:#0284c7; font-weight:800;"><i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai</span>`;
+                        }
                         slot.innerHTML = `
                             <div style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                                <i data-lucide="play" style="width:10px; height:10px;"></i> ${g.defaultDesc}
+                                <i data-lucide="play" style="width:10px; height:10px;"></i> ${modeBadge} &bull; ${g.defaultDesc}
                             </div>
                         `;
                     }

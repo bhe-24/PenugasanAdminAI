@@ -465,8 +465,8 @@
                 }
             }
 
-            // 2. Cek apakah kuis hari ini sudah pernah disubmit
-            const completedResult = CendekiaApp.getGameResult(GAME_KEY);
+            // 2. Cek apakah kuis hari ini sudah pernah disubmit untuk mode ini
+            const completedResult = CendekiaApp.getGameResult(GAME_KEY, currentMode);
             if (completedResult) {
                 isSubmitted = true;
                 activeResultData = completedResult;
@@ -476,6 +476,16 @@
                 resultBox.style.display = 'block';
                 document.getElementById('submitActionArea').style.display = 'none';
                 document.getElementById('btnJumpUnanswered').style.display = 'none';
+
+                // Pulihkan jawaban riil siswa
+                if (completedResult.answers) {
+                    userAnswers = completedResult.answers;
+                } else if (Array.isArray(completedResult.questions)) {
+                    userAnswers = {};
+                    completedResult.questions.forEach((q, i) => {
+                        if (q.selectedIdx !== undefined && q.selectedIdx >= 0) userAnswers[i] = q.selectedIdx;
+                    });
+                }
 
                 // Render tampilan hasil evaluasi
                 rawQuestions = completedResult.questions || [];
@@ -507,7 +517,7 @@
                     rawQuestions = gameQuestions || [];
 
                     // Muat draft tersimpan jika ada (Resume System)
-                    const draft = (poolMeta && poolMeta.draftData) || CendekiaApp.getGameDraft(GAME_KEY);
+                    const draft = (poolMeta && poolMeta.draftData) || CendekiaApp.getGameDraft(GAME_KEY, currentMode);
                     let shouldJump = false;
                     if (draft && draft.answers) {
                         userAnswers = draft.answers;
@@ -525,7 +535,7 @@
                             questions: rawQuestions,
                             answers: {},
                             mode: currentMode
-                        });
+                        }, currentMode);
                     }
 
                     renderQuestionsList(false);
@@ -573,7 +583,7 @@
                 // Area Pembahasan (Hanya muncul jika sudah disubmit)
                 let evalHtml = '';
                 if (isReviewMode) {
-                    const correctIdx = q.answer !== undefined ? q.answer : (q.answerIndex || 0);
+                    const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
                     const isCorrect = selectedOpt === correctIdx;
                     const correctLetter = String.fromCharCode(65 + correctIdx);
                     const correctText = (opts[correctIdx] || '').replace(/^[A-D]\.\s*/i, '');
@@ -623,7 +633,7 @@
                 questions: rawQuestions,
                 answers: userAnswers,
                 mode: currentMode
-            });
+            }, currentMode);
 
             // Perbarui visual opsi kartu yang dipilih
             const card = document.getElementById(`qCard_${qIdx}`);
@@ -722,7 +732,7 @@
             let correctCount = 0;
             const evaluatedQuestions = rawQuestions.map((q, idx) => {
                 const selectedIdx = userAnswers[idx];
-                const correctIdx = q.answer !== undefined ? q.answer : (q.answerIndex || 0);
+                const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
                 const isCorrect = selectedIdx === correctIdx;
                 if (isCorrect) correctCount++;
 
@@ -747,17 +757,19 @@
             CendekiaApp.recordGameCompleted(GAME_KEY, finalScore);
             CendekiaApp.completeChallenge('tc_2');
 
-            // Simpan hasil kuis harian (Reset jam 00:00 WIB)
+            // Simpan hasil kuis harian (Reset jam 00:00 WIB per mode)
             const resultData = {
                 score: finalScore,
                 correctCount: correctCount,
                 totalCount: total,
                 xpEarned: xpEarned,
-                questions: evaluatedQuestions
+                questions: evaluatedQuestions,
+                answers: userAnswers,
+                mode: currentMode
             };
 
-            await CendekiaApp.saveGameResult(GAME_KEY, resultData);
-            CendekiaApp.clearGameDraft(GAME_KEY);
+            await CendekiaApp.saveGameResult(GAME_KEY, resultData, currentMode);
+            CendekiaApp.clearGameDraft(GAME_KEY, currentMode);
 
             isSubmitted = true;
             activeResultData = resultData;
