@@ -11,9 +11,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
 
     <style>
+        /* SWEETALERT2 POPUP & TOAST ALWAYS ON TOP OF PAYMENT MODAL */
+        .swal2-container {
+            z-index: 100000 !important;
+        }
+        .swal2-popup {
+            font-family: 'Plus Jakarta Sans', var(--font-main), sans-serif !important;
+            border-radius: 20px !important;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45) !important;
+        }
+
         .tier-card {
             background: white; border-radius: var(--radius-md); padding: 16px;
             border: 1.5px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 14px;
@@ -152,6 +164,10 @@
             <!-- IDENTITAS AKUN (TANPA DAFTAR ULANG) -->
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; font-size:0.72rem;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span style="color:var(--text-muted);">No. Invoice:</span>
+                    <strong style="color:var(--primary); font-family:monospace;" id="upgInvoiceText">-</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                     <span style="color:var(--text-muted);">Akun Siswa:</span>
                     <strong style="color:var(--primary);" id="upgAccountName">Siswa Cendekia</strong>
                 </div>
@@ -166,7 +182,7 @@
             </div>
 
             <!-- RINCIAN NOMINAL & KODE UNIK -->
-            <div style="background:#fffdf5; border:1.5px solid var(--accent); border-radius:var(--radius-md); padding:12px; margin-bottom:14px;">
+            <div style="background:#fffdf5; border:1.5px solid var(--accent); border-radius:var(--radius-md); padding:12px; margin-bottom:14px; position:relative;">
                 <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-body); margin-bottom:4px;">
                     <span>Biaya Paket Upgrade:</span>
                     <span id="upgBasePriceText">Rp 15.000</span>
@@ -180,8 +196,9 @@
                         <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Total Pembayaran:</span>
                         <strong style="font-size:1.25rem; color:var(--primary);" id="upgTotalPriceText">Rp 15.248</strong>
                     </div>
-                    <button type="button" onclick="copyTotalPayment()" style="background:#e0f2fe; color:#0284c7; border:none; padding:6px 12px; border-radius:var(--radius-sm); font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                        <i data-lucide="copy" style="width:12px; height:12px;"></i> Salin Nominal
+                    <button type="button" id="btnCopyNominal" onclick="copyTotalPayment()" style="background:#e0f2fe; color:#0284c7; border:1px solid #bae6fd; padding:7px 12px; border-radius:var(--radius-sm); font-size:0.72rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s ease;">
+                        <i data-lucide="copy" id="iconCopyNominal" style="width:13px; height:13px;"></i>
+                        <span id="labelCopyNominal">Salin Nominal</span>
                     </button>
                 </div>
             </div>
@@ -310,12 +327,26 @@
             currentGatewayId = '';
 
             document.getElementById('upgModalTitle').textContent = `Upgrade ke ${currentPackage.name}`;
+            const invEl = document.getElementById('upgInvoiceText');
+            if (invEl) invEl.textContent = currentInvoice;
             document.getElementById('upgAccountName').textContent = user.name || 'Siswa Cendekia';
             document.getElementById('upgAccountEmail').textContent = user.email || 'member@cendekia.id';
             document.getElementById('upgCurrentTierBadge').textContent = user.tier || 'Member Free';
             document.getElementById('upgBasePriceText').textContent = `Rp ${currentPackage.price.toLocaleString('id-ID')}`;
             document.getElementById('upgUniqueCodeText').textContent = `+ Rp ${currentUnique}`;
             document.getElementById('upgTotalPriceText').textContent = `Rp ${currentTotal.toLocaleString('id-ID')}`;
+
+            // Reset tombol salin nominal
+            const btnCopy = document.getElementById('btnCopyNominal');
+            if (btnCopy) {
+                btnCopy.style.background = '#e0f2fe';
+                btnCopy.style.color = '#0284c7';
+                btnCopy.style.borderColor = '#bae6fd';
+                const label = document.getElementById('labelCopyNominal');
+                if (label) label.textContent = 'Salin Nominal';
+                const icon = document.getElementById('iconCopyNominal');
+                if (icon) icon.setAttribute('data-lucide', 'copy');
+            }
 
             const qrWrap = document.getElementById('upgQrImgWrap');
             if (qrWrap) {
@@ -401,14 +432,75 @@
         }
 
         function copyTotalPayment() {
-            navigator.clipboard.writeText(currentTotal.toString()).then(() => {
+            const nominalStr = currentTotal.toString();
+            const formattedNominal = `Rp ${currentTotal.toLocaleString('id-ID')}`;
+
+            // Helper salin teks aman di semua browser / webview mobile
+            function execCopy(text) {
+                if (navigator.clipboard && window.isSecureContext) {
+                    return navigator.clipboard.writeText(text);
+                } else {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-9999px";
+                    textArea.style.top = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                    } catch (err) {}
+                    document.body.removeChild(textArea);
+                    return Promise.resolve();
+                }
+            }
+
+            // Umpan balik visual langsung pada tombol agar seketika terlihat
+            const btn = document.getElementById('btnCopyNominal');
+            const icon = document.getElementById('iconCopyNominal');
+            const label = document.getElementById('labelCopyNominal');
+            if (btn) {
+                btn.style.background = '#dcfce7';
+                btn.style.color = '#15803d';
+                btn.style.borderColor = '#86efac';
+                if (label) label.textContent = 'Tersalin! ✓';
+                if (icon) icon.setAttribute('data-lucide', 'check');
+                if (window.lucide) lucide.createIcons();
+                setTimeout(() => {
+                    const b = document.getElementById('btnCopyNominal');
+                    if (b) {
+                        b.style.background = '#e0f2fe';
+                        b.style.color = '#0284c7';
+                        b.style.borderColor = '#bae6fd';
+                        const l = document.getElementById('labelCopyNominal');
+                        if (l) l.textContent = 'Salin Nominal';
+                        const ic = document.getElementById('iconCopyNominal');
+                        if (ic) ic.setAttribute('data-lucide', 'copy');
+                        if (window.lucide) lucide.createIcons();
+                    }
+                }, 3000);
+            }
+
+            execCopy(nominalStr).then(() => {
+                // Notifikasi popup yang PASTI berada di atas lapisan modal pembayaran (z-index: 100000)
                 Swal.fire({
                     icon: 'success',
-                    title: 'Nominal Disalin!',
-                    text: `Rp ${currentTotal.toLocaleString('id-ID')} — pastikan transfer tepat hingga 3 digit terakhir.`,
+                    title: 'Nominal Berhasil Disalin!',
+                    html: `
+                        <div style="font-size:0.82rem; color:#334155; line-height:1.5;">
+                            <div style="font-size:1.2rem; font-weight:800; color:#003366; margin:8px 0; background:#f0f9ff; padding:10px 14px; border-radius:10px; border:1.5px dashed #38bdf8;">
+                                ${formattedNominal}
+                            </div>
+                            <p style="margin:6px 0 0; font-size:0.75rem; color:#b45309; font-weight:700;">
+                                ⚠️ Pastikan transfer tepat hingga digit terakhir agar otomatis diverifikasi oleh sistem!
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'OK, Lanjutkan',
                     confirmButtonColor: '#003366',
-                    timer: 2000,
-                    showConfirmButton: false
+                    timer: 3500,
+                    timerProgressBar: true
                 });
             }).catch(() => {
                 prompt("Salin nominal ini:", currentTotal);
