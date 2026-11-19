@@ -966,9 +966,9 @@ const CendekiaApp = (function () {
             `;
         });
 
-        const statusBanner = stats.isTodayActive
-            ? `<span style="font-size:0.68rem; font-weight:800; color:#059669; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;"><i data-lucide="flame" style="width:13px; height:13px; color:#f59e0b;"></i> Api Keaktifan Menyala!</span>`
-            : `<span style="font-size:0.68rem; font-weight:700; color:#b45309; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0;"><i data-lucide="sparkles" style="width:13px; height:13px; color:#d97706;"></i> Siap Beraktivitas Hari Ini</span>`;
+        const flameColor = stats.isTodayActive ? '#ea580c' : '#94a3b8';
+        const flameTitle = stats.isTodayActive ? 'Api Keaktifan Menyala' : 'Belum Ada Keaktifan Hari Ini';
+        const flameIconHtml = `<span style="display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" title="${flameTitle}"><i data-lucide="flame" style="width:15px; height:15px; color:${flameColor};"></i></span>`;
 
         el.innerHTML = `
             <div class="cal-widget-inner">
@@ -976,7 +976,7 @@ const CendekiaApp = (function () {
                     <strong style="font-size:0.8rem; color:var(--primary); display:flex; align-items:center; gap:5px; white-space:nowrap;">
                         <i data-lucide="calendar" style="width:14px; height:14px; color:var(--accent-dark);"></i> Kalender Keaktifan Pekan Ini
                     </strong>
-                    ${statusBanner}
+                    ${flameIconHtml}
                 </div>
                 <div class="cal-week-row">
                     ${cellsHtml}
@@ -1239,9 +1239,20 @@ const CendekiaApp = (function () {
             const parsedMs = new Date(u.membershipExpiresAt).getTime();
             if (!isNaN(parsedMs)) {
                 expiresAtMs = parsedMs;
-                const diffMs = parsedMs - Date.now();
-                isExpired = diffMs <= 0;
-                daysRemaining = isExpired ? 0 : Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                const nowMs = Date.now();
+                isExpired = nowMs >= parsedMs;
+
+                // Hitung sisa hari berbasis tanggal kalender WIB (setiap 00.00 WIB berkurang 1 hari)
+                const todayKey = getTodayDateKeyWIB();
+                const expDate = new Date(parsedMs);
+                const expWib = new Date(expDate.getTime() + (7 * 3600000));
+                const expKey = expWib.toISOString().split('T')[0];
+
+                const todayUtc = parseYMDToUTC(todayKey);
+                const expUtc = parseYMDToUTC(expKey);
+                const calDaysDiff = Math.round((expUtc - todayUtc) / 86400000);
+
+                daysRemaining = isExpired ? 0 : Math.max(0, calDaysDiff);
                 formattedExpiry = new Date(parsedMs).toLocaleDateString('id-ID', {
                     day: 'numeric',
                     month: 'long',
@@ -1990,11 +2001,37 @@ const CendekiaApp = (function () {
         return val || 'pengetahuan-umum';
     }
 
+    // Cache memori & local storage agar bahan ajar termuat cepat seketika (milidetik)
+    let _materialsMemCache = null;
+    let _materialsCacheTime = 0;
+    const MATERIALS_CACHE_TTL = 3 * 60 * 1000; // 3 menit cache lokal
+
     // Ambil seluruh bahan ajar yang sudah diunggah oleh admin (mendukung multi-materi per kategori)
-    async function getAllMaterials() {
+    async function getAllMaterials(forceRefresh = false) {
+        const now = Date.now();
+        // 1. Cek memory cache (0ms)
+        if (!forceRefresh && _materialsMemCache && (now - _materialsCacheTime < MATERIALS_CACHE_TTL)) {
+            return _materialsMemCache;
+        }
+
+        // 2. Cek localStorage cache (0ms)
+        if (!forceRefresh) {
+            try {
+                const stored = localStorage.getItem('cendekia_materials_cache_v2');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed && Array.isArray(parsed.list) && parsed.list.length > 0 && (now - (parsed.time || 0) < MATERIALS_CACHE_TTL)) {
+                        _materialsMemCache = parsed.list;
+                        _materialsCacheTime = parsed.time || now;
+                        return parsed.list;
+                    }
+                }
+            } catch (e) {}
+        }
+
         try {
             const fb = await getFirebaseBridge();
-            if (!fb) return [];
+            if (!fb) return _materialsMemCache || [];
             const q = await fb.getDocs(fb.collection(fb.db, "mem_free_materials"));
             const list = [];
             q.forEach(d => {
@@ -2016,10 +2053,17 @@ const CendekiaApp = (function () {
                 if (ta !== tb) return ta - tb;
                 return String(a.id).localeCompare(String(b.id));
             });
+
+            _materialsMemCache = list;
+            _materialsCacheTime = now;
+            try {
+                localStorage.setItem('cendekia_materials_cache_v2', JSON.stringify({ time: now, list }));
+            } catch (e) {}
+
             return list;
         } catch (err) {
             console.error('[Cendekia Central] Gagal membaca daftar bahan ajar:', err);
-            return [];
+            return _materialsMemCache || [];
         }
     }
 
@@ -3900,12 +3944,23 @@ const CendekiaApp = (function () {
         }
     }
 
-    // Ambil pool soal harian aktif (berlaku s.d. jam 00:00 WIB)
+    // Ambil pool soal harian aktif (berlaku s.d. jam 00:00 WIB - pemuatan milidetik)
     async function getDailyPool() {
         const now = Date.now();
         const todayKey = getTodayDateKeyWIB();
 
-        // Cek Firestore terlebih dahulu
+        // 1. Prioritaskan cache lokal terlebih dahulu (0ms - loading instan milidetik)
+        try {
+            const localRaw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
+            if (localRaw) {
+                const parsed = JSON.parse(localRaw);
+                if (parsed.expiresAt && now < parsed.expiresAt && parsed.dateKey === todayKey && parsed.questions) {
+                    return { active: true, data: parsed };
+                }
+            }
+        } catch (e) {}
+
+        // 2. Ambil dari Firestore jika cache lokal belum ada atau kadaluarsa
         try {
             const fb = await getFirebaseBridge();
             if (fb) {
@@ -3923,17 +3978,6 @@ const CendekiaApp = (function () {
         } catch (err) {
             console.warn('[Cendekia Central] Gagal membaca pool Firestore, beralih ke cache lokal:', err);
         }
-
-        // Cek cache lokal jika Firestore offline
-        try {
-            const localRaw = localStorage.getItem(STORAGE_KEY_DAILY_POOL);
-            if (localRaw) {
-                const parsed = JSON.parse(localRaw);
-                if (parsed.expiresAt && now < parsed.expiresAt && parsed.dateKey === todayKey && parsed.questions) {
-                    return { active: true, data: parsed };
-                }
-            }
-        } catch (e) {}
 
         return { active: false, data: null };
     }
@@ -4245,3 +4289,24 @@ if (typeof window !== 'undefined') {
 document.addEventListener('DOMContentLoaded', () => {
     CendekiaApp.init();
 });
+
+// PROTEKSI PATEN: CEGAH PENYALINAN TEKS DI SELURUH HALAMAN
+if (typeof window !== 'undefined') {
+    document.addEventListener('copy', (e) => {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+        e.preventDefault();
+        if (e.clipboardData) e.clipboardData.setData('text/plain', '');
+    });
+    document.addEventListener('cut', (e) => {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+        e.preventDefault();
+    });
+    document.addEventListener('selectstart', (e) => {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+        // Biarkan CSS menangani seleksi agar UX tetap mulus tanpa mengganggu scroll
+    });
+}
