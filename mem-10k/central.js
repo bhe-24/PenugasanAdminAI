@@ -296,9 +296,12 @@ const CendekiaApp = (function () {
 
             const allGameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
             const todayResults = {};
+            const allModes = ['santai', 'tantangan', 'acak'];
             allGameKeys.forEach(gk => {
-                const r = getGameResult(gk);
-                if (r) todayResults[gk] = r;
+                allModes.forEach(m => {
+                    const r = getGameResult(gk, m);
+                    if (r) todayResults[`${gk}_${m}`] = r;
+                });
             });
 
             await fb.setDoc(fb.doc(fb.db, "mem_user_memory", uid), {
@@ -1105,7 +1108,7 @@ const CendekiaApp = (function () {
         } catch(e) {}
 
         // 1. Cek Kuis Pintar
-        const kuisRes = getGameResult('kuis_pintar');
+        const kuisRes = ['santai', 'tantangan', 'acak'].some(m => !!getGameResult('kuis_pintar', m));
         const isQuizDone = !!kuisRes || !!completedMap['tc_quiz'] || !!completedMap['tc_2'];
 
         // 2. Cek Baca Modul
@@ -1128,7 +1131,7 @@ const CendekiaApp = (function () {
         const sambungRes = getGameResult('sambung_cerita');
         const kalimatRes = getGameResult('perbaiki_kalimat');
         const cepatRes = getGameResult('tantangan_cepat');
-        const isGameDone = !!(tebakRes || susunRes || tekaRes || sastraRes || sambungRes || kalimatRes || cepatRes) || !!completedMap['tc_game'] || !!completedMap['tc_3'];
+        const isGameDone = ['santai', 'tantangan', 'acak'].some(m => !!(getGameResult('tebak_kata', m) || getGameResult('susun_kata', m) || getGameResult('teka_teki', m) || getGameResult('tebak_sastra', m) || getGameResult('sambung_cerita', m) || getGameResult('perbaiki_kalimat', m) || getGameResult('tantangan_cepat', m))) || !!completedMap['tc_game'] || !!completedMap['tc_3'];
 
         // 4. Cek Naskah Tulisan
         let isWriteDone = !!completedMap['tc_write'] || !!completedMap['tc_4'];
@@ -2526,10 +2529,14 @@ const CendekiaApp = (function () {
                                     localStorage.setItem('cendekia_read_today_' + todayKey, JSON.stringify(m.readToday));
                                 }
                                 if (m.gameResultsToday && typeof m.gameResultsToday === 'object') {
-                                    Object.keys(m.gameResultsToday).forEach(gk => {
-                                        const rKey = getResultStorageKey(gk);
+                                    Object.keys(m.gameResultsToday).forEach(compositeKey => {
+                                        const item = m.gameResultsToday[compositeKey];
+                                        if (!item) return;
+                                        const itemMode = item.mode || (compositeKey.includes('_tantangan') ? 'tantangan' : (compositeKey.includes('_acak') ? 'acak' : 'santai'));
+                                        const gameKey = item.gameKey || compositeKey.replace(/_(santai|tantangan|acak)$/, '');
+                                        const rKey = getResultStorageKey(gameKey, itemMode);
                                         if (!localStorage.getItem(rKey)) {
-                                            localStorage.setItem(rKey, JSON.stringify(m.gameResultsToday[gk]));
+                                            localStorage.setItem(rKey, JSON.stringify(item));
                                         }
                                     });
                                 }
@@ -4277,7 +4284,7 @@ const CendekiaApp = (function () {
             }
 
             // Jika permainan sedang berjalan dan belum tuntas
-            if (answered < g.total && (draft.questions || answered > 0)) {
+            if (answered > 0 && answered < g.total) {
                 unfinished.push({
                     ...g,
                     answeredCount: answered,

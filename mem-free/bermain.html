@@ -373,15 +373,14 @@
 
         function updateGameCardStatuses(targetMode) {
             const savedMode = targetMode || localStorage.getItem('cendekia_active_game_mode') || 'santai';
-            const modeCapital = savedMode.charAt(0).toUpperCase() + savedMode.slice(1);
-            const games = [
-                { key: 'kuis_pintar', defaultDesc: '15 Soal Pilihan Ganda', total: 15, url: '/mem-free/permainan/kuis-pintar.html' },
-                { key: 'tebak_kata', defaultDesc: '10 Kosakata KBBI', total: 10, url: '/mem-free/permainan/tebak-kata.html' },
-                { key: 'susun_kata', defaultDesc: '10 Kata Acak Sastra', total: 10, url: '/mem-free/permainan/susun-kata.html' },
-                { key: 'teka_teki', defaultDesc: '10 Teka-Teki Aksara', total: 10, url: '/mem-free/permainan/teka-teki.html' }
+            const gameList = [
+                { key: 'kuis_pintar', total: 15, url: '/mem-free/permainan/kuis-pintar.html' },
+                { key: 'tebak_kata', total: 10, url: '/mem-free/permainan/tebak-kata.html' },
+                { key: 'susun_kata', total: 10, url: '/mem-free/permainan/susun-kata.html' },
+                { key: 'teka_teki', total: 10, url: '/mem-free/permainan/teka-teki.html' }
             ];
 
-            games.forEach(g => {
+            gameList.forEach(g => {
                 const slot = document.getElementById(`status_slot_${g.key}`);
                 const card = document.getElementById(`card_${g.key}`);
                 if (!slot) return;
@@ -390,8 +389,8 @@
                 if (res) {
                     if (card) card.href = `${g.url}?mode=${savedMode}&review=1`;
                     slot.innerHTML = `
-                        <div style="font-size:0.68rem; font-weight:800; color:#059669; background:#ecfdf5; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                            <i data-lucide="check-circle-2" style="width:11px; height:11px;"></i> [${modeCapital}] Skor: ${res.score}/100 (Selesai &bull; Review)
+                        <div style="font-size:0.75rem; font-weight:800; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; padding:3px 10px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:5px;">
+                            <i data-lucide="check-circle-2" style="width:12px; height:12px;"></i> Skor: ${res.score}/100
                         </div>
                     `;
                 } else {
@@ -409,29 +408,20 @@
                         }
                     }
 
-                    if (draft && answered < g.total && (answered > 0 || draft.questions)) {
-                        const nextNum = answered + 1;
+                    if (draft && answered > 0 && answered < g.total) {
                         if (card) card.href = `${g.url}?mode=${savedMode}&resume=1`;
                         slot.innerHTML = `
                             <div style="margin-top:6px;">
-                                <span style="font-size:0.68rem; font-weight:800; color:#1d4ed8; background:#eff6ff; border:1.5px solid #93c5fd; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(37,99,235,0.12);">
-                                    <i data-lucide="play-circle" style="width:12px; height:12px; color:#2563eb;"></i> Lanjutkan [${modeCapital}] (Soal ke-${nextNum}) &rarr;
+                                <span style="font-size:0.7rem; font-weight:700; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe; padding:3px 10px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+                                    <i data-lucide="play-circle" style="width:12px; height:12px; color:#2563eb;"></i> Lanjutkan (${answered}/${g.total}) &rarr;
                                 </span>
                             </div>
                         `;
                     } else {
                         if (card) card.href = `${g.url}?mode=${savedMode}`;
-                        let modeBadge = '';
-                        if (savedMode === 'tantangan') {
-                            modeBadge = `<span style="color:#d97706; font-weight:800;"><i data-lucide="zap" style="width:10px; height:10px; display:inline-block;"></i> Tantangan</span>`;
-                        } else if (savedMode === 'acak') {
-                            modeBadge = `<span style="color:#4f46e5; font-weight:800;"><i data-lucide="shuffle" style="width:10px; height:10px; display:inline-block;"></i> Acak</span>`;
-                        } else {
-                            modeBadge = `<span style="color:#0284c7; font-weight:800;"><i data-lucide="coffee" style="width:10px; height:10px; display:inline-block;"></i> Santai</span>`;
-                        }
                         slot.innerHTML = `
-                            <div style="font-size:0.68rem; font-weight:700; color:#64748b; background:#f1f5f9; padding:3px 8px; border-radius:12px; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
-                                <i data-lucide="play" style="width:10px; height:10px;"></i> ${modeBadge} &bull; ${g.defaultDesc}
+                            <div style="font-size:0.72rem; font-weight:700; color:#2563eb; margin-top:6px; display:inline-flex; align-items:center; gap:4px;">
+                                <i data-lucide="play" style="width:11px; height:11px;"></i> Mulai Permainan &rarr;
                             </div>
                         `;
                     }
@@ -452,9 +442,10 @@
         }
 
         function refreshAllRealtimeStates() {
+            const savedMode = localStorage.getItem('cendekia_active_game_mode') || 'santai';
             updateTodayEarnedXP();
-            updateGameCardStatuses();
-            renderUnfinishedGamesReminder();
+            updateGameCardStatuses(savedMode);
+            renderUnfinishedGamesReminder(savedMode);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
