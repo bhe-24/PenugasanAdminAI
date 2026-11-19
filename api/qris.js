@@ -216,18 +216,42 @@ async function handleCheckCheckout(req, res, raw) {
   const body = JSON.parse(raw || '{}');
   const urlObj = new URL(req.url, 'http://x');
   const orderId = body.orderId || urlObj.searchParams.get('orderId');
+  const gatewayId = body.gatewayId || urlObj.searchParams.get('gatewayId');
 
-  if (!orderId) return res.status(400).json({ error: 'orderId wajib' });
+  if (!orderId && !gatewayId) return res.status(400).json({ error: 'orderId atau gatewayId wajib' });
 
-  if (db) {
+  // 1. Cek langsung status transaksi ke Kaskuy Gateway jika gatewayId tersedia
+  if (gatewayId && process.env.KASKUY_API_KEY && !gatewayId.startsWith('SIM-')) {
+    try {
+      const st = await gwStatus(gatewayId);
+      if (st.paid) {
+        if (db && orderId) {
+          try {
+            await db.doc('checkout_orders/' + orderId).update({
+              status: 'paid',
+              paidAt: FV ? FV.serverTimestamp() : new Date()
+            });
+          } catch(e) {}
+        }
+        return res.json({ paid: true, status: 'PAID', amount: st.amount });
+      }
+      return res.json({ paid: false, status: st.status || 'PENDING' });
+    } catch(err) {
+      console.warn('Kaskuy direct status check err:', err.message);
+    }
+  }
+
+  // 2. Cek lewat Firestore checkout_orders
+  if (db && orderId) {
     try {
       const snap = await db.doc('checkout_orders/' + orderId).get();
       if (snap.exists) {
         const order = snap.data();
         if (order.status === 'paid') return res.json({ paid: true, status: 'paid', amount: order.amount });
 
-        if (order.gatewayId && process.env.KASKUY_API_KEY && !order.gatewayId.startsWith('SIM-')) {
-          const st = await gwStatus(order.gatewayId);
+        const gId = gatewayId || order.gatewayId;
+        if (gId && process.env.KASKUY_API_KEY && !gId.startsWith('SIM-')) {
+          const st = await gwStatus(gId);
           if (st.paid) {
             await db.doc('checkout_orders/' + orderId).update({
               status: 'paid',
@@ -235,7 +259,7 @@ async function handleCheckCheckout(req, res, raw) {
             });
             return res.json({ paid: true, status: 'PAID', amount: order.amount });
           }
-          return res.json({ paid: false, status: st.status });
+          return res.json({ paid: false, status: st.status || 'PENDING' });
         }
       }
     } catch(e) {

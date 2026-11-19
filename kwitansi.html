@@ -326,7 +326,7 @@
             <span>Pratinjau Kuitansi Resmi</span>
         </div>
         <div class="toolbar-actions">
-            <a href="javascript:history.back()" id="btnBackUrl" class="btn-tb btn-tb-back">
+            <a href="javascript:void(0)" onclick="handleKwitansiBack()" id="btnBackUrl" class="btn-tb btn-tb-back">
                 <i class="fa-solid fa-arrow-left"></i> Kembali
             </a>
             <button type="button" onclick="downloadPDF()" class="btn-tb btn-tb-download" id="btnDownload">
@@ -444,6 +444,30 @@
         import { db, auth } from "./js/firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Navigasi Kembali Aman - Menghindari penutupan aplikasi di mobile / PWA
+        window.handleKwitansiBack = function() {
+            const p = new URLSearchParams(window.location.search);
+            const returnUrl = p.get('returnUrl');
+            if (returnUrl) {
+                window.location.href = decodeURIComponent(returnUrl);
+                return;
+            }
+            if (window.history.length > 1 && document.referrer && !document.referrer.includes('login')) {
+                window.history.back();
+            } else {
+                let fallback = '/mem-free/profil.html';
+                try {
+                    const raw = localStorage.getItem('cendekia_user');
+                    if (raw) {
+                        const u = JSON.parse(raw);
+                        if (u.tier === 'Member 5K') fallback = '/mem-5k/profil.html';
+                        else if (u.tier && u.tier.includes('Pro')) fallback = '/mem-pro/profil.html';
+                    }
+                } catch(e) {}
+                window.location.href = fallback;
+            }
+        };
 
         // Global receipt data untuk pdfmake
         window.receiptData = {
