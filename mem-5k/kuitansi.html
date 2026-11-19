@@ -227,11 +227,13 @@
             width: 120px;
         }
         .kuitansi-stamp-img {
-            width: 70px;
-            height: auto;
+            width: 68px;
+            height: 68px;
+            aspect-ratio: 1/1;
+            object-fit: contain;
             margin: 2px auto;
             display: block;
-            opacity: 0.85;
+            opacity: 0.88;
         }
     </style>
 </head>
@@ -467,6 +469,27 @@
             if (window.lucide) lucide.createIcons();
         }
 
+        function getBase64Image(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || 200;
+                        canvas.height = img.naturalHeight || 200;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch (e) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = url;
+            });
+        }
+
         async function downloadKuitansiPDF() {
             if (!receiptData) return;
             const btn = document.getElementById('btnDownloadPDF');
@@ -476,18 +499,11 @@
             if (window.lucide) lucide.createIcons();
 
             try {
-                let stampBase64 = null;
-                try {
-                    const stampImg = document.querySelector('.kuitansi-stamp-img');
-                    if (stampImg && stampImg.complete) {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = stampImg.naturalWidth || 120;
-                        canvas.height = stampImg.naturalHeight || 60;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(stampImg, 0, 0);
-                        stampBase64 = canvas.toDataURL('image/png');
-                    }
-                } catch (e) {}
+                // Ambil Logo Cendekia Aksara dan Cap Resmi secara presisi (aspek rasio 1:1 sempurna)
+                const [logoBase64, stampBase64] = await Promise.all([
+                    getBase64Image('https://i.imgur.com/5Srjyo4.png'),
+                    getBase64Image('https://i.imgur.com/YvrNYRw.png')
+                ]);
 
                 const tableBody = [
                     [
@@ -516,19 +532,21 @@
                     content: [
                         {
                             columns: [
+                                logoBase64 ? { image: logoBase64, width: 48, height: 48 } : { text: '[CA]', fontSize: 20, bold: true, color: '#003366', width: 48 },
                                 {
                                     width: '*',
+                                    margin: [10, 0, 0, 0],
                                     stack: [
-                                        { text: 'CENDEKIA AKSARA', fontSize: 16, bold: true, color: '#003366', letterSpacing: 1 },
-                                        { text: 'Komunitas Literasi & Inkubasi Penulis Muda', fontSize: 9, color: '#475569', margin: [0, 2, 0, 1] },
-                                        { text: 'Temanggung, Jawa Tengah · Penerbit Resmi Ber-QRCBN', fontSize: 8, color: '#64748b' }
+                                        { text: 'CENDEKIA AKSARA', fontSize: 15, bold: true, color: '#003366', letterSpacing: 0.5 },
+                                        { text: 'Komunitas Literasi & Inkubasi Penulis Muda', fontSize: 8.5, color: '#475569', margin: [0, 2, 0, 1] },
+                                        { text: 'Temanggung, Jawa Tengah · Penerbit Resmi Ber-QRCBN', fontSize: 7.5, color: '#64748b' }
                                     ]
                                 },
                                 {
-                                    width: 100,
+                                    width: 95,
                                     stack: [
-                                        { text: 'LUNAS', fontSize: 13, bold: true, color: '#15803d', alignment: 'center' },
-                                        { text: 'QRIS OTOMATIS', fontSize: 7.5, bold: true, color: '#0369a1', alignment: 'center', margin: [0, 2, 0, 0] }
+                                        { text: 'LUNAS', fontSize: 12, bold: true, color: '#15803d', alignment: 'center' },
+                                        { text: 'QRIS KASKUY', fontSize: 7.5, bold: true, color: '#0369a1', alignment: 'center', margin: [0, 2, 0, 0] }
                                     ]
                                 }
                             ]
@@ -644,7 +662,7 @@
                                     stack: [
                                         { text: `Temanggung, ${receiptData.dateStr}`, fontSize: 7.5, alignment: 'center' },
                                         { text: 'Admin Keuangan', fontSize: 7.5, bold: true, alignment: 'center', margin: [0, 1, 0, 2] },
-                                        stampBase64 ? { image: stampBase64, width: 75, height: 35, alignment: 'center' } : { text: '', height: 25 },
+                                        stampBase64 ? { image: stampBase64, width: 62, height: 62, alignment: 'center', margin: [0, 2, 0, 2] } : { text: '', height: 35 },
                                         { text: 'Bendahara Sekolah', fontSize: 7.5, bold: true, alignment: 'center', decoration: 'underline', margin: [0, 2, 0, 0] }
                                     ]
                                 }
