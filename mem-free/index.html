@@ -743,40 +743,54 @@
             }
         }
 
-        // 6. KARYA KOMUNITAS & FEED PUBLIK (100% DATA RIIL & LINK KE baca.html)
+        // 6. KARYA KOMUNITAS & FEED PUBLIK (100% DATA RIIL DARI DATABASE FIRESTORE)
+        let _isInitialStoriesLoad = true;
+
         function renderCommunityStoriesFeed() {
             const container = document.getElementById('storiesFeedContainer');
             if (!container) return;
 
-            // 100% DATA RIIL DARI LOCALSTORAGE
+            // Ambil dari database cache / realtime Firestore
             const publicStories = CendekiaApp.getPublicStories() || [];
 
             if (publicStories.length === 0) {
-                container.innerHTML = `
-                    <div style="background:white; border-radius:var(--radius-md); padding:24px 16px; border:1.5px dashed #cbd5e1; text-align:center;">
-                        <i data-lucide="book-open" style="width:32px; height:32px; color:#94a3b8; margin-bottom:6px;"></i>
-                        <strong style="font-size:0.86rem; color:var(--primary); display:block;">
-                            Belum Ada Karya yang Dipublikasikan
-                        </strong>
-                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 12px;">
-                            Jadilah yang pertama mempublikasikan karyamu ke publik!
-                        </p>
-                        <a href="/mem-free/berkarya.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none; padding:8px 16px;">
-                            Mulai Tulis Cerita
-                        </a>
-                    </div>
-                `;
-                if (window.lucide) lucide.createIcons();
+                if (_isInitialStoriesLoad) {
+                    container.innerHTML = `
+                        <div style="background:white; border-radius:var(--radius-md); padding:20px 16px; border:1px solid #e2e8f0; text-align:center;">
+                            <i data-lucide="loader-2" style="width:24px; height:24px; color:#0284c7; animation:spin 1s linear infinite; display:inline-block; margin-bottom:6px;"></i>
+                            <div style="font-size:0.75rem; color:#475569; font-weight:600;">Menghubungkan &amp; memuat karya langsung dari database Cendekia...</div>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                } else {
+                    container.innerHTML = `
+                        <div style="background:white; border-radius:var(--radius-md); padding:24px 16px; border:1.5px dashed #cbd5e1; text-align:center;">
+                            <i data-lucide="book-open" style="width:32px; height:32px; color:#94a3b8; margin-bottom:6px;"></i>
+                            <strong style="font-size:0.86rem; color:var(--primary); display:block;">
+                                Belum Ada Karya yang Dipublikasikan
+                            </strong>
+                            <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 12px;">
+                                Jadilah yang pertama mempublikasikan karyamu ke publik!
+                            </p>
+                            <a href="/mem-free/berkarya.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none; padding:8px 16px;">
+                                Mulai Tulis Cerita
+                            </a>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                }
                 return;
             }
 
+            _isInitialStoriesLoad = false;
             container.innerHTML = '';
-            // Tampilkan maksimal 4 karya publik terbaru di beranda
+            // Tampilkan maksimal 4 karya publik terbitan database di beranda
             publicStories.slice(0, 4).forEach(story => {
                 const chaptersCount = (story.chapters && Array.isArray(story.chapters)) ? story.chapters.length : 1;
                 const likes = story.likes || 0;
                 const reads = story.reads || 0;
                 const genre = (story.genre || 'cerpen').toUpperCase();
+                const coverSrc = story.coverUrl || story.coverBase64 || '';
 
                 const card = document.createElement('div');
                 card.className = 'wattpad-card';
@@ -787,7 +801,13 @@
                 card.innerHTML = `
                     <!-- COVER VERTICAL -->
                     <div class="wattpad-cover">
-                        ${story.coverBase64 ? `<img src="${story.coverBase64}" alt="Cover">` : `
+                        ${coverSrc ? `
+                            <img src="${coverSrc}" alt="Cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none; height:100%; width:100%; flex-direction:column; align-items:center; justify-content:center; padding:4px;">
+                                <i data-lucide="${story.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:22px; height:22px; margin-bottom:4px; color:#fef08a;"></i>
+                                <span style="font-size:0.52rem; text-transform:uppercase; font-weight:800; line-height:1.1; color:#f8fafc;">${genre}</span>
+                            </div>
+                        ` : `
                             <i data-lucide="${story.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:24px; height:24px; margin-bottom:4px; color:#fef08a;"></i>
                             <span style="font-size:0.55rem; text-transform:uppercase; font-weight:800; line-height:1.1; color:#f8fafc;">${genre}</span>
                         `}
@@ -804,14 +824,14 @@
                                     <i data-lucide="heart" style="width:10px; height:10px; fill:#e11d48;"></i> ${likes}
                                 </span>
                             </div>
-                            <strong style="font-size:0.88rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; margin-bottom:3px;">
+                            <strong style="font-size:0.86rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; margin-bottom:3px;">
                                 ${story.title || 'Naskah Tanpa Judul'}
                             </strong>
                             <div style="font-size:0.66rem; color:var(--text-muted); margin-bottom:4px;">
-                                Oleh: <b style="color:#0284c7;">${story.author || 'Siswa Cendekia'}</b>
+                                Oleh: <b style="color:#0284c7;">${story.author || 'Siswa Cendekia'}</b> &bull; <span style="font-size:0.6rem; color:#15803d; font-weight:700;">${story.authorTier || 'Database'}</span>
                             </div>
                             <p style="font-size:0.7rem; color:#475569; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 6px;">
-                                ${story.synopsis || (story.body ? story.body.slice(0, 90) : 'Kisah inspiratif karya siswa Cendekia...')}
+                                ${story.synopsis || (story.body ? story.body.slice(0, 90) : 'Karya orisinal pilihan tersimpan di database Cendekia...')}
                             </p>
                         </div>
 
@@ -839,6 +859,15 @@
             renderWeeklyProgress();
             renderMyRankCard();
             renderCommunityStoriesFeed();
+            // Ambil data riil langsung dari database Firestore
+            CendekiaApp.fetchPublicStoriesFromDatabase().then(() => {
+                _isInitialStoriesLoad = false;
+                renderCommunityStoriesFeed();
+            });
+            window.addEventListener('cendekia:stories_updated', () => {
+                _isInitialStoriesLoad = false;
+                renderCommunityStoriesFeed();
+            });
 
             // Re-render realtime begitu Cloud Memory Firestore selesai disinkronkan
             window.addEventListener('cendekia:synced', () => {

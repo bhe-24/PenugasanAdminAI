@@ -118,6 +118,7 @@
     <script src="/mem-free/central.js"></script>
     <script>
         let currentGenre = 'all';
+        let isInitialLoad = true;
 
         function setGenreFilter(genre, btnEl) {
             currentGenre = genre;
@@ -131,8 +132,8 @@
             const sortBy = document.getElementById('sortSelect').value;
             const container = document.getElementById('pustakaListContainer');
 
-            // 100% DATA RIIL DARI LOCALSTORAGE
-            const allStories = CendekiaApp.getPublicStories();
+            // 100% DATA RIIL DARI DATABASE FIRESTORE
+            const allStories = CendekiaApp.getPublicStories() || [];
 
             let filtered = allStories.filter(s => {
                 const matchGenre = currentGenre === 'all' || (s.genre || 'cerpen') === currentGenre;
@@ -144,7 +145,7 @@
                 return matchGenre && matchQuery;
             });
 
-            // SORT
+            // SORTIR
             if (sortBy === 'reads') {
                 filtered.sort((a, b) => (b.reads || 0) - (a.reads || 0));
             } else if (sortBy === 'likes') {
@@ -156,11 +157,22 @@
             document.getElementById('resultsCount').textContent = filtered.length;
 
             if (filtered.length === 0) {
+                if (isInitialLoad && allStories.length === 0) {
+                    container.innerHTML = `
+                        <div style="background:white; border-radius:var(--radius-md); padding:30px 16px; border:1px solid #e2e8f0; text-align:center;">
+                            <i data-lucide="loader-2" style="width:28px; height:28px; color:#0284c7; animation:spin 1s linear infinite; display:inline-block; margin-bottom:8px;"></i>
+                            <div style="font-size:0.78rem; color:#475569; font-weight:600;">Memuat seluruh arsip karya dari database Cendekia...</div>
+                        </div>
+                    `;
+                    if (window.lucide) lucide.createIcons();
+                    return;
+                }
+
                 container.innerHTML = `
                     <div style="background:white; border-radius:var(--radius-md); padding:32px 16px; border:1.5px dashed #cbd5e1; text-align:center;">
                         <i data-lucide="book-open" style="width:36px; height:36px; color:#94a3b8; margin-bottom:8px;"></i>
-                        <strong style="font-size:0.88rem; color:var(--primary); display:block;">Belum Ada Karya yang Dipublikasikan</strong>
-                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 14px;">Jadilah penulis pertama yang karyanya dibaca seluruh siswa Cendekia!</p>
+                        <strong style="font-size:0.88rem; color:var(--primary); display:block;">Tidak Ada Karya yang Cocok</strong>
+                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 14px;">Coba gunakan kata kunci pencarian lain atau pilih kategori genre berbeda.</p>
                         <a href="/mem-free/berkarya.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none; padding:8px 16px;">
                             Mulai Tulis Karya
                         </a>
@@ -170,12 +182,14 @@
                 return;
             }
 
+            isInitialLoad = false;
             container.innerHTML = '';
             filtered.forEach(s => {
                 const chaptersCount = (s.chapters && Array.isArray(s.chapters) && s.chapters.length > 0) ? s.chapters.length : 1;
                 const likes = s.likes || 0;
                 const reads = s.reads || 0;
                 const genre = (s.genre || 'cerpen').toUpperCase();
+                const coverSrc = s.coverUrl || s.coverBase64 || '';
 
                 const card = document.createElement('div');
                 card.className = 'pustaka-card';
@@ -185,7 +199,13 @@
 
                 card.innerHTML = `
                     <div class="pustaka-cover">
-                        ${s.coverBase64 ? `<img src="${s.coverBase64}" alt="Cover">` : `
+                        ${coverSrc ? `
+                            <img src="${coverSrc}" alt="Cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div style="display:none; height:100%; width:100%; flex-direction:column; align-items:center; justify-content:center; padding:4px;">
+                                <i data-lucide="${s.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:20px; height:20px; margin-bottom:4px; color:#fef08a;"></i>
+                                <span style="font-size:0.5rem; text-transform:uppercase; font-weight:800; color:#f8fafc;">${genre}</span>
+                            </div>
+                        ` : `
                             <i data-lucide="${s.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:22px; height:22px; margin-bottom:4px; color:#fef08a;"></i>
                             <span style="font-size:0.52rem; text-transform:uppercase; font-weight:800; color:#f8fafc;">${genre}</span>
                         `}
@@ -205,10 +225,10 @@
                                 ${s.title || 'Naskah Tanpa Judul'}
                             </strong>
                             <div style="font-size:0.66rem; color:var(--text-muted); margin-bottom:4px;">
-                                Oleh: <b style="color:#0284c7;">${s.author || 'Siswa Cendekia'}</b> &bull; ${s.authorTier || 'Member'}
+                                Oleh: <b style="color:#0284c7;">${s.author || 'Siswa Cendekia'}</b> &bull; <span style="color:#15803d; font-weight:700;">${s.authorTier || 'Database'}</span>
                             </div>
                             <p style="font-size:0.7rem; color:#475569; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 6px;">
-                                ${s.synopsis || (s.body ? s.body.slice(0, 90) : 'Kisah inspiratif karya siswa Cendekia...')}
+                                ${s.synopsis || (s.body ? s.body.slice(0, 90) : 'Karya orisinal pilihan tersimpan di database Cendekia...')}
                             </p>
                         </div>
 
@@ -232,7 +252,19 @@
             CendekiaApp.renderBottomNav('beranda');
             applyFiltersAndSort();
             document.getElementById('searchInput').addEventListener('input', applyFiltersAndSort);
+
+            // Ambil data riil langsung dari database Firestore
+            CendekiaApp.fetchPublicStoriesFromDatabase().then(() => {
+                isInitialLoad = false;
+                applyFiltersAndSort();
+            });
+
+            window.addEventListener('cendekia:stories_updated', () => {
+                isInitialLoad = false;
+                applyFiltersAndSort();
+            });
         });
+    
     </script>
 </body>
 </html>

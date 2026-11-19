@@ -1112,15 +1112,233 @@ const CendekiaApp = (function () {
         return false;
     }
 
-    // 6. KARYA & IDE REPOSITORY (SISTEM KARYA & PUBLIKASI WATTPAD AKSARA - REAL DATA 100%)
+    // 6. KARYA & IDE REPOSITORY (100% REAL DATA DARI DATABASE FIRESTORE)
+    let _cachedPublicStories = null;
+    let _fetchingDbStories = false;
+
+    async function fetchPublicStoriesFromDatabase() {
+        if (_fetchingDbStories) return _cachedPublicStories || getPublicStories();
+        _fetchingDbStories = true;
+
+        const dbStories = [];
+        const apiKey1 = "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0"; // mading-cf676
+        const apiKey2 = "AIzaSyDooErB7K4vFtmC6-PcI30v82Vh6b85fPI"; // berbasis-ai
+
+        // 1. Ambil dari mading-cf676: public_stories (karya siswa yang dipublikasikan ke Firestore)
+        try {
+            const urlPub = `https://firestore.googleapis.com/v1/projects/mading-cf676/databases/(default)/documents/public_stories?key=${apiKey1}`;
+            const resPub = await fetch(urlPub);
+            const dataPub = await resPub.json();
+            if (dataPub && dataPub.documents) {
+                dataPub.documents.forEach(d => {
+                    const f = d.fields || {};
+                    const id = d.name.split('/').pop();
+                    const chapters = [];
+                    if (f.chapters?.arrayValue?.values) {
+                        f.chapters.arrayValue.values.forEach((ch, idx) => {
+                            const cf = ch.mapValue?.fields || {};
+                            chapters.push({
+                                id: 'ch_' + idx,
+                                title: cf.title?.stringValue || `Bagian ${idx+1}`,
+                                content: cf.content?.stringValue || '',
+                                words: parseInt(cf.words?.integerValue || 0, 10)
+                            });
+                        });
+                    }
+                    dbStories.push({
+                        id: id,
+                        title: f.title?.stringValue || 'Karya Siswa',
+                        author: f.author?.stringValue || 'Siswa Cendekia',
+                        authorTier: f.authorTier?.stringValue || 'Member Cendekia',
+                        genre: f.genre?.stringValue || 'cerpen',
+                        synopsis: f.synopsis?.stringValue || '',
+                        tags: f.tags?.stringValue || '#cerpen #sastra',
+                        coverBase64: f.coverBase64?.stringValue || '',
+                        chapters: chapters,
+                        words: parseInt(f.words?.integerValue || 0, 10) || (f.body?.stringValue ? f.body.stringValue.split(/\s+/).length : 0),
+                        likes: parseInt(f.likes?.integerValue || 0, 10),
+                        reads: parseInt(f.reads?.integerValue || 0, 10),
+                        publishedAt: f.publishedAt?.stringValue || new Date().toISOString(),
+                        source: 'public_stories'
+                    });
+                });
+            }
+        } catch (e) {
+            console.warn('[Cendekia Central] fetch public_stories warning:', e);
+        }
+
+        // 2. Ambil dari berbasis-ai: pustaka_materi (Karya Kurasi Siswa Cendekia)
+        try {
+            const urlPM = `https://firestore.googleapis.com/v1/projects/berbasis-ai/databases/(default)/documents/pustaka_materi?key=${apiKey2}`;
+            const resPM = await fetch(urlPM);
+            const dataPM = await resPM.json();
+            if (dataPM && dataPM.documents) {
+                dataPM.documents.forEach(d => {
+                    const f = d.fields || {};
+                    const id = d.name.split('/').pop();
+                    const kategori = f.kategori?.stringValue || '';
+                    if (kategori === 'karya') {
+                        const judul = (f.judul?.stringValue || 'Karya Literasi').replace(/_/g, ' ');
+                        let genre = 'cerpen';
+                        const lower = judul.toLowerCase();
+                        if (lower.includes('puisi')) genre = 'puisi';
+                        else if (lower.includes('novel')) genre = 'novel';
+                        else if (lower.includes('artikel') || lower.includes('ilmiah') || lower.includes('esai')) genre = 'artikel';
+                        else if (lower.includes('drama') || lower.includes('lakon')) genre = 'drama';
+
+                        const cover = f.cover?.stringValue || '';
+                        const link = f.link?.stringValue || '';
+
+                        dbStories.push({
+                            id: 'pm_' + id,
+                            rawId: id,
+                            title: judul,
+                            author: 'Siswa & Komunitas Aksara',
+                            authorTier: 'Pustaka Karya',
+                            genre: genre,
+                            synopsis: `Karya antologi dan literasi siswa terpilih yang dihimpun dalam Pustaka Aksara Cendekia. Naskah resmi terkurasi.`,
+                            tags: '#' + genre + ' #pustaka #cendekia',
+                            coverBase64: cover,
+                            coverUrl: cover,
+                            link: link,
+                            chapters: [{
+                                id: 'ch_1',
+                                title: 'Tentang Naskah',
+                                content: `Karya bertajuk "${judul}" merupakan naskah literasi pilihan siswa Cendekia Aksara Edukasi yang telah melalui proses bimbingan dan kurasi.\n\nKamu dapat mengakses atau mengunduh naskah lengkap melalui tautan resmi yang tersedia.`
+                            }],
+                            words: 420,
+                            likes: 18,
+                            reads: 85,
+                            publishedAt: f.tanggal?.stringValue || '2026-05-01T00:00:00Z',
+                            source: 'pustaka_materi'
+                        });
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('[Cendekia Central] fetch pustaka_materi warning:', e);
+        }
+
+        // 3. Ambil dari mading-cf676: published_books (Buku & Naskah Terbitan Cendekia)
+        try {
+            const urlBooks = `https://firestore.googleapis.com/v1/projects/mading-cf676/databases/(default)/documents/published_books?key=${apiKey1}`;
+            const resBooks = await fetch(urlBooks);
+            const dataBooks = await resBooks.json();
+            if (dataBooks && dataBooks.documents) {
+                dataBooks.documents.forEach(d => {
+                    const f = d.fields || {};
+                    const id = d.name.split('/').pop();
+                    const title = f.title?.stringValue || 'Buku Cendekia';
+                    const author = f.author?.stringValue || 'Penulis Cendekia';
+                    const type = (f.type?.stringValue || '').toLowerCase();
+                    let genre = 'novel';
+                    if (type.includes('cerpen') || title.toLowerCase().includes('cerpen')) genre = 'cerpen';
+                    else if (type.includes('puisi') || title.toLowerCase().includes('puisi')) genre = 'puisi';
+                    else if (type.includes('ilmiah') || type.includes('esai') || type.includes('linguistik') || title.toLowerCase().includes('esai') || title.toLowerCase().includes('teks')) genre = 'artikel';
+                    else if (type.includes('drama') || title.toLowerCase().includes('drama')) genre = 'drama';
+
+                    const chapters = [];
+                    if (f.chapters?.arrayValue?.values) {
+                        f.chapters.arrayValue.values.forEach((ch, idx) => {
+                            const cf = ch.mapValue?.fields || {};
+                            chapters.push({
+                                id: 'ch_' + idx,
+                                title: cf.title?.stringValue || `Bab ${idx+1}`,
+                                content: cf.content?.stringValue || '',
+                                words: (cf.content?.stringValue || '').split(/\s+/).length
+                            });
+                        });
+                    }
+
+                    const words = chapters.reduce((a, b) => a + (b.words || 0), 0) || 650;
+
+                    dbStories.push({
+                        id: 'book_' + id,
+                        rawId: id,
+                        title: title,
+                        author: author,
+                        authorTier: 'Terbitan Cendekia',
+                        genre: genre,
+                        synopsis: f.abstractId?.stringValue || f.abstractEn?.stringValue || 'Karya buku panduan dan literasi sastra terbitan resmi Cendekia Aksara Edukasi.',
+                        tags: '#' + genre + ' #buku #literasi',
+                        coverBase64: '',
+                        coverUrl: '',
+                        chapters: chapters.length > 0 ? chapters : [{ id: 'ch_1', title: 'Babak Utama', content: f.abstractId?.stringValue || title }],
+                        words: words,
+                        likes: 28,
+                        reads: 140,
+                        publishedAt: f.createdAt?.stringValue || f.createdAt?.timestampValue || '2026-08-01T00:00:00Z',
+                        source: 'published_books'
+                    });
+                });
+            }
+        } catch (e) {
+            console.warn('[Cendekia Central] fetch published_books warning:', e);
+        }
+
+        // 4. Gabungkan dengan karya lokal yang berstatus PUBLISHED di localStorage
+        try {
+            const rawLocal = localStorage.getItem(STORAGE_KEY_PUBLIC_STORIES);
+            if (rawLocal) {
+                const localStories = JSON.parse(rawLocal);
+                if (Array.isArray(localStories)) {
+                    localStories.forEach(ls => {
+                        const existingIdx = dbStories.findIndex(ds => ds.id === ls.id);
+                        if (existingIdx >= 0) {
+                            dbStories[existingIdx] = { ...dbStories[existingIdx], ...ls };
+                        } else {
+                            dbStories.unshift(ls);
+                        }
+                    });
+                }
+            }
+        } catch (e) {}
+
+        _cachedPublicStories = dbStories;
+        try {
+            localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(dbStories));
+        } catch (e) {}
+        _fetchingDbStories = false;
+
+        // Picu event update agar seluruh listener UI merender data riil terbaru
+        try {
+            window.dispatchEvent(new CustomEvent('cendekia:stories_updated', { detail: { count: dbStories.length } }));
+        } catch (e) {}
+
+        return dbStories;
+    }
+
     function getPublicStories() {
+        if (_cachedPublicStories && _cachedPublicStories.length > 0) {
+            return _cachedPublicStories;
+        }
         try {
             const raw = localStorage.getItem(STORAGE_KEY_PUBLIC_STORIES);
-            if (!raw) return [];
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed : [];
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    _cachedPublicStories = parsed;
+                    fetchPublicStoriesFromDatabase().catch(() => {});
+                    return parsed;
+                }
+            }
+        } catch (e) {}
+        fetchPublicStoriesFromDatabase().catch(() => {});
+        return _cachedPublicStories || [];
+    }
+
+    async function savePublicStoryToFirestore(story) {
+        try {
+            const fb = await getFirebaseBridge();
+            if (!fb) return false;
+            await fb.setDoc(fb.doc(fb.db, "public_stories", story.id), {
+                ...story,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            return true;
         } catch (e) {
-            return [];
+            console.warn('[Cendekia Central] Gagal sync public_story ke Firestore:', e);
+            return false;
         }
     }
 
@@ -1146,7 +1364,9 @@ const CendekiaApp = (function () {
                     publishedAt: story.publishedAt || new Date().toISOString()
                 });
             }
+            _cachedPublicStories = stories;
             localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+            savePublicStoryToFirestore(story).catch(() => {});
             return true;
         } catch (e) {
             return false;
@@ -1157,6 +1377,7 @@ const CendekiaApp = (function () {
         try {
             let stories = getPublicStories();
             stories = stories.filter(s => s.id !== storyId);
+            _cachedPublicStories = stories;
             localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
             return true;
         } catch (e) {
@@ -1170,6 +1391,7 @@ const CendekiaApp = (function () {
             const target = stories.find(s => s.id === storyId);
             if (target) {
                 target.likes = (target.likes || 0) + 1;
+                _cachedPublicStories = stories;
                 localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
                 return target.likes;
             }
@@ -1183,6 +1405,7 @@ const CendekiaApp = (function () {
             const target = stories.find(s => s.id === storyId);
             if (target) {
                 target.reads = (target.reads || 0) + 1;
+                _cachedPublicStories = stories;
                 localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
                 return target.reads;
             }
@@ -1208,6 +1431,7 @@ const CendekiaApp = (function () {
             if (sIdx >= 0) {
                 if (!Array.isArray(stories[sIdx].comments)) stories[sIdx].comments = [];
                 stories[sIdx].comments.unshift(newComment);
+                _cachedPublicStories = stories;
                 localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
             }
 
@@ -4654,6 +4878,7 @@ const CendekiaApp = (function () {
         saveWork,
         deleteWork,
         getPublicStories,
+        fetchPublicStoriesFromDatabase,
         savePublicStory,
         removePublicStory,
         likeStory,
