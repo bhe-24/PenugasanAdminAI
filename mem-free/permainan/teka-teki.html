@@ -109,7 +109,7 @@
                 <!-- KOTAK ISIAN HURUF TEKA-TEKI -->
                 <div class="letter-inputs-row" id="inputsRow"></div>
 
-                <button type="button" class="btn-primary-challenge" style="margin-top:10px; width:100%;" onclick="validateRiddle()">
+                <button type="button" id="btnValidateRiddle" class="btn-primary-challenge" style="margin-top:10px; width:100%;" onclick="validateRiddle()">
                     Periksa Jawaban Teka-Teki
                 </button>
 
@@ -128,6 +128,7 @@
     <script>
         let riddles = [];
         let rIndex = 0;
+        let isQuestionResolved = false;
         let score = 0;
         let playedRecords = [];
         let currentMode = 'santai';
@@ -242,6 +243,9 @@
             document.getElementById('riddleText').textContent = `"${cur.riddle}"`;
             document.getElementById('clueHintText').textContent = cur.clue ? `Petunjuk: ${cur.clue} (${cur.answer.length} Huruf)` : `(${cur.answer.length} Huruf)`;
             document.getElementById('ttsFeedback').style.display = 'none';
+            isQuestionResolved = false;
+            const checkBtn = document.getElementById('btnValidateRiddle');
+            if (checkBtn) { checkBtn.disabled = false; checkBtn.style.display = 'block'; }
 
             // Reset Timer Kecepatan & Motivasi
             qStartTime = Date.now();
@@ -277,6 +281,8 @@
         }
 
         function validateRiddle() {
+            if (isQuestionResolved) return; // ANTI-CHEAT LOCK: Cegah klik berulang
+
             const cur = riddles[rIndex];
             const inputs = document.querySelectorAll('.letter-cell');
             let entered = "";
@@ -288,6 +294,14 @@
             if (encouragementTimer) clearTimeout(encouragementTimer);
 
             if (entered === cur.answer) {
+                // Kunci soal & sembunyikan tombol periksa jawaban
+                isQuestionResolved = true;
+                const checkBtn = document.getElementById('btnValidateRiddle');
+                if (checkBtn) {
+                    checkBtn.disabled = true;
+                    checkBtn.style.display = 'none';
+                }
+                inputs.forEach(i => i.disabled = true);
                 const elapsedSec = Math.round((Date.now() - qStartTime) / 1000);
                 const isFast = elapsedSec <= 7;
                 const earnedPoints = isFast ? 25 : 20;
@@ -316,6 +330,7 @@
         }
 
         function proceedNextRiddle(isCorrect, enteredVal) {
+            isQuestionResolved = true;
             if (encouragementTimer) clearTimeout(encouragementTimer);
 
             const cur = riddles[rIndex];

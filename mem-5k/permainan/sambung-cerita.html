@@ -72,7 +72,7 @@
                     <span><b id="wordCountSpan">0</b> kata</span>
                 </div>
 
-                <button type="button" class="btn-primary-challenge" style="width:100%; background:linear-gradient(135deg, #db2777, #9d174d);" onclick="submitStoryRound()">
+                <button type="button" id="btnSubmitStoryRound" class="btn-primary-challenge" style="width:100%; background:linear-gradient(135deg, #db2777, #9d174d);" onclick="submitStoryRound()">
                     <i data-lucide="send" style="width:15px; height:15px;"></i> Simpan &amp; Lanjut Babak Berikutnya
                 </button>
             </div>
@@ -91,6 +91,7 @@
         let score = 0;
         let playedRecords = [];
         let currentMode = 'santai';
+        let isSubmittingRound = false;
 
         async function initGameEngine() {
             const loading = document.getElementById('gameLoadingState');
@@ -133,6 +134,9 @@
         }
 
         function loadPrompt() {
+            isSubmittingRound = false;
+            const submitBtn = document.getElementById('btnSubmitStoryRound');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; }
             if (bIndex >= prompts.length) { finishGameRound(); return; }
             const cur = prompts[bIndex];
             document.getElementById('bIdx').textContent = bIndex + 1;
@@ -151,12 +155,19 @@
         }
 
         function submitStoryRound() {
+            if (isSubmittingRound) return; // ANTI-CHEAT LOCK: Cegah klik berulang
+
             const txt = (document.getElementById('storyContinuation').value || '').trim();
             const words = txt ? txt.split(/\s+/).length : 0;
             if (words < 15) {
                 alert('Tuliskan lanjutan cerita minimal 15 kata agar alur berkembang dengan baik!');
                 return;
             }
+
+            isSubmittingRound = true;
+            const submitBtn = document.getElementById('btnSubmitStoryRound');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.6'; }
+
             const cur = prompts[bIndex];
             const evalRes = CendekiaApp.analyzeWritingSystem(txt, 'cerpen');
             score += 30;

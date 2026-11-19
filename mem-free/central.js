@@ -562,7 +562,24 @@ const CendekiaApp = (function () {
     }
 
     // 3. GAMIFIKASI: XP, LEVEL UP & TOAST
+    let _lastXpAwardTime = 0;
+    let _lastXpReason = '';
+    let _lastXpPoints = 0;
+
     function addXP(points, reason = 'Aktivitas Belajar') {
+        if (!points || typeof points !== 'number' || points <= 0) return null;
+
+        // SAFEGUARD ANTI-CHEAT: Blokir spam klik beruntun / exploit multi-click
+        const now = Date.now();
+        if (now - _lastXpAwardTime < 800 && _lastXpReason === reason && _lastXpPoints === points) {
+            console.warn('[Anti-Cheat] addXP duplikat tercegah (klik beruntun):', reason, points);
+            const currentUser = getUser();
+            return { xp: currentUser.xp, level: currentUser.level, leveledUp: false };
+        }
+        _lastXpAwardTime = now;
+        _lastXpReason = reason;
+        _lastXpPoints = points;
+
         const user = getUser();
         user.xp = (user.xp || 0) + points;
 

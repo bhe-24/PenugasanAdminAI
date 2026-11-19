@@ -131,6 +131,7 @@
     <script>
         let puzzles = [];
         let pIndex = 0;
+        let isCurrentPuzzleChecked = false;
         let score = 0;
         let currentTarget = "";
         let currentPlaced = [];
@@ -245,6 +246,11 @@
             document.getElementById('puzTotal').textContent = puzzles.length;
             document.getElementById('scrambleClue').textContent = `"${p.clue}"`;
             document.getElementById('resultFeedback').style.display = 'none';
+            isCurrentPuzzleChecked = false;
+            const checkBtn = document.getElementById('btnCheckScramble');
+            if (checkBtn) { checkBtn.disabled = false; checkBtn.style.display = 'block'; }
+            const resetBtn = document.getElementById('btnResetTiles');
+            if (resetBtn) resetBtn.style.display = 'inline-flex';
 
             // Reset Timer Kecepatan & Motivasi
             qStartTime = Date.now();
@@ -321,6 +327,8 @@
         }
 
         function checkScrambleAnswer() {
+            if (isCurrentPuzzleChecked) return; // ANTI-CHEAT LOCK: Cegah klik berulang
+
             const fb = document.getElementById('resultFeedback');
             fb.style.display = 'block';
 
@@ -337,6 +345,15 @@
 
             const p = puzzles[pIndex];
             if (assembled === currentTarget) {
+                // Kunci soal & sembunyikan tombol periksa jawaban
+                isCurrentPuzzleChecked = true;
+                const checkBtn = document.getElementById('btnCheckScramble');
+                if (checkBtn) {
+                    checkBtn.disabled = true;
+                    checkBtn.style.display = 'none';
+                }
+                const resetBtn = document.getElementById('btnResetTiles');
+                if (resetBtn) resetBtn.style.display = 'none';
                 const elapsedSec = Math.round((Date.now() - qStartTime) / 1000);
                 const isFast = elapsedSec <= 7;
                 const earnedPoints = isFast ? 25 : 20;
@@ -365,6 +382,7 @@
         }
 
         function proceedNextPuzzle(isSuccess) {
+            isCurrentPuzzleChecked = true;
             if (encouragementTimer) clearTimeout(encouragementTimer);
 
             const p = puzzles[pIndex];
