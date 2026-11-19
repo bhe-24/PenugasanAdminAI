@@ -823,18 +823,25 @@
             return pkg === '5k' || pkg === 'mem-5k' || tier.includes('5k');
         }
 
+        function isPaid10kAccount(data) {
+            const pkg = String(data?.packageId || '').toLowerCase();
+            const tier = String(data?.tier || '').toLowerCase();
+            return pkg === '10k' || pkg === 'mem-10k' || tier.includes('10k');
+        }
+
         function isPaidProAccount(data) {
             const pkg = String(data?.packageId || '').toLowerCase();
             const tier = String(data?.tier || '').toLowerCase();
-            return pkg === '10k' || pkg === '15k' || pkg === '20k' || pkg === 'pro' || pkg === 'mem-pro'
-                || tier.includes('10k') || tier.includes('15k') || tier.includes('20k') || tier.includes('pro');
+            return pkg === '15k' || pkg === '20k' || pkg === 'pro' || pkg === 'mem-pro'
+                || tier.includes('15k') || tier.includes('20k') || tier.includes('pro');
         }
 
         async function normalizeMembershipExpiry(uid, data) {
             if (!data) return data;
             const is5k = isPaid5kAccount(data);
+            const is10k = isPaid10kAccount(data);
             const isPro = isPaidProAccount(data);
-            if (!is5k && !isPro) return data;
+            if (!is5k && !is10k && !isPro) return data;
 
             const now = Date.now();
             if (data.membershipExpiresAt) {
@@ -856,7 +863,7 @@
                     return data;
                 }
             } else {
-                // Akun Member 5K/Pro lama yang belum punya tanggal akhir -> berikan masa aktif 40 hari penuh
+                // Akun Member 5K/10K/Pro lama yang belum punya tanggal akhir -> berikan masa aktif 40 hari penuh
                 const startIso = new Date().toISOString();
                 const expIso = new Date(now + (40 * 24 * 60 * 60 * 1000)).toISOString();
                 const initPatch = {
@@ -881,6 +888,7 @@
             const isExpired = data.membershipExpiresAt && Date.now() > new Date(data.membershipExpiresAt).getTime();
             if (!isExpired) {
                 if (isPaid5kAccount(data)) return 'mem-5k/index.html';
+                if (isPaid10kAccount(data)) return 'mem-10k/index.html';
                 if (isPaidProAccount(data)) return 'mem-pro/index.html';
             }
             // Default: Member Free
@@ -890,10 +898,13 @@
         function persistUserSession(user, data) {
             try {
                 const photo = data.photoURL || data.photo || user.photoURL || '';
-                const pkgId = isPaid5kAccount(data) ? '5k' : (isPaidProAccount(data) ? (data.packageId || '15k') : 'free');
-                const resolvedTier = isPaid5kAccount(data)
+                const is5k = isPaid5kAccount(data);
+                const is10k = isPaid10kAccount(data);
+                const isPro = isPaidProAccount(data);
+                const pkgId = is5k ? '5k' : (is10k ? '10k' : (isPro ? (data.packageId || '15k') : 'free'));
+                const resolvedTier = is5k
                     ? 'Member 5K'
-                    : (isPaidProAccount(data) ? (data.tier || data.packageName || 'Member Pro') : 'Member Free');
+                    : (is10k ? 'Member 10K' : (isPro ? (data.tier || data.packageName || 'Member Pro') : 'Member Free'));
 
                 const sessionObj = {
                     uid: user.uid,

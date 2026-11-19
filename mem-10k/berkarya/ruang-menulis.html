@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        const params = window.location.search;
+        window.location.replace('/mem-10k/berkarya/menulis-cerpen.html' + params);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ruang Menulis - Member 10K Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/mem-10k/central.css">
+
+    <style>
+        .editor-container {
+            background: white; border-radius: var(--radius-md); padding: 16px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm);
+        }
+        .input-title {
+            width: 100%; border: none; border-bottom: 2px solid var(--border-soft);
+            padding: 8px 4px; font-size: 1.15rem; font-weight: 800; color: var(--primary);
+            outline: none; margin-bottom: 12px; font-family: inherit;
+        }
+        .input-title:focus { border-color: var(--secondary); }
+        .editor-textarea {
+            width: 100%; min-height: 260px; border: 1.5px solid var(--border-soft);
+            border-radius: var(--radius-sm); padding: 14px; font-size: 0.86rem;
+            color: var(--text-dark); line-height: 1.6; outline: none; font-family: inherit;
+            resize: vertical; background: #fdfefe;
+        }
+        .editor-textarea:focus { border-color: var(--primary); background: #ffffff; }
+        .meta-counter-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.72rem; color: var(--text-muted); font-weight: 700; margin: 10px 0;
+        }
+        .system-review-card {
+            background: #f8fafc; border-radius: var(--radius-md); padding: 14px;
+            border: 1.5px solid var(--border-soft); margin-top: 16px; display: none;
+        }
+        .score-pill-group {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0;
+        }
+        .score-pill {
+            background: white; border-radius: var(--radius-sm); padding: 8px 6px; text-align: center;
+            border: 1px solid var(--border-soft);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-10k/berkarya.html" class="btn-header-back" title="Kembali">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="notebook-pen" style="width:18px; height:18px; color:var(--secondary);"></i> Ruang Menulis
+                    </h1>
+                    <div class="header-brand-sub" id="saveStatus">Tersimpan Otomatis</div>
+                </div>
+            </div>
+            <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; width:auto;" onclick="manualSave()">
+                <i data-lucide="save" style="width:13px; height:13px;"></i> Simpan
+            </button>
+        </header>
+
+        <main class="app-body">
+
+            <div class="editor-container">
+                <input type="text" id="workTitle" class="input-title" placeholder="Tuliskan Judul Karyamu...">
+                
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <select id="workGenre" style="padding:6px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-soft); font-size:0.72rem; font-weight:700; color:var(--text-body); background:white;">
+                        <option value="cerpen">Genre: Cerpen</option>
+                        <option value="puisi">Genre: Puisi</option>
+                        <option value="novel">Genre: Novel / Bab</option>
+                        <option value="artikel">Genre: Artikel / Esai</option>
+                        <option value="drama">Genre: Naskah Lakon</option>
+                    </select>
+                </div>
+
+                <textarea id="workBody" class="editor-textarea" placeholder="Mulai rangkai kata-katamu di sini... Ceritakan karakter, latar, suasana, dan rasa yang hendak kamu hadirkan."></textarea>
+
+                <div class="meta-counter-bar">
+                    <span><b id="wordCount">0</b> Kata &bull; <span id="charCount">0</span> Karakter</span>
+                    <span id="autoSaveIndicator" style="color:#059669;"><i data-lucide="check" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Sinkron</span>
+                </div>
+
+                <!-- TOMBOL ACTION -->
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button type="button" class="btn-modal-secondary" onclick="runSystemReview()">
+                        <i data-lucide="sparkles" style="width:14px; height:14px; display:inline-block; vertical-align:middle; color:var(--accent-dark);"></i> Telaah Kurasi Sistem
+                    </button>
+                    <a href="/mem-10k/berkarya/karyaku.html" class="btn-modal-secondary" style="text-align:center; text-decoration:none;">
+                        <i data-lucide="library" style="width:14px; height:14px; display:inline-block; vertical-align:middle;"></i> Karyaku
+                    </a>
+                </div>
+
+                <!-- HASIL TELAAH KURASI SISTEM (KURASI CERDAS SISTEM CENDEKIA) -->
+                <div class="system-review-card" id="systemReviewBox">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:0.86rem; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="award" style="width:16px; height:16px; color:var(--accent-dark);"></i> Telaah Kurasi Sistem Cendekia
+                        </strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Sisa Kuota: <b>5</b>/hari</span>
+                    </div>
+
+                    <div class="score-pill-group">
+                        <div class="score-pill">
+                            <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Kejelasan Diksi</span>
+                            <strong style="font-size:0.95rem; color:#0284c7;" id="scoreClarity">85</strong>
+                        </div>
+                        <div class="score-pill">
+                            <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Aliran Ritme</span>
+                            <strong style="font-size:0.95rem; color:#059669;" id="scoreFlow">88</strong>
+                        </div>
+                        <div class="score-pill">
+                            <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Daya Kreatif</span>
+                            <strong style="font-size:0.95rem; color:#d4af37;" id="scoreCreativity">90</strong>
+                        </div>
+                    </div>
+
+                    <div style="font-size:0.72rem; color:var(--text-body); line-height:1.45;">
+                        <b style="color:var(--primary);">Rekomendasi Pengembangan Naskah:</b>
+                        <ul id="recommendationList" style="padding-left:16px; margin-top:4px;"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="/mem-10k/central.js"></script>
+    <script>
+        let currentWorkId = null;
+        let autoSaveTimer = null;
+
+        function updateCounters() {
+            const text = document.getElementById('workBody').value;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('wordCount').textContent = words;
+            document.getElementById('charCount').textContent = text.length;
+
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSave, 1500);
+        }
+
+        function autoSave() {
+            const title = document.getElementById('workTitle').value.trim() || 'Naskah Tanpa Judul';
+            const body = document.getElementById('workBody').value;
+            const genre = document.getElementById('workGenre').value;
+            const words = body.trim() ? body.trim().split(/\s+/).length : 0;
+
+            if (!body.trim() && title === 'Naskah Tanpa Judul') return;
+
+            const saved = CendekiaApp.saveWork({
+                id: currentWorkId,
+                title,
+                body,
+                genre,
+                words
+            });
+
+            if (saved) {
+                currentWorkId = saved.id;
+                document.getElementById('saveStatus').textContent = 'Tersimpan otomatis ' + new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+            }
+        }
+
+        function manualSave() {
+            autoSave();
+            CendekiaApp.addXP(10, 'Menyimpan Karya');
+            alert('Karya Anda berhasil disimpan ke arsip Karyaku!');
+        }
+
+        function runSystemReview() {
+            const text = document.getElementById('workBody').value;
+            const genre = document.getElementById('workGenre').value;
+
+            if (text.trim().length < 20) {
+                alert('Tuliskan minimal 20 kata agar sistem dapat menelaah struktur naskahmu.');
+                return;
+            }
+
+            const analysis = CendekiaApp.analyzeWritingSystem(text, genre);
+            document.getElementById('scoreClarity').textContent = analysis.scores.clarity;
+            document.getElementById('scoreFlow').textContent = analysis.scores.flow;
+            document.getElementById('scoreCreativity').textContent = analysis.scores.creativity;
+
+            const list = document.getElementById('recommendationList');
+            list.innerHTML = '';
+            analysis.recommendations.forEach(r => {
+                const li = document.createElement('li');
+                li.textContent = r;
+                list.appendChild(li);
+            });
+
+            document.getElementById('systemReviewBox').style.display = 'block';
+            CendekiaApp.addXP(15, 'Telaah Kurasi Sistem');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('berkarya');
+            document.getElementById('workBody').addEventListener('input', updateCounters);
+            document.getElementById('workTitle').addEventListener('input', updateCounters);
+
+            // Periksa jika ada ID karya di URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            const ideaPrompt = urlParams.get('idea');
+
+            if (id) {
+                const works = CendekiaApp.getWorks();
+                const target = works.find(w => w.id === id);
+                if (target) {
+                    currentWorkId = target.id;
+                    document.getElementById('workTitle').value = target.title || '';
+                    document.getElementById('workBody').value = target.body || '';
+                    document.getElementById('workGenre').value = target.genre || 'cerpen';
+                    updateCounters();
+                }
+            } else if (ideaPrompt) {
+                document.getElementById('workBody').value = `[Inspirasi Ide]: ${ideaPrompt}\n\n`;
+                updateCounters();
+            }
+        });
+    </script>
+</body>
+</html>

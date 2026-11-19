@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tantangan Cepat - Member 10K Cendekia</title>
+    
+    <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.js"></script>
+    <link rel="stylesheet" href="/mem-10k/central.css">
+
+    <style>
+        .fast-card {
+            background: white; border-radius: var(--radius-md); padding: 22px 16px;
+            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); text-align: center;
+        }
+        .timer-badge {
+            width: 68px; height: 68px; border-radius: 50%; background: #fff7ed;
+            color: #ea580c; border: 3px solid #fdba74; display: flex; align-items: center;
+            justify-content: center; font-size: 1.5rem; font-weight: 800; margin: 0 auto 14px;
+        }
+        .rapid-word-display {
+            font-size: 1.55rem; font-weight: 800; color: var(--primary);
+            letter-spacing: 1px; margin: 14px 0 22px; min-height: 46px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn-baku {
+            background: #ecfdf5; border: 2px solid #059669; color: #065f46;
+            padding: 15px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.92rem; cursor: pointer;
+        }
+        .btn-nonbaku {
+            background: #fef2f2; border: 2px solid #dc2626; color: #991b1b;
+            padding: 15px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.92rem; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mobile-app-wrapper">
+
+        <header class="app-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <a href="/mem-10k/bermain.html" class="btn-header-back" title="Kembali ke Menu Bermain">
+                    <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
+                </a>
+                <div>
+                    <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="timer" style="width:18px; height:18px; color:#ea580c;"></i> Tantangan Cepat
+                    </h1>
+                    <div class="header-brand-sub">10 Kata Baku vs Non-Baku &bull; 60 Detik</div>
+                </div>
+            </div>
+            <div style="background:#ffedd5; color:#c2410c; font-size:0.72rem; font-weight:800; padding:4px 10px; border-radius:var(--radius-full);">
+                Skor: <span id="gameScore">0</span>
+            </div>
+        </header>
+
+        <main class="app-body">
+
+            <div id="gameLoadingState" style="text-align:center; padding:50px 20px; background:white; border-radius:var(--radius-md); border:1px solid var(--border-soft);">
+                <i data-lucide="loader" style="width:32px; height:32px; animation:spin 1s linear infinite; margin-bottom:12px; color:var(--primary);"></i>
+                <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary);">Menyiapkan Tantangan Cepat...</h3>
+            </div>
+
+            <div class="fast-card" id="startScreen" style="display:none;">
+                <div class="timer-badge"><i data-lucide="zap" style="width:32px; height:32px;"></i></div>
+                <h2 style="font-size:1.12rem; font-weight:800; color:var(--primary); margin-bottom:6px;">Uji Refleks Kosakata Baku</h2>
+                <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-bottom:18px;">
+                    Tentukan dengan cepat apakah 10 kata yang muncul merupakan kata <b>Baku</b> atau <b>Tidak Baku</b> KBBI dalam waktu 60 detik!
+                </p>
+                <button type="button" class="btn-primary-challenge" style="background:#ea580c;" onclick="startTimerGame()">
+                    <i data-lucide="play" style="width:16px; height:16px;"></i> Mulai Tantangan Kilat
+                </button>
+            </div>
+
+            <div class="fast-card" id="playScreen" style="display:none;">
+                <div class="timer-badge" id="timeDisplay">60</div>
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">Kata ke-<span id="qNum">1</span> dari <span id="qCount">10</span></div>
+                <div class="rapid-word-display" id="wordDisplay">...</div>
+                <div class="choice-grid">
+                    <button type="button" class="btn-baku" onclick="judgeWord(true)">✓ BAKU</button>
+                    <button type="button" class="btn-nonbaku" onclick="judgeWord(false)">✗ TIDAK BAKU</button>
+                </div>
+            </div>
+
+            <div id="resultContainer" style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); display:none;"></div>
+
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
+            </div>
+        </main>
+
+    </div>
+
+    <script src="/mem-10k/central.js"></script>
+    <script>
+        let words = [];
+        let wIndex = 0;
+        let score = 0;
+        let isGameEnded = false;
+        let timeLeft = 60;
+        let timerHandle = null;
+        let playedRecords = [];
+        let currentMode = 'santai';
+
+        async function initGameEngine() {
+            const loading = document.getElementById('gameLoadingState');
+            const startScr = document.getElementById('startScreen');
+            const urlParams = new URLSearchParams(window.location.search);
+            currentMode = urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai';
+
+            const completed = CendekiaApp.getGameResult('tantangan_cepat');
+            if (completed) {
+                loading.style.display = 'none';
+                showCompletedScreen(completed);
+                return;
+            }
+
+            await CendekiaApp.ensureDailyGame('tantangan_cepat', {
+                mode: currentMode,
+                onReady: (items, meta) => {
+                    loading.style.display = 'none';
+                    words = items || [];
+                    const draft = (meta && meta.draftData) || CendekiaApp.getGameDraft('tantangan_cepat');
+                    if (draft && draft.currentIndex > 0 && draft.currentIndex < words.length) {
+                        wIndex = draft.currentIndex;
+                        score = draft.score || 0;
+                        playedRecords = draft.playedRecords || [];
+                        document.getElementById('gameScore').textContent = score;
+                        startTimerGame();
+                    } else {
+                        startScr.style.display = 'block';
+                    }
+                    if (window.lucide) lucide.createIcons();
+                }
+            });
+        }
+
+        function startTimerGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('playScreen').style.display = 'block';
+            CendekiaApp.saveGameDraft('tantangan_cepat', {
+                questions: words,
+                currentIndex: wIndex,
+                score,
+                playedRecords,
+                mode: currentMode
+            });
+            showCurrentWord();
+            timerHandle = setInterval(() => {
+                timeLeft--;
+                const el = document.getElementById('timeDisplay');
+                if (el) el.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerHandle);
+                    finishGameRound();
+                }
+            }, 1000);
+        }
+
+        function showCurrentWord() {
+            if (wIndex >= words.length) {
+                clearInterval(timerHandle);
+                finishGameRound();
+                return;
+            }
+            const cur = words[wIndex];
+            document.getElementById('qNum').textContent = wIndex + 1;
+            document.getElementById('qCount').textContent = words.length;
+            document.getElementById('wordDisplay').textContent = (cur.word || '').toUpperCase();
+        }
+
+        function judgeWord(userSaysBaku) {
+            const cur = words[wIndex];
+            const isCorrect = Boolean(cur.isBaku) === userSaysBaku;
+            if (isCorrect) {
+                score += 15;
+                document.getElementById('gameScore').textContent = score;
+                CendekiaApp.addXP(15, 'Tantangan Cepat Kata Baku');
+            }
+            playedRecords.push({
+                q: `Status kata: "${(cur.word || '').toUpperCase()}"`,
+                isCorrect,
+                selectedText: userSaysBaku ? 'BAKU' : 'TIDAK BAKU',
+                correctText: `${cur.isBaku ? 'BAKU' : 'TIDAK BAKU'} (${cur.bakuForm || cur.word})`,
+                wordKey: cur.bakuForm || cur.word,
+                exp: cur.exp || `Bentuk baku KBBI: ${cur.bakuForm || cur.word}.`
+            });
+            wIndex++;
+            CendekiaApp.saveGameDraft('tantangan_cepat', {
+                questions: words,
+                currentIndex: wIndex,
+                score,
+                playedRecords,
+                mode: currentMode
+            });
+            showCurrentWord();
+        }
+
+        async function finishGameRound() {
+            clearInterval(timerHandle);
+            document.getElementById('playScreen').style.display = 'none';
+            const total = words.length || 10;
+            const correctCount = playedRecords.filter(r => r.isCorrect).length;
+            const finalScore = Math.min(100, Math.round((correctCount / total) * 100));
+            const resultData = { score: finalScore, correctCount, totalCount: total, xpEarned: score, questions: playedRecords, mode: currentMode };
+            await CendekiaApp.saveGameResult('tantangan_cepat', resultData);
+            CendekiaApp.clearGameDraft('tantangan_cepat');
+            CendekiaApp.completeChallenge('tc_3');
+            showCompletedScreen(resultData);
+        }
+
+        function showCompletedScreen(data) {
+            const container = document.getElementById('resultContainer');
+            container.style.display = 'block';
+            const total = data.totalCount || 10;
+            const correct = data.correctCount || 0;
+            const wrong = total - correct;
+            const records = data.questions || [];
+
+            let reviewHtml = records.map((item, idx) => `
+                <div style="background:white; border-radius:var(--radius-sm); border:1px solid ${item.isCorrect ? '#a7f3d0' : '#fecaca'}; padding:11px; margin-bottom:9px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span style="font-size:0.7rem; font-weight:800; background:var(--primary); color:white; padding:2px 8px; border-radius:4px;">Kata #${idx + 1}</span>
+                        <span style="font-size:0.68rem; font-weight:800; color:${item.isCorrect ? '#059669' : '#dc2626'};">${item.isCorrect ? 'Benar ✓' : 'Salah ✗'}</span>
+                    </div>
+                    <div style="font-size:0.76rem; font-weight:700; color:var(--primary); margin-bottom:4px;">${item.q}</div>
+                    <div style="font-size:0.72rem; color:${item.isCorrect ? '#166534' : '#991b1b'};">Jawaban Anda: <b>${item.selectedText}</b> &bull; Kunci: <b>${item.correctText}</b></div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); font-style:italic; margin-top:3px;">${item.exp || ''}</div>
+                </div>
+            `).join('');
+
+            let vocabHtml = records.map(item => `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div>
+                        <strong style="font-size:0.84rem; color:var(--primary); text-transform:uppercase;">${item.wordKey || item.correctText}</strong>
+                        <div style="font-size:0.7rem; color:var(--text-body);">${item.exp || ''}</div>
+                    </div>
+                    <span style="font-size:0.62rem; font-weight:700; color:#ea580c; background:#ffedd5; padding:2px 6px; border-radius:4px; white-space:nowrap;">Baku KBBI</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div style="text-align:center; padding:12px 6px 18px; border-bottom:1px solid #e2e8f0; margin-bottom:16px;">
+                    <div style="width:76px; height:76px; border-radius:50%; background:#ecfdf5; color:#059669; font-size:1.85rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; border:3px solid #a7f3d0;">${data.score || 0}</div>
+                    <h2 style="font-size:1.12rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Hasil Tantangan Cepat</h2>
+                    <div style="font-size:0.74rem; color:#059669; font-weight:700; margin-bottom:12px;">Selesai Dikerjakan Hari Ini</div>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;">
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">Benar</div><div style="font-size:1rem; font-weight:800; color:#059669;">${correct}</div></div>
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">Salah</div><div style="font-size:1rem; font-weight:800; color:#dc2626;">${wrong}</div></div>
+                        <div style="background:#f8fafc; padding:9px 6px; border-radius:8px; border:1px solid #e2e8f0;"><div style="font-size:0.66rem; color:var(--text-muted);">XP</div><div style="font-size:1rem; font-weight:800; color:#7c3aed;">+${data.xpEarned || 0}</div></div>
+                    </div>
+                    <button type="button" class="btn-primary-challenge" style="width:100%; padding:11px; margin-bottom:8px;" onclick="downloadCepatPDF()">
+                        <i data-lucide="file-down" style="width:16px; height:16px;"></i> Unduh Laporan Evaluasi &amp; Kartu Nilai (PDF)
+                    </button>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">Reset kembali jam <strong>00:00 WIB</strong> (<span class="resetCountdownText">--:--:--</span>)</div>
+                </div>
+                <h3 style="font-size:0.86rem; font-weight:800; color:var(--primary); margin-bottom:10px;">Lembar Pembahasan (${total} Kata)</h3>
+                ${reviewHtml}
+                <h3 style="font-size:0.86rem; font-weight:800; color:var(--primary); margin:16px 0 10px;">Koleksi Kosakata Baku KBBI</h3>
+                <div style="display:flex; flex-direction:column; gap:8px;">${vocabHtml}</div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            const tick = () => document.querySelectorAll('.resetCountdownText').forEach(el => el.textContent = CendekiaApp.formatCountdownToMidnightWIB());
+            tick(); setInterval(tick, 1000);
+        }
+
+        window.downloadCepatPDF = () => {
+            const res = CendekiaApp.getGameResult('tantangan_cepat');
+            if (res) CendekiaApp.downloadEvaluationPDF({ ...res, title: 'Laporan Evaluasi Pembelajaran - Tantangan Cepat (Member 10K)' }, CendekiaApp.getUser());
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            CendekiaApp.renderBottomNav('bermain');
+            initGameEngine();
+        });
+    </script>
+</body>
+</html>
