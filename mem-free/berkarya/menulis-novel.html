@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Menulis Novel - Member Free Cendekia</title>
+    <title>Studio Menulis Novel - Member Free Cendekia</title>
     
     <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,59 +11,240 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
+
+    <style>
+        .studio-card {
+            background: white; border-radius: var(--radius-md); padding: 14px;
+            border: 1.5px solid var(--border-soft); margin-bottom: 14px; box-shadow: var(--shadow-sm);
+        }
+        .cover-preview-box {
+            width: 105px; height: 150px; border-radius: 8px; overflow: hidden;
+            background: linear-gradient(135deg, #78350f 0%, #1e293b 100%);
+            color: white; display: flex; flex-direction: column; justify-content: space-between;
+            padding: 10px; box-shadow: 0 8px 18px rgba(0, 31, 63, 0.25); border: 1.5px solid var(--accent);
+            flex-shrink: 0; position: relative; text-align: center; cursor: pointer; transition: transform 0.2s ease;
+        }
+        .cover-preview-box:hover {
+            transform: scale(1.02);
+        }
+        .cover-preview-box img {
+            position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;
+        }
+        .cover-preview-box .cover-overlay-info {
+            position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .chapter-pills-row {
+            display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; margin-bottom: 10px;
+            scrollbar-width: none;
+        }
+        .chapter-pills-row::-webkit-scrollbar { display: none; }
+        .chapter-pill {
+            padding: 6px 12px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 700;
+            background: #f1f5f9; color: var(--text-body); border: 1px solid var(--border-soft);
+            cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+            transition: all 0.2s ease;
+        }
+        .chapter-pill.active {
+            background: var(--primary); color: white; border-color: var(--primary);
+        }
+        .chapter-pill-add {
+            background: #ecfdf5; color: #059669; border: 1px dashed #6ee7b7;
+        }
+        .chapter-title-input {
+            width: 100%; border: none; border-bottom: 2px solid var(--border-soft);
+            padding: 6px 0; font-size: 1.05rem; font-weight: 800; color: var(--primary);
+            outline: none; margin-bottom: 10px; font-family: inherit;
+        }
+        .chapter-title-input:focus { border-color: var(--accent); }
+        .story-textarea {
+            width: 100%; min-height: 280px; border: 1.5px solid var(--border-soft);
+            border-radius: var(--radius-sm); padding: 14px; font-size: 0.88rem;
+            color: #1e293b; line-height: 1.65; outline: none; font-family: inherit;
+            resize: vertical; background: #ffffff;
+        }
+        .story-textarea:focus { border-color: var(--primary); }
+        
+        /* ASISTEN AI 1 KOLOM */
+        .ai-one-col-card {
+            background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: var(--radius-md);
+            padding: 14px; margin-top: 10px;
+        }
+        .ai-point-item {
+            background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 10px 12px; margin-top: 8px; font-size: 0.74rem; line-height: 1.45;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+
+        /* DAFTAR NASKAH SAYA DI BAWAH */
+        .my-work-item {
+            background: white; border: 1.5px solid var(--border-soft); border-radius: var(--radius-sm);
+            padding: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; transition: border-color 0.2s ease;
+        }
+        .my-work-item:hover {
+            border-color: var(--primary);
+        }
+    </style>
 </head>
 <body>
 
     <div class="mobile-app-wrapper">
 
+        <!-- HEADER -->
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
-                <a href="/mem-free/berkarya.html" class="btn-header-back" title="Kembali">
+                <a href="/mem-free/berkarya.html" class="btn-header-back" title="Kembali ke Berkarya">
                     <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
                 </a>
                 <div>
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
-                        <i data-lucide="book-copy" style="width:18px; height:18px; color:var(--purple);"></i> Menulis Novel
+                        <i data-lucide="book-copy" style="width:18px; height:18px; color:#7c3aed;"></i> Studio Menulis Novel
                     </h1>
-                    <div class="header-brand-sub">Manajemen Bab &amp; Sinopsis Utama</div>
+                    <div class="header-brand-sub" id="headerSaveStatus">Draf Tersimpan</div>
                 </div>
             </div>
-            <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; width:auto;" onclick="saveNovelChapter()">
-                <i data-lucide="save" style="width:13px; height:13px;"></i> Simpan Bab
-            </button>
+            <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-modal-secondary" style="padding:6px 10px; font-size:0.7rem;" onclick="manualSaveDraft()">
+                    <i data-lucide="save" style="width:13px; height:13px;"></i> Draf
+                </button>
+                <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.7rem; width:auto; background:#059669;" onclick="publishStoryToCommunity()">
+                    <i data-lucide="globe" style="width:13px; height:13px;"></i> Terbitkan
+                </button>
+            </div>
         </header>
 
         <main class="app-body">
 
-            <!-- INFO NOVEL -->
-            <div style="background:white; border-radius:var(--radius-md); padding:16px; border:1px solid var(--border-soft); box-shadow:var(--shadow-sm);">
-                <input type="text" id="novelBookTitle" placeholder="Judul Buku Novel..." style="width:100%; border:none; border-bottom:2px solid var(--border-soft); padding:6px 0; font-size:1.15rem; font-weight:800; color:var(--primary); outline:none; margin-bottom:12px;">
+            <!-- 1. IDENTITAS KARYA & SAMPUL COVER (KLIK KOTAK COVER LANGSUNG) -->
+            <div class="studio-card">
+                <div style="display:flex; gap:14px; align-items:flex-start;">
+                    <!-- COVER MOCKUP (TRIGGER FILE INPUT SAAT DIKLIK) -->
+                    <div class="cover-preview-box" id="coverBox" onclick="document.getElementById('coverFileInput').click()" title="Klik kotak ini untuk memilih gambar sampul">
+                        <img id="coverImgPreview" src="" style="display:none;" alt="Cover">
+                        <div class="cover-overlay-info" id="coverTextFallback">
+                            <span style="font-size:0.55rem; text-transform:uppercase; font-weight:800; color:#fef08a;">NOVEL</span>
+                            <div style="font-size:0.72rem; font-weight:800; line-height:1.2; overflow:hidden;" id="coverTitlePreview">Judul Karya</div>
+                            <div style="font-size:0.55rem; color:#cbd5e1;" id="coverAuthorPreview">Penulis</div>
+                            <div style="font-size:0.52rem; color:#94a3b8; background:rgba(0,0,0,0.3); padding:2px 4px; border-radius:4px; margin-top:4px;">
+                                <i data-lucide="camera" style="width:10px; height:10px; display:inline-block; vertical-align:middle;"></i> Klik Sampul
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="coverFileInput" accept="image/*" style="display:none;" onchange="handleCoverUpload(event)">
 
-                <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-bottom:12px;">
-                    <select id="chapterNumber" style="padding:8px; border-radius:var(--radius-sm); border:1px solid var(--border-soft); font-size:0.76rem; font-weight:700;">
-                        <option value="1">Bab 1</option>
-                        <option value="2">Bab 2</option>
-                        <option value="3">Bab 3</option>
-                        <option value="4">Bab 4</option>
-                    </select>
-                    <input type="text" id="chapterTitle" placeholder="Sub-Judul Bab Ini..." style="padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border-soft); font-size:0.76rem; outline:none;">
+                    <!-- METADATA FORM -->
+                    <div style="flex:1; min-width:0;">
+                        <input type="text" id="storyTitle" placeholder="Judul Novel..." style="width:100%; border:none; border-bottom:2px solid var(--border-soft); padding:4px 0 6px; font-size:1.08rem; font-weight:800; color:var(--primary); outline:none; margin-bottom:8px; font-family:inherit;">
+                        
+                        <textarea id="storySynopsis" placeholder="Tuliskan sinopsis atau pengantar singkat cerita..." style="width:100%; border:1px solid var(--border-soft); border-radius:6px; padding:6px 8px; font-size:0.72rem; color:var(--text-body); outline:none; font-family:inherit; height:54px; resize:none; line-height:1.35; margin-bottom:6px;"></textarea>
+                        
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input type="text" id="storyTags" placeholder="#novel #sastra #cendekia" style="width:100%; border:1px solid var(--border-soft); border-radius:6px; padding:5px 8px; font-size:0.7rem; outline:none;">
+                            <div id="coverActionRow" style="display:none; font-size:0.64rem; margin-top:2px;">
+                                <span style="color:#059669; font-weight:700;">✓ Sampul kustom aktif</span> &bull; 
+                                <a href="javascript:void(0)" onclick="removeCover()" style="color:#dc2626; text-decoration:none; font-weight:700;">Hapus Sampul</a>
+                            </div>
+                            <div id="coverHintRow" style="font-size:0.62rem; color:var(--text-muted);">
+                                💡 Klik kotak sampul di samping kiri untuk mengunggah foto sampul cerita.
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <textarea id="chapterContent" class="editor-textarea" style="min-height:240px;" placeholder="Tuliskan naskah bab ini... Gambarkan latar, percakapan tokoh, dan eskalasi konflik bab."></textarea>
+                <!-- STATUS BADGE -->
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #e2e8f0; margin-top:10px; padding-top:8px;">
+                    <div style="font-size:0.68rem; color:var(--text-muted);">
+                        Status: <strong id="storyStatusBadge" style="color:#d97706; text-transform:uppercase;">DRAF PRIBADI</strong>
+                    </div>
+                    <div style="font-size:0.68rem; color:var(--text-muted);">
+                        Total Naskah: <b id="totalWordsBadge">0</b> Kata
+                    </div>
+                </div>
             </div>
 
-            <!-- TARGET KATA -->
-            <div style="background:#f8fafc; border-radius:var(--radius-md); padding:14px; border:1px solid var(--border-soft);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <span style="font-size:0.74rem; font-weight:800; color:var(--primary);">Target Bab Standar: 1.000 Kata</span>
-                    <span style="font-size:0.72rem; color:var(--text-muted);" id="chapWordCounter">0 / 1.000</span>
+            <!-- 2. STRUKTUR BAB / BAGIAN & EDITOR NASKAH -->
+            <div class="studio-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="font-size:0.75rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:5px;">
+                        <i data-lucide="layers" style="width:14px; height:14px;"></i> Daftar Bagian / Bab
+                    </div>
+                    <button type="button" class="chapter-pill chapter-pill-add" onclick="addNewChapter()">
+                        <i data-lucide="plus" style="width:12px; height:12px;"></i> Tambah Bab
+                    </button>
                 </div>
-                <div class="hero-xp-bar-bg" style="background:#e2e8f0; height:6px;">
-                    <div id="chapProgressBar" class="hero-xp-bar-fill" style="width:0%; background:var(--purple);"></div>
+
+                <!-- DAFTAR PILL BAB -->
+                <div class="chapter-pills-row" id="chapterPillsRow"></div>
+
+                <!-- EDITOR ACTIVE BAB -->
+                <div style="margin-top:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <input type="text" id="chapterTitle" class="chapter-title-input" placeholder="Nama Bagian / Bab...">
+                        <button type="button" id="btnDeleteChapter" onclick="deleteCurrentChapter()" style="display:none; background:#fee2e2; color:#dc2626; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" title="Hapus Bab Ini">
+                            <i data-lucide="trash-2" style="width:12px; height:12px;"></i> Hapus Bab
+                        </button>
+                    </div>
+
+                    <textarea id="chapterContent" class="story-textarea" placeholder="Tuliskan babak novel ini... Bangun dunia cerita, intrik tokoh, dan alur multi-babak yang mendalam."></textarea>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:var(--text-muted); margin-top:6px;">
+                        <span>Bab ini: <b id="chapWordsCount">0</b> Kata &bull; <span id="chapCharsCount">0</span> Karakter</span>
+                        <span id="autoSaveIndicator" style="color:#059669;"><i data-lucide="check" style="width:11px; height:11px; display:inline-block; vertical-align:middle;"></i> Sinkron Draf</span>
+                    </div>
+                </div>
+
+                <!-- 3. ASISTEN AI SATU KOLOM KHUSUS PENGECEKAN NASKAH & KALIMAT -->
+                <div class="ai-one-col-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <div style="font-size:0.78rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="sparkles" style="width:15px; height:15px; color:#d97706;"></i> Asisten AI: Pemeriksa Kelogisan Kalimat &amp; Ejaan
+                        </div>
+                        <span style="font-size:0.62rem; background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:999px; font-weight:800;">Realtime AI</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:10px; line-height:1.4;">
+                        Mendeteksi kata tidak baku (typo) menurut KBBI, kalimat berbelit atau kurang logis, dan kelengkapan tanda baca per paragraf.
+                    </div>
+
+                    <button type="button" class="btn-primary-challenge" style="padding:9px 14px; font-size:0.75rem; background:linear-gradient(135deg, #003366 0%, #0284c7 100%); width:100%;" onclick="runAiGrammarAndLogicCheck()">
+                        <i data-lucide="search" style="width:14px; height:14px;"></i> Analisis Naskah &amp; Deteksi Kalimat (Asisten AI)
+                    </button>
+
+                    <!-- HASIL ANALISIS POIN-POIN -->
+                    <div id="aiAnalysisResults" style="margin-top:10px;">
+                        <div style="font-size:0.72rem; color:#64748b; font-style:italic; text-align:center; padding:10px 0;">
+                            Klik tombol di atas untuk menganalisis naskah bab yang sedang kamu tulis.
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <!-- 4. DAFTAR NASKAH SAYA (DRAF & TERBIT) LANGSUNG DI BAWAH EDITOR -->
+            <div class="studio-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:0.82rem; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="folder-git-2" style="width:16px; height:16px; color:var(--accent-dark);"></i> Naskah Saya (Draf &amp; Terbit)
+                        </div>
+                        <div style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">
+                            Klik salah satu naskah untuk langsung beralih mengedit di studio ini.
+                        </div>
+                    </div>
+                    <button type="button" class="btn-modal-secondary" style="padding:5px 9px; font-size:0.68rem;" onclick="createNewWorkDraft()">
+                        <i data-lucide="plus" style="width:12px; height:12px;"></i> Naskah Baru
+                    </button>
+                </div>
+
+                <div id="myWorksListContainer">
+                    <div style="text-align:center; padding:16px 0; font-size:0.72rem; color:#94a3b8;">
+                        Memuat daftar naskah...
+                    </div>
+                </div>
+            </div>
+
+            <!-- COPYRIGHT FOOTER -->
             <div class="app-footer-copyright">
                 &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
             </div>
@@ -72,74 +253,579 @@
 
     </div>
 
+    <!-- ENGINE SCRIPTS -->
     <script src="/mem-free/central.js"></script>
     <script>
-        const textarea = document.getElementById('chapterContent');
-        textarea.addEventListener('input', () => {
-            const words = textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
-            document.getElementById('chapWordCounter').textContent = `${words} / 1.000`;
-            const pct = Math.min(100, Math.round((words / 1000) * 100));
-            document.getElementById('chapProgressBar').style.width = pct + '%';
-        });
+        const GENRE_KEY = 'novel';
+        const GENRE_NAME = 'Novel';
+        let currentStoryId = null;
+        let currentCoverBase64 = '';
+        let currentChapters = [
+            { id: 'ch_1', title: 'Bagian 1', content: '', words: 0 }
+        ];
+        let activeChapterIndex = 0;
+        let autoSaveTimer = null;
 
-        function saveNovelChapter() {
-            const book = document.getElementById('novelBookTitle').value.trim() || 'Novel Tanpa Judul';
-            const chapNum = document.getElementById('chapterNumber').value;
-            const chapSub = document.getElementById('chapterTitle').value.trim() || `Bab ${chapNum}`;
-            const text = textarea.value.trim();
+        // INISIALISASI STUDIO
+        function initStudio() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
 
-            if (!text) {
-                alert('Tuliskan naskah bab terlebih dahulu.');
+            if (id) {
+                loadExistingWork(id);
+            } else {
+                // Buat id naskah baru
+                currentStoryId = 'work_' + Date.now();
+                document.getElementById('storyTags').value = '#' + GENRE_KEY + ' #sastra #cendekia';
+                updateStatusUI('DRAFT');
+            }
+
+            renderChapterTabs();
+            loadActiveChapter();
+            updateCoverUI();
+            updateCounters();
+            renderMyWorksList();
+        }
+
+        function loadExistingWork(id) {
+            const existing = CendekiaApp.getWork(id);
+            if (existing) {
+                currentStoryId = existing.id;
+                document.getElementById('storyTitle').value = existing.title || '';
+                document.getElementById('storySynopsis').value = existing.synopsis || '';
+                document.getElementById('storyTags').value = existing.tags || ('#' + GENRE_KEY);
+                currentCoverBase64 = existing.coverBase64 || '';
+                
+                if (existing.chapters && Array.isArray(existing.chapters) && existing.chapters.length > 0) {
+                    currentChapters = existing.chapters;
+                } else {
+                    currentChapters = [{
+                        id: 'ch_' + Date.now(),
+                        title: 'Bagian 1',
+                        content: existing.body || '',
+                        words: (existing.body || '').trim() ? (existing.body || '').trim().split(/\s+/).length : 0
+                    }];
+                }
+                activeChapterIndex = 0;
+                updateStatusUI(existing.status || 'DRAFT');
+                renderChapterTabs();
+                loadActiveChapter();
+                updateCoverUI();
+                updateCounters();
+            }
+        }
+
+        function createNewWorkDraft() {
+            saveCurrentChapterContent();
+            Swal.fire({
+                title: 'Buka Naskah Baru?',
+                text: 'Naskah saat ini telah tersimpan di draf. Ingin memulai naskah baru yang kosong?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#003366',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Buat Baru',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    currentStoryId = 'work_' + Date.now();
+                    document.getElementById('storyTitle').value = '';
+                    document.getElementById('storySynopsis').value = '';
+                    document.getElementById('storyTags').value = '#' + GENRE_KEY + ' #sastra #cendekia';
+                    currentCoverBase64 = '';
+                    currentChapters = [
+                        { id: 'ch_' + Date.now(), title: 'Bagian 1', content: '', words: 0 }
+                    ];
+                    activeChapterIndex = 0;
+                    updateStatusUI('DRAFT');
+                    renderChapterTabs();
+                    loadActiveChapter();
+                    updateCoverUI();
+                    updateCounters();
+                    renderMyWorksList();
+                    // bersihkan URL query param
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            });
+        }
+
+        function updateStatusUI(status) {
+            const badge = document.getElementById('storyStatusBadge');
+            if (badge) {
+                if (status === 'PUBLISHED') {
+                    badge.textContent = 'TERBIT DI KOMUNITAS (PUBLIK)';
+                    badge.style.color = '#059669';
+                } else {
+                    badge.textContent = 'DRAF PRIBADI';
+                    badge.style.color = '#d97706';
+                }
+            }
+        }
+
+        // TABS BAB
+        function renderChapterTabs() {
+            const row = document.getElementById('chapterPillsRow');
+            row.innerHTML = '';
+
+            currentChapters.forEach((ch, idx) => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `chapter-pill ${idx === activeChapterIndex ? 'active' : ''}`;
+                pill.innerHTML = `<span>${ch.title || ('Bagian ' + (idx + 1))}</span>`;
+                pill.onclick = () => switchChapter(idx);
+                row.appendChild(pill);
+            });
+
+            const delBtn = document.getElementById('btnDeleteChapter');
+            if (delBtn) delBtn.style.display = currentChapters.length > 1 ? 'inline-flex' : 'none';
+        }
+
+        function switchChapter(idx) {
+            saveCurrentChapterContent();
+            activeChapterIndex = idx;
+            renderChapterTabs();
+            loadActiveChapter();
+        }
+
+        function addNewChapter() {
+            saveCurrentChapterContent();
+            const newIndex = currentChapters.length + 1;
+            currentChapters.push({
+                id: 'ch_' + Date.now(),
+                title: `Bagian ${newIndex}`,
+                content: '',
+                words: 0
+            });
+            activeChapterIndex = currentChapters.length - 1;
+            renderChapterTabs();
+            loadActiveChapter();
+            autoSave();
+        }
+
+        function deleteCurrentChapter() {
+            if (currentChapters.length <= 1) return;
+            Swal.fire({
+                title: 'Hapus Bab Ini?',
+                text: 'Isi teks pada bab ini akan dihapus dari draf cerita.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Bab',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    currentChapters.splice(activeChapterIndex, 1);
+                    if (activeChapterIndex >= currentChapters.length) {
+                        activeChapterIndex = currentChapters.length - 1;
+                    }
+                    renderChapterTabs();
+                    loadActiveChapter();
+                    autoSave();
+                }
+            });
+        }
+
+        function saveCurrentChapterContent() {
+            if (!currentChapters[activeChapterIndex]) return;
+            const titleInput = document.getElementById('chapterTitle').value.trim() || `Bagian ${activeChapterIndex + 1}`;
+            const contentInput = document.getElementById('chapterContent').value;
+            const words = contentInput.trim() ? contentInput.trim().split(/\s+/).length : 0;
+            
+            currentChapters[activeChapterIndex].title = titleInput;
+            currentChapters[activeChapterIndex].content = contentInput;
+            currentChapters[activeChapterIndex].words = words;
+        }
+
+        function loadActiveChapter() {
+            const ch = currentChapters[activeChapterIndex];
+            if (!ch) return;
+            document.getElementById('chapterTitle').value = ch.title || '';
+            document.getElementById('chapterContent').value = ch.content || '';
+            updateCounters();
+        }
+
+        function updateCounters() {
+            const text = document.getElementById('chapterContent').value;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('chapWordsCount').textContent = words;
+            document.getElementById('chapCharsCount').textContent = text.length;
+
+            let totalWords = 0;
+            currentChapters.forEach((c, i) => {
+                totalWords += (i === activeChapterIndex ? words : (c.words || 0));
+            });
+            document.getElementById('totalWordsBadge').textContent = totalWords;
+
+            const title = document.getElementById('storyTitle').value.trim() || 'Judul ' + GENRE_NAME;
+            document.getElementById('coverTitlePreview').textContent = title;
+            const user = CendekiaApp.getUser();
+            document.getElementById('coverAuthorPreview').textContent = user.name || 'Penulis Cendekia';
+
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(autoSave, 1000);
+        }
+
+        // SAMPUL GAMBAR BASE64
+        function handleCoverUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Format Tidak Sesuai',
+                    text: 'Silakan pilih file gambar dengan format JPG atau PNG.',
+                    confirmButtonColor: '#003366'
+                });
                 return;
             }
 
-            const title = `${book} - Bab ${chapNum}: ${chapSub}`;
-            CendekiaApp.saveWork({
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const maxW = 400;
+                    const maxH = 600;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxW || h > maxH) {
+                        if (w / h > maxW / maxH) {
+                            h = Math.round((h * maxW) / w);
+                            w = maxW;
+                        } else {
+                            w = Math.round((w * maxH) / h);
+                            h = maxH;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    currentCoverBase64 = canvas.toDataURL('image/jpeg', 0.82);
+                    updateCoverUI();
+                    autoSave();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeCover() {
+            currentCoverBase64 = '';
+            document.getElementById('coverFileInput').value = '';
+            updateCoverUI();
+            autoSave();
+        }
+
+        function updateCoverUI() {
+            const imgPreview = document.getElementById('coverImgPreview');
+            const fallback = document.getElementById('coverTextFallback');
+            const actionRow = document.getElementById('coverActionRow');
+            const hintRow = document.getElementById('coverHintRow');
+
+            if (currentCoverBase64) {
+                imgPreview.src = currentCoverBase64;
+                imgPreview.style.display = 'block';
+                fallback.style.display = 'none';
+                actionRow.style.display = 'block';
+                if (hintRow) hintRow.style.display = 'none';
+            } else {
+                imgPreview.style.display = 'none';
+                fallback.style.display = 'flex';
+                actionRow.style.display = 'none';
+                if (hintRow) hintRow.style.display = 'block';
+            }
+        }
+
+        // SIMPAN & TERBITKAN
+        function autoSave() {
+            saveCurrentChapterContent();
+            const title = document.getElementById('storyTitle').value.trim() || ('Naskah ' + GENRE_NAME + ' Baru');
+            const synopsis = document.getElementById('storySynopsis').value.trim();
+            const tags = document.getElementById('storyTags').value.trim();
+
+            const existing = CendekiaApp.getWork(currentStoryId);
+            const status = (existing && existing.status === 'PUBLISHED') ? 'PUBLISHED' : 'DRAFT';
+
+            const saved = CendekiaApp.saveWork({
+                id: currentStoryId,
                 title,
-                body: text,
-                genre: 'novel',
-                words: text.split(/\s+/).length
+                genre: GENRE_KEY,
+                synopsis,
+                tags,
+                coverBase64: currentCoverBase64,
+                chapters: currentChapters,
+                status: status
             });
 
-            CendekiaApp.addXP(25, 'Menulis Bab Novel');
-            alert(`Naskah Bab ${chapNum} berhasil disimpan ke Karyaku!`);
-            window.location.href = '/mem-free/berkarya/karyaku.html';
+            if (saved) {
+                const now = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+                document.getElementById('headerSaveStatus').textContent = `Draf Tersimpan ${now}`;
+                const ind = document.getElementById('autoSaveIndicator');
+                if (ind) ind.innerHTML = `<i data-lucide="check" style="width:11px; height:11px; display:inline-block; vertical-align:middle;"></i> Sinkron ${now}`;
+                if (window.lucide) lucide.createIcons();
+                renderMyWorksList();
+            }
+        }
+
+        function manualSaveDraft() {
+            autoSave();
+            Swal.fire({
+                icon: 'success',
+                title: 'Draf Naskah Tersimpan!',
+                text: 'Naskahmu telah disimpan secara aman di arsip lokal Cendekia.',
+                confirmButtonColor: '#003366',
+                timer: 1800,
+                showConfirmButton: false
+            });
+        }
+
+        function publishStoryToCommunity() {
+            saveCurrentChapterContent();
+            const title = document.getElementById('storyTitle').value.trim();
+            if (!title) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Judul Wajib Diisi',
+                    text: 'Tuliskan judul naskahmu sebelum mempublikasikannya ke komunitas publik.',
+                    confirmButtonColor: '#003366'
+                });
+                return;
+            }
+
+            const hasContent = currentChapters.some(c => c.content && c.content.trim().length > 10);
+            if (!hasContent) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Naskah Masih Kosong',
+                    text: 'Tuliskan isi naskah minimal 10 kata pada salah satu bab sebelum menerbitkan.',
+                    confirmButtonColor: '#003366'
+                });
+                return;
+            }
+
+            const synopsis = document.getElementById('storySynopsis').value.trim();
+            const tags = document.getElementById('storyTags').value.trim();
+
+            const published = CendekiaApp.saveWork({
+                id: currentStoryId,
+                title,
+                genre: GENRE_KEY,
+                synopsis,
+                tags,
+                coverBase64: currentCoverBase64,
+                chapters: currentChapters,
+                status: 'PUBLISHED',
+                publishedAt: new Date().toISOString()
+            });
+
+            if (published) {
+                updateStatusUI('PUBLISHED');
+                CendekiaApp.addXP(40, `Menerbitkan ${GENRE_NAME} ke Publik`);
+                renderMyWorksList();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Karya Berhasil Dipublikasikan! 🎉',
+                    html: `
+                        <div style="font-size:0.82rem; color:#475569; line-height:1.5;">
+                            Karya bertajuk <b>"${title}"</b> kini telah tayang di <b>Feed Publik Komunitas &amp; Perpustakaan Karya</b>.<br><br>
+                            Karya ini sekarang dapat dibaca, divote, dan dikomentari oleh seluruh pembaca Cendekia!
+                        </div>
+                    `,
+                    confirmButtonText: 'Buka Halaman Baca',
+                    confirmButtonColor: '#003366',
+                    showCancelButton: true,
+                    cancelButtonText: 'Lanjut Menulis'
+                }).then(res => {
+                    if (res.isConfirmed) {
+                        window.location.href = `/mem-free/baca.html?id=${currentStoryId}`;
+                    }
+                });
+            }
+        }
+
+        // ASISTEN AI: ANALISIS NASKAH & DETEKSI KALIMAT (SATU KOLOM)
+        function runAiGrammarAndLogicCheck() {
+            saveCurrentChapterContent();
+            const ch = currentChapters[activeChapterIndex];
+            const textToAnalyze = ch ? ch.content : '';
+            const resultsBox = document.getElementById('aiAnalysisResults');
+
+            if (!textToAnalyze || !textToAnalyze.trim()) {
+                resultsBox.innerHTML = `
+                    <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; padding:10px; font-size:0.73rem; color:#b45309;">
+                        ⚠️ Bab ini belum memiliki teks naskah. Tulis beberapa paragraf terlebih dahulu untuk dianalisis oleh AI.
+                    </div>
+                `;
+                return;
+            }
+
+            resultsBox.innerHTML = `
+                <div style="text-align:center; padding:14px; font-size:0.75rem; color:#0284c7;">
+                    <i data-lucide="loader-2" style="width:18px; height:18px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle;"></i>
+                    Menganalisis paragraf, memeriksa ejaan KBBI, dan kelogisan kalimat...
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            setTimeout(() => {
+                const result = CendekiaApp.analyzeWritingAi(textToAnalyze);
+
+                if (result.isClean) {
+                    resultsBox.innerHTML = `
+                        <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:12px; color:#166534; font-size:0.75rem; line-height:1.5;">
+                            <div style="font-weight:800; display:flex; align-items:center; gap:5px; margin-bottom:4px;">
+                                <i data-lucide="check-circle-2" style="width:16px; height:16px; color:#16a34a;"></i> Naskah Rapi &amp; Mengalir Baik!
+                            </div>
+                            Tidak ditemukan salah ketik mayor (KBBI), frasa mubazir, maupun kalimat yang berbelit. Total <b>${result.totalParagraphs}</b> paragraf dan <b>${result.totalWords}</b> kata dianalisis.
+                        </div>
+                    `;
+                } else {
+                    let itemsHtml = '';
+                    result.points.forEach((pt) => {
+                        const isTypo = pt.type === 'typo';
+                        const badgeColor = isTypo ? '#dc2626' : (pt.type === 'logic' ? '#d97706' : '#2563eb');
+                        const badgeBg = isTypo ? '#fee2e2' : (pt.type === 'logic' ? '#fef3c7' : '#dbeafe');
+
+                        itemsHtml += `
+                            <div class="ai-point-item">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                    <strong style="color:var(--primary); font-size:0.75rem;">${pt.title}</strong>
+                                    <span style="font-size:0.6rem; font-weight:800; padding:1px 6px; border-radius:999px; background:${badgeBg}; color:${badgeColor};">
+                                        ${pt.badge}
+                                    </span>
+                                </div>
+                                <div style="color:#334155; font-size:0.72rem;">
+                                    ${pt.desc}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    resultsBox.innerHTML = `
+                        <div style="margin-bottom:6px; font-size:0.72rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                            <span>Ditemukan <b>${result.points.length}</b> catatan evaluasi:</span>
+                            <span>${result.totalParagraphs} Paragraf &bull; ${result.totalWords} Kata</span>
+                        </div>
+                        ${itemsHtml}
+                    `;
+                }
+                if (window.lucide) lucide.createIcons();
+            }, 300);
+        }
+
+        // RENDER DAFTAR NASKAH SAYA DI BAWAH
+        function renderMyWorksList() {
+            const container = document.getElementById('myWorksListContainer');
+            if (!container) return;
+
+            const allWorks = CendekiaApp.getWorks();
+            const genreWorks = allWorks.filter(w => (w.genre || 'cerpen') === GENRE_KEY);
+
+            if (genreWorks.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:14px; background:#f8fafc; border-radius:8px; border:1px dashed #cbd5e1; font-size:0.72rem; color:#64748b;">
+                        Belum ada naskah ${GENRE_NAME} lain yang tersimpan. Mulai tulis naskah di atas!
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            genreWorks.forEach(w => {
+                const isCurrent = w.id === currentStoryId;
+                const isPublished = w.status === 'PUBLISHED';
+                const chaptersCount = (w.chapters && Array.isArray(w.chapters)) ? w.chapters.length : 1;
+                const dateStr = w.updatedAt ? new Date(w.updatedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short' }) : 'Baru';
+
+                const item = document.createElement('div');
+                item.className = 'my-work-item';
+                if (isCurrent) {
+                    item.style.borderColor = 'var(--primary)';
+                    item.style.background = '#f0f9ff';
+                }
+
+                item.innerHTML = `
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                            <span style="font-size:0.58rem; font-weight:800; padding:1px 6px; border-radius:999px; background:${isPublished ? '#dcfce7' : '#fef3c7'}; color:${isPublished ? '#15803d' : '#b45309'};">
+                                ${isPublished ? 'TERBIT' : 'DRAF'}
+                            </span>
+                            ${isCurrent ? '<span style="font-size:0.58rem; font-weight:800; background:#e0f2fe; color:#0284c7; padding:1px 6px; border-radius:999px;">SEDANG DIEDIT</span>' : ''}
+                        </div>
+                        <strong style="font-size:0.8rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">
+                            ${w.title || 'Naskah Tanpa Judul'}
+                        </strong>
+                        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">
+                            ${chaptersCount} Bab &bull; ${w.words || 0} Kata &bull; Diperbarui ${dateStr}
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        ${!isCurrent ? `
+                            <button type="button" class="btn-modal-secondary" style="padding:5px 8px; font-size:0.65rem;" onclick="switchToWork('${w.id}')">
+                                Edit
+                            </button>
+                        ` : ''}
+                        <button type="button" style="background:#fee2e2; color:#dc2626; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" onclick="deleteWorkItem('${w.id}')" title="Hapus Naskah">
+                            <i data-lucide="trash-2" style="width:12px; height:12px;"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function switchToWork(id) {
+            saveCurrentChapterContent();
+            loadExistingWork(id);
+            renderMyWorksList();
+            window.history.replaceState({}, document.title, window.location.pathname + '?id=' + id);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function deleteWorkItem(id) {
+            Swal.fire({
+                title: 'Hapus Naskah Ini?',
+                text: 'Naskah yang dihapus tidak dapat dipulihkan kembali.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    CendekiaApp.deleteWork(id);
+                    if (currentStoryId === id) {
+                        initStudio();
+                    } else {
+                        renderMyWorksList();
+                    }
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Naskah Dihapus',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('berkarya');
+            initStudio();
 
-            const user = CendekiaApp.getUser();
-            if (user.tier === 'Member Free' || !user.tier || user.tier === 'free') {
-                const main = document.querySelector('.app-body');
-                if (main) {
-                    main.innerHTML = `
-                        <div style="background:white; border-radius:var(--radius-lg); padding:36px 20px; border:1.5px dashed #cbd5e1; text-align:center; box-shadow:var(--shadow-sm); margin-top:10px;">
-                            <div style="width:60px; height:60px; border-radius:50%; background:#fef3c7; color:#b45309; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-                                <i data-lucide="lock" style="width:30px; height:30px;"></i>
-                            </div>
-                            <span style="font-size:0.65rem; font-weight:800; background:#fef3c7; color:#b45309; padding:3px 10px; border-radius:var(--radius-full); display:inline-block; margin-bottom:8px;">
-                                Akses Eksklusif Member 5K
-                            </span>
-                            <h3 style="font-size:1.1rem; font-weight:800; color:var(--primary); margin-bottom:8px;">
-                                Studio Menulis Novel Terkunci
-                            </h3>
-                            <p style="font-size:0.75rem; color:var(--text-body); line-height:1.5; max-width:320px; margin:0 auto 20px;">
-                                Fitur Menulis Novel dilengkapi manajemen multi-bab berjenjang, pemantau target ribuan kata, dan struktur sinopsis panjang yang khusus dibuka bagi <b>Member 5K</b>.
-                            </p>
-                            <div style="display:flex; flex-direction:column; gap:10px; max-width:280px; margin:0 auto;">
-                                <a href="/mem-free/langganan.html?pkg=5k" class="btn-primary-challenge" style="text-decoration:none; justify-content:center; padding:12px; background:linear-gradient(135deg, #003366 0%, #001f3f 100%);">
-                                    <i data-lucide="sparkles" style="width:16px; height:16px;"></i> Tingkatkan ke Member 5K (Rp 5.000)
-                                </a>
-                                <a href="/mem-free/berkarya.html" style="font-size:0.75rem; color:var(--text-muted); text-decoration:none; font-weight:700; padding:6px;">
-                                    &larr; Kembali ke Studio Berkarya
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                    if (window.lucide) lucide.createIcons();
-                }
-            }
+            document.getElementById('chapterContent').addEventListener('input', updateCounters);
+            document.getElementById('chapterTitle').addEventListener('input', () => {
+                saveCurrentChapterContent();
+                renderChapterTabs();
+                updateCounters();
+            });
+            document.getElementById('storyTitle').addEventListener('input', updateCounters);
+            document.getElementById('storySynopsis').addEventListener('input', autoSave);
+            document.getElementById('storyTags').addEventListener('input', autoSave);
         });
     </script>
 </body>

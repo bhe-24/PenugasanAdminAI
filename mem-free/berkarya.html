@@ -12,6 +12,8 @@
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/mem-free/central.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 
@@ -141,6 +143,25 @@
             </section>
 
             <!-- COPYRIGHT FOOTER -->
+            
+            <!-- DAFTAR KARYAKU & DRAF SAYA LANGSUNG DI BAWAH GRID -->
+            <section style="margin-top:20px;">
+                <div class="section-header" style="margin-bottom:8px;">
+                    <div>
+                        <h2 class="section-title">
+                            <i data-lucide="library"></i> Karyaku &amp; Draf Saya
+                        </h2>
+                        <div style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">
+                            Daftar seluruh naskah yang sedang kamu tulis maupun yang telah dipublikasikan.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="berkaryaMyWorksContainer">
+                    <!-- Dinamis via renderBerkaryaMyWorks() -->
+                </div>
+            </section>
+
             <div class="app-footer-copyright">
                 &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.
             </div>
@@ -201,7 +222,94 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('berkarya');
+            renderBerkaryaMyWorks();
         });
+    
+        function renderBerkaryaMyWorks() {
+            const container = document.getElementById('berkaryaMyWorksContainer');
+            if (!container) return;
+
+            const works = CendekiaApp.getWorks();
+            if (!works || works.length === 0) {
+                container.innerHTML = `
+                    <div style="background:white; border-radius:var(--radius-md); padding:24px 16px; border:1.5px dashed #cbd5e1; text-align:center;">
+                        <i data-lucide="feather" style="width:28px; height:28px; color:#94a3b8; margin-bottom:6px;"></i>
+                        <strong style="font-size:0.84rem; color:var(--primary); display:block;">Belum Ada Naskah Tersimpan</strong>
+                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 10px;">Pilih salah satu studio penulisan di atas untuk memulai karya pertamamu.</p>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = '';
+            works.forEach(w => {
+                const isPublished = w.status === 'PUBLISHED';
+                const genre = w.genre || 'cerpen';
+                const chaptersCount = (w.chapters && Array.isArray(w.chapters)) ? w.chapters.length : 1;
+                const dateStr = w.updatedAt ? new Date(w.updatedAt).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }) : '-';
+                
+                let studioUrl = `/mem-free/berkarya/menulis-${genre}.html?id=${w.id}`;
+                if (['novel', 'artikel', 'drama'].includes(genre)) { studioUrl = "javascript:showWritingLockModal('Menulis " + genre.toUpperCase() + "')"; }
+
+                const card = document.createElement('div');
+                card.style.cssText = 'background:white; border:1.5px solid var(--border-soft); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:var(--shadow-sm);';
+                
+                card.innerHTML = `
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                            <span style="font-size:0.6rem; font-weight:800; text-transform:uppercase; color:var(--accent-dark);">
+                                ${genre}
+                            </span>
+                            <span style="font-size:0.58rem; font-weight:800; padding:1px 6px; border-radius:999px; background:${isPublished ? '#dcfce7' : '#fef3c7'}; color:${isPublished ? '#15803d' : '#b45309'};">
+                                ${isPublished ? 'TERBIT (PUBLIK)' : 'DRAF PRIBADI'}
+                            </span>
+                        </div>
+                        <strong style="font-size:0.86rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">
+                            ${w.title || 'Naskah Tanpa Judul'}
+                        </strong>
+                        <div style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">
+                            ${chaptersCount} Bab &bull; ${w.words || 0} Kata &bull; Diperbarui ${dateStr}
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                        <a href="${studioUrl}" class="btn-primary-challenge" style="padding:6px 10px; font-size:0.7rem; text-decoration:none; width:auto;">
+                            <i data-lucide="edit-3" style="width:12px; height:12px;"></i> Edit
+                        </a>
+                        <button type="button" style="background:#fee2e2; color:#dc2626; border:none; padding:6px 9px; border-radius:6px; cursor:pointer;" onclick="deleteWorkFromBerkarya('${w.id}')" title="Hapus Naskah">
+                            <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function deleteWorkFromBerkarya(id) {
+            Swal.fire({
+                title: 'Hapus Naskah Ini?',
+                text: 'Naskah yang dihapus tidak dapat dipulihkan kembali.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    CendekiaApp.deleteWork(id);
+                    renderBerkaryaMyWorks();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Naskah Dihapus',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+    
     </script>
 </body>
 </html>

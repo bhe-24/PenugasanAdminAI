@@ -1112,155 +1112,15 @@ const CendekiaApp = (function () {
         return false;
     }
 
-    // 6. KARYA & IDE REPOSITORY (SISTEM KARYA & PUBLIKASI WATTPAD AKSARA)
-    const DEFAULT_PUBLIC_STORIES = [
-        {
-            id: 'pub_story_1',
-            title: 'Gadis Pelipat Waktu di Stasiun Lawang',
-            genre: 'cerpen',
-            synopsis: 'Di bangku peron nomor tiga Stasiun Lawang, seorang gadis berpayung merah selalu melipat kertas tiket bekas menjadi burung bangau. Tiap lipatan menyimpan memori masa lalu yang tak sempat diucap terima kasih.',
-            coverBase64: '',
-            coverTheme: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
-            coverIcon: 'sparkles',
-            author: 'Danu Praditya',
-            authorTier: 'Member Free',
-            authorBadge: 'Penulis Sastra Muda',
-            status: 'PUBLISHED',
-            publishedAt: '2026-11-18T14:30:00.000Z',
-            likes: 42,
-            reads: 182,
-            words: 850,
-            chapters: [
-                {
-                    id: 'ch_1_1',
-                    title: 'Bagian 1: Tiket yang Tak Pernah Diperiksa',
-                    content: 'Peluit kereta jurusan Malang-Surabaya baru saja melengking di kejauhan ketika aku melihatnya lagi. Danu merapatkan jaket denimnya yang basah oleh sisa kabut pagi. Di sudut peron nomor tiga yang temaram, gadis itu duduk tenang dengan mantel beledu cokelat muda. Jemarinya lincah, memilin sudut-sudut kertas karcis kuning kecokelatan menjadi sepasang sayap unggas yang anggun.\n\n"Kenapa bangau?" tanyaku memberanikan diri suatu kali.\n\nGadis itu tidak menoleh, tetapi seulas senyum tipis terbit di bibirnya. "Karena bangau tahu arah pulang, Danu. Berbeda dengan manusia yang kerap tersesat di persimpangan waktu."',
-                    words: 290
-                },
-                {
-                    id: 'ch_1_2',
-                    title: 'Bagian 2: Kereta yang Melintas dalam Hening',
-                    content: 'Tiga bulan berlalu sejak percakapan pertama itu. Aku mulai terbiasa datang sepuluh menit lebih awal hanya untuk mengamati lipatan-lipatan magisnya. Setiap kali satu burung bangau selesai dibentuk, ia akan meniup bagian paruhnya perlahan. Di detik itulah, bau tanah basah bercampur aroma kenanga selalu semerbak di sekeliling kami.\n\nHingga pada suatu Selasa berhujan lebat, peron tiga itu kosong. Hanya ada sebuah kotak kayu kecil beralaskan beludru merah bertuliskan: Untuk Danu. Di dalamnya, terbaring seratus burung bangau kertas dan selembar tiket tanpa tanggal tujuan.',
-                    words: 320
-                },
-                {
-                    id: 'ch_1_3',
-                    title: 'Bagian 3: Sayap Kertas yang Menuntun Pulang',
-                    content: 'Kini stasiun itu telah direnovasi, jam dinding antiknya diganti papan digital yang dingin. Namun setiap kali kereta senja melambat, aku selalu membuka lipatan salah satu burung bangau itu. Membaca pesan rahasia yang tertulis di balik tiket usang: waktu tidak pernah hilang, ia hanya bersembunyi di dalam hati mereka yang berani mengingat.',
-                    words: 240
-                }
-            ]
-        },
-        {
-            id: 'pub_story_2',
-            title: 'Lentera di Balik Kabut Bromo',
-            genre: 'novel',
-            synopsis: 'Sebuah petualangan menyusuri lautan pasir berbisik demi menuntaskan amanah sepucuk surat tua yang tersimpan selama tiga dasawarsa.',
-            coverBase64: '',
-            coverTheme: 'linear-gradient(135deg, #78350f 0%, #1e293b 100%)',
-            coverIcon: 'book-open',
-            author: 'Citra Kirana',
-            authorTier: 'Member 5K',
-            authorBadge: 'Penulis Terverifikasi 5K',
-            status: 'PUBLISHED',
-            publishedAt: '2026-11-17T09:15:00.000Z',
-            likes: 67,
-            reads: 340,
-            words: 1420,
-            chapters: [
-                {
-                    id: 'ch_2_1',
-                    title: 'Bab 1: Bisikan Pasir dan Jejak Kuda',
-                    content: 'Suhu menembus enam derajat Celsius ketika jip tua bermesin diesel itu berhenti di bibir kaldera. Raka menurunkan tas ranselnya ke tanah berdebu. Di depannya terbentang samudra abu vulkanik yang diselimuti kabut putih tebal laksana tirai raksasa tak bertepi.\n\n"Pondok Mbah Sastro ada di balik punggungan cemara itu, Mas," kata Pak Joko sang kusir kuda, menunjuk ke arah barat daya dengan pecut rotannya. "Tapi hati-hati, kabut Bromo jam segini sering memutarbalikkan kompas."',
-                    words: 410
-                },
-                {
-                    id: 'ch_2_2',
-                    title: 'Bab 2: Nyala Pertama di Lereng Curam',
-                    content: 'Langkah kaki Raka mulai terasa berat saat tanjakan curam menyambutnya. Angin gunung berdesir tajam menusuk tulang. Dari saku dalam jaket tebalnya, ia meraba amplop segel lilin yang telah menguning peninggalan sang kakek. Mengapa kakek bersikeras agar surat ini diantar sendiri dengan berjalan kaki?\n\nJawaban itu mulai terkuak ketika dari kejauhan, sebuah titik cahaya kuning berpendar menembus tebalnya kabut senja.',
-                    words: 450
-                }
-            ]
-        },
-        {
-            id: 'pub_story_3',
-            title: 'Kidung Senja Sang Penganyam Sunyi',
-            genre: 'puisi',
-            synopsis: 'Antologi bait tentang debur ombak pantai selatan, jejak tapak nelayan tua, dan keheningan yang menolak untuk dilupakan.',
-            coverBase64: '',
-            coverTheme: 'linear-gradient(135deg, #831843 0%, #1e1b4b 100%)',
-            coverIcon: 'feather',
-            author: 'Aisyah Nur',
-            authorTier: 'Member Free',
-            authorBadge: 'Penyair Berbakat',
-            status: 'PUBLISHED',
-            publishedAt: '2026-11-16T18:45:00.000Z',
-            likes: 52,
-            reads: 215,
-            words: 360,
-            chapters: [
-                {
-                    id: 'ch_3_1',
-                    title: 'Bait 1: Di Batas Dermaga Berkarat',
-                    content: 'Di batas dermaga berkarat ombak memecah sunyi\nmenghapus jejak garam yang kau tinggalkan kemarin sore\nlangit menumpahkan jingga di atas jala nelayan\nyang menanti nasib dalam diam.\n\nTak ada lagi camar yang berputar\nhanya angin barat berbisik lirih\ntentang perahu layar yang lupa jalan pulang.',
-                    words: 180
-                },
-                {
-                    id: 'ch_3_2',
-                    title: 'Bait 2: Rahasia Garis Tangan Karang',
-                    content: 'Karang itu tetap berdiri tegak\nmeski badai datang mencabik ribuan kali\nsebab ia tahu, di dasar laut yang paling gelap\nhidup tak pernah meminta tepuk tangan,\nhanya ketabahan untuk tetap ada.',
-                    words: 180
-                }
-            ]
-        },
-        {
-            id: 'pub_story_4',
-            title: 'Menatap Literasi Generasi Z: Bukan Hilang, Hanya Berganti Rupa',
-            genre: 'artikel',
-            synopsis: 'Tinjauan kritis terhadap paradigma literasi modern. Dari platform membaca daring hingga micro-storytelling di era serba cepat.',
-            coverBase64: '',
-            coverTheme: 'linear-gradient(135deg, #065f46 0%, #064e3b 100%)',
-            coverIcon: 'file-text',
-            author: 'Fikri Ramadhan',
-            authorTier: 'Member 5K',
-            authorBadge: 'Esais Muda Cendekia',
-            status: 'PUBLISHED',
-            publishedAt: '2026-11-15T11:20:00.000Z',
-            likes: 89,
-            reads: 460,
-            words: 920,
-            chapters: [
-                {
-                    id: 'ch_4_1',
-                    title: 'Bagian 1: Menimbang Ulang Stigma Malas Membaca',
-                    content: 'Seringkali kita mendengar keluhan bahwa minat baca anak muda masa kini kian merosot drastis akibat gawai. Benarkah demikian, ataukah kita sedang menggunakan timbangan usang untuk mengukur fenomena baru?\n\nFakta di lapangan menunjukkan fenomena paradoks: platform penulisan daring seperti Wattpad, webnovel, hingga utas naratif di media sosial justru diakses oleh ratusan juta pembaca muda setiap harinya. Anak muda hari ini membaca lebih banyak kata per hari dibandingkan generasi pendahulunya—hanya saja, mediumnya telah berpindah dari lembaran kertas ke layar genggam.',
-                    words: 450
-                },
-                {
-                    id: 'ch_4_2',
-                    title: 'Bagian 2: Membangun Ekosistem Berkarya yang Merangkul',
-                    content: 'Tantangan literasi kita ke depan bukan lagi sekadar mengajak membaca, melainkan memberdayakan pembaca untuk menjadi pencipta naskah. Ketika seorang siswa diberi ruang untuk menuliskan imajinasinya sendiri, di sanalah kecintaan terhadap kata-kata mekar secara otentik.\n\nPlatform seperti Cendekia Aksara menjadi jembatan penting untuk menyalurkan energi kreatif ini: sebuah ruang aman di mana setiap suara berhak didengar dan diapresiasi.',
-                    words: 470
-                }
-            ]
-        }
-    ];
-
+    // 6. KARYA & IDE REPOSITORY (SISTEM KARYA & PUBLIKASI WATTPAD AKSARA - REAL DATA 100%)
     function getPublicStories() {
         try {
             const raw = localStorage.getItem(STORAGE_KEY_PUBLIC_STORIES);
-            if (!raw) {
-                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(DEFAULT_PUBLIC_STORIES));
-                return DEFAULT_PUBLIC_STORIES;
-            }
+            if (!raw) return [];
             const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed) || parsed.length === 0) {
-                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(DEFAULT_PUBLIC_STORIES));
-                return DEFAULT_PUBLIC_STORIES;
-            }
-            return parsed;
+            return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
-            return DEFAULT_PUBLIC_STORIES;
+            return [];
         }
     }
 
@@ -1269,9 +1129,22 @@ const CendekiaApp = (function () {
             let stories = getPublicStories();
             const idx = stories.findIndex(s => s.id === story.id);
             if (idx >= 0) {
-                stories[idx] = { ...stories[idx], ...story, updatedAt: new Date().toISOString() };
+                stories[idx] = { 
+                    ...stories[idx], 
+                    ...story, 
+                    likes: stories[idx].likes || story.likes || 0,
+                    reads: stories[idx].reads || story.reads || 0,
+                    comments: stories[idx].comments || story.comments || [],
+                    updatedAt: new Date().toISOString() 
+                };
             } else {
-                stories.unshift(story);
+                stories.unshift({
+                    ...story,
+                    likes: story.likes || 0,
+                    reads: story.reads || 0,
+                    comments: story.comments || [],
+                    publishedAt: story.publishedAt || new Date().toISOString()
+                });
             }
             localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
             return true;
@@ -1302,6 +1175,201 @@ const CendekiaApp = (function () {
             }
         } catch (e) {}
         return 0;
+    }
+
+    function incrementStoryViews(storyId) {
+        try {
+            let stories = getPublicStories();
+            const target = stories.find(s => s.id === storyId);
+            if (target) {
+                target.reads = (target.reads || 0) + 1;
+                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+                return target.reads;
+            }
+        } catch (e) {}
+        return 0;
+    }
+
+    function addStoryComment(storyId, commentText, authorName) {
+        try {
+            if (!storyId || !commentText || !commentText.trim()) return null;
+            const user = getUser();
+            const author = (authorName && authorName.trim()) ? authorName.trim() : (user.name || 'Pembaca Cendekia');
+            const newComment = {
+                id: 'comm_' + Date.now(),
+                author: author,
+                authorTier: user.tier || (IS_MEM_5K ? 'Member 5K' : 'Member Free'),
+                text: commentText.trim(),
+                createdAt: new Date().toISOString()
+            };
+
+            let stories = getPublicStories();
+            const sIdx = stories.findIndex(s => s.id === storyId);
+            if (sIdx >= 0) {
+                if (!Array.isArray(stories[sIdx].comments)) stories[sIdx].comments = [];
+                stories[sIdx].comments.unshift(newComment);
+                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+            }
+
+            let works = getWorks();
+            const wIdx = works.findIndex(w => w.id === storyId);
+            if (wIdx >= 0) {
+                if (!Array.isArray(works[wIdx].comments)) works[wIdx].comments = [];
+                works[wIdx].comments.unshift(newComment);
+                localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(works));
+            }
+
+            logActivity('comment', 'Memberikan ulasan pada karya publik', 5);
+            addXP(5, 'Apresiasi & Komentar Karya');
+            return newComment;
+        } catch (e) {
+            console.error('Error adding comment:', e);
+            return null;
+        }
+    }
+
+    function analyzeWritingAi(text) {
+        if (!text || !text.trim()) {
+            return {
+                totalWords: 0,
+                totalParagraphs: 0,
+                points: [],
+                message: 'Tuliskan isi naskah terlebih dahulu sebelum melakukan analisis asisten AI.',
+                isClean: true
+            };
+        }
+
+        const paragraphs = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+        const totalWords = text.trim().split(/\s+/).length;
+        const points = [];
+
+        const TYPO_MAP = {
+            'merubah': 'mengubah',
+            'analisa': 'analisis',
+            'praktek': 'praktik',
+            'faham': 'paham',
+            'fikir': 'pikir',
+            'fikiran': 'pikiran',
+            'antri': 'antre',
+            'antrian': 'antrean',
+            'apotik': 'apotek',
+            'ijin': 'izin',
+            'nasehat': 'nasihat',
+            'resiko': 'risiko',
+            'jaman': 'zaman',
+            'aktifitas': 'aktivitas',
+            'kridit': 'kredit',
+            'kwalitas': 'kualitas',
+            'kwitansi': 'kuitansi',
+            'sekedar': 'sekadar',
+            'silahkan': 'silakan',
+            'cidera': 'cedera',
+            'himbau': 'imbau',
+            'himbauan': 'imbauan',
+            'hutang': 'utang',
+            'nafas': 'napas',
+            'teoritis': 'teoretis',
+            'hirarki': 'hierarki',
+            'karir': 'karier',
+            'kongkrit': 'konkret',
+            'obyek': 'objek',
+            'subyek': 'subjek',
+            'projek': 'proyek',
+            'efektip': 'efektif',
+            'kreatip': 'kreatif',
+            'positip': 'positif',
+            'negatip': 'negatif',
+            'propinsi': 'provinsi',
+            'nampak': 'tampak',
+            'sopir': 'sopir',
+            'supir': 'sopir',
+            'capek': 'capai / lelah',
+            'bosen': 'bosan',
+            'kawatir': 'khawatir',
+            'kuatir': 'khawatir',
+            'rapot': 'rapor',
+            'trilyun': 'triliun',
+            'milyar': 'miliar',
+            'jendral': 'jenderal'
+        };
+
+        const PLEONASM_MAP = [
+            { regex: /\bagar\s+supaya\b/gi, msg: "Frasa 'agar supaya' mubazir; cukup gunakan salah satu ('agar' atau 'supaya')." },
+            { regex: /\blalu\s+kemudian\b/gi, msg: "Frasa 'lalu kemudian' repetitif; cukup gunakan salah satu ('lalu' atau 'kemudian')." },
+            { regex: /\bsangat\s+([a-zA-Z]+)\s+sekali\b/gi, msg: "Penggunaan 'sangat ... sekali' berlebihan; cukup gunakan salah satu ('sangat' atau 'sekali')." },
+            { regex: /\bnamun\s+tetapi\b/gi, msg: "Frasa 'namun tetapi' bertentangan ganda; pilih salah satu ('namun' atau 'tetapi')." },
+            { regex: /\badalah\s+merupakan\b/gi, msg: "Frasa 'adalah merupakan' mubazir; cukup pilih salah satu ('adalah' atau 'merupakan')." }
+        ];
+
+        paragraphs.forEach((pText, pIdx) => {
+            const pNum = pIdx + 1;
+
+            // 1. Cek Typo / Kata Tidak Baku
+            const wordsInP = pText.split(/[\s,.;:!?"'()\[\]{}+/\\-]+/).filter(Boolean);
+            const foundTyposInP = new Set();
+            wordsInP.forEach(w => {
+                const lowerW = w.toLowerCase();
+                if (TYPO_MAP[lowerW] && !foundTyposInP.has(lowerW)) {
+                    foundTyposInP.add(lowerW);
+                    points.push({
+                        type: 'typo',
+                        paragraph: pNum,
+                        badge: 'Salah Ketik / Ejaan KBBI',
+                        title: `Paragraf ${pNum}`,
+                        desc: `Ditemukan kata tidak baku <b>"${w}"</b>. Disarankan ganti menjadi <b>"${TYPO_MAP[lowerW]}"</b>.`
+                    });
+                }
+            });
+
+            // 2. Cek Pleonasme / Frasa Mubazir
+            PLEONASM_MAP.forEach(item => {
+                if (item.regex.test(pText)) {
+                    points.push({
+                        type: 'logic',
+                        paragraph: pNum,
+                        badge: 'Frasa Mubazir',
+                        title: `Paragraf ${pNum}`,
+                        desc: item.msg
+                    });
+                }
+            });
+
+            // 3. Cek Kelogisan & Kalimat Berbelit (> 28 kata)
+            const rawSentences = pText.split(/(?<=[.!?])\s+/).filter(Boolean);
+            rawSentences.forEach((sText, sIdx) => {
+                const sNum = sIdx + 1;
+                const sWordCount = sText.trim().split(/\s+/).length;
+                if (sWordCount >= 28) {
+                    points.push({
+                        type: 'logic',
+                        paragraph: pNum,
+                        sentence: sNum,
+                        badge: 'Kalimat Berbelit / Alur Logika',
+                        title: `Paragraf ${pNum}, Kalimat ${sNum}`,
+                        desc: `Kalimat ini terlalu panjang (${sWordCount} kata). Pertimbangkan untuk memecahnya menjadi 2 kalimat agar hubungan antar gagasan lebih masuk akal dan mudah dicerna.`
+                    });
+                }
+            });
+
+            // 4. Cek tanda baca penutup paragraf
+            const lastChar = pText.slice(-1);
+            if (!['.', '!', '?', '"', "'", '”'].includes(lastChar)) {
+                points.push({
+                    type: 'flow',
+                    paragraph: pNum,
+                    badge: 'Tanda Baca Akhir',
+                    title: `Paragraf ${pNum}`,
+                    desc: `Paragraf ini belum memiliki tanda baca penutup (. ! ?). Berikan tanda baca akhir agar kalimat tuntas.`
+                });
+            }
+        });
+
+        return {
+            totalWords,
+            totalParagraphs: paragraphs.length,
+            points,
+            isClean: points.length === 0
+        };
     }
 
     function getWorks() {
@@ -4586,6 +4654,12 @@ const CendekiaApp = (function () {
         saveWork,
         deleteWork,
         getPublicStories,
+        savePublicStory,
+        removePublicStory,
+        likeStory,
+        incrementStoryViews,
+        addStoryComment,
+        analyzeWritingAi,
         likeStory,
         getAiWritingSuggestions,
         getIdeas,
