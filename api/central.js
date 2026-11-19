@@ -387,7 +387,20 @@ export default async function handler(req, res) {
 
     try {
         const payload = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-        const action = payload.action || req.query?.action;
+        let action = payload.action || req.query?.action;
+
+        // Auto-detect action jika tidak disertakan dalam body
+        if (!action) {
+            if (payload.logline && (payload.outline || payload.sinopsis)) action = 'review-proposal';
+            else if (payload.chapters && payload.studentName) action = 'evaluasi-naskah-studio';
+            else if (payload.info_mentah && payload.judul_event) action = 'generate-guidebook';
+            else if (payload.karya && (payload.eventName || payload.eventJudul)) action = 'rank-karya-event';
+            else if (payload.materi && payload.tipe_soal) action = 'generate-soal';
+            else if (payload.mapel && payload.semester) action = 'generate-rpp';
+            else if (payload.judul && payload.target && payload.jumlahBab) action = 'generate-toc';
+            else if (payload.judulBuku && payload.babJudul) action = 'generate-chapter';
+            else if (payload.bulan && payload.tema) action = 'nubar-ai';
+        }
 
         if (!action) {
             return res.status(400).json({ error: "Parameter 'action' tidak ditemukan." });
@@ -958,7 +971,9 @@ Ketentuan feedback:
             // ---------------------------------------------------------
             // [F] PENJURIAN / PERANKINGAN KARYA EVENT
             // ---------------------------------------------------------
-            case 'rank-karya-event': {
+            case 'rank-karya-event':
+            case 'ai-ranking':
+            case 'ranking': {
                 let { eventName, karya, total } = payload;
 
                 if (!karya || total === 0) {
@@ -1045,7 +1060,8 @@ Ketentuan Output (SANGAT KETAT):
             // ---------------------------------------------------------
             // [G] EVALUASI PROGRES & FINAL NASKAH (STUDIO MENULIS)
             // ---------------------------------------------------------
-            case 'evaluasi-naskah-studio': {
+            case 'evaluasi-naskah-studio':
+            case 'analisis-naskah': {
                 if (!newGenAI) return res.status(500).json({ error: 'SDK GoogleGenAI belum dikonfigurasi.' });
 
                 const mode = payload.mode === 'final' ? 'final' : 'progress'; 
@@ -1180,7 +1196,8 @@ Skor Kerapian Bahasa PUEBI dan Teknis: [angka]/100
             // ---------------------------------------------------------
             // [H] REVIEW PROPOSAL / MENTOR 
             // ---------------------------------------------------------
-            case 'review-proposal': {
+            case 'review-proposal':
+            case 'analisis-proposal': {
                 if (!payload.judul || !payload.studentName) {
                     return res.status(200).json({ analisis_teks: "⚠ DIAGNOSTIK API: Data naskah tidak terbaca oleh server." });
                 }
@@ -1400,7 +1417,8 @@ Pedoman Sikap & Gaya Komunikasi:
             // ---------------------------------------------------------
             // [I] GENERATE BUKU PANDUAN / GUIDEBOOK
             // ---------------------------------------------------------
-            case 'generate-guidebook': {
+            case 'generate-guidebook':
+            case 'buku-panduan': {
                 const { judul_event, info_mentah } = payload;
                 if (!groq) return res.status(500).json({ error: 'Server Groq belum dikonfigurasi.' });
                 if (!info_mentah || info_mentah.trim() === '') return res.status(400).json({ error: 'Informasi mentah tidak boleh kosong.' });
@@ -1439,6 +1457,301 @@ FORMAT JSON YANG DIWAJIBKAN:
 
                 let parsedData = JSON.parse(textResponse);
                 return res.status(200).json({ hasil: parsedData });
+            }
+
+                        // ---------------------------------------------------------
+            // [H] GENERATE TIPS HARIAN / ARTIKEL REDAKSI KOMINFO
+            // ---------------------------------------------------------
+            case 'tips-harian': {
+                const systemPrompt = `Kamu adalah Redaktur Utama Media Sastra Cendekia Aksara.
+Tugas: Buat satu artikel/tips harian seputar kepenulisan kreatif, teknik literasi, atau inspirasi gaya bahasa sastra yang sangat menarik, memotivasi, dan praktis bagi penulis muda.
+Format output WAJIB JSON murni tanpa markdown:
+{
+  "judul": "Judul Artikel Menarik",
+  "isi": "<p>Paragraf pembuka...</p><p>Isi tips konkret...</p><p>Penutup inspiratif...</p>",
+  "gambar": ""
+}`;
+                const userPrompt = `Buatkan artikel tips harian kepenulisan yang segar, kontekstual, dan mudah diterapkan hari ini.`;
+                let rawRes = await generateWithFallback(systemPrompt, userPrompt, 0.7, true, false);
+                let parsed = extractJSON(rawRes);
+                if (!parsed || !parsed.judul) {
+                    parsed = {
+                        judul: "Kiat Mengasah Diksi Puitis dalam Cerita Sehari-hari",
+                        isi: "<p>Diksi bukan sekadar hiasan kalimat, melainkan napas yang memberi nyawa pada setiap adegan cerita.</p><p>Cobalah mengganti kata kerja umum dengan kata kerja inderawi yang membangkitkan visual, rasa, dan aroma nyata di benak pembaca.</p><p>Teruslah menulis dengan ketulusan dan ketajaman mata seorang pengamat kehidupan.</p>",
+                        gambar: ""
+                    };
+                }
+                return res.status(200).json(parsed);
+            }
+
+            // ---------------------------------------------------------
+            // [I] GENERATE KERANGKA / DAFTAR ISI BUKU TEKS
+            // ---------------------------------------------------------
+            case 'generate-toc': {
+                const { judul, target, deskripsi, jumlahBab } = payload;
+                const totalBab = parseInt(jumlahBab, 10) || 5;
+                const systemPrompt = `Kamu adalah kurator kurikulum dan perancang buku teks akademis terkemuka di Cendekia Aksara.
+Tugas: Buat kerangka daftar isi (Table of Contents) untuk buku teks berjudul "${judul || 'Buku Teks'}".
+Target pembaca: ${target || 'Umum/Pelajar'}.
+Deskripsi/fokus: ${deskripsi || 'Pembelajaran literasi dan sastra'}.
+Jumlah Bab: ${totalBab} bab.
+
+Aturan output:
+WAJIB keluarkan murni tag HTML <ol> dan <li> tanpa tanda petik kode markdown (kode html) dan tanpa basa-basi teks apapun!
+Setiap <li> harus berformat: "Bab [nomor]: [Judul Bab]".`;
+
+                const userPrompt = `Susun daftar isi ${totalBab} bab untuk buku "${judul}".`;
+                let tocText = await generateWithFallback(systemPrompt, userPrompt, 0.4, false, false);
+                tocText = tocText.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
+                if (!tocText.startsWith('<ol>')) {
+                    const items = tocText.split('\n').filter(l => l.trim().length > 0).map(l => {
+                        const clean = l.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim();
+                        return `<li>${clean}</li>`;
+                    }).join('\n');
+                    tocText = `<ol>\n${items}\n</ol>`;
+                }
+                return res.status(200).json({ tocHtml: tocText });
+            }
+
+            // ---------------------------------------------------------
+            // [J] GENERATE BAB BUKU TEKS
+            // ---------------------------------------------------------
+            case 'generate-chapter': {
+                const { judulBuku, babJudul, jumlahParagraf } = payload;
+                const paragraphsCount = parseInt(jumlahParagraf, 10) || 8;
+                const systemPrompt = `Kamu adalah penulis buku teks akademis profesional di Cendekia Aksara.
+Tugas: Tulis isi bab lengkap dan komprehensif untuk:
+Buku: "${judulBuku || 'Buku Referensi'}"
+Bab: "${babJudul}"
+Panjang materi: Sekitar ${paragraphsCount} paragraf yang kaya wawasan, analitis, dan memiliki contoh konkret.
+
+Aturan output:
+Keluarkan MURNI format HTML (gunakan tag <h3>, <p>, <strong>, <ul>/<li> jika perlu penjelasan poin).
+DILARANG menggunakan kode markdown (kode html) dan DILARANG menyertakan kata pengantar/penutup basa-basi.`;
+
+                const userPrompt = `Tulis isi materi lengkap untuk bab "${babJudul}" dalam buku "${judulBuku}".`;
+                let chapterText = await generateWithFallback(systemPrompt, userPrompt, 0.4, false, false);
+                chapterText = chapterText.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
+                return res.status(200).json({ success: true, chapterHtml: chapterText });
+            }
+
+            // ---------------------------------------------------------
+            // [K] GENERATE RPP (RANCANGAN PELAKSANAAN PEMBELAJARAN)
+            // ---------------------------------------------------------
+            case 'generate-rpp': {
+                const { mapel, semester, topik } = payload;
+                const systemPrompt = `Kamu adalah Konsultan Kurikulum dan Desainer Pembelajaran Ahli Cendekia Aksara.
+Tugas: Susun dokumen Rancangan Pelaksanaan Pembelajaran (RPP) 80 Menit berstandar nasional dan Kurikulum Merdeka yang sangat aplikatif, inovatif, dan berbobot akademis tinggi.
+
+Data Pembelajaran:
+Mata Pelajaran: ${mapel || 'Literasi & Kepenulisan'}
+Semester: ${semester || 'Semester 1'}
+Topik Bahasan: ${topik || 'Pengembangan Ide & Narasi'}
+
+Format output WAJIB JSON murni tanpa pembungkus markdown:
+{
+  "rpp": {
+    "cp": "Capaian pembelajaran yang mendalam dan terukur...",
+    "tp": [
+      "Tujuan pembelajaran 1...",
+      "Tujuan pembelajaran 2...",
+      "Tujuan pembelajaran 3..."
+    ],
+    "materiPokok": [
+      "Poin materi 1...",
+      "Poin materi 2...",
+      "Poin materi 3..."
+    ],
+    "metode": [
+      "Ceramah Interaktif & Dialog Sokratik",
+      "Analisis Teks & Studi Kasus",
+      "Latihan Praktik Terbimbing"
+    ],
+    "skenario": [
+      {
+        "waktu": "15 Menit",
+        "fase": "Pendahuluan (Apersepsi & Motivasi)",
+        "menjelaskan": "Penjelasan tujuan dan hubungan topik dengan pengalaman nyata...",
+        "memadankan": "Analogi sederhana yang relevan...",
+        "aktivitasSiswa": "Peserta didik menyimak, merespons pertanyaan pemantik, dan mencatat fokus bahasan.",
+        "poinPenting": "Kesiapan mental dan minat belajar siswa"
+      },
+      {
+        "waktu": "50 Menit",
+        "fase": "Kegiatan Inti (Eksplorasi & Praktik Mandiri)",
+        "menjelaskan": "Penyampaian kaidah esensial, pembedahan contoh, dan teknik terapan...",
+        "memadankan": "Komparasi studi kasus konkret...",
+        "aktivitasSiswa": "Peserta didik berlatih secara terarah, berdiskusi kritis, dan menghasilkan draf latihan.",
+        "poinPenting": "Ketepatan pemahaman konsep dan orisinalitas karya"
+      },
+      {
+        "waktu": "15 Menit",
+        "fase": "Penutup (Refleksi & Evaluasi)",
+        "menjelaskan": "Penyimpulan intisari pembelajaran dan evaluasi pemahaman...",
+        "memadankan": "Penerapan kompetensi pada penulisan harian...",
+        "aktivitasSiswa": "Peserta didik menyampaikan refleksi pembelajaran dan mencatat arahan tindak lanjut.",
+        "poinPenting": "Penguatan pemahaman dan tindak lanjut belajar"
+      }
+    ],
+    "penilaian": [
+      { "jenis": "Sikap (Afektif)", "teknik": "Observasi & Partisipasi", "instrumen": "Lembar Pengamatan Keaktifan" },
+      { "jenis": "Pengetahuan (Kognitif)", "teknik": "Tes Lisan & Tanya Jawab", "instrumen": "Daftar Pertanyaan Analitis" },
+      { "jenis": "Keterampilan (Psikomotorik)", "teknik": "Penugasan Portofolio Praktik", "instrumen": "Rubrik Penilaian Draf Tulisan" }
+    ],
+    "catatanRefleksi": "Pendampingan khusus diberikan kepada siswa yang memerlukan asistensi ejaan, serta pengayaan bagi siswa yang telah menguasai kompetensi dasar.",
+    "jumlahSiswa": "15–25 orang"
+  }
+}`;
+                const userPrompt = `Susun RPP untuk mata pelajaran "${mapel}", topik "${topik}", semester "${semester}".`;
+                let rawRPP = await generateWithFallback(systemPrompt, userPrompt, 0.4, true, false);
+                let parsed = extractJSON(rawRPP);
+                if (!parsed || !parsed.rpp) {
+                    parsed = {
+                        rpp: {
+                            cp: `Peserta didik mampu memahami, menganalisis, dan mempraktikkan konsep dasar ${topik} dalam pembelajaran ${mapel} secara kritis, kreatif, dan komunikatif.`,
+                            tp: [
+                                `Mengidentifikasi konsep kunci dalam ${topik}.`,
+                                `Menerapkan kaidah dan teknik dalam latihan terbimbing.`,
+                                `Menyusun karya/tugas mandiri sesuai indikator keberhasilan.`
+                            ],
+                            materiPokok: [
+                                `Pengertian dan prinsip dasar ${topik}.`,
+                                `Teknik terapan dan analisis contoh.`,
+                                `Langkah-langkah evaluasi dan penyempurnaan karya.`
+                            ],
+                            metode: ["Ceramah Interaktif", "Diskusi Terbimbing", "Praktik Mandiri"],
+                            skenario: [
+                                { waktu: "15 Menit", fase: "Pendahuluan", menjelaskan: "Apersepsi topik dan tujuan belajar", memadankan: "Analogi kontekstual", aktivitasSiswa: "Menyimak dan menjawab pertanyaan pemantik", poinPenting: "Fokus dan motivasi" },
+                                { waktu: "50 Menit", fase: "Kegiatan Inti", menjelaskan: "Penyampaian materi dan bedah kasus", memadankan: "Contoh nyata penerapan", aktivitasSiswa: "Mengerjakan latihan dan berdiskusi", poinPenting: "Pemahaman substansi" },
+                                { waktu: "15 Menit", fase: "Penutup", menjelaskan: "Rangkuman kesimpulan pembelajaran", memadankan: "Relevansi dengan karya nyata", aktivitasSiswa: "Melakukan refleksi dan menyimak tindak lanjut", poinPenting: "Evaluasi capaian" }
+                            ],
+                            penilaian: [
+                                { jenis: "Sikap", teknik: "Observasi", instrumen: "Lembar Partisipasi" },
+                                { jenis: "Pengetahuan", teknik: "Tanya Jawab", instrumen: "Daftar Soal Lisan" },
+                                { jenis: "Keterampilan", teknik: "Unjuk Kerja", instrumen: "Rubrik Penugasan" }
+                            ],
+                            catatanRefleksi: "Refleksi pembelajaran untuk penguatan konsep.",
+                            jumlahSiswa: "15–25 orang"
+                        }
+                    };
+                }
+                return res.status(200).json(parsed);
+            }
+
+            // ---------------------------------------------------------
+            // [L] GENERATE SOAL KUIS / TUGAS PRAKTIK
+            // ---------------------------------------------------------
+            case 'generate-soal': {
+                const { materi, jumlahSoal, tipe_soal } = payload;
+                if (!materi || materi.trim() === '') {
+                    return res.status(400).json({ error: 'Materi tidak boleh kosong' });
+                }
+                const jumlah = parseInt(jumlahSoal, 10) || 5;
+                const safeMateri = materi.length > 20000 ? materi.substring(0, 20000) + '... [DIPOTONG]' : materi;
+
+                let promptText = "";
+                if (tipe_soal === 'kuis') {
+                    promptText = `Anda adalah guru pembuat soal ujian literasi nasional. Buatkan ${jumlah} soal Pilihan Ganda (A, B, C, D) berdasarkan materi berikut:
+"""
+${safeMateri}
+"""
+Aturan:
+1. Soal mandiri, jangan rujuk 'bacaan di atas'.
+2. Berikan tanda bintang (*) tepat di depan huruf kunci jawaban benar (contoh: *B. Jawaban).
+3. Pisahkan tiap soal dengan baris kosong. Tanpa markdown blok kode.`;
+                } else {
+                    promptText = `Kamu adalah Mentor Menulis yang asyik dan kreatif di Cendekia Aksara. Buatkan ${jumlah} soal TUGAS PRAKTIK MENULIS untuk siswa berdasarkan materi referensi berikut:
+"""
+${safeMateri}
+"""
+Aturan:
+1. Gunakan sapaan "Kamu", gaya bahasa hangat, mendidik, dan memotivasi.
+2. Tugas harus berupa instruksi praktik menulis konkret (bukan hafalan teori).
+3. Output WAJIB berupa HTML murni (<p>, <ol>, <li>, <strong>) tanpa pembungkus blok html.`;
+                }
+
+                let textResponse = await generateWithFallback(
+                    "Kamu adalah pembuat soal edukasi profesional di Cendekia Aksara.",
+                    promptText,
+                    tipe_soal === 'kuis' ? 0.1 : 0.4,
+                    false,
+                    false
+                );
+                textResponse = textResponse.replace(/```[a-zA-Z]*\n?/gi, '').replace(/```\n?/g, '').trim();
+                return res.status(200).json({ result: textResponse });
+            }
+
+            // ---------------------------------------------------------
+            // [M] KONSEP & MANAJEMEN NUBAR LITERASI (NULIS BARENG)
+            // ---------------------------------------------------------
+            case 'nubar-ai': {
+                const { bulan, tema } = payload;
+                if (!bulan || !tema) {
+                    return res.status(400).json({ error: 'Bulan dan Tema wajib diisi.' });
+                }
+                const systemPrompt = `Kamu adalah Tim Manajemen Konseptor Proyek Nubar Literasi (Nulis Bareng) Cendekia Aksara.
+Tugas: Buat rancangan proyek Nubar Literasi untuk periode "${bulan}" dengan Tema Utama "${tema}".
+Konsep harus unik, memikat, dan terstruktur.
+Format output WAJIB JSON murni tanpa markdown:
+{
+  "informasi_periode": {
+    "nama_periode": "Nubar Literasi ${bulan}",
+    "tema_utama": "${tema}",
+    "tagline": "Menyemai Kata, Menghidupkan Cerita",
+    "deskripsi": "Program Open Submission Antologi Sastra Cendekia Aksara."
+  },
+  "konsep_buku": {
+    "judul_sementara": "Antologi ${tema}",
+    "makna_tema": "Refleksi mendalam tentang ${tema}",
+    "target_pembaca": "Remaja & Dewasa Muda",
+    "nuansa_buku": "Inspiratif, Hangat, & Penuh Makna",
+    "tujuan_penerbitan": "Mendokumentasikan karya terpilih dalam buku ber-ISBN"
+  },
+  "ketentuan_naskah": [
+    "Jenis karya: Cerpen / Puisi / Esai", "Tema: ${tema}", "Jumlah kata: 1000-2000 kata", "Format penulisan: A4, Margin Normal, Spasi 1.5", "Font: Times New Roman 12pt", "Bahasa: Indonesia Baku Sesuai EYD V", "Orisinalitas: Asli karya sendiri dan belum pernah diterbitkan", "Larangan: Bebas SARA dan plagiasi", "Revisi: Maksimal 1 kali perbaikan"
+  ],
+  "ebook_materi": [
+    "Modul Panduan Tema & Eksplorasi Ide", "Teknik Menghidupkan Karakter & Dialog", "Kaidah EYD V & Diksi Terapan", "Penyusunan Alur & Menghindari Plot Hole", "Persiapan Naskah Siap Terbit"
+  ],
+  "alur_kegiatan": [
+    "1. Pembukaan pendaftaran peserta.", "2. Pembagian E-Book materi & panduan naskah.", "3. Batas akhir pengumpulan karya.", "4. Kurasi & editing redaksi.", "5. Proses layout & cetak antologi."
+  ],
+  "timeline": [
+    { "kegiatan": "Pendaftaran Peserta", "waktu": "Minggu ke-1" },
+    { "kegiatan": "Pengumpulan Naskah", "waktu": "Minggu ke-2" },
+    { "kegiatan": "Proses Kurasi & Editing", "waktu": "Minggu ke-3" },
+    { "kegiatan": "Penerbitan & Distribusi", "waktu": "Minggu ke-4" }
+  ],
+  "progress_proyek": [
+    "Pendaftaran peserta.", "Pengumpulan naskah.", "Seleksi administrasi & kurasi.", "Editing & tata letak.", "Penerbitan antologi."
+  ],
+  "konsep_cover": {
+    "warna_dominan": "Biru Navy & Emas",
+    "gaya_ilustrasi": "Minimalis Elegan",
+    "nuansa_visual": "Sastra Modern",
+    "tipografi": "Serif Klasik",
+    "elemen_utama": "Aksen pena dan siluet aksara",
+    "mood": "Inspiratif & Mendalam"
+  },
+  "konsep_layout": {
+    "ukuran_buku": "14x20 cm (Standar UNESCO)",
+    "font_isi": "Book Antiqua 11pt, Spasi 1.15",
+    "tata_letak": "Elegan Simetris",
+    "ornamen": "Header & footer minimalis",
+    "pembuka_bab": "Drop cap klasik",
+    "daftar_isi": "Dua kolom rapi"
+  },
+  "target_akhir": [
+    "Karya terbit dalam buku antologi ber-ISBN.", "Mendapatkan E-Book materi eksklusif.", "Mendapatkan sertifikat dan jejaring penulis nasional."
+  ]
+}`;
+                const userPrompt = `Buatkan rancangan Nubar Literasi periode ${bulan} dengan tema ${tema}.`;
+                let rawRes = await generateWithFallback(systemPrompt, userPrompt, 0.7, true, false);
+                let parsed = extractJSON(rawRes);
+                if (!parsed || !parsed.informasi_periode) {
+                    return res.status(500).json({ error: "Gagal menyusun data Nubar dari AI." });
+                }
+                return res.status(200).json(parsed);
             }
 
             default:
