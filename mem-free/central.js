@@ -20,14 +20,35 @@ const CendekiaApp = (function () {
     const STORAGE_KEY_TRANSACTIONS = 'cendekia_user_transactions';
     const STORAGE_KEY_PUBLIC_STORIES = 'cendekia_public_stories';
 
-    // LEVEL DEFINITIONS
-    const LEVELS = [
-        { level: 1, title: 'Penulis Pemula 🌱', minXp: 0, maxXp: 100 },
-        { level: 2, title: 'Pena Muda ✍️', minXp: 100, maxXp: 250 },
-        { level: 3, title: 'Penjelajah Aksara 📖', minXp: 250, maxXp: 500 },
-        { level: 4, title: 'Pujangga Berbakat 🌟', minXp: 500, maxXp: 1000 },
-        { level: 5, title: 'Mahaguru Literasi 👑', minXp: 1000, maxXp: 2500 }
-    ];
+    // FORMAT LEVEL & SEMESTER (STANDAR: LEVEL X • SEMESTER Y, TANPA GELAR MAJEMUK)
+    function formatLevelSemesterTitle(level, userSemester) {
+        const lvl = Math.min(100, Math.max(1, parseInt(level) || 1));
+        const sem = userSemester ? (parseInt(String(userSemester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil(lvl / 10));
+        return `Level ${lvl} • Semester ${sem}`;
+    }
+
+    // GENERATOR 100 LEVEL TINGKATAN LITERASI CENDEKIA (1 S/D 100)
+    function buildLevelsCatalog() {
+        const list = [];
+        let curMin = 0;
+        for (let i = 1; i <= 100; i++) {
+            // Delta XP bertahap: level 1 butuh 100 XP, level berikutnya bertambah 30 XP per tingkat
+            const delta = 100 + (i - 1) * 30;
+            const curMax = curMin + delta;
+            const sem = Math.min(10, Math.ceil(i / 10));
+            list.push({
+                level: i,
+                semester: sem,
+                title: `Level ${i} • Semester ${sem}`,
+                minXp: curMin,
+                maxXp: curMax
+            });
+            curMin = curMax;
+        }
+        return list;
+    }
+
+    const LEVELS = buildLevelsCatalog();
 
     // DEFAULT USER (Bersih tanpa data dummy)
     const defaultUser = {
@@ -45,7 +66,7 @@ const CendekiaApp = (function () {
         bioSingkat: '',
         xp: 0,
         level: 1,
-        levelTitle: 'Penulis Pemula 🌱',
+        levelTitle: 'Level 1 • Semester 1',
         streak: 1,
         lastActiveDate: new Date().toISOString().split('T')[0],
         privacyRank: true, // true: tampil nama asli, false: anonim
@@ -214,14 +235,15 @@ const CendekiaApp = (function () {
         // Hitung streak otomatis berbasis kalender WIB
         checkStreak(user);
 
-        // Selaraskan Level & Title dengan XP aktual secara presisi
+        // Selaraskan Level & Title dengan XP aktual secara presisi (Level 1 s/d 100)
         const currentXp = user.xp || 0;
         user.level = 1;
-        user.levelTitle = LEVELS[0].title;
+        const userSem = parseInt(user.semester) || 1;
+        user.levelTitle = formatLevelSemesterTitle(1, userSem);
         for (let i = LEVELS.length - 1; i >= 0; i--) {
             if (currentXp >= LEVELS[i].minXp) {
                 user.level = LEVELS[i].level;
-                user.levelTitle = LEVELS[i].title;
+                user.levelTitle = formatLevelSemesterTitle(user.level, user.semester || LEVELS[i].semester);
                 break;
             }
         }
@@ -599,18 +621,17 @@ const CendekiaApp = (function () {
             user.stats.ideasArchived = Math.max(user.stats.ideasArchived || 0, getIdeas().length || 1);
         }
 
-        // Cek Level
+        // Cek Level (Rentang 1 s/d 100)
         let newLevel = user.level || 1;
-        let newTitle = user.levelTitle || LEVELS[0].title;
 
         for (let i = LEVELS.length - 1; i >= 0; i--) {
             if (user.xp >= LEVELS[i].minXp) {
                 newLevel = LEVELS[i].level;
-                newTitle = LEVELS[i].title;
                 break;
             }
         }
 
+        const newTitle = formatLevelSemesterTitle(newLevel, user.semester);
         const leveledUp = newLevel > user.level;
         user.level = newLevel;
         user.levelTitle = newTitle;
@@ -751,7 +772,7 @@ const CendekiaApp = (function () {
                     <i data-lucide="trophy" style="width:34px; height:34px;"></i>
                 </div>
                 <h3 class="modal-title" style="color:#b45309;">Selamat! Naik Level ${level} 🎉</h3>
-                <p class="modal-desc">Hebat sekali! Anda kini meraih gelar <b>${title}</b>. Terus tingkatkan karya dan kecakapan literasimu!</p>
+                <p class="modal-desc">Hebat sekali! Pencapaian Anda kini <b>${title}</b>. Terus tingkatkan karya dan kecakapan literasimu!</p>
                 <button type="button" class="btn-modal-primary" style="background:var(--accent-dark);" onclick="this.closest('.app-modal-overlay').remove()">Lanjutkan Belajar</button>
             </div>
         `;
@@ -4770,13 +4791,23 @@ const CendekiaApp = (function () {
                     const xp = typeof data.xp === 'number' ? data.xp : (parseInt(data.xp) || 0);
                     // Masukkan hanya user asli yang memiliki nama dan terdaftar di database
                     if (data.name || data.email || xp > 0) {
+                        let lvl = 1;
+                        for (let i = LEVELS.length - 1; i >= 0; i--) {
+                            if (xp >= LEVELS[i].minXp) {
+                                lvl = LEVELS[i].level;
+                                break;
+                            }
+                        }
+                        const semNum = data.semester ? (parseInt(String(data.semester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil(lvl / 10));
                         usersList.push({
                             uid: d.id,
                             name: data.name || 'Siswa Cendekia',
                             username: data.username || '',
                             photoURL: data.photoURL || '',
-                            levelTitle: data.levelTitle || 'Penulis Pemula 🌱',
-                            semester: data.semester ? `Semester ${data.semester}` : (data.role === 'siswa' ? 'Siswa' : 'Member Free'),
+                            level: lvl,
+                            semesterNum: semNum,
+                            levelTitle: formatLevelSemesterTitle(lvl, semNum),
+                            semester: `Semester ${semNum}`,
                             xp: xp,
                             isCurrentUser: (fb.auth?.currentUser && d.id === fb.auth.currentUser.uid) || (data.email && data.email === currentUser.email)
                         });
@@ -4790,13 +4821,17 @@ const CendekiaApp = (function () {
         // Pastikan pengguna saat ini masuk ke daftar jika belum ada
         const alreadyInList = usersList.some(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
         if (!alreadyInList) {
+            const myLvl = currentUser.level || 1;
+            const mySemNum = currentUser.semester ? (parseInt(String(currentUser.semester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil(myLvl / 10));
             usersList.push({
                 uid: currentUser.uid || 'me',
                 name: currentUser.name || 'Siswa Cendekia',
                 username: currentUser.username || '',
                 photoURL: currentUser.photoURL || '',
-                levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
-                semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member Free',
+                level: myLvl,
+                semesterNum: mySemNum,
+                levelTitle: formatLevelSemesterTitle(myLvl, mySemNum),
+                semester: `Semester ${mySemNum}`,
                 xp: currentUser.xp || 0,
                 isCurrentUser: true
             });
@@ -4810,7 +4845,29 @@ const CendekiaApp = (function () {
             u.rank = idx + 1;
         });
 
+        // Simpan cache leaderboard agar dapat diakses seketika dalam hitungan milidetik
+        try {
+            localStorage.setItem('cendekia_cached_leaderboard', JSON.stringify({
+                timestamp: Date.now(),
+                users: usersList
+            }));
+        } catch(e) {}
+
         return usersList;
+    }
+
+    // Ambil cache leaderboard instan (kecepatan milidetik tanpa menunggu jaringan)
+    function getCachedLeaderboard() {
+        try {
+            const raw = localStorage.getItem('cendekia_cached_leaderboard');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.users) && parsed.users.length > 0) {
+                    return parsed.users;
+                }
+            }
+        } catch(e) {}
+        return null;
     }
 
     // 12. INIT ENGINE
@@ -4878,6 +4935,8 @@ const CendekiaApp = (function () {
         isGameCompletedToday,
         downloadEvaluationPDF,
         getLeaderboardUsers,
+        getCachedLeaderboard,
+        formatLevelSemesterTitle,
         recordMaterialRead,
         recordGameCompleted,
         checkAndAwardBadges,

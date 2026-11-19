@@ -187,7 +187,7 @@
                             <div class="hero-name" data-bind="userName" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Siswa Cendekia</div>
                             <div class="hero-title-badge" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                 <i data-lucide="sparkles" style="width:11px; height:11px; flex-shrink:0;"></i>
-                                <span data-bind="userLevelTitle" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Penulis Pemula 🌱</span>
+                                <span data-bind="userLevelTitle" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Level 1 • Semester 1</span>
                             </div>
                         </div>
                     </div>
@@ -714,27 +714,17 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        // 5. RENDER KOLOM PERINGKATKU (AKUNKU)
+        // 5. RENDER KOLOM PERINGKATKU (AKUNKU - LEVEL X • SEMESTER Y)
         async function renderMyRankCard() {
             const container = document.getElementById('myRankContainer');
             if (!container) return;
 
-            try {
-                const usersList = await CendekiaApp.getLeaderboardUsers();
-                const currentUser = CendekiaApp.getUser();
+            const currentUser = CendekiaApp.getUser();
+            const myLvl = currentUser.level || 1;
+            const mySemVal = currentUser.semester ? (parseInt(String(currentUser.semester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil(myLvl / 10));
 
-                let myEntry = usersList.find(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
-                if (!myEntry) {
-                    myEntry = {
-                        rank: usersList.length > 0 ? usersList.length : 1,
-                        name: currentUser.name || 'Siswa Cendekia',
-                        photoURL: currentUser.photoURL || '',
-                        levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
-                        semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member 5K',
-                        xp: currentUser.xp || 0
-                    };
-                }
-
+            // Helper render cepat
+            const drawRankCard = (myEntry) => {
                 let myBadgeClass = '';
                 if (myEntry.rank === 1) myBadgeClass = 'rank-1';
                 else if (myEntry.rank === 2) myBadgeClass = 'rank-2';
@@ -743,30 +733,61 @@
                 const myFallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(myEntry.name || 'Siswa')}&background=003366&color=fff&size=100`;
                 const myAvatarUrl = myEntry.photoURL || myFallbackAvatar;
                 const myDisplayName = myEntry.name || 'Siswa Cendekia';
+                const levelDisplay = `Level ${myEntry.level || myLvl} &bull; Semester ${myEntry.semesterNum || mySemVal}`;
 
                 container.innerHTML = `
                     <div class="leaderboard-row my-rank" style="border: 2px solid var(--accent); background:#fffdf5; margin-top:10px; margin-bottom:0;">
                         <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                            <!-- 1. PERINGKAT (NOMOR) -->
                             <span class="rank-badge ${myBadgeClass}">${myEntry.rank}</span>
+                            
+                            <!-- 2. SEBELAHNYA: PROFIL (FOTO LINGKARAN) -->
                             <div class="rank-avatar">
                                 <img src="${myAvatarUrl}" alt="${myDisplayName}" onerror="this.onerror=null; this.src='${myFallbackAvatar}';">
                             </div>
+
+                            <!-- 3. NAMA SISWA & KETERANGAN (LEVEL & SEMESTER) -->
                             <div style="min-width:0; flex:1;">
                                 <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:0.8rem;">
                                     ${myDisplayName} <span style="font-size:0.68rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>
                                 </strong>
                                 <span style="font-size:0.64rem; color:var(--text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                    ${myEntry.levelTitle || 'Penulis Pemula 🌱'} &bull; ${myEntry.semester || 'Member 5K'}
+                                    ${levelDisplay}
                                 </span>
                             </div>
                         </div>
+
+                        <!-- 4. XP (DI KANAN) -->
                         <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px; font-size:0.82rem; flex-shrink:0;">${myEntry.xp || 0} XP</strong>
                     </div>
                 `;
                 if (window.lucide) lucide.createIcons();
+            };
+
+            // 1. Render instan dari cache lokal (milidetik)
+            const cachedList = CendekiaApp.getCachedLeaderboard();
+            if (cachedList && cachedList.length > 0) {
+                const myCached = cachedList.find(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
+                if (myCached) drawRankCard(myCached);
+            }
+
+            try {
+                // 2. Refresh dari database Firestore
+                const usersList = await CendekiaApp.getLeaderboardUsers();
+                let myEntry = usersList.find(u => u.isCurrentUser || (currentUser.email && u.email === currentUser.email));
+                if (!myEntry) {
+                    myEntry = {
+                        rank: usersList.length > 0 ? usersList.length : 1,
+                        name: currentUser.name || 'Siswa Cendekia',
+                        photoURL: currentUser.photoURL || '',
+                        level: myLvl,
+                        semesterNum: mySemVal,
+                        xp: currentUser.xp || 0
+                    };
+                }
+                drawRankCard(myEntry);
             } catch (e) {
                 console.warn('Gagal memuat baris akunku:', e);
-                container.innerHTML = '';
             }
         }
 

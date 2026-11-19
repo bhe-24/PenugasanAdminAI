@@ -79,7 +79,7 @@
                     </div>
                     <div style="text-align:right;">
                         <span class="hero-title-badge" style="justify-content:flex-end;">
-                            <i data-lucide="sparkles" style="width:12px; height:12px;"></i> <span data-bind="userLevelTitle">Penulis Pemula 🌱</span>
+                            <i data-lucide="sparkles" style="width:12px; height:12px;"></i> <span data-bind="userLevelTitle">Level 1 • Semester 1</span>
                         </span>
                         <span style="font-size:0.68rem; color:#cbd5e1;" id="myNationalRankText">Peringkat #1</span>
                     </div>
@@ -180,10 +180,26 @@
         async function loadRealLeaderboard() {
             const container = document.getElementById('leaderboardList');
             const currentUser = CendekiaApp.getUser();
+            const startLoadTime = performance.now();
+
+            // 1. TAMPILKAN SEKETIKA (DALAM HITUNGAN MILIDETIK) MENGGUNAKAN DATA CACHE / MEMORY
+            const instantCache = CendekiaApp.getCachedLeaderboard();
+            if (instantCache && instantCache.length > 0) {
+                cachedLeaderboard = instantCache;
+                const instantMs = Math.max(1, Math.round(performance.now() - startLoadTime));
+                renderLeaderboardRows(instantCache, instantMs);
+                
+                const myEntry = instantCache.find(u => u.isCurrentUser);
+                if (myEntry) {
+                    document.getElementById('myNationalRankText').textContent = `Peringkat #${myEntry.rank} Nasional`;
+                }
+            }
 
             try {
+                // 2. AMBIL DATA REALTIME TERBARU DARI DATABASE FIRESTORE
                 const users = await CendekiaApp.getLeaderboardUsers();
                 cachedLeaderboard = users;
+                const totalDurationMs = Math.max(1, Math.round(performance.now() - startLoadTime));
 
                 if (!users || users.length === 0) {
                     container.innerHTML = `
@@ -199,7 +215,7 @@
                     return;
                 }
 
-                renderLeaderboardRows(users);
+                renderLeaderboardRows(users, totalDurationMs);
 
                 // Update peringkat nasional saya di hero banner
                 const myEntry = users.find(u => u.isCurrentUser);
@@ -208,21 +224,30 @@
                 }
             } catch (err) {
                 console.error("Gagal memuat leaderboard:", err);
-                container.innerHTML = `
-                    <div style="text-align:center; padding:20px; background:white; border-radius:var(--radius-md); border:1px solid #fee2e2; color:#ef4444; font-size:0.75rem;">
-                        Gagal memuat peringkat: ${err.message}
-                    </div>
-                `;
+                if (!instantCache || instantCache.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:20px; background:white; border-radius:var(--radius-md); border:1px solid #fee2e2; color:#ef4444; font-size:0.75rem;">
+                            Gagal memuat peringkat: ${err.message}
+                        </div>
+                    `;
+                }
             }
 
             if (window.lucide) lucide.createIcons();
         }
 
-        // RENDER BARIS LEADERBOARD: 5 TERATAS + BARIS KE-6 AKUN SENDIRI
-        function renderLeaderboardRows(users) {
+        // RENDER BARIS LEADERBOARD: 5 TERATAS + BARIS KE-6 AKUN SENDIRI (LEVEL X • SEMESTER Y, TANPA MAHAGURU/PENULIS PEMULA)
+        function renderLeaderboardRows(users, loadDurationMs = 12) {
             const container = document.getElementById('leaderboardList');
             const currentUser = CendekiaApp.getUser();
-            let html = '';
+            
+            // Bar info respons milidetik & status sinkronisasi
+            let html = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:6px 10px; background:#f8fafc; border-radius:var(--radius-sm); border:1px solid #e2e8f0; font-size:0.66rem; color:var(--text-muted);">
+                    <span><i data-lucide="zap" style="width:12px; height:12px; color:#d97706; display:inline-block; vertical-align:middle;"></i> Respons Sistem: <b style="color:var(--primary);">${loadDurationMs} ms</b></span>
+                    <span><i data-lucide="shield-check" style="width:12px; height:12px; color:#059669; display:inline-block; vertical-align:middle;"></i> Data Asli Komunitas</span>
+                </div>
+            `;
 
             // 1. Tampilkan hanya 5 teratas
             const top5 = users.slice(0, 5);
@@ -241,6 +266,9 @@
                     displayName = `Penulis Anonim #${u.rank}`;
                 }
 
+                const semVal = u.semesterNum || (u.semester ? (parseInt(String(u.semester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil((u.level || 1) / 10)));
+                const levelDisplay = `Level ${u.level || 1} &bull; Semester ${semVal}`;
+
                 html += `
                     <div class="leaderboard-row ${u.isCurrentUser ? 'my-rank' : ''}">
                         <div style="display:flex; align-items:center; gap:10px; min-width:0;">
@@ -252,30 +280,33 @@
                                 <img src="${avatarUrl}" alt="${displayName}" onerror="this.onerror=null; this.src='${fallbackAvatar}';">
                             </div>
 
-                            <!-- 3. NAMA SISWA & KETERANGAN -->
+                            <!-- 3. NAMA SISWA & LEVEL / SEMESTER (BUKAN MAHAGURU / PENULIS PEMULA) -->
                             <div style="min-width:0;">
                                 <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                     ${displayName} ${u.isCurrentUser ? '<span style="font-size:0.7rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>' : ''}
                                 </strong>
                                 <span style="font-size:0.65rem; color:var(--text-muted); display:block;">
-                                    ${u.levelTitle || 'Penulis Pemula 🌱'} &bull; ${u.semester || 'Member Free'}
+                                    ${levelDisplay}
                                 </span>
                             </div>
                         </div>
 
-                        <!-- 4. BARU XP (DI KANAN) -->
+                        <!-- 4. XP (DI KANAN) -->
                         <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px;">${u.xp} XP</strong>
                     </div>
                 `;
             });
 
             // 2. Baris ke-6: Posisi Peringkat Akunnya Sendiri
+            const myLvl = currentUser.level || 1;
+            const mySemVal = currentUser.semester ? (parseInt(String(currentUser.semester).replace(/\D/g, '')) || 1) : Math.min(10, Math.ceil(myLvl / 10));
+
             const myEntry = users.find(u => u.isCurrentUser) || {
                 rank: users.length > 0 ? users.length + 1 : 1,
                 name: currentUser.name || 'Siswa Cendekia',
                 photoURL: currentUser.photoURL || '',
-                levelTitle: currentUser.levelTitle || 'Penulis Pemula 🌱',
-                semester: currentUser.semester ? `Semester ${currentUser.semester}` : 'Member Free',
+                level: myLvl,
+                semesterNum: mySemVal,
                 xp: currentUser.xp || 0,
                 isCurrentUser: true
             };
@@ -291,6 +322,8 @@
             if (myEntry.rank === 1) myBadgeClass = 'rank-1';
             else if (myEntry.rank === 2) myBadgeClass = 'rank-2';
             else if (myEntry.rank === 3) myBadgeClass = 'rank-3';
+
+            const myLevelDisplay = `Level ${myEntry.level || myLvl} &bull; Semester ${myEntry.semesterNum || mySemVal}`;
 
             html += `
                 <div style="margin-top:12px; padding-top:10px; border-top:2px dashed #cbd5e1;">
@@ -308,18 +341,18 @@
                                 <img src="${myAvatarUrl}" alt="${myDisplayName}" onerror="this.onerror=null; this.src='${myFallbackAvatar}';">
                             </div>
 
-                            <!-- 3. NAMA SISWA & KETERANGAN -->
+                            <!-- 3. NAMA SISWA & LEVEL / SEMESTER -->
                             <div style="min-width:0;">
                                 <strong style="color:var(--primary); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                     ${myDisplayName} <span style="font-size:0.7rem; color:var(--accent-dark); font-weight:700;">(Kamu)</span>
                                 </strong>
                                 <span style="font-size:0.65rem; color:var(--text-muted); display:block;">
-                                    ${myEntry.levelTitle || 'Penulis Pemula 🌱'} &bull; ${myEntry.semester || 'Member Free'}
+                                    ${myLevelDisplay}
                                 </span>
                             </div>
                         </div>
 
-                        <!-- 4. BARU XP (DI KANAN) -->
+                        <!-- 4. XP (DI KANAN) -->
                         <strong style="color:var(--accent-dark); white-space:nowrap; margin-left:8px;">${myEntry.xp} XP</strong>
                     </div>
                 </div>
