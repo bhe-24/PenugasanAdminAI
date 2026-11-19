@@ -18,6 +18,7 @@ const CendekiaApp = (function () {
     const STORAGE_KEY_HISTORY = 'cendekia_free_history';
     const STORAGE_KEY_DAILY_POOL = 'cendekia_free_daily_pool';
     const STORAGE_KEY_TRANSACTIONS = 'cendekia_user_transactions';
+    const STORAGE_KEY_PUBLIC_STORIES = 'cendekia_public_stories';
 
     // LEVEL DEFINITIONS
     const LEVELS = [
@@ -1111,7 +1112,198 @@ const CendekiaApp = (function () {
         return false;
     }
 
-    // 6. KARYA & IDE REPOSITORY
+    // 6. KARYA & IDE REPOSITORY (SISTEM KARYA & PUBLIKASI WATTPAD AKSARA)
+    const DEFAULT_PUBLIC_STORIES = [
+        {
+            id: 'pub_story_1',
+            title: 'Gadis Pelipat Waktu di Stasiun Lawang',
+            genre: 'cerpen',
+            synopsis: 'Di bangku peron nomor tiga Stasiun Lawang, seorang gadis berpayung merah selalu melipat kertas tiket bekas menjadi burung bangau. Tiap lipatan menyimpan memori masa lalu yang tak sempat diucap terima kasih.',
+            coverBase64: '',
+            coverTheme: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)',
+            coverIcon: 'sparkles',
+            author: 'Danu Praditya',
+            authorTier: 'Member Free',
+            authorBadge: 'Penulis Sastra Muda',
+            status: 'PUBLISHED',
+            publishedAt: '2026-11-18T14:30:00.000Z',
+            likes: 42,
+            reads: 182,
+            words: 850,
+            chapters: [
+                {
+                    id: 'ch_1_1',
+                    title: 'Bagian 1: Tiket yang Tak Pernah Diperiksa',
+                    content: 'Peluit kereta jurusan Malang-Surabaya baru saja melengking di kejauhan ketika aku melihatnya lagi. Danu merapatkan jaket denimnya yang basah oleh sisa kabut pagi. Di sudut peron nomor tiga yang temaram, gadis itu duduk tenang dengan mantel beledu cokelat muda. Jemarinya lincah, memilin sudut-sudut kertas karcis kuning kecokelatan menjadi sepasang sayap unggas yang anggun.\n\n"Kenapa bangau?" tanyaku memberanikan diri suatu kali.\n\nGadis itu tidak menoleh, tetapi seulas senyum tipis terbit di bibirnya. "Karena bangau tahu arah pulang, Danu. Berbeda dengan manusia yang kerap tersesat di persimpangan waktu."',
+                    words: 290
+                },
+                {
+                    id: 'ch_1_2',
+                    title: 'Bagian 2: Kereta yang Melintas dalam Hening',
+                    content: 'Tiga bulan berlalu sejak percakapan pertama itu. Aku mulai terbiasa datang sepuluh menit lebih awal hanya untuk mengamati lipatan-lipatan magisnya. Setiap kali satu burung bangau selesai dibentuk, ia akan meniup bagian paruhnya perlahan. Di detik itulah, bau tanah basah bercampur aroma kenanga selalu semerbak di sekeliling kami.\n\nHingga pada suatu Selasa berhujan lebat, peron tiga itu kosong. Hanya ada sebuah kotak kayu kecil beralaskan beludru merah bertuliskan: Untuk Danu. Di dalamnya, terbaring seratus burung bangau kertas dan selembar tiket tanpa tanggal tujuan.',
+                    words: 320
+                },
+                {
+                    id: 'ch_1_3',
+                    title: 'Bagian 3: Sayap Kertas yang Menuntun Pulang',
+                    content: 'Kini stasiun itu telah direnovasi, jam dinding antiknya diganti papan digital yang dingin. Namun setiap kali kereta senja melambat, aku selalu membuka lipatan salah satu burung bangau itu. Membaca pesan rahasia yang tertulis di balik tiket usang: waktu tidak pernah hilang, ia hanya bersembunyi di dalam hati mereka yang berani mengingat.',
+                    words: 240
+                }
+            ]
+        },
+        {
+            id: 'pub_story_2',
+            title: 'Lentera di Balik Kabut Bromo',
+            genre: 'novel',
+            synopsis: 'Sebuah petualangan menyusuri lautan pasir berbisik demi menuntaskan amanah sepucuk surat tua yang tersimpan selama tiga dasawarsa.',
+            coverBase64: '',
+            coverTheme: 'linear-gradient(135deg, #78350f 0%, #1e293b 100%)',
+            coverIcon: 'book-open',
+            author: 'Citra Kirana',
+            authorTier: 'Member 5K',
+            authorBadge: 'Penulis Terverifikasi 5K',
+            status: 'PUBLISHED',
+            publishedAt: '2026-11-17T09:15:00.000Z',
+            likes: 67,
+            reads: 340,
+            words: 1420,
+            chapters: [
+                {
+                    id: 'ch_2_1',
+                    title: 'Bab 1: Bisikan Pasir dan Jejak Kuda',
+                    content: 'Suhu menembus enam derajat Celsius ketika jip tua bermesin diesel itu berhenti di bibir kaldera. Raka menurunkan tas ranselnya ke tanah berdebu. Di depannya terbentang samudra abu vulkanik yang diselimuti kabut putih tebal laksana tirai raksasa tak bertepi.\n\n"Pondok Mbah Sastro ada di balik punggungan cemara itu, Mas," kata Pak Joko sang kusir kuda, menunjuk ke arah barat daya dengan pecut rotannya. "Tapi hati-hati, kabut Bromo jam segini sering memutarbalikkan kompas."',
+                    words: 410
+                },
+                {
+                    id: 'ch_2_2',
+                    title: 'Bab 2: Nyala Pertama di Lereng Curam',
+                    content: 'Langkah kaki Raka mulai terasa berat saat tanjakan curam menyambutnya. Angin gunung berdesir tajam menusuk tulang. Dari saku dalam jaket tebalnya, ia meraba amplop segel lilin yang telah menguning peninggalan sang kakek. Mengapa kakek bersikeras agar surat ini diantar sendiri dengan berjalan kaki?\n\nJawaban itu mulai terkuak ketika dari kejauhan, sebuah titik cahaya kuning berpendar menembus tebalnya kabut senja.',
+                    words: 450
+                }
+            ]
+        },
+        {
+            id: 'pub_story_3',
+            title: 'Kidung Senja Sang Penganyam Sunyi',
+            genre: 'puisi',
+            synopsis: 'Antologi bait tentang debur ombak pantai selatan, jejak tapak nelayan tua, dan keheningan yang menolak untuk dilupakan.',
+            coverBase64: '',
+            coverTheme: 'linear-gradient(135deg, #831843 0%, #1e1b4b 100%)',
+            coverIcon: 'feather',
+            author: 'Aisyah Nur',
+            authorTier: 'Member Free',
+            authorBadge: 'Penyair Berbakat',
+            status: 'PUBLISHED',
+            publishedAt: '2026-11-16T18:45:00.000Z',
+            likes: 52,
+            reads: 215,
+            words: 360,
+            chapters: [
+                {
+                    id: 'ch_3_1',
+                    title: 'Bait 1: Di Batas Dermaga Berkarat',
+                    content: 'Di batas dermaga berkarat ombak memecah sunyi\nmenghapus jejak garam yang kau tinggalkan kemarin sore\nlangit menumpahkan jingga di atas jala nelayan\nyang menanti nasib dalam diam.\n\nTak ada lagi camar yang berputar\nhanya angin barat berbisik lirih\ntentang perahu layar yang lupa jalan pulang.',
+                    words: 180
+                },
+                {
+                    id: 'ch_3_2',
+                    title: 'Bait 2: Rahasia Garis Tangan Karang',
+                    content: 'Karang itu tetap berdiri tegak\nmeski badai datang mencabik ribuan kali\nsebab ia tahu, di dasar laut yang paling gelap\nhidup tak pernah meminta tepuk tangan,\nhanya ketabahan untuk tetap ada.',
+                    words: 180
+                }
+            ]
+        },
+        {
+            id: 'pub_story_4',
+            title: 'Menatap Literasi Generasi Z: Bukan Hilang, Hanya Berganti Rupa',
+            genre: 'artikel',
+            synopsis: 'Tinjauan kritis terhadap paradigma literasi modern. Dari platform membaca daring hingga micro-storytelling di era serba cepat.',
+            coverBase64: '',
+            coverTheme: 'linear-gradient(135deg, #065f46 0%, #064e3b 100%)',
+            coverIcon: 'file-text',
+            author: 'Fikri Ramadhan',
+            authorTier: 'Member 5K',
+            authorBadge: 'Esais Muda Cendekia',
+            status: 'PUBLISHED',
+            publishedAt: '2026-11-15T11:20:00.000Z',
+            likes: 89,
+            reads: 460,
+            words: 920,
+            chapters: [
+                {
+                    id: 'ch_4_1',
+                    title: 'Bagian 1: Menimbang Ulang Stigma Malas Membaca',
+                    content: 'Seringkali kita mendengar keluhan bahwa minat baca anak muda masa kini kian merosot drastis akibat gawai. Benarkah demikian, ataukah kita sedang menggunakan timbangan usang untuk mengukur fenomena baru?\n\nFakta di lapangan menunjukkan fenomena paradoks: platform penulisan daring seperti Wattpad, webnovel, hingga utas naratif di media sosial justru diakses oleh ratusan juta pembaca muda setiap harinya. Anak muda hari ini membaca lebih banyak kata per hari dibandingkan generasi pendahulunya—hanya saja, mediumnya telah berpindah dari lembaran kertas ke layar genggam.',
+                    words: 450
+                },
+                {
+                    id: 'ch_4_2',
+                    title: 'Bagian 2: Membangun Ekosistem Berkarya yang Merangkul',
+                    content: 'Tantangan literasi kita ke depan bukan lagi sekadar mengajak membaca, melainkan memberdayakan pembaca untuk menjadi pencipta naskah. Ketika seorang siswa diberi ruang untuk menuliskan imajinasinya sendiri, di sanalah kecintaan terhadap kata-kata mekar secara otentik.\n\nPlatform seperti Cendekia Aksara menjadi jembatan penting untuk menyalurkan energi kreatif ini: sebuah ruang aman di mana setiap suara berhak didengar dan diapresiasi.',
+                    words: 470
+                }
+            ]
+        }
+    ];
+
+    function getPublicStories() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_PUBLIC_STORIES);
+            if (!raw) {
+                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(DEFAULT_PUBLIC_STORIES));
+                return DEFAULT_PUBLIC_STORIES;
+            }
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(DEFAULT_PUBLIC_STORIES));
+                return DEFAULT_PUBLIC_STORIES;
+            }
+            return parsed;
+        } catch (e) {
+            return DEFAULT_PUBLIC_STORIES;
+        }
+    }
+
+    function savePublicStory(story) {
+        try {
+            let stories = getPublicStories();
+            const idx = stories.findIndex(s => s.id === story.id);
+            if (idx >= 0) {
+                stories[idx] = { ...stories[idx], ...story, updatedAt: new Date().toISOString() };
+            } else {
+                stories.unshift(story);
+            }
+            localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function removePublicStory(storyId) {
+        try {
+            let stories = getPublicStories();
+            stories = stories.filter(s => s.id !== storyId);
+            localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function likeStory(storyId) {
+        try {
+            let stories = getPublicStories();
+            const target = stories.find(s => s.id === storyId);
+            if (target) {
+                target.likes = (target.likes || 0) + 1;
+                localStorage.setItem(STORAGE_KEY_PUBLIC_STORIES, JSON.stringify(stories));
+                return target.likes;
+            }
+        } catch (e) {}
+        return 0;
+    }
+
     function getWorks() {
         try {
             return JSON.parse(localStorage.getItem(STORAGE_KEY_WORKS) || '[]');
@@ -1120,12 +1312,45 @@ const CendekiaApp = (function () {
         }
     }
 
+    function getWork(id) {
+        const works = getWorks();
+        return works.find(w => w.id === id) || null;
+    }
+
     function saveWork(work) {
         try {
             let works = getWorks();
+            const user = getUser();
+            
+            // Format struktur bab jika belum ada
+            if (!work.chapters || !Array.isArray(work.chapters) || work.chapters.length === 0) {
+                work.chapters = [{
+                    id: 'ch_' + Date.now(),
+                    title: work.chapterTitle || 'Bagian 1',
+                    content: work.body || '',
+                    words: (work.body || '').trim() ? (work.body || '').trim().split(/\s+/).length : 0
+                }];
+            }
+            
+            // Hitung total kata dan sinkronisasi body
+            let totalWords = 0;
+            work.chapters.forEach(ch => {
+                const words = (ch.content || '').trim() ? (ch.content || '').trim().split(/\s+/).length : 0;
+                ch.words = words;
+                totalWords += words;
+            });
+            work.words = totalWords;
+            work.body = work.chapters.map(c => `[${c.title}]\n${c.content}`).join('\n\n');
+
+            // Metadata identitas penulis
+            work.author = work.author || user.name || 'Siswa Cendekia';
+            work.authorTier = user.tier || (IS_MEM_5K ? 'Member 5K' : 'Member Free');
+            work.status = work.status || 'DRAFT'; // 'DRAFT' atau 'PUBLISHED'
+
             const existingIndex = works.findIndex(w => w.id === work.id);
             if (existingIndex >= 0) {
                 works[existingIndex] = { ...works[existingIndex], ...work, updatedAt: new Date().toISOString() };
+                work = works[existingIndex];
             } else {
                 work.id = work.id || 'work_' + Date.now();
                 work.createdAt = new Date().toISOString();
@@ -1133,14 +1358,155 @@ const CendekiaApp = (function () {
                 works.unshift(work);
             }
             localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(works));
+
+            // Sinkronisasi otomatis ke Komunitas Publik (Feed Wattpad)
+            if (work.status === 'PUBLISHED') {
+                savePublicStory(work);
+            } else {
+                removePublicStory(work.id);
+            }
             
-            const user = getUser();
             user.stats.worksCreated = works.length;
             saveUser(user);
             return work;
         } catch (e) {
+            console.error('Error in saveWork:', e);
             return null;
         }
+    }
+
+    function deleteWork(id) {
+        try {
+            let works = getWorks();
+            works = works.filter(w => w.id !== id);
+            localStorage.setItem(STORAGE_KEY_WORKS, JSON.stringify(works));
+            removePublicStory(id);
+            const user = getUser();
+            user.stats.worksCreated = works.length;
+            saveUser(user);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function getAiWritingSuggestions(genre = 'cerpen', type = 'idea', currentText = '') {
+        const suggestions = {
+            cerpen: {
+                idea: [
+                    "Buka dengan kontras tak biasa: 'Di kota yang melarang orang menangis, Danu menyembunyikan botol air mata ibunya di celah dinding.'",
+                    "Aroma kenangan: 'Aroma kopi gosong selalu mengingatkan Sarah pada stasiun tua yang ditinggalkan sepuluh tahun silam.'",
+                    "Konflik waktu: 'Pukul 06.59 setiap pagi, jam di alun-alun selalu berdentang tujuh puluh kali, pertanda ada yang hilang.'"
+                ],
+                plot: [
+                    "Hadirkan pihak ketiga atau insiden tak terduga yang mematahkan rencana awal tokoh.",
+                    "Munculkan dilema moral: tokoh harus memilih antara menyelamatkan janjinya atau harga dirinya.",
+                    "Buat waktu semakin mendesak: ada tenggat yang tidak bisa ditunda yang memaksa tokoh bertindak ekstrem."
+                ],
+                diction: [
+                    "Ganti 'langitnya gelap' menjadi 'langit menumpahkan pekat arang tanpa sebutir pun bintang.'",
+                    "Ganti 'dia merasa sedih' menjadi 'ada getar ngilu yang merambat perlahan di rongga dadanya.'",
+                    "Ganti 'langkahnya cepat' menjadi 'derap kakinya menyapu debu jalanan laksana terburu waktu.'"
+                ],
+                review: [
+                    "Karakterisasi tokoh utama sudah cukup kuat, tetapi motif tindakannya di awal cerita perlu ditegaskan lagi.",
+                    "Tempo narasi di bagian tengah terasa agak terburu-buru, berikan ruang untuk dialog batin tokoh.",
+                    "Pilihan diksi sudah kaya majas, pertahankan kealamian percakapan antar tokoh."
+                ]
+            },
+            puisi: {
+                idea: [
+                    "Bait pembuka: 'Di pelataran senja yang kian mendingin / kuseka rindu yang terperangkap pada kaca jendela.'",
+                    "Bait kontemplatif: 'Laut tak pernah berjanji akan tenang / namun perahu tetap berlayar mencari riak.'",
+                    "Metafora sunyi: 'Malam adalah perpustakaan tanpa lentera / tempat doa-doa hening dibaca tanpa suara.'"
+                ],
+                plot: [
+                    "Bawa bait kedua ke transisi kontras: dari suasana luar ke ruang batin yang paling sunyi.",
+                    "Gunakan enjambemen (pemotongan baris) yang mengejutkan untuk memperkuat ritme puitik.",
+                    "Tutup dengan penegasan makna atau pertanyaan filosofis yang menggantung manis."
+                ],
+                diction: [
+                    "Perkaya rima akhir dengan akhiran vokal serasi (a-b-a-b atau a-a-b-b).",
+                    "Gunakan citraan rabaan: 'dingin yang menusuk sumsum' atau 'kehangatan yang luruh perlahan'.",
+                    "Hadirkan personifikasi alam: 'angin yang letih', 'senja yang tersedu', 'batu karang yang bertasbih'."
+                ],
+                review: [
+                    "Irama bait mengalir harmonis. Eksplorasi diksi arkaik atau kata bermakna konotatif sudah tepat.",
+                    "Perhatikan keselarasan tema agar tidak melompat terlalu drastis antar bait.",
+                    "Daya sugestif puisi ini sangat tinggi dan memantik perenungan."
+                ]
+            },
+            novel: {
+                idea: [
+                    "Prolog dramatis: 'Sebelum lonceng menara runtuh, ada tiga rahasia yang terkubur di bawah tanah kastil tua ini.'",
+                    "Bab 1 World-building: 'Di lembah kabut utara, angin bertiup membawa serpihan abu dari kota yang hilang.'",
+                    "Dinamika Tokoh: 'Raka tahu ia tidak boleh mempercayai siapa pun, bahkan bayangannya sendiri saat matahari tegak.'"
+                ],
+                plot: [
+                    "Rancang cliffhanger di akhir bab agar pembaca Wattpad tidak sabar menekan tombol bab selanjutnya.",
+                    "Kembangkan sub-plot yang saling bertaut dengan misteri utama cerita.",
+                    "Bangun ticking clock (tekanan batas waktu) yang membuat tensi bab terus merayap naik."
+                ],
+                diction: [
+                    "Deskripsikan suasana dengan multi-indera (suara derau kayu, hawa pengap, remang cahaya obor).",
+                    "Pertajam dialog: gunakan sub-teks di mana tokoh mengatakan satu hal tapi bermaksud lain.",
+                    "Gunakan variasi kalimat pendek untuk adegan aksi dan kalimat mengalun untuk refleksi."
+                ],
+                review: [
+                    "Struktur bab sudah siap terbit ala webnovel/Wattpad. Pembagian babak memudahkan pembaca di ponsel.",
+                    "Pastikan perkembangan watak (character arc) tokoh terasa organik sepanjang bab.",
+                    "Konflik antar karakter memiliki potensi besar untuk dieksplorasi lebih dalam."
+                ]
+            },
+            artikel: {
+                idea: [
+                    "Hook Tesis: 'Di tengah gempuran konten instan, kemampuan menulis panjang justru menjadi kekuatan langka.'",
+                    "Pertanyaan retoris: 'Apakah teknologi membunuh imajinasi manusia, ataukah kita yang belum siap berkolaborasi?'",
+                    "Fakta pemantik: 'Lebih dari 70% siswa mengaku lebih bebas mengekspresikan diri lewat tulisan daring daripada lisan.'"
+                ],
+                plot: [
+                    "Susun struktur piramida terbalik: Hook -> Fakta Utama -> Analisis Mendalam -> Solusi Konkret.",
+                    "Berikan contoh kasus nyata yang dekat dengan kehidupan sehari-hari pembaca muda.",
+                    "Sertakan ajakan reflektif (call-to-action) di paragraf penutup."
+                ],
+                diction: [
+                    "Gunakan konjungsi antarkalimat yang lugas: 'Namun demikian', 'Kendati demikian', 'Dengan kata lain'.",
+                    "Hindari kalimat berbelit-belit (pleonasme) agar argumen tajam dan berbobot.",
+                    "Gunakan kosakata ilmiah populer yang komunikatif dan tidak kaku."
+                ],
+                review: [
+                    "Argumen yang dibangun runtut dan logis. Sudut pandang yang disajikan sangat relevan.",
+                    "Paragraf pengantar berhasil memikat rasa ingin tahu pembaca sejak kalimat pertama.",
+                    "Kesimpulan berhasil merangkum inti esai dengan impresif."
+                ]
+            },
+            drama: {
+                idea: [
+                    "Setting Awal: [Panggung remang. Hanya ada satu kursi goyang tua dan sebuah telepon kabel yang terus berdering.]",
+                    "Konflik Pembuka: [Danu masuk dengan napas memburu, mengunci pintu ganda dari dalam.]",
+                    "Dialog Tegang: 'Jika kau membuka surat itu sekarang, tak ada lagi jalan untuk kita berbalik!'"
+                ],
+                plot: [
+                    "Tingkatkan ketegangan melalui ritme dialog yang semakin cepat (stichomythia).",
+                    "Gunakan didaskalia (petunjuk lakon) yang memandu emosi gerak tubuh pemeran secara presisi.",
+                    "Tutup babak dengan peristiwa tak terduga yang membalikkan posisi kekuasaan antar tokoh."
+                ],
+                diction: [
+                    "Pastikan nada bicara mencerminkan latar belakang sosial dan usia masing-masing karakter.",
+                    "Selipkan jeda / keheningan bermakna [hening sejenak] untuk memberi bobot dramatik.",
+                    "Gunakan metafora lisan yang mengena saat puncak konfrontasi."
+                ],
+                review: [
+                    "Format naskah lakon sudah memenuhi kaidah teater dengan didaskalia yang jelas.",
+                    "Dinamika emosi dalam dialog terasa hidup dan natural untuk dipentaskan.",
+                    "Potensi visual panggung sangat kuat."
+                ]
+            }
+        };
+
+        const g = suggestions[genre] || suggestions.cerpen;
+        const list = g[type] || g.idea;
+        return list;
     }
 
     function getIdeas() {
@@ -4216,7 +4582,12 @@ const CendekiaApp = (function () {
         getDailyChallenges,
         completeChallenge,
         getWorks,
+        getWork,
         saveWork,
+        deleteWork,
+        getPublicStories,
+        likeStory,
+        getAiWritingSuggestions,
         getIdeas,
         saveIdea,
         analyzeWritingSystem,

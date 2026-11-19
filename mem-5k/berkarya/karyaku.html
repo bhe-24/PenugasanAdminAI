@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Karyaku - Member 5K Cendekia</title>
+    <title>Karyaku &amp; Draf Studio - Member 5K Cendekia</title>
     
     <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="/mem-5k/central.css">
 
     <style>
@@ -25,10 +27,29 @@
             white-space: nowrap; transition: all 0.2s;
         }
         .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
         .work-card-item {
-            background: white; border-radius: var(--radius-md); padding: 14px;
-            border: 1px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 10px;
-            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            background: white; border-radius: var(--radius-md); padding: 12px;
+            border: 1.5px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 12px;
+            display: flex; gap: 12px; align-items: stretch; position: relative;
+        }
+        .work-cover-thumb {
+            width: 70px; height: 100px; border-radius: 6px; overflow: hidden;
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+            flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; padding: 6px; text-align: center;
+        }
+        .work-cover-thumb img {
+            width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+        }
+        .status-badge-published {
+            background: #dcfce7; color: #15803d; font-size: 0.6rem; font-weight: 800;
+            padding: 2px 6px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 3px;
+        }
+        .status-badge-draft {
+            background: #fef3c7; color: #b45309; font-size: 0.6rem; font-weight: 800;
+            padding: 2px 6px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 3px;
         }
     </style>
 </head>
@@ -38,26 +59,28 @@
 
         <header class="app-header">
             <div style="display:flex; align-items:center; gap:10px;">
-                <a href="/mem-5k/berkarya.html" class="btn-header-back" title="Kembali">
+                <a href="/mem-5k/berkarya.html" class="btn-header-back" title="Kembali ke Berkarya">
                     <i data-lucide="arrow-left" style="width:18px; height:18px;"></i>
                 </a>
                 <div>
                     <h1 class="header-brand-title" style="display:flex; align-items:center; gap:6px;">
-                        <i data-lucide="library" style="width:18px; height:18px; color:#db2777;"></i> Karyaku
+                        <i data-lucide="library" style="width:18px; height:18px; color:#db2777;"></i> Karyaku &amp; Draf
                     </h1>
-                    <div class="header-brand-sub">Arsip Naskah &amp; Draf Pribadi</div>
+                    <div class="header-brand-sub">Arsip Naskah &amp; Publikasi Wattpad</div>
                 </div>
             </div>
-            <a href="/mem-5k/berkarya/ruang-menulis.html" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; width:auto; text-decoration:none;">
+            <button type="button" class="btn-primary-challenge" style="padding:6px 12px; font-size:0.72rem; width:auto;" onclick="openNewStoryModal()">
                 <i data-lucide="plus" style="width:13px; height:13px;"></i> Naskah Baru
-            </a>
+            </button>
         </header>
 
         <main class="app-body">
 
             <!-- FILTER GENRE -->
             <div class="filter-chip-row">
-                <button type="button" class="filter-chip active" onclick="filterWorks('all', this)">Semua Karya</button>
+                <button type="button" class="filter-chip active" onclick="filterWorks('all', this)">Semua Naskah</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('published', this)">🚀 Terbit Publik</button>
+                <button type="button" class="filter-chip" onclick="filterWorks('draft', this)">🔒 Draf Pribadi</button>
                 <button type="button" class="filter-chip" onclick="filterWorks('cerpen', this)">Cerpen</button>
                 <button type="button" class="filter-chip" onclick="filterWorks('puisi', this)">Puisi</button>
                 <button type="button" class="filter-chip" onclick="filterWorks('novel', this)">Novel</button>
@@ -76,56 +99,216 @@
 
     </div>
 
+    <!-- MODAL PILIH GENRE BARU -->
+    <div id="modalNewGenre" style="display:none; position:fixed; inset:0; background:rgba(0,15,35,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+        <div style="background:white; width:100%; max-width:360px; border-radius:var(--radius-lg); padding:20px; box-shadow:0 20px 40px rgba(0,0,0,0.25); text-align:center;">
+            <div style="width:50px; height:50px; border-radius:50%; background:#fce7f3; color:#db2777; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+                <i data-lucide="pen-tool" style="width:24px; height:24px;"></i>
+            </div>
+            <h3 style="font-size:1.05rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Pilih Studio Menulis</h3>
+            <p style="font-size:0.72rem; color:var(--text-muted); margin-bottom:14px;">Karya apa yang ingin kamu ciptakan hari ini?</p>
+            
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <a href="/mem-5k/berkarya/menulis-cerpen.html" class="btn-modal-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:10px;">
+                    <i data-lucide="book-text" style="width:16px; height:16px; color:#b45309;"></i>
+                    <div style="text-align:left; flex:1;">
+                        <strong style="font-size:0.8rem; display:block;">Menulis Cerpen</strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Format narasi cerita pendek &amp; babak alur</span>
+                    </div>
+                </a>
+                <a href="/mem-5k/berkarya/menulis-puisi.html" class="btn-modal-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:10px;">
+                    <i data-lucide="feather" style="width:16px; height:16px; color:#d4af37;"></i>
+                    <div style="text-align:left; flex:1;">
+                        <strong style="font-size:0.8rem; display:block;">Menulis Puisi</strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Antologi bait, rima, dan estetika sajak</span>
+                    </div>
+                </a>
+                <a href="/mem-5k/berkarya/menulis-novel.html" class="btn-modal-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:10px;">
+                    <i data-lucide="book-copy" style="width:16px; height:16px; color:#7c3aed;"></i>
+                    <div style="text-align:left; flex:1;">
+                        <strong style="font-size:0.8rem; display:block;">Menulis Novel</strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Format bab berseri &amp; kisah panjang</span>
+                    </div>
+                </a>
+                <a href="/mem-5k/berkarya/menulis-artikel.html" class="btn-modal-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:10px;">
+                    <i data-lucide="file-text" style="width:16px; height:16px; color:#334155;"></i>
+                    <div style="text-align:left; flex:1;">
+                        <strong style="font-size:0.8rem; display:block;">Menulis Artikel &amp; Esai</strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Opini kritis, esai literasi, dan ulasan</span>
+                    </div>
+                </a>
+                <a href="/mem-5k/berkarya/menulis-drama.html" class="btn-modal-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:10px;">
+                    <i data-lucide="clapperboard" style="width:16px; height:16px; color:#dc2626;"></i>
+                    <div style="text-align:left; flex:1;">
+                        <strong style="font-size:0.8rem; display:block;">Menulis Drama</strong>
+                        <span style="font-size:0.65rem; color:var(--text-muted);">Lakon pementasan &amp; dialog babak</span>
+                    </div>
+                </a>
+                <button type="button" onclick="closeNewStoryModal()" style="margin-top:6px; background:#f1f5f9; color:var(--text-muted); border:none; padding:8px; border-radius:var(--radius-full); font-size:0.75rem; font-weight:700; cursor:pointer;">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="/mem-5k/central.js"></script>
     <script>
         let currentFilter = 'all';
+
+        function openNewStoryModal() {
+            document.getElementById('modalNewGenre').style.display = 'flex';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeNewStoryModal() {
+            document.getElementById('modalNewGenre').style.display = 'none';
+        }
+
+        function getGenreStudioUrl(genre, id) {
+            const is5k = window.location.pathname.startsWith('/mem-5k');
+            const prefix = is5k ? '/mem-5k/berkarya' : '/mem-5k/berkarya';
+            let file = 'menulis-cerpen.html';
+            if (genre === 'puisi') file = 'menulis-puisi.html';
+            else if (genre === 'novel') file = 'menulis-novel.html';
+            else if (genre === 'artikel') file = 'menulis-artikel.html';
+            else if (genre === 'drama') file = 'menulis-drama.html';
+            return `${prefix}/${file}?id=${id}`;
+        }
 
         function renderWorks() {
             const allWorks = CendekiaApp.getWorks();
             const container = document.getElementById('worksListContainer');
             container.innerHTML = '';
 
-            const filtered = currentFilter === 'all' ? allWorks : allWorks.filter(w => (w.genre || 'cerpen') === currentFilter);
+            let filtered = allWorks;
+            if (currentFilter === 'published') {
+                filtered = allWorks.filter(w => w.status === 'PUBLISHED');
+            } else if (currentFilter === 'draft') {
+                filtered = allWorks.filter(w => (w.status || 'DRAFT') === 'DRAFT');
+            } else if (currentFilter !== 'all') {
+                filtered = allWorks.filter(w => (w.genre || 'cerpen') === currentFilter);
+            }
 
             if (!filtered || filtered.length === 0) {
                 container.innerHTML = `
-                    <div style="background:white; border-radius:var(--radius-md); padding:28px 16px; border:1px dashed var(--border-medium); text-align:center;">
+                    <div style="background:white; border-radius:var(--radius-md); padding:28px 16px; border:1.5px dashed var(--border-medium); text-align:center;">
                         <i data-lucide="book-open" style="width:36px; height:36px; color:var(--text-light); margin-bottom:8px;"></i>
-                        <strong style="font-size:0.9rem; color:var(--primary); display:block;">Belum Ada Naskah Tersimpan</strong>
-                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 14px;">Mulai tuangkan tulisanmu di Ruang Menulis sekarang.</p>
-                        <a href="/mem-5k/berkarya/ruang-menulis.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none;">
-                            Tulis Karya Pertama
-                        </a>
+                        <strong style="font-size:0.9rem; color:var(--primary); display:block;">Belum Ada Naskah</strong>
+                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 14px;">Mulai tuangkan tulisanmu dan terbitkan karyamu ke publik ala Wattpad.</p>
+                        <button type="button" class="btn-primary-challenge" style="display:inline-flex; width:auto;" onclick="openNewStoryModal()">
+                            Tulis Naskah Pertama
+                        </button>
                     </div>
                 `;
             } else {
                 filtered.forEach(w => {
-                    const item = document.createElement('div');
-                    item.className = 'work-card-item';
-                    item.innerHTML = `
-                        <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
-                            <div style="width:40px; height:40px; border-radius:10px; background:#fff8e7; color:#b89124; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                <i data-lucide="${w.genre === 'puisi' ? 'feather' : 'file-text'}" style="width:20px; height:20px;"></i>
-                            </div>
-                            <div style="overflow:hidden;">
-                                <strong style="font-size:0.86rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${w.title || 'Naskah Tanpa Judul'}</strong>
-                                <span style="font-size:0.68rem; color:var(--text-muted);">${(w.genre || 'cerpen').toUpperCase()} &bull; ${w.words || 0} Kata</span>
-                            </div>
+                    const isPublished = w.status === 'PUBLISHED';
+                    const chaptersCount = (w.chapters && Array.isArray(w.chapters)) ? w.chapters.length : 1;
+                    const studioUrl = getGenreStudioUrl(w.genre, w.id);
+
+                    const card = document.createElement('div');
+                    card.className = 'work-card-item';
+                    card.innerHTML = `
+                        <!-- COVER THUMB -->
+                        <div class="work-cover-thumb">
+                            ${w.coverBase64 ? `<img src="${w.coverBase64}" alt="Cover">` : `
+                                <i data-lucide="${w.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:20px; height:20px; margin-bottom:4px;"></i>
+                                <span style="font-size:0.5rem; text-transform:uppercase; font-weight:800; line-height:1;">${(w.genre || 'cerpen').toUpperCase()}</span>
+                            `}
                         </div>
-                        <div style="display:flex; gap:6px; flex-shrink:0;">
-                            <a href="/mem-5k/berkarya/ruang-menulis.html?id=${w.id}" class="btn-modal-secondary" style="padding:6px 10px; font-size:0.68rem; text-decoration:none;">
-                                Buka
-                            </a>
+
+                        <!-- CONTENT -->
+                        <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between;">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                    <span style="font-size:0.6rem; font-weight:800; color:var(--accent-dark); text-transform:uppercase;">${(w.genre || 'cerpen')}</span>
+                                    <span class="${isPublished ? 'status-badge-published' : 'status-badge-draft'}">
+                                        <i data-lucide="${isPublished ? 'globe' : 'lock'}" style="width:10px; height:10px;"></i>
+                                        ${isPublished ? 'Terbit' : 'Draf'}
+                                    </span>
+                                </div>
+                                <strong style="font-size:0.86rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; margin-bottom:3px;">
+                                    ${w.title || 'Naskah Tanpa Judul'}
+                                </strong>
+                                <p style="font-size:0.68rem; color:var(--text-muted); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:6px;">
+                                    ${w.synopsis || (w.body ? w.body.slice(0, 80) : 'Belum ada sinopsis...')}
+                                </p>
+                            </div>
+
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #f1f5f9; padding-top:6px;">
+                                <span style="font-size:0.64rem; color:var(--text-muted);">
+                                    ${chaptersCount} Bab &bull; ${w.words || 0} Kata
+                                </span>
+                                <div style="display:flex; gap:4px;">
+                                    <button type="button" onclick="togglePublish('${w.id}')" style="background:#f1f5f9; border:none; padding:4px 6px; border-radius:4px; font-size:0.62rem; font-weight:700; cursor:pointer;" title="${isPublished ? 'Ubah ke Draf' : 'Terbitkan ke Publik'}">
+                                        ${isPublished ? 'Tarik Draf' : 'Terbitkan'}
+                                    </button>
+                                    <a href="${studioUrl}" class="btn-primary-challenge" style="padding:4px 8px; font-size:0.65rem; text-decoration:none; width:auto;">
+                                        Edit
+                                    </a>
+                                    <button type="button" onclick="handleDelete('${w.id}')" style="background:#fee2e2; color:#dc2626; border:none; padding:4px 6px; border-radius:4px; font-size:0.62rem; cursor:pointer;" title="Hapus Karya">
+                                        <i data-lucide="trash-2" style="width:11px; height:11px;"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     `;
-                    container.appendChild(item);
+                    container.appendChild(card);
                 });
             }
             if (window.lucide) lucide.createIcons();
         }
 
-        function filterWorks(genre, btn) {
-            currentFilter = genre;
+        function togglePublish(id) {
+            const work = CendekiaApp.getWork(id);
+            if (!work) return;
+
+            const newStatus = work.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+            work.status = newStatus;
+            if (newStatus === 'PUBLISHED') {
+                work.publishedAt = new Date().toISOString();
+            }
+            CendekiaApp.saveWork(work);
+            
+            Swal.fire({
+                toast: true,
+                position: 'top',
+                icon: 'success',
+                title: newStatus === 'PUBLISHED' ? 'Karya telah dipublikasikan ke Beranda!' : 'Karya ditarik kembali ke Draf pribadi.',
+                showConfirmButton: false,
+                timer: 2000
+            });
+            renderWorks();
+        }
+
+        function handleDelete(id) {
+            Swal.fire({
+                title: 'Hapus Naskah?',
+                text: 'Karya ini akan dihapus dari draf maupun publikasi komunitas.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    CendekiaApp.deleteWork(id);
+                    Swal.fire({
+                        toast: true,
+                        position: 'top',
+                        icon: 'success',
+                        title: 'Karya berhasil dihapus',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    renderWorks();
+                }
+            });
+        }
+
+        function filterWorks(filter, btn) {
+            currentFilter = filter;
             document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             renderWorks();

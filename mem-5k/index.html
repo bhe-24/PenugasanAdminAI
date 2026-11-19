@@ -17,6 +17,36 @@
     <link rel="stylesheet" href="/mem-5k/central.css">
 
     <style>
+        /* WATTPAD COMMUNITY STORIES FEED */
+        .story-feed-tab {
+            flex: 1; padding: 7px 10px; border-radius: var(--radius-full); font-size: 0.72rem;
+            font-weight: 800; border: none; background: transparent; color: var(--text-muted);
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .story-feed-tab.active {
+            background: white; color: var(--primary); box-shadow: var(--shadow-sm);
+        }
+        .wattpad-card {
+            background: white; border-radius: var(--radius-md); padding: 12px;
+            border: 1.5px solid var(--border-soft); box-shadow: var(--shadow-sm); margin-bottom: 12px;
+            display: flex; gap: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .wattpad-card:hover {
+            transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 31, 63, 0.1);
+        }
+        .wattpad-cover {
+            width: 75px; height: 110px; border-radius: 6px; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2); flex-shrink: 0; position: relative;
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; padding: 6px; text-align: center;
+        }
+        .wattpad-cover img {
+            width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;
+        }
+
         /* SPARKLINE / MINI PROGRESS CHART PREVIEW */
         .chart-preview-card {
             background: white;
@@ -378,6 +408,36 @@
                 <div class="badge-scroll-row" id="homeBadgesRow"></div>
             </section>
 
+            <!-- 8. KARYA KOMUNITAS & LITERASI PUBLIK (WATTPAD AKSARA) -->
+            <section id="communityStoriesSection" style="margin-top:18px;">
+                <div class="section-header" style="margin-bottom:8px;">
+                    <div>
+                        <h2 class="section-title" style="display:flex; align-items:center; gap:6px;">
+                            <i data-lucide="book-open" style="color:var(--accent-dark);"></i> Karya Komunitas &amp; Publik
+                        </h2>
+                        <div style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">
+                            Baca karya inspiratif siswa Cendekia atau terbitkan ceritamu sendiri!
+                        </div>
+                    </div>
+                    <a href="/mem-5k/berkarya.html" class="section-link" style="white-space:nowrap;">
+                        Mulai Tulis <i data-lucide="pen-tool" style="width:12px; height:12px;"></i>
+                    </a>
+                </div>
+
+                <!-- TAB SWITCHER: KARYA PUBLIK VS KARYAKU & DRAF -->
+                <div style="display:flex; background:#f1f5f9; padding:3px; border-radius:var(--radius-full); margin-bottom:12px; gap:4px;">
+                    <button type="button" id="tabBtnPublicStories" class="story-feed-tab active" onclick="switchStoryFeedTab('public', this)">
+                        <i data-lucide="globe" style="width:13px; height:13px;"></i> Karya Publik (<span id="pubStoriesCount">0</span>)
+                    </button>
+                    <button type="button" id="tabBtnMyDrafts" class="story-feed-tab" onclick="switchStoryFeedTab('mydrafts', this)">
+                        <i data-lucide="folder-pen" style="width:13px; height:13px;"></i> Karyaku &amp; Draf (<span id="myStoriesCount">0</span>)
+                    </button>
+                </div>
+
+                <!-- CONTAINER FEED KARYA -->
+                <div id="storiesFeedContainer"></div>
+            </section>
+
             <!-- COPYRIGHT FOOTER -->
             <div class="app-footer-copyright">
                 &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.<br>
@@ -385,6 +445,62 @@
             </div>
 
         </main>
+
+        <!-- MODAL PEMBACA KARYA ALA WATTPAD -->
+        <div id="modalStoryReader" style="display:none; position:fixed; inset:0; background:rgba(0,15,35,0.75); backdrop-filter:blur(6px); z-index:10000; align-items:flex-end; justify-content:center; padding:0;">
+            <div style="background:white; width:100%; max-width:480px; height:92vh; border-radius:24px 24px 0 0; display:flex; flex-direction:column; overflow:hidden; animation:slideUp 0.25s ease;">
+                
+                <!-- HEADER READER -->
+                <div style="padding:14px 16px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; background:#ffffff; flex-shrink:0;">
+                    <div style="overflow:hidden; padding-right:10px;">
+                        <span style="font-size:0.62rem; font-weight:800; color:var(--accent-dark); text-transform:uppercase;" id="readerGenreBadge">CERPEN</span>
+                        <h3 style="font-size:0.95rem; font-weight:800; color:var(--primary); margin:0; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;" id="readerStoryTitle">Judul Cerita</h3>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <button type="button" id="btnReaderLike" onclick="likeCurrentReaderStory()" style="background:#fff1f2; color:#e11d48; border:1px solid #fecdd3; padding:5px 10px; border-radius:var(--radius-full); font-size:0.7rem; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            <i data-lucide="heart" style="width:13px; height:13px; fill:#e11d48;"></i> <span id="readerLikesCount">0</span>
+                        </button>
+                        <button type="button" onclick="closeStoryReader()" style="background:#f1f5f9; border:none; width:32px; height:32px; border-radius:50%; font-size:1.1rem; cursor:pointer; color:#64748b;">✕</button>
+                    </div>
+                </div>
+
+                <!-- BODY SCROLLABLE -->
+                <div id="readerScrollBody" style="flex:1; overflow-y:auto; padding:16px; background:#fffdfa; line-height:1.75; font-size:0.92rem; color:#1e293b;">
+                    
+                    <!-- COVER & METADATA BANNER -->
+                    <div style="display:flex; gap:14px; background:white; border:1px solid #e2e8f0; border-radius:12px; padding:12px; margin-bottom:16px;">
+                        <div id="readerCoverWrap" style="width:75px; height:110px; border-radius:6px; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg, #003366 0%, #001f3f 100%); display:flex; align-items:center; justify-content:center; color:white; font-size:0.65rem; text-align:center; position:relative; box-shadow:0 4px 10px rgba(0,0,0,0.15);">
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:2px;">Oleh: <strong style="color:var(--primary);" id="readerAuthorName">Penulis</strong></div>
+                            <div style="font-size:0.65rem; color:#059669; font-weight:700; margin-bottom:6px;" id="readerAuthorTier">Member 5K</div>
+                            <p style="font-size:0.72rem; color:#475569; line-height:1.4; margin:0;" id="readerSynopsis">Sinopsis cerita...</p>
+                        </div>
+                    </div>
+
+                    <!-- SELECT BAB DROPDOWN -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:8px 12px; border-radius:8px; margin-bottom:14px;">
+                        <div style="font-size:0.7rem; font-weight:800; color:var(--primary);">Pilih Bab:</div>
+                        <select id="readerChapterSelect" onchange="changeReaderChapter(this.value)" style="border:1px solid #cbd5e1; border-radius:6px; padding:4px 8px; font-size:0.72rem; font-weight:700; color:var(--primary); background:white; max-width:220px; outline:none;"></select>
+                    </div>
+
+                    <!-- JUDUL BAB AKTIF -->
+                    <h4 style="font-size:1.05rem; font-weight:800; color:var(--primary); margin:0 0 12px; border-bottom:2px solid var(--accent); padding-bottom:6px;" id="readerChapterHeading">Bab 1</h4>
+
+                    <!-- ISI TEKS CERITA -->
+                    <div id="readerChapterText" style="white-space:pre-wrap; font-family:'Plus Jakarta Sans', sans-serif;"></div>
+
+                    <div style="margin-top:30px; padding:16px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
+                        <div style="font-size:0.8rem; font-weight:800; color:var(--primary); margin-bottom:4px;">Suka dengan karya ini?</div>
+                        <p style="font-size:0.7rem; color:var(--text-muted); margin-bottom:10px;">Beri apresiasi untuk menyemangati penulis!</p>
+                        <button type="button" onclick="likeCurrentReaderStory()" style="background:#e11d48; color:white; border:none; padding:8px 18px; border-radius:var(--radius-full); font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                            <i data-lucide="heart" style="width:14px; height:14px; fill:white;"></i> Beri Apresiasi (<span id="readerLikesCountBottom">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
 
         <!-- STICKY BOTTOM NAVIGATION RENDERED BY CENTRAL JS -->
 
@@ -765,6 +881,203 @@
             }
         }
 
+        // 6. KARYA KOMUNITAS & FEED WATTPAD AKSARA
+        let activeStoryFeedTab = 'public'; // 'public' | 'mydrafts'
+        let currentReaderStory = null;
+
+        function switchStoryFeedTab(tab, btnEl) {
+            activeStoryFeedTab = tab;
+            document.querySelectorAll('.story-feed-tab').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+            renderCommunityStoriesFeed();
+        }
+
+        function renderCommunityStoriesFeed() {
+            const container = document.getElementById('storiesFeedContainer');
+            if (!container) return;
+
+            const publicStories = CendekiaApp.getPublicStories() || [];
+            const myWorks = CendekiaApp.getWorks() || [];
+
+            // Update badge counts
+            const pubCountEl = document.getElementById('pubStoriesCount');
+            if (pubCountEl) pubCountEl.textContent = publicStories.length;
+            const myCountEl = document.getElementById('myStoriesCount');
+            if (myCountEl) myCountEl.textContent = myWorks.length;
+
+            const listToRender = activeStoryFeedTab === 'public' ? publicStories : myWorks;
+            container.innerHTML = '';
+
+            if (listToRender.length === 0) {
+                container.innerHTML = `
+                    <div style="background:white; border-radius:var(--radius-md); padding:24px 16px; border:1.5px dashed #cbd5e1; text-align:center;">
+                        <i data-lucide="book-open" style="width:32px; height:32px; color:#94a3b8; margin-bottom:6px;"></i>
+                        <strong style="font-size:0.86rem; color:var(--primary); display:block;">
+                            ${activeStoryFeedTab === 'public' ? 'Belum Ada Cerita Publik' : 'Belum Ada Naskah Pribadi'}
+                        </strong>
+                        <p style="font-size:0.72rem; color:var(--text-muted); margin:4px 0 12px;">
+                            ${activeStoryFeedTab === 'public' ? 'Jadilah yang pertama mempublikasikan karyamu ke publik!' : 'Mulai tulis karyamu sekarang di Studio Berkarya.'}
+                        </p>
+                        <a href="/mem-5k/berkarya/menulis-cerpen.html" class="btn-primary-challenge" style="display:inline-flex; width:auto; text-decoration:none; padding:8px 16px;">
+                            Tulis Cerita Pertama
+                        </a>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+
+            listToRender.forEach(story => {
+                const isMyStory = activeStoryFeedTab === 'mydrafts';
+                const isPublished = story.status === 'PUBLISHED';
+                const chaptersCount = (story.chapters && Array.isArray(story.chapters)) ? story.chapters.length : 1;
+                const likes = story.likes || 0;
+
+                const card = document.createElement('div');
+                card.className = 'wattpad-card';
+                card.onclick = () => openStoryReader(story.id, isMyStory);
+
+                card.innerHTML = `
+                    <!-- COVER VERTICAL -->
+                    <div class="wattpad-cover">
+                        ${story.coverBase64 ? `<img src="${story.coverBase64}" alt="Cover">` : `
+                            <i data-lucide="${story.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:24px; height:24px; margin-bottom:4px; color:#fef08a;"></i>
+                            <span style="font-size:0.55rem; text-transform:uppercase; font-weight:800; line-height:1.1; color:#f8fafc;">${(story.genre || 'cerpen').toUpperCase()}</span>
+                        `}
+                    </div>
+
+                    <!-- METADATA & SINOPSIS -->
+                    <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <span style="font-size:0.6rem; font-weight:800; color:var(--accent-dark); text-transform:uppercase;">
+                                    ${(story.genre || 'cerpen')}
+                                </span>
+                                ${isMyStory ? `
+                                    <span style="font-size:0.58rem; font-weight:800; padding:1px 6px; border-radius:999px; background:${isPublished ? '#dcfce7' : '#fef3c7'}; color:${isPublished ? '#15803d' : '#b45309'};">
+                                        ${isPublished ? 'Terbit' : 'Draf'}
+                                    </span>
+                                ` : `
+                                    <span style="font-size:0.6rem; color:#e11d48; font-weight:700; display:flex; align-items:center; gap:2px;">
+                                        <i data-lucide="heart" style="width:10px; height:10px; fill:#e11d48;"></i> ${likes}
+                                    </span>
+                                `}
+                            </div>
+                            <strong style="font-size:0.88rem; color:var(--primary); display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; margin-bottom:3px;">
+                                ${story.title || 'Naskah Tanpa Judul'}
+                            </strong>
+                            <div style="font-size:0.66rem; color:var(--text-muted); margin-bottom:4px;">
+                                Oleh: <b style="color:#0284c7;">${story.author || 'Siswa Cendekia'}</b>
+                            </div>
+                            <p style="font-size:0.7rem; color:#475569; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin:0 0 6px;">
+                                ${story.synopsis || (story.body ? story.body.slice(0, 90) : 'Kisah inspiratif karya siswa Cendekia...')}
+                            </p>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #f1f5f9; padding-top:6px;">
+                            <span style="font-size:0.62rem; color:var(--text-muted);">
+                                ${chaptersCount} Bab &bull; ${story.words || 0} Kata
+                            </span>
+                            <span style="font-size:0.68rem; font-weight:800; color:var(--primary); display:inline-flex; align-items:center; gap:3px;">
+                                ${isMyStory ? 'Kelola / Baca' : 'Baca Cerita'} <i data-lucide="chevron-right" style="width:12px; height:12px;"></i>
+                            </span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // WATTPAD INTERACTIVE READER MODAL
+        function openStoryReader(storyId, isMyStory = false) {
+            let story = null;
+            if (isMyStory) {
+                const myWorks = CendekiaApp.getWorks();
+                story = myWorks.find(w => w.id === storyId);
+            }
+            if (!story) {
+                const publicStories = CendekiaApp.getPublicStories();
+                story = publicStories.find(s => s.id === storyId);
+            }
+            if (!story) return;
+
+            currentReaderStory = story;
+
+            document.getElementById('readerStoryTitle').textContent = story.title || 'Judul Cerita';
+            document.getElementById('readerGenreBadge').textContent = (story.genre || 'cerpen').toUpperCase();
+            document.getElementById('readerAuthorName').textContent = story.author || 'Penulis Cendekia';
+            document.getElementById('readerAuthorTier').textContent = story.authorTier || 'Member 5K';
+            document.getElementById('readerSynopsis').textContent = story.synopsis || (story.body ? story.body.slice(0, 120) : 'Sinopsis cerita...');
+            
+            const likesCount = story.likes || 0;
+            document.getElementById('readerLikesCount').textContent = likesCount;
+            document.getElementById('readerLikesCountBottom').textContent = likesCount;
+
+            const coverWrap = document.getElementById('readerCoverWrap');
+            if (story.coverBase64) {
+                coverWrap.innerHTML = `<img src="${story.coverBase64}" style="width:100%; height:100%; object-fit:cover;" alt="Cover">`;
+            } else {
+                coverWrap.innerHTML = `
+                    <div style="padding:6px;">
+                        <i data-lucide="${story.genre === 'puisi' ? 'feather' : 'book-text'}" style="width:24px; height:24px; margin-bottom:4px; color:#fef08a;"></i>
+                        <span style="font-size:0.55rem; font-weight:800; text-transform:uppercase; display:block;">${(story.genre || 'cerpen').toUpperCase()}</span>
+                    </div>
+                `;
+            }
+
+            const chapters = (story.chapters && Array.isArray(story.chapters) && story.chapters.length > 0)
+                ? story.chapters
+                : [{ id: 'ch_1', title: 'Bagian 1', content: story.body || 'Belum ada isi naskah.' }];
+
+            const select = document.getElementById('readerChapterSelect');
+            select.innerHTML = '';
+            chapters.forEach((ch, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = ch.title || `Bab ${idx + 1}`;
+                select.appendChild(opt);
+            });
+
+            loadReaderChapter(0);
+            document.getElementById('modalStoryReader').style.display = 'flex';
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function loadReaderChapter(chapIdx) {
+            if (!currentReaderStory) return;
+            const chapters = (currentReaderStory.chapters && Array.isArray(currentReaderStory.chapters) && currentReaderStory.chapters.length > 0)
+                ? currentReaderStory.chapters
+                : [{ id: 'ch_1', title: 'Bagian 1', content: currentReaderStory.body || 'Belum ada isi naskah.' }];
+
+            const target = chapters[chapIdx] || chapters[0];
+            document.getElementById('readerChapterHeading').textContent = target.title || `Bab ${chapIdx + 1}`;
+            document.getElementById('readerChapterText').textContent = target.content || '(Bab ini belum memiliki teks naskah)';
+            
+            const scrollBody = document.getElementById('readerScrollBody');
+            if (scrollBody) scrollBody.scrollTop = 0;
+        }
+
+        function changeReaderChapter(idx) {
+            loadReaderChapter(parseInt(idx, 10) || 0);
+        }
+
+        function likeCurrentReaderStory() {
+            if (!currentReaderStory) return;
+            const newLikes = CendekiaApp.likeStory(currentReaderStory.id);
+            currentReaderStory.likes = newLikes;
+            document.getElementById('readerLikesCount').textContent = newLikes;
+            document.getElementById('readerLikesCountBottom').textContent = newLikes;
+            CendekiaApp.addXP(5, 'Mengapresiasi Karya');
+            renderCommunityStoriesFeed();
+        }
+
+        function closeStoryReader() {
+            document.getElementById('modalStoryReader').style.display = 'none';
+            currentReaderStory = null;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             CendekiaApp.renderBottomNav('beranda');
             renderTodayChallenge();
@@ -773,6 +1086,7 @@
             renderWeeklyProgress();
             renderMyRankCard();
             renderRecentWorksCard();
+            renderCommunityStoriesFeed();
 
             window.addEventListener('cendekia:synced', () => {
                 renderTodayChallenge();
@@ -780,6 +1094,7 @@
                 renderWeeklyProgress();
                 renderMyRankCard();
                 renderRecentWorksCard();
+                renderCommunityStoriesFeed();
             });
         });
     </script>
