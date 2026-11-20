@@ -547,8 +547,9 @@
                 </p>
                 <div class="mon-live-clock-badge">
                     <span class="live-pulse-dot"></span>
-                    <span>Sinkronisasi Presisi:</span>
+                    <span>Sinkron Studio:</span>
                     <span class="live-clock-ms" id="liveClockDisplay">00:00:00.000 WIB</span>
+                    <span style="color:#86efac; font-size:0.65rem; font-weight:700; background:rgba(16,185,129,0.2); padding:1px 6px; border-radius:4px; margin-left:4px;" id="liveLatencyDisplay">-- ms</span>
                 </div>
             </div>
 
@@ -742,28 +743,34 @@
         })();
 
         window.loadData = async function() {
+            const startFetchTime = performance.now();
             try {
-                const profileSnap = await getDocs(collection(db, 'author_profiles'));
-                const profiles = [];
-                profileSnap.forEach(d => profiles.push({ id: d.id, ...d.data() }));
+                const [profileSnap, pitchSnapAll, chapterSnapAll] = await Promise.all([
+                    getDocs(collection(db, 'author_profiles')),
+                    getDocs(collection(db, 'pitching_projects')),
+                    getDocs(query(collection(db, 'chapters'), orderBy('timestamp', 'asc')))
+                ]);
+
+                const pitchMap = {};
+                pitchSnapAll.forEach(d => { pitchMap[d.id] = d.data(); });
+
+                const chaptersByUid = {};
+                chapterSnapAll.forEach(d => {
+                    const c = { id: d.id, ...d.data() };
+                    const u = c.uid;
+                    if (u) {
+                        if (!chaptersByUid[u]) chaptersByUid[u] = [];
+                        chaptersByUid[u].push(c);
+                    }
+                });
 
                 allStudents = [];
 
-                for (const profile of profiles) {
-                    const uid = profile.id;
-
-                    let pitching = {};
-                    try {
-                        const pitchSnap = await getDoc(doc(db, 'pitching_projects', uid));
-                        if (pitchSnap.exists()) pitching = pitchSnap.data();
-                    } catch (e) {}
-
-                    let chapters = [];
-                    try {
-                        const q = query(collection(db, 'chapters'), where('uid', '==', uid), orderBy('timestamp', 'asc'));
-                        const chapSnap = await getDocs(q);
-                        chapSnap.forEach(c => chapters.push({ id: c.id, ...c.data() }));
-                    } catch (e) {}
+                profileSnap.forEach(d => {
+                    const uid = d.id;
+                    const profile = d.data();
+                    const pitching = pitchMap[uid] || {};
+                    const chapters = chaptersByUid[uid] || [];
 
                     const totalKata = chapters.reduce((sum, c) => sum + (parseInt(c.jumlah_kata) || 0), 0);
                     const jumlahBab = chapters.length;
@@ -807,7 +814,11 @@
                         canEvalProgress: statusPitching === 'acc' && !isTamat && jumlahBab >= nextThreshold && jumlahBab > 0,
                         canEvalFinal: statusPitching === 'acc' && isTamat && !!linkNaskahLengkap
                     });
-                }
+                });
+
+                const fetchLatencyMs = Math.max(1, Math.round(performance.now() - startFetchTime));
+                const latBadge = document.getElementById('liveLatencyDisplay');
+                if (latBadge) latBadge.textContent = `${fetchLatencyMs} ms`;
 
                 const order = { 'siap-final': 0, 'menulis': 1, 'tamat-gabung': 2, 'selesai': 3, 'dibatalkan': 4 };
                 allStudents.sort((a, b) => (order[a.statusKey] ?? 9) - (order[b.statusKey] ?? 9));
@@ -883,6 +894,31 @@
                        </div>`
                     : '';
 
+                const chaptersDropdownHTML = s.chapters.length > 0
+                    ? s.chapters.map((c, idx) => {
+                        let dateBab = '-';
+                        if (c.timestamp) {
+                            const dt = c.timestamp.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
+                            dateBab = formatDateTimeMs(dt);
+                        }
+                        return `
+                        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:9px 10px; margin-bottom:6px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                                <b style="font-size:0.75rem; color:var(--primary);">Bab ${idx + 1}: ${c.judul_bab || 'Tanpa Judul'}</b>
+                                <span style="font-size:0.65rem; font-weight:800; color:#059669; background:#ecfdf5; padding:2px 7px; border-radius:4px;">${(c.jumlah_kata || 0).toLocaleString('id-ID')} Kata</span>
+                            </div>
+                            <div style="font-size:0.64rem; color:#64748b; margin-bottom:5px; font-family:monospace;">
+                                <i class="fa-regular fa-clock"></i> Masuk: ${dateBab}
+                            </div>
+                            ${c.kendala ? `<div style="font-size:0.68rem; color:#d97706; background:#fffbeb; padding:5px 7px; border-radius:4px; margin-bottom:6px; font-style:italic;">Kendala: "${c.kendala}"</div>` : ''}
+                            <div style="display:flex; gap:6px;">
+                                ${c.link_pdf ? `<a href="${c.link_pdf}" target="_blank" style="padding:4px 8px; font-size:0.65rem; font-weight:700; background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:6px; text-decoration:none;"><i class="fa-solid fa-file-pdf"></i> PDF Bab</a>` : ''}
+                                ${c.link_word ? `<a href="${c.link_word}" target="_blank" style="padding:4px 8px; font-size:0.65rem; font-weight:700; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; text-decoration:none;"><i class="fa-solid fa-file-word"></i> Docs Bab</a>` : ''}
+                            </div>
+                        </div>`;
+                    }).join('')
+                    : '<div style="font-size:0.72rem; color:#94a3b8; font-style:italic; padding:6px 0;">Belum ada bab naskah yang masuk dari studio siswa.</div>';
+
                 return `
                 <div class="student-mon-card" id="card-${s.uid}">
                     <div class="sm-header">
@@ -914,9 +950,18 @@
                     </div>
 
                     <div class="history-btn-toggle" onclick="toggleHistory('${s.uid}')">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Progres (${s.checkpoints.length}) <i class="fa-solid fa-chevron-down" id="chev-${s.uid}"></i>
+                        <i class="fa-solid fa-layer-group"></i> Rincian Bab Studio &amp; Evaluasi (${s.jumlahBab} Bab &bull; ${s.checkpoints.length} Eval) <i class="fa-solid fa-chevron-down" id="chev-${s.uid}"></i>
                     </div>
-                    <div class="history-box" id="hist-${s.uid}">${historyHTML}</div>
+                    <div class="history-box" id="hist-${s.uid}">
+                        <div style="font-size:0.72rem; font-weight:800; color:var(--primary); margin-bottom:6px; display:flex; align-items:center; gap:5px;">
+                            <i class="fa-solid fa-feather-pointed" style="color:#0284c7;"></i> Naskah Masuk dari Studio Siswa:
+                        </div>
+                        ${chaptersDropdownHTML}
+                        <div style="font-size:0.72rem; font-weight:800; color:var(--primary); margin:10px 0 6px 0; display:flex; align-items:center; gap:5px;">
+                            <i class="fa-solid fa-clipboard-check" style="color:#059669;"></i> Catatan Evaluasi Mentor:
+                        </div>
+                        ${historyHTML}
+                    </div>
 
                     ${finalScoreHTML}
 
@@ -927,15 +972,13 @@
                         <button type="button" class="btn-sm-act btn-act-eval-fin" ${s.canEvalFinal ? '' : 'disabled'} onclick="openEvalModal('${s.uid}', 'final')">
                             <i class="fa-solid fa-graduation-cap"></i> Eval Final
                         </button>
-                        <a href="/inkubasi/logbook.html?uid=${s.uid}&ref=admin_mon" target="_blank" class="btn-sm-act btn-act-studio">
-                            <i class="fa-solid fa-feather-pointed"></i> Studio Menulis (Sem. 3)
-                        </a>
                         ${s.linkNaskahLengkap 
                             ? `<a href="${s.linkNaskahLengkap}" target="_blank" class="btn-sm-act btn-act-download"><i class="fa-solid fa-download"></i> Naskah Utuh</a>` 
-                            : (s.statusPitching === 'acc' 
-                                ? `<button type="button" class="btn-sm-act btn-act-cancel" onclick="batalkanProgres('${s.uid}', '${nama.replace(/'/g, "")}')"><i class="fa-solid fa-ban"></i> Batalkan</button>` 
-                                : `<button type="button" class="btn-sm-act btn-act-cancel" disabled style="opacity:0.45;"><i class="fa-solid fa-ban"></i> Batalkan</button>`
-                              )
+                            : ''
+                        }
+                        ${s.statusPitching === 'acc' 
+                            ? `<button type="button" class="btn-sm-act btn-act-cancel" onclick="batalkanProgres('${s.uid}', '${nama.replace(/'/g, "")}')"><i class="fa-solid fa-ban"></i> Batalkan Progres</button>` 
+                            : ''
                         }
                     </div>
                 </div>`;

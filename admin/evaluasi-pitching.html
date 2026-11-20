@@ -73,6 +73,42 @@
             line-height: 1.45;
         }
 
+        /* FILTER PILLS SCROLLABLE (SERAGAM MONITORING NASKAH) */
+        .filter-scroll-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .filter-scroll-row::-webkit-scrollbar { display: none; }
+
+        .filter-pill-btn {
+            padding: 7px 14px;
+            border-radius: var(--radius-full);
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: white;
+            border: 1.5px solid var(--border-soft);
+            color: var(--text-muted);
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .filter-pill-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 51, 102, 0.2);
+        }
+
         /* PROPOSAL ITEM CARD MOBILE */
         .proposal-card-item {
             background: white;
@@ -300,6 +336,31 @@
             white-space: pre-wrap;
         }
 
+        .pm-textarea-auto {
+            width: 100%;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: #334155;
+            background: #f8fafc;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-soft);
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+            resize: none;
+            min-height: 120px;
+            overflow-y: hidden;
+            transition: all 0.2s ease;
+            display: block;
+        }
+
+        .pm-textarea-auto:focus {
+            background: white;
+            border-color: #6d28d9;
+            box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
+        }
+
         .pm-bottom-actions {
             position: fixed;
             bottom: 0;
@@ -519,7 +580,7 @@
 
                 <div class="pm-section-card">
                     <div class="pm-section-lbl"><i class="fa-solid fa-comment-medical" style="color:#059669;"></i> Catatan Evaluasi Mentor</div>
-                    <textarea id="mentor-feedback-pitch" class="form-textarea-control" style="height:140px; font-size:0.78rem;" placeholder="Tuliskan masukan perbaikan atau alasan persetujuan naskah..."></textarea>
+                    <textarea id="mentor-feedback-pitch" class="pm-textarea-auto" placeholder="Tuliskan masukan perbaikan atau alasan persetujuan naskah..." oninput="autoGrow(this)"></textarea>
                 </div>
             </div>
         </div>
@@ -629,9 +690,9 @@
                     `;
                 } else if (p.status === 'acc') {
                     contextualActions = `
-                        <a href="/inkubasi/logbook.html?uid=${p.id}&ref=pitch_mon" target="_blank" class="btn-pc-act btn-act-pitch-studio">
-                            <i class="fa-solid fa-feather-pointed"></i> Buka Studio Menulis Siswa (Sem. 3)
-                        </a>
+                        <button type="button" class="btn-pc-act btn-act-pitch-acc" disabled style="grid-column: span 2; opacity: 0.95; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">
+                            <i class="fa-solid fa-circle-check"></i> Disetujui (ACC) &bull; Sedang Menulis
+                        </button>
                     `;
                 }
 
@@ -693,9 +754,17 @@
                 outCont.innerHTML = '<div style="font-size:0.75rem; color:#94a3b8; font-style:italic;">Tidak ada outline terlampir.</div>';
             }
 
-            document.getElementById('mentor-feedback-pitch').value = d.feedback_mentor || '';
+            const fbInput = document.getElementById('mentor-feedback-pitch');
+            fbInput.value = d.feedback_mentor || '';
+            window.autoGrow(fbInput);
             window.switchPitchTab('doc');
             document.getElementById('pitch-eval-modal').classList.add('active');
+        };
+
+        window.autoGrow = (el) => {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = Math.max(120, el.scrollHeight) + 'px';
         };
 
         window.closePitchModal = () => {
@@ -755,6 +824,7 @@
             } catch(e) {
                 fb.value = 'Proposal naskah ini telah ditinjau dan memenuhi syarat dasar outline.';
             } finally {
+                window.autoGrow(fb);
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Proposal dengan AI';
             }
