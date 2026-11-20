@@ -1,32 +1,35 @@
 /**
  * ==========================================================================
  * CENDEKIA AKSARA - SISTEM NOTIFIKASI PUSAT (notifikasi.js)
- * Versi: 2.5.0
+ * Versi: 2.6.0 (Engine Notifikasi Latar Belakang & Layar Kunci HP)
  * 
  * Fitur Utama:
- * 1. Notifikasi Game & Mode Bermain Terbuka
- * 2. Notifikasi Pemerolehan (XP, Lencana, Level Up, Hadiah)
- * 3. Notifikasi Ulang Tahun Siswa (Otomatis & Terjadwal)
- * 4. Dukungan Penuh Service Worker & Push Notification Native
- *    (Tetap terkirim dan muncul walau aplikasi web ditutup)
- * 5. Tahan Banting: Jika API Offline / Mati, Notifikasi Tetap Berjalan
- *    secara mandiri tanpa error atau bug.
- * 6. UI Floating Banner, Notification Bell & Drawer, serta Audio Chime.
+ * 1. Pemicu Notifikasi Layar Kunci HP (Walau Aplikasi Web Ditutup)
+ * 2. Meminta Izin Secara Cepat & Izin Diingat Langsung (Persisten)
+ * 3. Integrasi Otomatis OneSignal Web Push v16 & Service Worker Native
+ * 4. Pemicu Otomatis: Game Harian Terbuka, Hadiah/Lencana, Ulang Tahun Siswa
+ * 5. Tahan Banting: Jika API Offline / Server Mati, Notifikasi Berjalan Mandiri
+ *    tanpa bug dan tanpa error.
+ * 6. Banner In-App Elegan, Slide-in Drawer, Floating Bell, & Sintesis Audio Chime.
  * ==========================================================================
  */
 
 (function (window, document) {
     'use strict';
 
-    // Konfigurasi & State
+    // Konfigurasi & Kunci Penyimpanan Lokal
     const STORAGE_KEY_HISTORY = 'cendekia_notifikasi_history';
     const STORAGE_KEY_SETTINGS = 'cendekia_notifikasi_settings';
     const STORAGE_KEY_LAST_GAME = 'cendekia_last_game_notif_date';
     const STORAGE_KEY_LAST_ULTAH = 'cendekia_last_ultah_notif_year';
+    const STORAGE_KEY_PERM_STATE = 'cendekia_notif_permission_state';
+    const ONESIGNAL_APP_ID = "a64fbdf1-dc29-48a3-a3a9-09e61157bca9";
+    const ONESIGNAL_SAFARI_ID = "web.onesignal.auto.5a33fe23-ccc7-4feb-afe0-cf26b0b7b29c";
 
     let swRegistration = null;
     let isAudioChimeEnabled = true;
     let audioCtx = null;
+    let oneSignalReady = false;
 
     // Deteksi Prefix Portal Member
     function detectPortalPrefix() {
@@ -41,7 +44,7 @@
     const PORTAL_PREFIX = detectPortalPrefix();
 
     // ======================================================================
-    // 1. AUDIO CHIME GENERATOR (WEB AUDIO API - SINTESIS MANDIRI TANPA MP3)
+    // 1. AUDIO CHIME GENERATOR (SINTESIS NADA WEB AUDIO API - ZERO DEPENDENCY)
     // ======================================================================
     function playNotificationChime() {
         if (!isAudioChimeEnabled) return;
@@ -54,7 +57,7 @@
             }
 
             const now = audioCtx.currentTime;
-            const notes = [523.25, 659.25, 783.99]; // Nada C5, E5, G5 (Akor C Mayor ceria)
+            const notes = [523.25, 659.25, 783.99]; // Akor C Mayor: C5, E5, G5 ceria
             notes.forEach((freq, idx) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -73,11 +76,11 @@
                 osc.stop(now + idx * 0.08 + 0.38);
             });
         } catch (_) {
-            // Audio bypass jika dibatasi kebijakan autoplay peramban
+            // Autoplay policy bypass
         }
     }
 
-    function vibrateDevice(pattern = [150, 60, 150]) {
+    function vibrateDevice(pattern = [300, 100, 300, 100, 300]) {
         try {
             if ('vibrate' in navigator) {
                 navigator.vibrate(pattern);
@@ -94,7 +97,6 @@
         try {
             const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             swRegistration = reg;
-            console.log('[CendekiaNotifikasi] Service Worker aktif dengan scope:', reg.scope);
 
             // Daftarkan Periodic Background Sync jika didukung peramban
             if ('periodicSync' in reg) {
@@ -117,7 +119,7 @@
 
             return reg;
         } catch (err) {
-            console.warn('[CendekiaNotifikasi] Registrasi SW gagal, mode fallback lokal aktif:', err.message);
+            console.warn('[CendekiaNotifikasi] Service Worker fallback aktif:', err.message);
             return null;
         }
     }
@@ -144,7 +146,64 @@
     }
 
     // ======================================================================
-    // 3. MANAJEMEN PENYIMPANAN RIWAYAT NOTIFIKASI (LOCAL STORAGE PERSISTEN)
+    // 3. ONESIGNAL SDK AUTO-LOADER & REGISTRASI PUSH LAYAR KUNCI
+    // ======================================================================
+    function initOneSignal(user) {
+        return new Promise((resolve) => {
+            if (typeof window === 'undefined') return resolve(null);
+
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+            // Muat skrip OneSignal jika belum ada di head
+            if (!document.getElementById('cendekia-onesignal-sdk')) {
+                const s = document.createElement('script');
+                s.id = 'cendekia-onesignal-sdk';
+                s.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+                s.defer = true;
+                document.head.appendChild(s);
+            }
+
+            OneSignalDeferred.push(async function (OneSignal) {
+                try {
+                    await OneSignal.init({
+                        appId: ONESIGNAL_APP_ID,
+                        safari_web_id: ONESIGNAL_SAFARI_ID,
+                        allowLocalhostAsSecureOrigin: true,
+                        serviceWorkerPath: "/sw.js",
+                        serviceWorkerParam: { scope: "/" }
+                    });
+
+                    oneSignalReady = true;
+
+                    // Sambungkan UID Siswa ke OneSignal untuk push presisi
+                    if (user && user.uid) {
+                        try {
+                            await OneSignal.login(user.uid);
+                            OneSignal.User.addTags({
+                                nama: user.name || 'Siswa Cendekia',
+                                tier: user.tier || 'Member Free',
+                                role: user.role || 'siswa',
+                                semester: String(user.semester || '1')
+                            });
+                        } catch (_) {}
+                    }
+
+                    // Sinkronkan status izin OneSignal dengan localStorage
+                    if (OneSignal.Notifications && OneSignal.Notifications.permission) {
+                        localStorage.setItem(STORAGE_KEY_PERM_STATE, 'granted');
+                    }
+
+                    resolve(OneSignal);
+                } catch (e) {
+                    console.warn('[CendekiaNotifikasi] OneSignal init bypass:', e.message);
+                    resolve(null);
+                }
+            });
+        });
+    }
+
+    // ======================================================================
+    // 4. MANAJEMEN PENYIMPANAN RIWAYAT NOTIFIKASI
     // ======================================================================
     function getNotificationHistory() {
         try {
@@ -156,7 +215,6 @@
 
     function saveNotificationHistory(list) {
         try {
-            // Batasi maksimal 50 notifikasi terbaru agar hemat memori
             const trimmed = list.slice(0, 50);
             localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(trimmed));
             updateBellBadge();
@@ -202,7 +260,7 @@
     }
 
     // ======================================================================
-    // 4. FLOATING NOTIFICATION BANNER / TOAST (IN-APP)
+    // 5. FLOATING NOTIFICATION BANNER (IN-APP TOAST)
     // ======================================================================
     function showInAppBanner(item) {
         const existing = document.getElementById('cendekia-toast-banner');
@@ -212,23 +270,18 @@
         toast.id = 'cendekia-toast-banner';
         toast.className = 'cendekia-notif-toast';
 
-        // Tentukan icon & warna berdasarkan jenis
         let iconHtml = '<i class="fa-solid fa-bell"></i>';
-        let badgeColor = '#003366';
         let bgGrad = 'linear-gradient(135deg, #001f3f 0%, #003366 100%)';
 
         if (item.jenis === 'game' || item.jenis === 'game_score') {
             iconHtml = '<i class="fa-solid fa-gamepad"></i>';
             bgGrad = 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)';
-            badgeColor = '#7c3aed';
         } else if (item.jenis === 'ultah') {
             iconHtml = '<i class="fa-solid fa-cake-candles"></i>';
             bgGrad = 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)';
-            badgeColor = '#d97706';
         } else if (item.jenis === 'reward' || item.jenis === 'lencana') {
             iconHtml = '<i class="fa-solid fa-medal"></i>';
             bgGrad = 'linear-gradient(135deg, #065f46 0%, #059669 100%)';
-            badgeColor = '#059669';
         }
 
         toast.style.background = bgGrad;
@@ -241,7 +294,6 @@
             <button type="button" class="cnt-close-btn" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
         `;
 
-        // Klik toast untuk membuka halaman tujuan
         toast.addEventListener('click', (e) => {
             if (e.target.closest('.cnt-close-btn')) {
                 toast.classList.remove('active');
@@ -256,7 +308,6 @@
         document.body.appendChild(toast);
         setTimeout(() => toast.classList.add('active'), 20);
 
-        // Auto dismiss setelah 5.5 detik
         setTimeout(() => {
             if (document.body.contains(toast)) {
                 toast.classList.remove('active');
@@ -266,27 +317,32 @@
     }
 
     // ======================================================================
-    // 5. NATIVE BROWSER & SERVICE WORKER PUSH NOTIFICATION
+    // 6. NATIVE BROWSER & SERVICE WORKER LOCKSCREEN NOTIFICATION
     // ======================================================================
     function showNativeNotification(item) {
         if (!('Notification' in window)) return;
 
-        // Hanya jalankan jika izin diberikan
         if (Notification.permission === 'granted') {
             const title = item.judul || "Cendekia Aksara";
             const options = {
                 body: item.pesan || "",
                 icon: "https://i.imgur.com/5Srjyo4.png",
                 badge: "https://i.imgur.com/5Srjyo4.png",
-                vibrate: [200, 100, 200],
-                tag: item.jenis + '-' + Date.now(),
+                vibrate: [300, 100, 300, 100, 300], // Getar layar kunci
+                tag: (item.jenis || 'cendekia') + '-' + Date.now(),
                 renotify: true,
+                requireInteraction: true, // Banner tetap bertahan di layar kunci HP
+                silent: false,
                 data: {
                     url: item.urlTujuan || `${PORTAL_PREFIX}/index.html`
-                }
+                },
+                actions: [
+                    { action: 'open', title: '🚀 Buka Sekarang' },
+                    { action: 'close', title: 'Tutup' }
+                ]
             };
 
-            // Prioritaskan via Service Worker agar tetap muncul walau tab diminimalkan
+            // Kirim lewat Service Worker agar memicu layar kunci HP
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SHOW_NOTIFICATION',
@@ -309,9 +365,9 @@
     }
 
     // ======================================================================
-    // 6. DISPATCHER PUSAT NOTIFIKASI (MULTI-CHANNEL DENGAN FALLBACK FAIL-SAFE)
+    // 7. DISPATCHER PUSAT NOTIFIKASI (MULTI-CHANNEL DENGAN PERLINDUNGAN KEBAL ERROR)
     // ======================================================================
-    async function kirimNotifikasi({ judul, pesan, urlTujuan, jenis = 'umum', icon = 'bell', targetUid = null, semester = null }) {
+    async function kirimNotifikasi({ judul, pesan, urlTujuan, jenis = 'umum', icon = 'bell', targetUid = null, semester = null, send_after = null }) {
         if (!judul && !pesan) return;
 
         const payload = {
@@ -325,21 +381,21 @@
         // 1. Simpan ke Riwayat Lokal
         addNotificationToHistory(payload);
 
-        // 2. Mainkan Suara & Getaran Halus
+        // 2. Bunyikan Chime Audio & Getaran HP
         playNotificationChime();
         vibrateDevice();
 
-        // 3. Tampilkan Banner In-App jika jendela aktif
+        // 3. Tampilkan Banner In-App jika web sedang dibuka
         showInAppBanner(payload);
 
-        // 4. Tampilkan Native Notification di OS / HP Siswa
+        // 4. Pemicu Notifikasi Layar Kunci HP
         showNativeNotification(payload);
 
-        // 5. Coba Kirim ke Serverless API /api/notif secara asinkron dengan batas waktu
-        // PENTING: Jika API mati / tidak aktif, proses lokal SUDAH SELESAI, sehingga TIDAK ADA ERROR!
+        // 5. Kirim Push ke /api/notif untuk dipancarkan ke HP melalui OneSignal
+        // Sifatnya asinkron & fail-safe: jika API tidak aktif / offline, sistem lokal tetap jalan mulus
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 detik timeout
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
 
             fetch('/api/notif', {
                 method: 'POST',
@@ -350,7 +406,8 @@
                     urlTujuan: payload.urlTujuan,
                     jenis: payload.jenis,
                     semester: semester,
-                    targetUid: targetUid
+                    targetUid: targetUid,
+                    send_after: send_after
                 }),
                 signal: controller.signal
             }).then(res => {
@@ -358,7 +415,7 @@
                 return res.json();
             }).catch(() => {
                 clearTimeout(timeoutId);
-                // API mati / tidak terhubung, sistem otomatis berjalan dalam mode mandiri lokal
+                // API Offline: Ditangani mandiri tanpa bug
             });
         } catch (_) {}
 
@@ -366,7 +423,130 @@
     }
 
     // ======================================================================
-    // 7. PEMICU NOTIFIKASI OTOMATIS: GAME, ULANG TAHUN, DAN REWARD
+    // 8. PEMINTA IZIN CEPAT & PENYIMPANAN IZIN PERSISTEN ("IZIN DIINGAT LANGSUNG")
+    // ======================================================================
+    async function requestPushPermissionDirectly() {
+        if (!('Notification' in window)) return 'unsupported';
+
+        try {
+            let perm = Notification.permission;
+            if (perm === 'default') {
+                perm = await Notification.requestPermission();
+            }
+
+            // Simpan status izin langsung ke localStorage agar diingat permanen
+            localStorage.setItem(STORAGE_KEY_PERM_STATE, perm);
+
+            if (perm === 'granted') {
+                // Beri tahu OneSignal
+                if (window.OneSignal && OneSignal.Notifications) {
+                    try {
+                        await OneSignal.Notifications.requestPermission();
+                    } catch (_) {}
+                }
+
+                // Kirim notifikasi sambutan langsung ke layar kunci HP
+                kirimNotifikasi({
+                    judul: '🔔 Notifikasi Layar Kunci Aktif!',
+                    pesan: 'Kamu akan menerima info game harian, skor terbaru, dan ucapan ultah langsung di HP walau aplikasi ditutup.',
+                    urlTujuan: `${PORTAL_PREFIX}/index.html`,
+                    jenis: 'umum'
+                });
+
+                // Jadwalkan pengingat game harian besok pagi jam 07:00 WIB
+                scheduleTomorrowMorningGamePush();
+            }
+
+            // Tutup banner izin jika ada
+            const promptBox = document.getElementById('cendekia-permission-prompt');
+            if (promptBox) promptBox.remove();
+
+            return perm;
+        } catch (err) {
+            console.warn('[CendekiaNotifikasi] Permintaan izin error:', err);
+            return 'denied';
+        }
+    }
+
+    // Jadwalkan pengingat game esok hari jam 07:00 WIB via API/OneSignal
+    function scheduleTomorrowMorningGamePush() {
+        try {
+            const now = new Date();
+            // Jam 07:00 WIB = 00:00 UTC hari berikutnya
+            const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+            const sendAfterISO = tomorrowUTC.toISOString();
+
+            fetch('/api/notif', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    judul: '🎮 Mode Bermain Terbuka!',
+                    pesan: 'Mode Santai, Tantangan, dan Acak hari ini sudah siap dimainkan. Asah kosakatamu dan raih skor tertinggi!',
+                    urlTujuan: `${PORTAL_PREFIX}/bermain.html`,
+                    jenis: 'game',
+                    send_after: sendAfterISO
+                })
+            }).catch(() => {});
+        } catch (_) {}
+    }
+
+    // Cek dan tampilkan banner permintaan izin apik jika belum pernah diputuskan
+    function checkAndPromptPermission() {
+        if (!('Notification' in window)) return;
+
+        const currentPerm = Notification.permission;
+        const savedPerm = localStorage.getItem(STORAGE_KEY_PERM_STATE);
+
+        // Jika sudah diizinkan, pastikan tersimpan permanen
+        if (currentPerm === 'granted') {
+            if (savedPerm !== 'granted') {
+                localStorage.setItem(STORAGE_KEY_PERM_STATE, 'granted');
+            }
+            return;
+        }
+
+        // Jika sudah ditolak secara permanen oleh peramban, jangan spam popup
+        if (currentPerm === 'denied') {
+            localStorage.setItem(STORAGE_KEY_PERM_STATE, 'denied');
+            return;
+        }
+
+        // Tampilkan Banner Aktivasi Notifikasi Layar Kunci
+        setTimeout(() => {
+            if (document.getElementById('cendekia-permission-prompt')) return;
+
+            const prompt = document.createElement('div');
+            prompt.id = 'cendekia-permission-prompt';
+            prompt.className = 'cendekia-permission-box';
+            prompt.innerHTML = `
+                <div style="display:flex; align-items:flex-start; gap:12px;">
+                    <div class="cpp-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                    <div style="flex:1;">
+                        <div class="cpp-title">Aktifkan Notifikasi Layar Kunci HP</div>
+                        <div class="cpp-desc">Dapatkan pengingat otomatis saat game harian terbuka & ucapan ulang tahun langsung di HP walau aplikasi sedang ditutup.</div>
+                        <div class="cpp-btn-row">
+                            <button type="button" class="cpp-btn-allow" id="btn-allow-notif">⚡ Izinkan Sekarang</button>
+                            <button type="button" class="cpp-btn-later" id="btn-later-notif">Nanti Saja</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(prompt);
+
+            document.getElementById('btn-allow-notif').addEventListener('click', () => {
+                requestPushPermissionDirectly();
+            });
+
+            document.getElementById('btn-later-notif').addEventListener('click', () => {
+                localStorage.setItem(STORAGE_KEY_PERM_STATE, 'later');
+                prompt.remove();
+            });
+        }, 1200);
+    }
+
+    // ======================================================================
+    // 9. PEMICU NOTIFIKASI OTOMATIS: GAME, ULANG TAHUN, DAN REWARD
     // ======================================================================
 
     // A. Notifikasi Game & Mode Bermain Terbuka
@@ -386,7 +566,7 @@
         }
     }
 
-    // Pemicu saat skor game selesai
+    // B. Notifikasi Skor Game Selesai
     function notifSkorBermain(modeName, score, xp) {
         kirimNotifikasi({
             judul: `🏆 Skor Bermain: Mode ${modeName || 'Literasi'}!`,
@@ -397,7 +577,7 @@
         });
     }
 
-    // B. Notifikasi Ulang Tahun Siswa
+    // C. Notifikasi Ulang Tahun Siswa
     function cekNotifikasiUlangTahun(user) {
         if (!user || !user.tanggalLahir) return;
 
@@ -426,7 +606,7 @@
         }
     }
 
-    // C. Notifikasi Pemerolehan (XP / Lencana / Level Up)
+    // D. Notifikasi Pemerolehan (XP / Lencana / Level Up)
     function notifPemerolehan({ tipe = 'lencana', nama = '', xp = 0, levelTitle = '' }) {
         if (tipe === 'lencana') {
             kirimNotifikasi({
@@ -456,61 +636,7 @@
     }
 
     // ======================================================================
-    // 8. UI PERMISSION PROMPT BANNER (RAMAH PENGGUNA)
-    // ======================================================================
-    function checkAndPromptPermission() {
-        if (!('Notification' in window)) return;
-        if (Notification.permission === 'default') {
-            const hasDismissed = sessionStorage.getItem('cendekia_notif_prompt_dismissed');
-            if (hasDismissed) return;
-
-            setTimeout(() => {
-                if (document.getElementById('cendekia-permission-prompt')) return;
-
-                const prompt = document.createElement('div');
-                prompt.id = 'cendekia-permission-prompt';
-                prompt.className = 'cendekia-permission-box';
-                prompt.innerHTML = `
-                    <div style="display:flex; align-items:flex-start; gap:12px;">
-                        <div class="cpp-icon"><i class="fa-solid fa-bell-ring"></i></div>
-                        <div style="flex:1;">
-                            <div class="cpp-title">Aktifkan Notifikasi Cendekia</div>
-                            <div class="cpp-desc">Dapatkan pengingat otomatis game harian, kejutan ulang tahun, dan pemerolehan lencana langsung di perangkatmu.</div>
-                            <div class="cpp-btn-row">
-                                <button type="button" class="cpp-btn-allow" id="btn-allow-notif">Aktifkan Sekarang</button>
-                                <button type="button" class="cpp-btn-later" id="btn-later-notif">Nanti Saja</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                document.body.appendChild(prompt);
-
-                document.getElementById('btn-allow-notif').addEventListener('click', async () => {
-                    prompt.remove();
-                    try {
-                        const perm = await Notification.requestPermission();
-                        if (perm === 'granted') {
-                            kirimNotifikasi({
-                                judul: '🔔 Notifikasi Cendekia Aktif!',
-                                pesan: 'Kamu akan menerima info mode bermain terbuka, skor terbaru, dan ucapan ulang tahun tepat waktu.',
-                                urlTujuan: `${PORTAL_PREFIX}/index.html`,
-                                jenis: 'umum'
-                            });
-                        }
-                    } catch (_) {}
-                });
-
-                document.getElementById('btn-later-notif').addEventListener('click', () => {
-                    sessionStorage.setItem('cendekia_notif_prompt_dismissed', 'true');
-                    prompt.remove();
-                });
-            }, 3000);
-        }
-    }
-
-    // ======================================================================
-    // 9. UI FLOATING NOTIFICATION BELL & SLIDE-IN DRAWER
+    // 10. UI FLOATING BELL, SLIDE-IN DRAWER & STYLING
     // ======================================================================
     function injectNotificationStyles() {
         if (document.getElementById('cendekia-notif-styles')) return;
@@ -604,15 +730,15 @@
                 to { bottom: 20px; opacity: 1; }
             }
             .cpp-icon {
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                background: #fef3c7;
-                color: #d97706;
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+                color: #d4af37;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 15px;
+                font-size: 18px;
                 flex-shrink: 0;
             }
             .cpp-title {
@@ -635,19 +761,21 @@
                 background: #003366;
                 color: white;
                 border: none;
-                padding: 7px 14px;
+                padding: 8px 14px;
                 border-radius: 8px;
-                font-size: 0.74rem;
+                font-size: 0.75rem;
                 font-weight: 800;
                 cursor: pointer;
+                transition: background 0.2s;
             }
+            .cpp-btn-allow:hover { background: #001f3f; }
             .cpp-btn-later {
                 background: #f1f5f9;
                 color: #64748b;
                 border: none;
-                padding: 7px 12px;
+                padding: 8px 12px;
                 border-radius: 8px;
-                font-size: 0.74rem;
+                font-size: 0.75rem;
                 font-weight: 700;
                 cursor: pointer;
             }
@@ -815,7 +943,7 @@
     function injectFloatingBell() {
         if (document.getElementById('cendekia-floating-bell-btn')) return;
 
-        // Floating Bell Widget
+        // Tombol Lonceng Mengambang
         const bell = document.createElement('div');
         bell.id = 'cendekia-floating-bell-btn';
         bell.className = 'cendekia-floating-bell';
@@ -849,11 +977,11 @@
                     </div>
                 </div>
 
-                <!-- TEST NOTIFIKASI QUICK BUTTON -->
+                <!-- QUICK TEST & STATUS BAR -->
                 <div style="background:#fffbeb; padding:8px 14px; border-bottom:1px solid #fef3c7; display:flex; align-items:center; justify-content:space-between;">
-                    <span style="font-size:0.68rem; color:#92400e; font-weight:700;"><i class="fa-solid fa-shield-halved"></i> Engine Notifikasi Mandiri</span>
-                    <button type="button" id="cnd-btn-test-notif" style="background:#d97706; color:white; border:none; padding:3px 8px; border-radius:4px; font-size:0.65rem; font-weight:800; cursor:pointer;">
-                        Uji Suara &amp; Notif
+                    <span style="font-size:0.68rem; color:#92400e; font-weight:700;"><i class="fa-solid fa-mobile-screen"></i> Antena Layar Kunci HP</span>
+                    <button type="button" id="cnd-btn-test-notif" style="background:#d97706; color:white; border:none; padding:4px 10px; border-radius:6px; font-size:0.65rem; font-weight:800; cursor:pointer;">
+                        Uji Banner &amp; Getar
                     </button>
                 </div>
 
@@ -884,9 +1012,15 @@
             clearAllNotifications();
         });
         document.getElementById('cnd-btn-test-notif').addEventListener('click', () => {
+            // Jika izin belum granted, pemicu izin langsung
+            if (('Notification' in window) && Notification.permission !== 'granted') {
+                requestPushPermissionDirectly();
+                return;
+            }
+
             kirimNotifikasi({
-                judul: '🔔 Uji Coba Notifikasi Cendekia!',
-                pesan: 'Sistem notifikasi mandiri, push service worker, dan audio chime bekerja dengan sempurna.',
+                judul: '🔔 Uji Coba Layar Kunci Berhasil!',
+                pesan: 'Engine notifikasi mandiri, push background, getaran HP, dan audio chime bekerja prima.',
                 urlTujuan: `${PORTAL_PREFIX}/bermain.html`,
                 jenis: 'game'
             });
@@ -902,13 +1036,12 @@
         overlay.classList.toggle('open');
         if (overlay.classList.contains('open')) {
             renderDrawerNotifications();
-            // Update status SW di header drawer
             const statusEl = document.getElementById('cnd-sw-status');
             if (statusEl) {
                 const hasPerm = ('Notification' in window) && Notification.permission === 'granted';
                 statusEl.innerHTML = hasPerm 
-                    ? '<span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Push Perangkat: Aktif</span>' 
-                    : '<span style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Push Native: Belum Diizinkan (In-App Aktif)</span>';
+                    ? '<span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Layar Kunci &amp; Push: Aktif</span>' 
+                    : '<span style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Push Layar Kunci: Belum Diizinkan</span>';
             }
         }
     }
@@ -1003,7 +1136,7 @@
     }
 
     // ======================================================================
-    // 10. INISIALISASI UTAMA & SINKRONISASI PENGGUNA
+    // 11. INISIALISASI UTAMA & SINKRONISASI PENGGUNA
     // ======================================================================
     async function init() {
         injectNotificationStyles();
@@ -1020,20 +1153,20 @@
             } catch (_) {}
         }
 
-        // Sinkronisasi identitas siswa ke Service Worker
+        // Inisialisasi OneSignal SDK & kaitkan akun siswa
+        initOneSignal(user);
+
+        // Sinkronisasi data siswa ke Service Worker
         if (user) {
             syncUserDataToServiceWorker(user);
-
-            // Cek notifikasi otomatis
             cekNotifikasiGameHarian();
             cekNotifikasiUlangTahun(user);
         }
 
-        // Cek prompt perizinan browser jika belum diputuskan
+        // Periksa izin push dan aktifkan permintaan jika belum diputuskan
         checkAndPromptPermission();
     }
 
-    // Auto-run saat DOM siap
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
@@ -1041,11 +1174,12 @@
     }
 
     // ======================================================================
-    // 11. EKSPOR PUBLIK API (window.CendekiaNotifikasi)
+    // 12. EKSPOR PUBLIK API (window.CendekiaNotifikasi)
     // ======================================================================
     window.CendekiaNotifikasi = {
         init,
         kirim: kirimNotifikasi,
+        requestPermission: requestPushPermissionDirectly,
         notifGameTerbuka: cekNotifikasiGameHarian,
         notifSkorBermain: notifSkorBermain,
         notifUltah: cekNotifikasiUlangTahun,
