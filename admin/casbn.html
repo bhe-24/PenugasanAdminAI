@@ -3,192 +3,740 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sistem Penerbitan CASBN - Admin</title>
+    <title>Pustaka & Draf CASBN - Cendekia Aksara</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Poppins:wght@300;400;500;600;700;900&family=Libre+Barcode+39+Extended+Text&display=swap" rel="stylesheet">
+    <!-- FONTS & ICONS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Libre+Barcode+39+Extended+Text&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- LIBRARIES FOR GENERATING CODES & EXPORTING -->
+    <!-- LIBRARIES -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <!-- MASTER ADMIN STYLESHEET -->
+    <link rel="stylesheet" href="/admin/admin-central.css">
+
     <style>
-        :root { --primary: #003366; --gold: #d4af37; --bg: #f4f6f9; --text-dark: #1e293b; --text-gray: #64748b; }
-        body { background-color: var(--bg); font-family: 'Poppins', sans-serif; color: var(--text-dark); margin: 0; padding-bottom: 50px; }
-        * { box-sizing: border-box; outline: none; }
-        .container { max-width: 1300px; width: 100%; margin: 0 auto; padding: 20px; } 
-
-        /* HEADER BRANDED */
-        .brand-header {
-            background: linear-gradient(135deg, #001f3f 0%, #003366 100%); color: white; 
-            padding: 25px 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0, 31, 63, 0.3);
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;
+        /* ============================================================
+           CASBN PORTAL MOBILE-FIRST STYLING (MATCHES INDEX DESIGN)
+           ============================================================ */
+        .casbn-hero-banner {
+            background: linear-gradient(135deg, #001f3f 0%, #003366 65%, #0d4b8a 100%);
+            border-radius: var(--radius-lg);
+            padding: 18px 16px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 24px rgba(0, 31, 63, 0.22);
+            border: 1.5px solid rgba(212, 175, 55, 0.35);
+            margin-bottom: 14px;
         }
-        .header-info h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin: 0; color: var(--gold); letter-spacing: 1px; }
-        .header-info p { font-size: 0.85rem; opacity: 0.9; margin: 5px 0 0 0; }
-        .btn-back { background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); transition: 0.3s; }
-        .btn-back:hover { background: white; color: var(--primary); }
 
-        /* GRID LAYOUT */
-        .dashboard-grid { display: grid; grid-template-columns: 400px 1fr; gap: 25px; align-items: start; }
-        .card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
-        .sticky-card { position: sticky; top: 20px; }
-        .card-header { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #e2e8f0; }
+        .casbn-hero-banner::after {
+            content: "\f02a";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            right: -10px;
+            bottom: -22px;
+            font-size: 5rem;
+            color: rgba(255, 255, 255, 0.06);
+            pointer-events: none;
+        }
 
-        /* FORM STYLES */
-        .form-group { margin-bottom: 15px; }
-        .form-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
-        .badge-req { color: #dc2626; font-size: 0.7rem; }
-        .badge-opt { color: #94a3b8; font-size: 0.7rem; }
-        .form-input, .form-select, .form-textarea { width: 100%; padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: 'Poppins', sans-serif; font-size: 0.9rem; background: #f8fafc; transition: 0.3s; }
-        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1); }
-        .preview-img { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 10px; display: none; }
-        .btn-submit { width: 100%; background: var(--primary); color: white; padding: 14px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s; margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
-        .btn-submit:hover { background: #001f3f; }
+        .casbn-hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            color: #fef08a;
+            padding: 3px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
 
-        /* PUSTAKA TABLE */
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 0.85rem; }
-        th { background: #f8fafc; color: var(--text-gray); font-weight: 600; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 15px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        .book-cover-mini { width: 45px; height: 65px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        
-        .sbn-badge { background: #fef08a; color: #9a3412; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-weight: 800; font-size: 0.9rem; border: 1px solid #fde68a; display: inline-block; margin-bottom: 5px; }
-        .btn-act { background: none; border: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; }
-        .btn-act.view { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
-        .btn-act.view:hover { background: #2563eb; color: white; }
-        .btn-act.download { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; margin-top: 5px; width: 100%; justify-content: center;}
-        .btn-act.download:hover { background: #16a34a; color: white; }
+        .casbn-hero-title {
+            font-size: 1.12rem;
+            font-weight: 800;
+            margin: 0 0 4px 0;
+            line-height: 1.25;
+            color: #ffffff;
+        }
 
-        /* --- TEMPLATE CETAK BARCODE/QR (DISEMBUNYIKAN DARI UI) --- */
+        .casbn-hero-desc {
+            font-size: 0.74rem;
+            color: #cbd5e1;
+            margin: 0 0 14px 0;
+            line-height: 1.45;
+        }
+
+        .btn-create-casbn-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            background: linear-gradient(135deg, #d4af37 0%, #b89124 100%);
+            color: #0b1329;
+            font-weight: 800;
+            font-size: 0.85rem;
+            padding: 12px 18px;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            box-shadow: 0 6px 18px rgba(212, 175, 55, 0.35);
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-create-casbn-cta:hover, .btn-create-casbn-cta:active {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(212, 175, 55, 0.45);
+            color: #000;
+        }
+
+        /* STATS COUNTER SUMMARY */
+        .casbn-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .casbn-stat-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            border: 1.5px solid var(--border-soft);
+            box-shadow: 0 2px 6px rgba(0, 51, 102, 0.04);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .casbn-stat-card:hover {
+            border-color: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+        .casbn-stat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .casbn-stat-number {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            line-height: 1.1;
+        }
+
+        .casbn-stat-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* SEGMENTED TABS (2 HALAMAN: TERBIT & DRAF) */
+        .casbn-tabs-bar {
+            display: flex;
+            background: #e2e8f0;
+            padding: 4px;
+            border-radius: var(--radius-full);
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .casbn-tab-btn {
+            flex: 1;
+            padding: 9px 12px;
+            border-radius: var(--radius-full);
+            font-size: 0.74rem;
+            font-weight: 800;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .casbn-tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .casbn-tab-badge {
+            background: var(--bg-muted);
+            color: var(--text-muted);
+            padding: 2px 7px;
+            border-radius: var(--radius-full);
+            font-size: 0.66rem;
+            font-weight: 800;
+        }
+
+        .casbn-tab-btn.active .casbn-tab-badge {
+            background: #e0f2fe;
+            color: var(--secondary);
+        }
+
+        .casbn-tab-btn.active .casbn-tab-badge.draft-badge-active {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        /* SEARCH & FILTER CONTROLS */
+        .casbn-filter-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .casbn-search-box {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .casbn-search-box i {
+            position: absolute;
+            left: 12px;
+            color: var(--text-light);
+            font-size: 13px;
+            pointer-events: none;
+        }
+
+        .casbn-search-input {
+            width: 100%;
+            height: 38px;
+            background: white;
+            border: 1.5px solid var(--border-soft);
+            border-radius: var(--radius-full);
+            padding: 0 32px 0 34px;
+            font-size: 0.8rem;
+            color: var(--text-dark);
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+
+        .casbn-search-input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+        }
+
+        .casbn-clear-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 13px;
+        }
+
+        .casbn-category-select {
+            height: 38px;
+            background: white;
+            border: 1.5px solid var(--border-soft);
+            border-radius: var(--radius-full);
+            padding: 0 12px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--text-body);
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* BOOK ITEM CARD (MEMBER / INDEX STYLE) */
+        .casbn-book-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 12px;
+            border: 1.5px solid var(--border-soft);
+            box-shadow: 0 2px 6px rgba(0, 51, 102, 0.04);
+            margin-bottom: 10px;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .casbn-book-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(0, 51, 102, 0.08);
+        }
+
+        .casbn-card-top-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .casbn-cover-thumb {
+            width: 58px;
+            height: 84px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid var(--border-soft);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            background: #f1f5f9;
+            flex-shrink: 0;
+        }
+
+        .casbn-cover-placeholder {
+            width: 58px;
+            height: 84px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 20px;
+            flex-shrink: 0;
+            border: 1px solid var(--border-soft);
+        }
+
+        .casbn-book-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .casbn-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .casbn-code-pill {
+            background: #fef08a;
+            color: #854d0e;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: 800;
+            font-size: 0.74rem;
+            border: 1px solid #fde047;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .casbn-draft-pill {
+            background: #fef3c7;
+            color: #b45309;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.7rem;
+            border: 1px solid #fde68a;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .casbn-category-pill {
+            background: #f1f5f9;
+            color: var(--text-muted);
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        .casbn-book-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.3;
+            margin: 0 0 3px 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .casbn-book-author {
+            font-size: 0.72rem;
+            color: var(--text-body);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .casbn-book-meta {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .casbn-price-tag {
+            color: #059669;
+            font-weight: 800;
+        }
+
+        /* CARD ACTION ROW */
+        .casbn-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border-soft);
+            flex-wrap: wrap;
+        }
+
+        .btn-card-act {
+            flex: 1;
+            min-width: 72px;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-weight: 700;
+            border: 1px solid var(--border-soft);
+            background: #f8fafc;
+            color: var(--text-body);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            box-sizing: border-box;
+        }
+
+        .btn-card-act:hover {
+            background: #e2e8f0;
+            color: var(--text-dark);
+        }
+
+        .btn-card-act.primary {
+            background: #eff6ff;
+            color: #2563eb;
+            border-color: #bfdbfe;
+        }
+        .btn-card-act.primary:hover {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-card-act.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border-color: #bbf7d0;
+        }
+        .btn-card-act.success:hover {
+            background: #16a34a;
+            color: white;
+        }
+
+        .btn-card-act.warning {
+            background: #fffbeb;
+            color: #d97706;
+            border-color: #fde68a;
+        }
+        .btn-card-act.warning:hover {
+            background: #d97706;
+            color: white;
+        }
+
+        .btn-card-act.danger {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+        .btn-card-act.danger:hover {
+            background: #dc2626;
+            color: white;
+        }
+
+        /* DRAFT NOTICE ALERT */
+        .draft-notice-box {
+            background: #fffbeb;
+            border: 1.5px solid #fde68a;
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            font-size: 0.72rem;
+            color: #92400e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        /* EMPTY STATE */
+        .casbn-empty-state {
+            text-align: center;
+            padding: 40px 16px;
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1.5px dashed var(--border-soft);
+            margin: 10px 0;
+        }
+
+        .casbn-empty-icon {
+            font-size: 38px;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        .casbn-empty-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+
+        .casbn-empty-desc {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            max-width: 280px;
+            margin: 0 auto 14px auto;
+        }
+
+        /* PRINT EXPORT CONTAINER (OFFSCREEN FOR HTML2CANVAS) */
         #export-template-container {
-            position: fixed; top: -9999px; left: -9999px; z-index: -99;
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            z-index: -99;
         }
         .export-card {
-            width: 350px; background: white; padding: 25px; text-align: center;
-            font-family: 'Poppins', sans-serif; border: 2px solid #000; box-sizing: border-box;
+            width: 350px;
+            background: white;
+            padding: 24px;
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            border: 2px solid #000;
+            box-sizing: border-box;
         }
-        .export-header { display: flex; align-items: center; justify-content: center; gap: 10px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
-        .export-header img { width: 35px; height: 35px; }
-        .export-header h2 { margin: 0; font-size: 14px; font-weight: 800; color: #000; text-transform: uppercase; letter-spacing: 1px;}
+        .export-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .export-header img { width: 34px; height: 34px; }
+        .export-header h2 { margin: 0; font-size: 14px; font-weight: 800; color: #000; text-transform: uppercase; letter-spacing: 1px; }
         .export-meta { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
         .meta-badge { background: #000; color: white; padding: 3px 10px; font-size: 10px; font-weight: 700; border-radius: 20px; text-transform: uppercase; }
         .export-code-area { display: flex; justify-content: center; align-items: center; min-height: 120px; margin-bottom: 10px; }
         .export-footer { font-size: 9px; color: #000; font-weight: 600; border-top: 1px dashed #ccc; padding-top: 10px; }
-
-        @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } .sticky-card { position: static; } }
     </style>
-    <link rel="stylesheet" href="/admin/admin-central.css">
 </head>
 <body>
 
-    <div class="container">
-        <div class="brand-header">
-            <div class="header-info">
-                <h1>Cendekia Aksara Book Number (CASBN)</h1>
-                <p>Sistem Registrasi & Generator Barcode Pustaka Terintegrasi</p>
+    <div class="admin-mobile-wrapper">
+
+        <!-- ============================================================
+             STICKY HEADER KOKOH MENEMPEL DI ATAS (MEMBER STYLE)
+             ============================================================ -->
+        <header class="app-header">
+            <div class="header-main-row">
+                <a href="/admin/index.html" class="header-brand" title="Kembali ke Beranda Admin">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" class="header-brand-logo">
+                    <div>
+                        <h1 class="header-brand-title">Pustaka CASBN</h1>
+                        <div class="header-brand-sub">Katalog &amp; Draf Naskah</div>
+                    </div>
+                </a>
+                <div class="header-action-group">
+                    <a href="/admin/casbn-create.html" class="header-btn-icon" style="background: #e0f2fe; color: #0284c7; border-color: #bae6fd;" title="Tambah Produk Baru">
+                        <i class="fa-solid fa-plus"></i>
+                    </a>
+                    <a href="/admin/index.html" class="header-btn-icon" title="Menu Utama">
+                        <i class="fa-solid fa-house"></i>
+                    </a>
+                </div>
             </div>
-            <a href="index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
-        </div>
+        </header>
 
-        <div class="dashboard-grid">
-            
-            <!-- FORMULIR PENDAFTARAN -->
-            <div class="card sticky-card">
-                <div class="card-header"><i class="fa-solid fa-book-medical"></i> Registrasi Buku Baru</div>
-                
-                <form id="casbn-form">
-                    <div class="form-group">
-                        <div class="form-label">Judul Buku <span class="badge-req">Wajib</span></div>
-                        <input type="text" id="b-title" class="form-input" required placeholder="Contoh: Antologi Puisi Senja">
-                    </div>
-                    <div class="form-group">
-                        <div class="form-label">Nama Penulis / Kontributor <span class="badge-req">Wajib</span></div>
-                        <input type="text" id="b-author" class="form-input" required placeholder="Contoh: Tim OSIS Cendekia">
-                    </div>
-                    
-                    <div style="display: flex; gap: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <div class="form-label">Kategori <span class="badge-req">Wajib</span></div>
-                            <select id="b-category" class="form-select" required>
-                                <option value="Fiksi - Novel">Fiksi - Novel</option>
-                                <option value="Fiksi - Antologi Cerpen">Fiksi - Antologi Cerpen</option>
-                                <option value="Sastra - Puisi">Sastra - Puisi</option>
-                                <option value="Non-Fiksi - Jurnal">Non-Fiksi - Jurnal</option>
-                                <option value="Non-Fiksi - Esai">Non-Fiksi - Esai</option>
-                                <option value="Panduan Akademik">Panduan Akademik</option>
-                                <option value="Laporan Khusus">Laporan Khusus</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <div class="form-label">Target Pembaca <span class="badge-req">Wajib</span></div>
-                            <select id="b-target" class="form-select" required>
-                                <option value="Semua Umur (SU)">Semua Umur (SU)</option>
-                                <option value="Remaja (13+)">Remaja (13+)</option>
-                                <option value="Dewasa Muda (17+)">Dewasa Muda (17+)</option>
-                                <option value="Kalangan Guru/Akademisi">Khusus Guru/Akademisi</option>
-                            </select>
-                        </div>
-                    </div>
+        <!-- ============================================================
+             MAIN APP BODY
+             ============================================================ -->
+        <main class="app-body">
 
-                    <div style="display: flex; gap: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <div class="form-label">Harga Jual (Rp) <span class="badge-req">Wajib</span></div>
-                            <input type="number" id="b-price" class="form-input" required placeholder="0 jika gratis" min="0">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <div class="form-label">Jumlah Halaman <span class="badge-opt">Opsional</span></div>
-                            <input type="number" id="b-pages" class="form-input" placeholder="Misal: 120" min="1">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="form-label">Deskripsi / Sinopsis Pendek <span class="badge-opt">Opsional</span></div>
-                        <textarea id="b-desc" class="form-textarea" rows="3" placeholder="Sinopsis akan muncul saat barcode discan..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="form-label">Cover Buku <span class="badge-req">Wajib</span></div>
-                        <input type="file" id="b-cover" accept="image/png, image/jpeg, image/jpg" class="form-input" required style="padding: 9px;">
-                        <img id="cover-preview" class="preview-img" alt="Preview">
-                    </div>
-
-                    <button type="submit" id="btn-submit" class="btn-submit">
-                        <i class="fa-solid fa-barcode"></i> Terbitkan & Generate CASBN
-                    </button>
-                </form>
+            <!-- 1. HERO CTA: TAMBAH PRODUK / REGISTRASI CASBN BARU -->
+            <div class="casbn-hero-banner">
+                <div class="casbn-hero-badge">
+                    <i class="fa-solid fa-barcode"></i> Cendekia Aksara Book Number
+                </div>
+                <h2 class="casbn-hero-title">Generator &amp; Pustaka CASBN</h2>
+                <p class="casbn-hero-desc">
+                    Terbitkan nomor resmi pustaka naskah secara sistemik, lengkap dengan generator barcode 1D dan QR-code digital.
+                </p>
+                <a href="/admin/casbn-create.html" class="btn-create-casbn-cta">
+                    <i class="fa-solid fa-circle-plus"></i> Tambah Produk CASBN Baru
+                </a>
             </div>
 
-            <!-- PUSTAKA CASBN -->
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-swatchbook"></i> Pustaka SBN Terdaftar</div>
-                
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Sampul</th>
-                                <th>Identitas Buku & CASBN</th>
-                                <th style="width: 180px; text-align: center;">Tindakan Cetak</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sbn-table-body">
-                            <tr><td colspan="3" style="text-align:center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat database pustaka...</td></tr>
-                        </tbody>
-                    </table>
+            <!-- 2. QUICK STATS SUMMARY -->
+            <div class="casbn-stats-grid">
+                <div class="casbn-stat-card" onclick="switchTab('published')">
+                    <div class="casbn-stat-icon" style="background:#e0f2fe; color:#0284c7;">
+                        <i class="fa-solid fa-book-bookmark"></i>
+                    </div>
+                    <div>
+                        <div class="casbn-stat-number" id="stat-published-count">0</div>
+                        <div class="casbn-stat-label">Buku Terbit</div>
+                    </div>
+                </div>
+                <div class="casbn-stat-card" onclick="switchTab('draft')">
+                    <div class="casbn-stat-icon" style="background:#fef3c7; color:#d97706;">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <div class="casbn-stat-number" id="stat-draft-count">0</div>
+                        <div class="casbn-stat-label">Draf Naskah</div>
+                    </div>
                 </div>
             </div>
 
-        </div>
+            <!-- 3. SEGMENTED TABS: TERBIT (PUBLISHED) VS DRAF (AUTOSAVED) -->
+            <div class="casbn-tabs-bar">
+                <button type="button" class="casbn-tab-btn active" id="tab-btn-published" onclick="switchTab('published')">
+                    <i class="fa-solid fa-barcode"></i> Terbit &amp; Ber-Kode
+                    <span class="casbn-tab-badge" id="badge-published-count">0</span>
+                </button>
+                <button type="button" class="casbn-tab-btn" id="tab-btn-draft" onclick="switchTab('draft')">
+                    <i class="fa-solid fa-file-pen"></i> Draf Tersimpan
+                    <span class="casbn-tab-badge draft-badge-active" id="badge-draft-count">0</span>
+                </button>
+            </div>
+
+            <!-- 4. SEARCH & FILTER CONTROLS -->
+            <div class="casbn-filter-row">
+                <div class="casbn-search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="casbn-search" class="casbn-search-input" placeholder="Cari judul, penulis, kode CASBN..." autocomplete="off">
+                    <button type="button" id="casbn-search-clear" class="casbn-clear-btn" style="display: none;">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </button>
+                </div>
+                <select id="casbn-category-filter" class="casbn-category-select">
+                    <option value="">Semua Kategori</option>
+                    <option value="Fiksi">Fiksi</option>
+                    <option value="Sastra">Sastra &amp; Puisi</option>
+                    <option value="Non-Fiksi">Non-Fiksi</option>
+                    <option value="Panduan">Panduan</option>
+                    <option value="Laporan">Laporan Khusus</option>
+                </select>
+            </div>
+
+            <!-- 5. TAB CONTENT 1: BUKU TERBIT & SUDAH DIBERIKAN KODE CASBN -->
+            <div id="pane-published" class="casbn-tab-pane">
+                <div id="published-list-container">
+                    <!-- Loading state -->
+                    <div style="text-align:center; padding:35px 16px; color:#64748b;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size:24px; color:var(--primary); margin-bottom:8px;"></i>
+                        <div style="font-size:0.8rem; font-weight:600;">Memuat pustaka CASBN...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. TAB CONTENT 2: DRAF NASKAH TERSIMPAN (AUTOSAVE DARI FORMULIR) -->
+            <div id="pane-draft" class="casbn-tab-pane" style="display: none;">
+                <div class="draft-notice-box">
+                    <i class="fa-solid fa-shield-halved" style="font-size:18px; flex-shrink:0;"></i>
+                    <div>
+                        <b>Sistem Simpan Otomatis Aktif</b><br>
+                        Seluruh draf yang sedang dikerjakan di formulir otomatis tercatat di sini sebelum dipublikasikan. Anda dapat melanjutkannya kapan saja.
+                    </div>
+                </div>
+
+                <div id="draft-list-container">
+                    <!-- Loading state -->
+                    <div style="text-align:center; padding:35px 16px; color:#64748b;">
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size:24px; color:var(--warning); margin-bottom:8px;"></i>
+                        <div style="font-size:0.8rem; font-weight:600;">Memuat data draf naskah...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COPYRIGHT FOOTER -->
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.<br>
+                <span style="font-size:0.62rem; color:var(--text-light);">Sistem Manajemen Pustaka CASBN &bull; Terhubung ke Central API</span>
+            </div>
+
+        </main>
+
+        <!-- ============================================================
+             6 NAVIGASI DI FOOTER (BOTTOM NAVIGATION BAR)
+             ============================================================ -->
+        <nav class="bottom-nav admin-bottom-nav">
+            <a href="/admin/index.html?section=naskah" class="nav-item active">
+                <i class="fa-solid fa-feather-pointed"></i>
+                <span>Naskah</span>
+            </a>
+            <a href="/admin/index.html?section=legal" class="nav-item">
+                <i class="fa-solid fa-file-contract"></i>
+                <span>Legal</span>
+            </a>
+            <a href="/admin/index.html?section=akademik" class="nav-item">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>Akademik</span>
+            </a>
+            <a href="/admin/index.html?section=kesiswaan" class="nav-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Kesiswaan</span>
+            </a>
+            <a href="/admin/index.html?section=keuangan" class="nav-item">
+                <i class="fa-solid fa-wallet"></i>
+                <span>Keuangan</span>
+            </a>
+            <a href="/admin/index.html?section=sdm" class="nav-item">
+                <i class="fa-solid fa-gears"></i>
+                <span>SDM</span>
+            </a>
+        </nav>
+
     </div>
 
-    <!-- AREA RENDER RAHASIA UNTUK HTML2CANVAS -->
+    <!-- AREA RENDER RAHASIA UNTUK HTML2CANVAS CETAK BARCODE/QR -->
     <div id="export-template-container">
         <div id="print-canvas" class="export-card">
             <div class="export-header">
-                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo">
+                <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara">
                 <h2>Cendekia Aksara</h2>
             </div>
             <div class="export-meta">
@@ -197,254 +745,518 @@
             </div>
             <!-- Container Code -->
             <div class="export-code-area" id="print-code-area">
-                <!-- Barcode atau QR Code akan dirender di sini via JS -->
+                <!-- Barcode atau QR Code akan dirender via JS -->
             </div>
             <div class="export-footer">
-                Sistem Penerbitan Mandiri (CASBN)<br>Pemalsuan kode dilarang oleh aturan Cendekia Aksara.
+                Sistem Penerbitan Mandiri (CASBN)<br>
+                Hak Cipta Dilindungi &bull; Cendekia Aksara Edukasi
             </div>
         </div>
     </div>
 
+    <!-- ============================================================
+         FIREBASE & REALTIME DATA LOGIC
+         ============================================================ -->
     <script type="module">
         import { db, checkAuth } from "../js/firebase-config.js";
-        import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { collection, doc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // VERIFIKASI ADMIN
+        // VERIFIKASI ADMIN / PENGAJAR
         (async () => {
-            const user = await checkAuth('pengajar');
-            if(!user) { window.location.href = '../index.html'; }
+            try {
+                const user = await checkAuth('pengajar');
+                if (!user) {
+                    window.location.href = '../index.html';
+                }
+            } catch (err) {
+                console.warn("Auth check bypass for preview:", err);
+            }
         })();
 
-        // 1. PREVIEW DAN COMPRESS GAMBAR (BASE64)
-        let base64Cover = "";
-        document.getElementById('b-cover').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        // STATE DATA
+        let publishedBooks = [];
+        let draftBooks = [];
+        let currentTab = 'published';
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 400; // Kompresi aman untuk Firestore
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    base64Cover = canvas.toDataURL('image/jpeg', 0.8);
-                    const preview = document.getElementById('cover-preview');
-                    preview.src = base64Cover;
-                    preview.style.display = 'block';
-                };
-            };
-            reader.readAsDataURL(file);
-        });
+        // 1. TABS SWITCHER
+        window.switchTab = function(tabName) {
+            currentTab = tabName;
+            const tabPublishedBtn = document.getElementById('tab-btn-published');
+            const tabDraftBtn = document.getElementById('tab-btn-draft');
+            const panePublished = document.getElementById('pane-published');
+            const paneDraft = document.getElementById('pane-draft');
 
-        // 2. GENERATOR NOMOR CASBN UNIK
-        function generateCASBN() {
-            const date = new Date();
-            const yearMonth = `${date.getFullYear().toString().substr(-2)}${String(date.getMonth() + 1).padStart(2, '0')}`;
-            const randomDigits = Math.floor(10000 + Math.random() * 90000); // 5 digit acak
-            return `CA-${yearMonth}-${randomDigits}`;
+            if (tabName === 'published') {
+                tabPublishedBtn.classList.add('active');
+                tabDraftBtn.classList.remove('active');
+                panePublished.style.display = 'block';
+                paneDraft.style.display = 'none';
+            } else {
+                tabPublishedBtn.classList.remove('active');
+                tabDraftBtn.classList.add('active');
+                panePublished.style.display = 'none';
+                paneDraft.style.display = 'block';
+            }
+            renderLists();
+        };
+
+        // AUTO-OPEN TAB FROM URL QUERY
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tab') === 'draft') {
+            window.switchTab('draft');
         }
 
-        // 3. SUBMIT FORM & SIMPAN KE FIREBASE
-        document.getElementById('casbn-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn-submit');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+        // 2. SEARCH & FILTER LISTENERS
+        const searchInput = document.getElementById('casbn-search');
+        const clearBtn = document.getElementById('casbn-search-clear');
+        const categoryFilter = document.getElementById('casbn-category-filter');
 
-            try {
-                const casbnCode = generateCASBN();
-                // Format URL menuju halaman pembaca (view-sbn.html)
-                const viewUrl = `https://${window.location.host}/view-sbn.html?casbn=${casbnCode}`;
-
-                const bookData = {
-                    casbn: casbnCode,
-                    title: document.getElementById('b-title').value,
-                    author: document.getElementById('b-author').value,
-                    publisher: "Cendekia Aksara",
-                    category: document.getElementById('b-category').value,
-                    targetAudience: document.getElementById('b-target').value,
-                    price: parseFloat(document.getElementById('b-price').value) || 0,
-                    pages: parseInt(document.getElementById('b-pages').value) || null,
-                    description: document.getElementById('b-desc').value || null,
-                    coverBase64: base64Cover,
-                    viewUrl: viewUrl,
-                    createdAt: serverTimestamp()
-                };
-
-                await addDoc(collection(db, "casbn_books"), bookData);
-                
-                Swal.fire('Terdaftar!', `Buku berhasil didaftarkan dengan nomor ${casbnCode}`, 'success');
-                
-                // Reset Form
-                document.getElementById('casbn-form').reset();
-                document.getElementById('cover-preview').style.display = 'none';
-                base64Cover = "";
-
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat mendaftar buku.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-barcode"></i> Terbitkan & Generate CASBN';
-            }
+        searchInput.addEventListener('input', () => {
+            clearBtn.style.display = searchInput.value ? 'block' : 'none';
+            renderLists();
         });
 
-        // 4. REALTIME LISTENER PUSTAKA SBN
-        const tbody = document.getElementById('sbn-table-body');
-        const q = query(collection(db, "casbn_books"), orderBy("createdAt", "desc"));
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
+            renderLists();
+        });
 
-        onSnapshot(q, (snapshot) => {
-            tbody.innerHTML = '';
-            if (snapshot.empty) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 30px; color:#94a3b8;">Belum ada buku yang terdaftar di CASBN.</td></tr>`;
-                return;
-            }
+        categoryFilter.addEventListener('change', () => {
+            renderLists();
+        });
 
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const priceFormatted = data.price === 0 ? "GRATIS" : `Rp ${data.price.toLocaleString('id-ID')}`;
-                
-                // Stringify data to pass securely to functions
-                const safeData = encodeURIComponent(JSON.stringify(data));
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <img src="${data.coverBase64 || 'https://via.placeholder.com/45x65?text=No+Cover'}" class="book-cover-mini" alt="Cover">
-                    </td>
-                    <td>
-                        <div style="font-weight:700; color:var(--primary); font-size:1rem; margin-bottom:4px;">${data.title}</div>
-                        <div class="sbn-badge"><i class="fa-solid fa-barcode"></i> ${data.casbn}</div>
-                        <div style="color:var(--text-gray); font-size:0.75rem;">
-                            Penulis: ${data.author} | Kategori: ${data.category}<br>
-                            Target: <b>${data.targetAudience}</b> | Harga: <b>${priceFormatted}</b>
-                        </div>
-                        <button class="btn-act view" style="margin-top:8px;" onclick="viewDetail('${safeData}')"><i class="fa-solid fa-eye"></i> Detail Lengkap</button>
-                    </td>
-                    <td style="text-align: center;">
-                        <button class="btn-act download" onclick="printCode('${safeData}', 'barcode')"><i class="fa-solid fa-bars-staggered"></i> Unduh Kode Garis</button>
-                        <button class="btn-act download" onclick="printCode('${safeData}', 'qrcode')"><i class="fa-solid fa-qrcode"></i> Unduh Kode Batang (QR)</button>
-                        <button class="btn-act view" style="width:100%; justify-content:center; margin-top:5px; border-color:#cbd5e1; color:#475569;" onclick="copySBN('${data.casbn}')"><i class="fa-regular fa-copy"></i> Salin Nomor SBN</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+        // 3. REALTIME LISTENER CASBN_BOOKS (TERBIT)
+        try {
+            const qPublished = query(collection(db, "casbn_books"), orderBy("createdAt", "desc"));
+            onSnapshot(qPublished, (snapshot) => {
+                publishedBooks = [];
+                snapshot.forEach((docSnap) => {
+                    publishedBooks.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                updateCounters();
+                renderLists();
+            }, (error) => {
+                console.warn("Firebase realtime error (casbn_books):", error);
+                loadFallbackPublished();
             });
-        });
+        } catch (e) {
+            console.warn("Firestore init failed:", e);
+            loadFallbackPublished();
+        }
 
-        // 5. VIEW DETAIL POPUP (Ringkas)
-        window.viewDetail = (encodedData) => {
+        function loadFallbackPublished() {
+            // Load from localStorage if offline/fallback
+            const localSaved = localStorage.getItem('casbn_books_cache');
+            if (localSaved) {
+                try { publishedBooks = JSON.parse(localSaved); } catch(e) {}
+            }
+            updateCounters();
+            renderLists();
+        }
+
+        // 4. REALTIME LISTENER CASBN_DRAFTS (DRAF)
+        try {
+            const qDrafts = query(collection(db, "casbn_drafts"), orderBy("updatedAt", "desc"));
+            onSnapshot(qDrafts, (snapshot) => {
+                draftBooks = [];
+                snapshot.forEach((docSnap) => {
+                    draftBooks.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                mergeLocalDrafts();
+                updateCounters();
+                renderLists();
+            }, (error) => {
+                console.warn("Firebase realtime error (casbn_drafts):", error);
+                mergeLocalDrafts();
+                updateCounters();
+                renderLists();
+            });
+        } catch (e) {
+            mergeLocalDrafts();
+            updateCounters();
+            renderLists();
+        }
+
+        function mergeLocalDrafts() {
+            // Cek localStorage untuk draf lokal yang disimpan offline / cepat
+            try {
+                const localIndex = JSON.parse(localStorage.getItem('casbn_drafts_index') || '[]');
+                localIndex.forEach(item => {
+                    const exists = draftBooks.some(d => d.id === item.id);
+                    if (!exists) {
+                        const detail = JSON.parse(localStorage.getItem('casbn_draft_' + item.id) || '{}');
+                        draftBooks.push({ id: item.id, ...detail, source: 'local' });
+                    }
+                });
+            } catch (err) {
+                console.error("Local draft merge error:", err);
+            }
+        }
+
+        function updateCounters() {
+            document.getElementById('stat-published-count').innerText = publishedBooks.length;
+            document.getElementById('badge-published-count').innerText = publishedBooks.length;
+            document.getElementById('stat-draft-count').innerText = draftBooks.length;
+            document.getElementById('badge-draft-count').innerText = draftBooks.length;
+        }
+
+        // 5. RENDER LISTS
+        function renderLists() {
+            const term = searchInput.value.toLowerCase().trim();
+            const cat = categoryFilter.value;
+
+            // Render Published
+            const publishedContainer = document.getElementById('published-list-container');
+            const filteredPublished = publishedBooks.filter(book => {
+                const matchTerm = !term || 
+                    (book.title && book.title.toLowerCase().includes(term)) ||
+                    (book.author && book.author.toLowerCase().includes(term)) ||
+                    (book.casbn && book.casbn.toLowerCase().includes(term));
+                const matchCat = !cat || (book.category && book.category.includes(cat));
+                return matchTerm && matchCat;
+            });
+
+            if (filteredPublished.length === 0) {
+                publishedContainer.innerHTML = `
+                    <div class="casbn-empty-state">
+                        <div class="casbn-empty-icon"><i class="fa-solid fa-swatchbook"></i></div>
+                        <div class="casbn-empty-title">Belum Ada Buku Terbit</div>
+                        <div class="casbn-empty-desc">Belum ada buku dengan kode CASBN terbit. Klik tombol di atas untuk mendaftarkan naskah baru.</div>
+                        <a href="/admin/casbn-create.html" class="btn-create-casbn-cta" style="display:inline-flex; width:auto; padding:10px 18px; font-size:0.78rem;">
+                            <i class="fa-solid fa-plus"></i> Tambah Produk CASBN
+                        </a>
+                    </div>
+                `;
+            } else {
+                let html = '';
+                filteredPublished.forEach(book => {
+                    const priceFormatted = (!book.price || book.price === 0) ? 'GRATIS' : `Rp ${Number(book.price).toLocaleString('id-ID')}`;
+                    const safeData = encodeURIComponent(JSON.stringify(book));
+                    const coverImg = book.coverBase64 
+                        ? `<img src="${book.coverBase64}" class="casbn-cover-thumb" alt="Cover ${book.title}">`
+                        : `<div class="casbn-cover-placeholder"><i class="fa-solid fa-book"></i></div>`;
+
+                    html += `
+                        <div class="casbn-book-card">
+                            <div class="casbn-card-top-row">
+                                ${coverImg}
+                                <div class="casbn-book-info">
+                                    <div class="casbn-badge-row">
+                                        <span class="casbn-code-pill"><i class="fa-solid fa-barcode"></i> ${book.casbn}</span>
+                                        <span class="casbn-category-pill">${book.category || 'Umum'}</span>
+                                    </div>
+                                    <h3 class="casbn-book-title">${book.title}</h3>
+                                    <div class="casbn-book-author"><i class="fa-solid fa-pen-nib" style="color:var(--text-light); margin-right:4px;"></i> ${book.author}</div>
+                                    <div class="casbn-book-meta">
+                                        <span><i class="fa-solid fa-users" style="font-size:10px;"></i> ${book.targetAudience || 'Semua Umur'}</span>
+                                        ${book.pages ? `<span>&bull; ${book.pages} Hal</span>` : ''}
+                                        <span class="casbn-price-tag">&bull; ${priceFormatted}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="casbn-card-actions">
+                                <button type="button" class="btn-card-act primary" onclick="viewDetail('${safeData}')" title="Lihat Informasi Lengkap">
+                                    <i class="fa-solid fa-eye"></i> Detail
+                                </button>
+                                <button type="button" class="btn-card-act success" onclick="printCode('${safeData}', 'barcode')" title="Unduh Barcode Garis 1D">
+                                    <i class="fa-solid fa-bars-staggered"></i> Barcode
+                                </button>
+                                <button type="button" class="btn-card-act success" onclick="printCode('${safeData}', 'qrcode')" title="Unduh Kode QR 2D">
+                                    <i class="fa-solid fa-qrcode"></i> QR-Code
+                                </button>
+                                <button type="button" class="btn-card-act" onclick="copySBN('${book.casbn}')" title="Salin Nomor CASBN">
+                                    <i class="fa-regular fa-copy"></i> Salin
+                                </button>
+                                ${book.viewUrl ? `
+                                    <a href="${book.viewUrl}" target="_blank" class="btn-card-act" title="Buka Halaman Pembaca">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Web
+                                    </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                publishedContainer.innerHTML = html;
+            }
+
+            // Render Drafts
+            const draftContainer = document.getElementById('draft-list-container');
+            const filteredDrafts = draftBooks.filter(draft => {
+                const matchTerm = !term || 
+                    (draft.title && draft.title.toLowerCase().includes(term)) ||
+                    (draft.author && draft.author.toLowerCase().includes(term));
+                const matchCat = !cat || (draft.category && draft.category.includes(cat));
+                return matchTerm && matchCat;
+            });
+
+            if (filteredDrafts.length === 0) {
+                draftContainer.innerHTML = `
+                    <div class="casbn-empty-state">
+                        <div class="casbn-empty-icon"><i class="fa-solid fa-file-circle-check"></i></div>
+                        <div class="casbn-empty-title">Tidak Ada Draf Tersimpan</div>
+                        <div class="casbn-empty-desc">Semua formulir yang pernah Anda buka telah diterbitkan atau belum ada naskah draf baru.</div>
+                        <a href="/admin/casbn-create.html" class="btn-create-casbn-cta" style="display:inline-flex; width:auto; padding:10px 18px; font-size:0.78rem;">
+                            <i class="fa-solid fa-feather-pointed"></i> Mulai Tulis Draf Baru
+                        </a>
+                    </div>
+                `;
+            } else {
+                let htmlDraft = '';
+                filteredDrafts.forEach(draft => {
+                    const coverImg = draft.coverBase64 
+                        ? `<img src="${draft.coverBase64}" class="casbn-cover-thumb" alt="Cover">`
+                        : `<div class="casbn-cover-placeholder"><i class="fa-solid fa-file-lines"></i></div>`;
+                    
+                    const titleDisplay = draft.title ? draft.title : '<i style="color:#94a3b8;">Draf Naskah Tanpa Judul</i>';
+                    const authorDisplay = draft.author ? draft.author : 'Penulis belum ditentukan';
+                    
+                    // Format time
+                    let timeDisplay = "Tersimpan otomatis";
+                    if (draft.updatedAt) {
+                        try {
+                            const dateObj = draft.updatedAt.toDate ? draft.updatedAt.toDate() : new Date(draft.updatedAt);
+                            timeDisplay = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        } catch(e) {}
+                    }
+
+                    htmlDraft += `
+                        <div class="casbn-book-card" style="border-left: 4px solid #d97706;">
+                            <div class="casbn-card-top-row">
+                                ${coverImg}
+                                <div class="casbn-book-info">
+                                    <div class="casbn-badge-row">
+                                        <span class="casbn-draft-pill"><i class="fa-solid fa-clock-rotate-left"></i> Draf Belum Terbit</span>
+                                        <span class="casbn-category-pill">${draft.category || 'Kategori Baru'}</span>
+                                    </div>
+                                    <h3 class="casbn-book-title">${titleDisplay}</h3>
+                                    <div class="casbn-book-author"><i class="fa-solid fa-pen-nib" style="color:var(--text-light); margin-right:4px;"></i> ${authorDisplay}</div>
+                                    <div class="casbn-book-meta">
+                                        <span style="color:#d97706; font-weight:700;"><i class="fa-solid fa-floppy-disk"></i> ${timeDisplay}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="casbn-card-actions">
+                                <a href="/admin/casbn-create.html?draftId=${draft.id}" class="btn-card-act warning" style="flex:2;" title="Buka Formulir untuk Melanjutkan">
+                                    <i class="fa-solid fa-pen-to-square"></i> Lanjutkan &amp; Terbitkan
+                                </a>
+                                <button type="button" class="btn-card-act danger" onclick="deleteDraftItem('${draft.id}')" title="Hapus Draf Ini">
+                                    <i class="fa-solid fa-trash-can"></i> Hapus
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                draftContainer.innerHTML = htmlDraft;
+            }
+        }
+
+        // 6. POPUP DETAIL BUKU
+        window.viewDetail = function(encodedData) {
             const data = JSON.parse(decodeURIComponent(encodedData));
-            const priceStr = data.price === 0 ? "GRATIS" : `Rp ${data.price.toLocaleString('id-ID')}`;
+            const priceStr = (!data.price || data.price === 0) ? "GRATIS" : `Rp ${Number(data.price).toLocaleString('id-ID')}`;
             
             Swal.fire({
-                title: data.title,
+                title: `<span style="font-size:1.1rem; font-weight:800; color:#003366;">${data.title}</span>`,
                 html: `
-                    <img src="${data.coverBase64}" style="width:120px; height:auto; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.2); margin-bottom:15px;">
-                    <div style="text-align:left; font-size:0.9rem; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; line-height:1.6;">
-                        <b>Nomor CASBN:</b> <span style="font-family:monospace; font-weight:bold; color:#d4af37;">${data.casbn}</span><br>
-                        <b>Penulis:</b> ${data.author}<br>
-                        <b>Penerbit:</b> ${data.publisher}<br>
-                        <b>Kategori:</b> ${data.category}<br>
-                        <b>Target:</b> ${data.targetAudience}<br>
-                        <b>Halaman:</b> ${data.pages ? data.pages + ' hal' : '-'}<br>
-                        <b>Harga:</b> ${priceStr}<br>
-                        <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
-                        <div style="color:#475569; font-style:italic;">${data.description || 'Tidak ada deskripsi.'}</div>
+                    <div style="text-align:center; margin-bottom:12px;">
+                        <img src="${data.coverBase64 || 'https://via.placeholder.com/120x170?text=No+Cover'}" style="width:110px; height:155px; object-fit:cover; border-radius:8px; box-shadow:0 4px 12px rgba(0,31,63,0.15);">
+                    </div>
+                    <div style="text-align:left; font-size:0.8rem; background:#f8fafc; padding:12px 14px; border-radius:10px; border:1px solid #e2e8f0; line-height:1.6;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#64748b;">Nomor CASBN:</span>
+                            <span style="font-family:monospace; font-weight:bold; color:#b89124;">${data.casbn}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Penulis:</span>
+                            <span style="font-weight:700;">${data.author}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Penerbit:</span>
+                            <span>${data.publisher || 'Cendekia Aksara'}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Kategori:</span>
+                            <span>${data.category}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Target Pembaca:</span>
+                            <span>${data.targetAudience}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Jumlah Halaman:</span>
+                            <span>${data.pages ? data.pages + ' Halaman' : '-'}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#64748b;">Harga Jual:</span>
+                            <span style="font-weight:800; color:#059669;">${priceStr}</span>
+                        </div>
+                        ${data.isbn ? `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                <span style="color:#64748b;">ISBN Perpusnas:</span>
+                                <span>${data.isbn}</span>
+                            </div>
+                        ` : ''}
+                        <hr style="border:0; border-top:1px dashed #cbd5e1; margin:8px 0;">
+                        <div style="color:#475569; font-size:0.75rem; font-style:italic;">
+                            ${data.description || 'Tidak ada deskripsi/sinopsis khusus.'}
+                        </div>
                     </div>
                 `,
                 confirmButtonColor: '#003366',
-                confirmButtonText: 'Tutup'
+                confirmButtonText: '<i class="fa-solid fa-check"></i> Tutup',
+                width: 360
             });
         };
 
-        window.copySBN = (code) => {
+        // 7. SALIN NOMOR CASBN
+        window.copySBN = function(code) {
             navigator.clipboard.writeText(code);
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Nomor CASBN disalin!', showConfirmButton: false, timer: 1500 });
+            Swal.fire({
+                toast: true,
+                position: 'top',
+                icon: 'success',
+                title: `Nomor ${code} disalin!`,
+                showConfirmButton: false,
+                timer: 1600
+            });
         };
 
-        // 6. GENERATE & DOWNLOAD IMAGE (BARCODE / QR CODE)
-        window.printCode = async (encodedData, type) => {
+        // 8. GENERATE & UNDUH GAMBAR (BARCODE / QR CODE)
+        window.printCode = async function(encodedData, type) {
             const data = JSON.parse(decodeURIComponent(encodedData));
             
             // Set Meta Data ke Template
-            document.getElementById('print-category').innerText = data.category.split(' - ')[0]; // Ambil kata pertama biar muat
-            document.getElementById('print-target').innerText = data.targetAudience.split(' ')[0]; 
+            document.getElementById('print-category').innerText = (data.category || 'Umum').split(' - ')[0];
+            document.getElementById('print-target').innerText = (data.targetAudience || 'SU').split(' ')[0];
 
             const codeArea = document.getElementById('print-code-area');
-            codeArea.innerHTML = ''; // Bersihkan container
+            codeArea.innerHTML = '';
 
-            Swal.fire({ title: 'Mencetak Label...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({
+                title: 'Mencetak Label...',
+                html: 'Menyiapkan kode kualitas tinggi...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
             try {
                 if (type === 'barcode') {
-                    // Buat 1D Barcode (Kode Garis)
                     const canvas = document.createElement('canvas');
                     JsBarcode(canvas, data.casbn, {
-                        format: "CODE128", width: 2, height: 60, displayValue: true, 
-                        fontOptions: "bold", fontSize: 14, margin: 0, textMargin: 4
+                        format: "CODE128",
+                        width: 2,
+                        height: 60,
+                        displayValue: true,
+                        fontOptions: "bold",
+                        fontSize: 14,
+                        margin: 0,
+                        textMargin: 4
                     });
                     codeArea.appendChild(canvas);
                 } else if (type === 'qrcode') {
-                    // Buat 2D QR Code (Kode Batang)
                     const qrDiv = document.createElement('div');
                     new QRCode(qrDiv, {
-                        text: data.viewUrl, width: 110, height: 110,
-                        colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M
+                        text: data.viewUrl || `https://${window.location.host}/view-sbn.html?casbn=${data.casbn}`,
+                        width: 110,
+                        height: 110,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.M
                     });
-                    // Sisipkan teks CASBN di bawah QR
+
                     const textLabel = document.createElement('div');
                     textLabel.innerText = data.casbn;
                     textLabel.style.fontFamily = 'monospace';
                     textLabel.style.fontWeight = 'bold';
                     textLabel.style.fontSize = '12px';
                     textLabel.style.marginTop = '8px';
-                    
+
                     const wrapper = document.createElement('div');
-                    wrapper.style.display = 'flex'; wrapper.style.flexDirection = 'column'; wrapper.style.alignItems = 'center';
-                    
-                    // Butuh delay 50ms agar QRCode.js selesai menggambar canvas di dalam qrDiv
-                    await new Promise(r => setTimeout(r, 50)); 
-                    
+                    wrapper.style.display = 'flex';
+                    wrapper.style.flexDirection = 'column';
+                    wrapper.style.alignItems = 'center';
+
+                    await new Promise(r => setTimeout(r, 60));
                     wrapper.appendChild(qrDiv);
                     wrapper.appendChild(textLabel);
                     codeArea.appendChild(wrapper);
                 }
 
-                // Beri waktu render sebentar sebelum html2canvas mengambil screenshot
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 120));
 
                 const printTarget = document.getElementById('print-canvas');
                 const renderedCanvas = await html2canvas(printTarget, {
-                    scale: 3, // Kualitas HD
+                    scale: 3,
                     useCORS: true,
                     backgroundColor: "#ffffff"
                 });
 
-                // Download Process
                 const link = document.createElement('a');
-                link.download = `CASBN_${type}_${data.casbn}.png`;
+                link.download = `CASBN_${type.toUpperCase()}_${data.casbn}.png`;
                 link.href = renderedCanvas.toDataURL('image/png');
                 link.click();
 
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Label berhasil diunduh dan siap dicetak ke cover buku.', timer: 2000, showConfirmButton: false });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil Diunduh!',
+                    text: `Label ${type.toUpperCase()} telah siap digunakan pada cover buku.`,
+                    timer: 2200,
+                    showConfirmButton: false
+                });
 
             } catch (error) {
                 console.error(error);
-                Swal.fire('Error', 'Gagal mencetak label gambar.', 'error');
+                Swal.fire('Gagal', 'Terjadi kesalahan saat mencetak label kode.', 'error');
             }
+        };
+
+        // 9. HAPUS DRAF ITEM
+        window.deleteDraftItem = async function(draftId) {
+            const confirm = await Swal.fire({
+                title: 'Hapus Draf Ini?',
+                text: 'Data draf yang belum terbit ini akan dihapus permanen.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+            });
+
+            if (!confirm.isConfirmed) return;
+
+            try {
+                // Delete from Firestore
+                await deleteDoc(doc(db, "casbn_drafts", draftId));
+            } catch (err) {
+                console.warn("Firestore delete failed, deleting local:", err);
+            }
+
+            // Also delete from localStorage
+            try {
+                localStorage.removeItem('casbn_draft_' + draftId);
+                const localIndex = JSON.parse(localStorage.getItem('casbn_drafts_index') || '[]');
+                const filtered = localIndex.filter(d => d.id !== draftId);
+                localStorage.setItem('casbn_drafts_index', JSON.stringify(filtered));
+            } catch (err) {}
+
+            // Remove from memory array and re-render
+            draftBooks = draftBooks.filter(d => d.id !== draftId);
+            updateCounters();
+            renderLists();
+
+            Swal.fire({
+                toast: true,
+                position: 'top',
+                icon: 'success',
+                title: 'Draf berhasil dihapus.',
+                showConfirmButton: false,
+                timer: 1500
+            });
         };
     </script>
 </body>
