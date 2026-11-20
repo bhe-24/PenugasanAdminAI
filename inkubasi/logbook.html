@@ -233,6 +233,20 @@
         <span class="badge-notif" id="eval-notif">!</span>
     </button>
 
+    <!-- BAR ADMIN MONITORING (JIKA DIAKSES OLEH PENGAJAR/ADMIN) -->
+    <div id="admin-monitor-bar" style="display:none; background: linear-gradient(135deg, #1e1b4b, #312e81); color: #e0e7ff; padding: 12px 18px; border-bottom: 2px solid #818cf8; align-items: center; justify-content: space-between; font-size: 0.8rem; font-weight: 600; position: sticky; top: 0; z-index: 10000; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-user-shield" style="color: #38bdf8; font-size: 1.2rem;"></i>
+            <div>
+                <div><b>Mode Pemantauan Guru / Admin:</b> Studio Menulis Siswa Semester 3</div>
+                <div id="amb-student-info" style="font-size: 0.72rem; color: #93c5fd; font-weight: 400;">Memuat profil siswa...</div>
+            </div>
+        </div>
+        <a href="/admin/monitoring-naskah.html" style="background: #38bdf8; color: #0f172a; padding: 7px 14px; border-radius: 8px; text-decoration: none; font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Monitoring
+        </a>
+    </div>
+
     <div class="container">
         <div class="page-header">
             <h2><i class="fa-solid fa-feather-pointed"></i> Studio Menulis</h2>
@@ -326,6 +340,8 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let currentUser = null;
+        let targetUid   = null;
+        let isAdminMonitor = false;
         let pitchData   = null;
         let authorData  = null;
         let chapterCount = 0;
@@ -334,6 +350,7 @@
         const GAS_URL_STUDIO = "https://script.google.com/macros/s/AKfycbxhnEISuowiQsAXqFTNDkalNXAT36rDFcwsvV1sGYShakSjhsW4NQQIahx2SDaHWmisTw/exec";
 
         window.formatText = (command) => {
+            if (isAdminMonitor) return;
             document.execCommand(command, false, null);
             document.getElementById('editor').focus();
         };
@@ -349,9 +366,20 @@
         (async () => {
             currentUser = await checkAuth('siswa');
             if (currentUser) {
-                if ((parseInt(currentUser.semester) || 1) < 3) {
-                    window.location.href = '/dashboard/index.html';
-                    return;
+                const urlParams = new URLSearchParams(window.location.search);
+                const paramUid = urlParams.get('uid');
+
+                if ((currentUser.role === 'admin' || currentUser.role === 'pengajar') && paramUid) {
+                    targetUid = paramUid;
+                    isAdminMonitor = true;
+                    const bar = document.getElementById('admin-monitor-bar');
+                    if (bar) bar.style.display = 'flex';
+                } else {
+                    targetUid = currentUser.uid;
+                    if ((parseInt(currentUser.semester) || 1) < 3 && currentUser.role === 'siswa') {
+                        window.location.href = '/dashboard/index.html';
+                        return;
+                    }
                 }
                 await checkPitchingAndAuthorData();
             }
@@ -359,7 +387,7 @@
 
         async function checkPitchingAndAuthorData() {
             try {
-                const pitchRef  = doc(db, 'pitching_projects', currentUser.uid);
+                const pitchRef  = doc(db, 'pitching_projects', targetUid);
                 const pitchSnap = await getDoc(pitchRef);
 
                 if (!pitchSnap.exists() || pitchSnap.data().status !== 'acc') {
@@ -369,28 +397,49 @@
                 }
 
                 pitchData = pitchSnap.data();
-                document.getElementById('display-judul').innerText  = pitchData.judul;
-                document.getElementById('display-genre').innerText  = pitchData.genre;
-                document.getElementById('display-target').innerText = pitchData.target_kata.toLocaleString('id-ID');
+                document.getElementById('display-judul').innerText  = pitchData.judul || 'Tanpa Judul';
+                document.getElementById('display-genre').innerText  = pitchData.genre || 'Fiksi';
+                document.getElementById('display-target').innerText = (pitchData.target_kata || 0).toLocaleString('id-ID');
 
-                const authorRef  = doc(db, 'author_profiles', currentUser.uid);
+                const authorRef  = doc(db, 'author_profiles', targetUid);
                 const authorSnap = await getDoc(authorRef);
 
                 if (!authorSnap.exists()) {
-                    document.getElementById('main-loading').style.display = 'none';
-                    document.getElementById('author-modal').classList.add('active');
+                    if (isAdminMonitor) {
+                        authorData = {
+                            pen_name: pitchData.nama_penulis || 'Siswa Penulis',
+                            real_name: pitchData.nama_penulis || 'Siswa Penulis',
+                            is_tamat: false,
+                            bimbingan_active: true
+                        };
+                        const infoEl = document.getElementById('amb-student-info');
+                        if (infoEl) infoEl.textContent = `${authorData.pen_name} • Judul: ${pitchData.judul} (${pitchData.genre || 'Fiksi'})`;
+                        bukaStudio();
+                    } else {
+                        document.getElementById('main-loading').style.display = 'none';
+                        document.getElementById('author-modal').classList.add('active');
+                    }
                 } else {
                     authorData = authorSnap.data();
                     isTamat = authorData.is_tamat || false;
                     
+                    if (isAdminMonitor) {
+                        const infoEl = document.getElementById('amb-student-info');
+                        if (infoEl) infoEl.textContent = `${authorData.pen_name || authorData.real_name || 'Siswa Penulis'} • Judul: ${pitchData.judul} (${pitchData.genre || 'Fiksi'})`;
+                    }
+
                     // --- Cek Notifikasi Evaluasi ---
                     if (authorData.evaluasi_final || (authorData.evaluasi_checkpoints && authorData.evaluasi_checkpoints.length > 0)) {
                         document.getElementById('eval-notif').style.display = 'flex';
                     }
                     
                     if (!authorData.bimbingan_active) {
-                        document.getElementById('main-loading').style.display = 'none';
-                        document.getElementById('bimbingan-modal').classList.add('active');
+                        if (isAdminMonitor) {
+                            bukaStudio();
+                        } else {
+                            document.getElementById('main-loading').style.display = 'none';
+                            document.getElementById('bimbingan-modal').classList.add('active');
+                        }
                     } else {
                         setupBimbingan(authorData);
                         bukaStudio();
@@ -409,7 +458,7 @@
             container.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Memuat data evaluasi...</div>';
 
             try {
-                const docSnap = await getDoc(doc(db, 'author_profiles', currentUser.uid));
+                const docSnap = await getDoc(doc(db, 'author_profiles', targetUid));
                 if (!docSnap.exists()) {
                     container.innerHTML = '<p style="text-align:center; color:#64748b;">Belum ada data penulis.</p>';
                     return;
@@ -629,6 +678,27 @@
             document.getElementById('history-section').style.display = 'block';
             document.getElementById('main-loading').style.display   = 'none';
 
+            if (isAdminMonitor) {
+                const ed = document.getElementById('editor');
+                if (ed) {
+                    ed.setAttribute('contenteditable', 'false');
+                    ed.style.background = '#f8fafc';
+                    ed.style.color = '#475569';
+                    ed.innerText = 'Mode pemantauan Guru / Admin aktif. Halaman ini terhubung langsung ke Studio Menulis siswa semester 3. Seluruh bab dan file dokumen naskah dapat Anda tinjau pada riwayat di bawah.';
+                }
+                const btnSave = document.getElementById('btn-save-chapter');
+                if (btnSave) {
+                    btnSave.disabled = true;
+                    btnSave.innerHTML = '<i class="fa-solid fa-eye"></i> Mode Pemantauan Guru / Admin';
+                    btnSave.style.background = '#64748b';
+                }
+                const chTitle = document.getElementById('chapter-title');
+                if (chTitle) {
+                    chTitle.disabled = true;
+                    chTitle.placeholder = 'Mode Pemantauan Guru / Admin Aktif';
+                }
+            }
+
             if (isTamat) {
                 document.getElementById('editor-form').style.display = 'none';
                 document.getElementById('merge-panel').style.display = 'block';
@@ -638,7 +708,7 @@
 
         async function loadHistory() {
             try {
-                const q    = query(collection(db, 'chapters'), where('uid', '==', currentUser.uid), orderBy('timestamp', 'asc'));
+                const q    = query(collection(db, 'chapters'), where('uid', '==', targetUid), orderBy('timestamp', 'asc'));
                 const snap = await getDocs(q);
                 const container = document.getElementById('history-container');
 
@@ -696,6 +766,10 @@
         }
 
         window.hapusBab = async (btnEl) => {
+            if (isAdminMonitor) {
+                Swal.fire('Mode Pemantauan Aktif', 'Hanya siswa pemilik naskah yang dapat menghapus bab ini.', 'info');
+                return;
+            }
             const docId      = btnEl.dataset.docId;
             const fileIdWord = btnEl.dataset.fileWord;
             const fileIdPdf  = btnEl.dataset.filePdf;
@@ -763,6 +837,10 @@
 
         document.getElementById('editor-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (isAdminMonitor) {
+                Swal.fire('Mode Pemantauan Aktif', 'Hanya siswa pemilik naskah yang dapat menulis dan menyimpan bab baru.', 'info');
+                return;
+            }
             const isiTeks = editorDiv.innerText.trim();
             const words   = isiTeks.split(/\s+/).filter(w => w.length > 0).length;
 
@@ -830,6 +908,10 @@
 
         document.getElementById('tamat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (isAdminMonitor) {
+                Swal.fire('Mode Pemantauan Aktif', 'Hanya siswa pemilik naskah yang dapat mengunci naskah tamat.', 'info');
+                return;
+            }
             try {
                 await updateDoc(doc(db, 'author_profiles', currentUser.uid), { is_tamat: true });
                 isTamat = true;
@@ -847,6 +929,10 @@
         });
 
         window.gabungkanNaskah = async () => {
+            if (isAdminMonitor) {
+                Swal.fire('Mode Pemantauan Aktif', 'Hanya siswa pemilik naskah yang dapat menggabungkan bab menjadi naskah utuh.', 'info');
+                return;
+            }
             const btnMerge = document.getElementById('btn-merge');
             btnMerge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyatukan... (Mohon Tunggu)';
             btnMerge.disabled  = true;

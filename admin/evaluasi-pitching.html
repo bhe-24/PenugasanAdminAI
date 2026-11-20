@@ -139,41 +139,65 @@
             border: 1px solid var(--border-soft);
         }
 
-        .pc-action-row {
-            display: flex;
+        /* ACTION BUTTONS GRID (SERAGAM DENGAN MONITORING NASKAH) */
+        .pitch-action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed var(--border-soft);
+            margin-top: 10px;
         }
 
         .btn-pc-act {
-            flex: 1;
-            height: 34px;
-            padding: 0 10px;
-            border-radius: var(--radius-sm);
-            font-size: 0.72rem;
-            font-weight: 800;
-            border: none;
-            cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
             text-decoration: none;
             box-sizing: border-box;
-            transition: all 0.2s ease;
+            line-height: 1.2;
         }
 
-        .btn-pc-eval {
-            background: linear-gradient(135deg, #003366, #001f3f);
-            color: #fef08a;
-            border: 1px solid var(--accent);
+        .btn-pc-act:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
 
-        .btn-pc-pdf {
+        .btn-act-pitch-review {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+        }
+
+        .btn-act-pitch-pdf {
             background: #eff6ff;
             color: #2563eb;
             border: 1px solid #bfdbfe;
+        }
+
+        .btn-act-pitch-acc {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+        }
+
+        .btn-act-pitch-rev {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .btn-act-pitch-studio {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: white;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+            grid-column: span 2;
         }
 
         /* SLIDE-UP EVALUATION WORKSPACE MODAL */
@@ -584,6 +608,33 @@
                 if (p.status === 'revisi') { badgeClass = 'revisi'; badgeLabel = 'Revisi'; badgeIcon = 'fa-pen-to-square'; }
                 else if (p.status === 'acc') { badgeClass = 'acc'; badgeLabel = 'Disetujui (ACC)'; badgeIcon = 'fa-check'; }
 
+                let contextualActions = '';
+                if (p.status === 'menunggu') {
+                    contextualActions = `
+                        <button type="button" class="btn-pc-act btn-act-pitch-rev" onclick="quickRevisi('${p.id}', '${(p.studentName || '').replace(/'/g, "")}')">
+                            <i class="fa-solid fa-rotate-left"></i> Minta Revisi
+                        </button>
+                        <button type="button" class="btn-pc-act btn-act-pitch-acc" onclick="quickAcc('${p.id}')">
+                            <i class="fa-solid fa-check"></i> Setujui (ACC)
+                        </button>
+                    `;
+                } else if (p.status === 'revisi') {
+                    contextualActions = `
+                        <button type="button" class="btn-pc-act btn-act-pitch-rev" onclick="openPitchModal('${p.id}')">
+                            <i class="fa-solid fa-pen-to-square"></i> Cek Catatan
+                        </button>
+                        <button type="button" class="btn-pc-act btn-act-pitch-acc" onclick="quickAcc('${p.id}')">
+                            <i class="fa-solid fa-check"></i> ACC Sekarang
+                        </button>
+                    `;
+                } else if (p.status === 'acc') {
+                    contextualActions = `
+                        <a href="/inkubasi/logbook.html?uid=${p.id}&ref=pitch_mon" target="_blank" class="btn-pc-act btn-act-pitch-studio">
+                            <i class="fa-solid fa-feather-pointed"></i> Buka Studio Menulis Siswa (Sem. 3)
+                        </a>
+                    `;
+                }
+
                 return `
                 <div class="proposal-card-item">
                     <div class="pc-header">
@@ -599,15 +650,20 @@
                         <span>&bull; Target: ${p.target_kata ? Number(p.target_kata).toLocaleString('id-ID') : '-'} kata</span>
                     </div>
 
-                    <div class="pc-action-row">
-                        <button type="button" class="btn-pc-act btn-pc-eval" onclick="openPitchModal('${p.id}')">
+                    <div class="pitch-action-grid">
+                        <button type="button" class="btn-pc-act btn-act-pitch-review" onclick="openPitchModal('${p.id}')">
                             <i class="fa-solid fa-microscope"></i> Tinjau &amp; Nilai
                         </button>
                         ${p.link_pdf_admin ? `
-                            <a href="${p.link_pdf_admin}" target="_blank" class="btn-pc-act btn-pc-pdf">
-                                <i class="fa-solid fa-file-pdf"></i> PDF
+                            <a href="${p.link_pdf_admin}" target="_blank" class="btn-pc-act btn-act-pitch-pdf">
+                                <i class="fa-solid fa-file-pdf"></i> Dokumen PDF
                             </a>
-                        ` : ''}
+                        ` : `
+                            <button type="button" class="btn-pc-act btn-act-pitch-pdf" disabled style="opacity:0.45;">
+                                <i class="fa-solid fa-file-pdf"></i> Tanpa PDF
+                            </button>
+                        `}
+                        ${contextualActions}
                     </div>
                 </div>`;
             }).join('');
@@ -733,6 +789,69 @@
 
                 Swal.fire('Berhasil', `Proposal berhasil di-${status.toUpperCase()}.`, 'success');
                 closePitchModal();
+                loadProposals();
+            } catch(err) {
+                Swal.fire('Gagal', err.message, 'error');
+            }
+        };
+
+        window.quickAcc = async (id) => {
+            const p = allProposals.find(x => x.id === id);
+            const judul = p ? p.judul : 'Proposal';
+            const conf = await Swal.fire({
+                title: 'Setujui (ACC) Cepat?',
+                html: `Setujui proposal <b>"${judul}"</b> agar siswa dapat langsung mengakses Studio Menulis.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                confirmButtonText: '<i class="fa-solid fa-check"></i> Ya, Setujui Sekarang'
+            });
+            if (!conf.isConfirmed) return;
+
+            try {
+                await setDoc(doc(db, 'pitching_projects', id), {
+                    status: 'acc',
+                    feedback_mentor: 'Disetujui oleh Tim Redaksi. Silakan lanjutkan menulis bab naskah di Studio Menulis.',
+                    evaluatedBy: adminInfo ? adminInfo.name : 'Admin Redaksi',
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                Swal.fire('Berhasil', 'Proposal disetujui (ACC). Siswa dapat menulis di Studio Menulis.', 'success');
+                loadProposals();
+            } catch(err) {
+                Swal.fire('Gagal', err.message, 'error');
+            }
+        };
+
+        window.quickRevisi = async (id, studentName) => {
+            const { value: reason } = await Swal.fire({
+                title: 'Minta Revisi Proposal',
+                text: `Kirimkan instruksi perbaikan kepada ${studentName || 'siswa'}:`,
+                input: 'textarea',
+                inputPlaceholder: 'Tuliskan catatan perbaikan (logline, premis, atau target outline)...',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Kirim Catatan Revisi',
+                preConfirm: (val) => {
+                    if (!val || !val.trim()) {
+                        Swal.showValidationMessage('Catatan revisi wajib diisi!');
+                        return false;
+                    }
+                    return val.trim();
+                }
+            });
+
+            if (!reason) return;
+
+            try {
+                await setDoc(doc(db, 'pitching_projects', id), {
+                    status: 'revisi',
+                    feedback_mentor: reason,
+                    evaluatedBy: adminInfo ? adminInfo.name : 'Admin Redaksi',
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+
+                Swal.fire('Berhasil', 'Catatan revisi telah dikirim ke siswa.', 'success');
                 loadProposals();
             } catch(err) {
                 Swal.fire('Gagal', err.message, 'error');
