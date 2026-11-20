@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         firefox_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
         priority: 10,
         ttl: 86400,
-        web_push_topic: "game-harian-" + todayStr
+        web_push_topic: "cendekia-game-" + todayStr
     };
 
     try {

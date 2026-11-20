@@ -1,7 +1,7 @@
 // ========================================================
-// CENDEKIA AKSARA - SERVICE WORKER & NOTIFIKASI PWA (V2.7)
+// CENDEKIA AKSARA - SERVICE WORKER & NOTIFIKASI PWA (V2.8)
 // Mendukung Notifikasi Push Native, Banner Layar Kunci HP,
-// Logo Resmi App, Badge Alpha Transparan (Bebas Kotak Putih),
+// Logo Resmi App, Badge Alpha Transparan, Anti-Duplikasi (Anti-Double/Triple),
 // Background Scheduler, Caching Pintar, serta Penanganan Offline.
 // ========================================================
 
@@ -12,7 +12,7 @@ try {
     console.warn("[SW] OneSignal SDK bypass (offline/unreachable):", e);
 }
 
-const CACHE_NAME = 'cendekia-cache-v2.7';
+const CACHE_NAME = 'cendekia-cache-v2.8';
 const USER_STATE_CACHE = 'cendekia-user-state-v1';
 
 function getAssetsUrl() {
@@ -42,7 +42,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = event.request.url;
 
-    // Untuk API atau URL dengan query params ID: Ambil langsung dari jaringan
     if (url.includes('?id=') || url.includes('/api/')) {
         event.respondWith(
             fetch(event.request).catch(() => {
@@ -63,7 +62,6 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // Untuk file statis (HTML, CSS, JS, Gambar)
     event.respondWith(
         caches.match(event.request, { ignoreSearch: true }).then(response => {
             return response || fetch(event.request).catch(() => {
@@ -73,50 +71,63 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// 4. TERIMA PUSH NOTIFICATION (ONESIGNAL / WEB PUSH SAAT HP TERKUNCI & APP DITUTUP)
+// 4. TERIMA PUSH NOTIFICATION DENGAN FILTER ANTI-DUPLIKASI ONESIGNAL
 self.addEventListener('push', event => {
-    let payload = {};
+    let payload = null;
     if (event.data) {
         try {
             payload = event.data.json();
         } catch (_) {
-            payload = {
-                title: "Cendekia Aksara",
-                body: event.data.text()
-            };
+            try {
+                payload = { body: event.data.text() };
+            } catch (_) {}
         }
     }
 
-    const baseOrigin = getAssetsUrl();
-    const custom = payload.custom ? (typeof payload.custom === 'string' ? JSON.parse(payload.custom) : payload.custom) : {};
-    const title = payload.title || payload.headings?.en || payload.headings?.id || payload.judul || "Cendekia Aksara";
-    const body = payload.body || payload.contents?.en || payload.contents?.id || payload.pesan || "Pemberitahuan baru dari Cendekia Aksara.";
-    const targetUrl = payload.url || payload.urlTujuan || payload.data?.url || custom.u || "/mem-free/index.html";
+    // PENTING: Periksa apakah push ini berasal dari OneSignal
+    // OneSignalSDK.sw.js SUDAH otomatis menampilkan push OneSignal.
+    // Jika kita memanggil showNotification lagi di sini, notifikasi AKAN DOUBLE!
+    const isOneSignal = payload && (
+        payload.custom || 
+        payload.os || 
+        (payload.data && payload.data.custom) ||
+        payload.notificationId
+    );
 
-    // Gunakan Logo Resmi Cendekia Aksara (High-Res 192x192) & Badge Transparan Android
-    const icon = payload.icon || (baseOrigin + "/img/icon-192x192.png");
-    const badge = payload.badge || (baseOrigin + "/img/badge-96x96.png");
+    if (isOneSignal) {
+        // Biarkan OneSignalSDK.sw.js yang menanganinya, cegah notifikasi dobel!
+        return;
+    }
 
-    const options = {
-        body: body,
-        icon: icon,
-        badge: badge,
-        vibrate: [300, 100, 300, 100, 300], // Getaran bangunkan layar kunci HP
-        tag: payload.tag || ("cendekia-" + Date.now()),
-        renotify: true,
-        requireInteraction: true, // Banner tetap bertahan di layar kunci HP
-        silent: false,
-        data: {
-            url: targetUrl,
-            timestamp: Date.now()
-        },
-        actions: [
-            { action: 'open', title: '🚀 Buka Sekarang' },
-            { action: 'close', title: 'Tutup' }
-        ]
-    };
+    // Hanya proses jika ini push mentah non-OneSignal (custom push)
+    if (payload) {
+        const baseOrigin = getAssetsUrl();
+        const title = payload.title || payload.headings?.id || payload.judul || "Cendekia Aksara";
+        const body = payload.body || payload.contents?.id || payload.pesan || "Pemberitahuan baru.";
+        const targetUrl = payload.url || payload.urlTujuan || "/mem-free/index.html";
+        const tag = payload.tag || "cendekia-push";
 
-    event.waitUntil(self.registration.showNotification(title, options));
+        const options = {
+            body: body,
+            icon: payload.icon || (baseOrigin + "/img/icon-192x192.png"),
+            badge: payload.badge || (baseOrigin + "/img/badge-96x96.png"),
+            vibrate: [300, 100, 300, 100, 300],
+            tag: tag,
+            renotify: false,
+            requireInteraction: true,
+            silent: false,
+            data: {
+                url: targetUrl,
+                timestamp: Date.now()
+            },
+            actions: [
+                { action: 'open', title: '🚀 Buka Sekarang' },
+                { action: 'close', title: 'Tutup' }
+            ]
+        };
+
+        event.waitUntil(self.registration.showNotification(title, options));
+    }
 });
 
 // 5. KLIK NOTIFIKASI: BUKA / FOKUS KE HALAMAN TUJUAN SECARA OTOMATIS
@@ -146,7 +157,7 @@ self.addEventListener('notificationclick', event => {
     );
 });
 
-// 6. KOMUNIKASI CLIENT KE SERVICE WORKER (TAMPILKAN & JADWALKAN NOTIFIKASI LOKAL)
+// 6. KOMUNIKASI CLIENT KE SERVICE WORKER (TAMPILKAN NOTIFIKASI DENGAN TAG DETERMINISTIK)
 self.addEventListener('message', event => {
     if (!event.data) return;
 
@@ -160,8 +171,8 @@ self.addEventListener('message', event => {
             icon: options?.icon || (baseOrigin + "/img/icon-192x192.png"),
             badge: options?.badge || (baseOrigin + "/img/badge-96x96.png"),
             vibrate: options?.vibrate || [300, 100, 300, 100, 300],
-            tag: options?.tag || ('cendekia-' + Date.now()),
-            renotify: true,
+            tag: options?.tag || 'cendekia-notice', // Tag deterministik mencegah duplikasi
+            renotify: false, // Hindari alert ganda
             requireInteraction: true,
             silent: false,
             data: options?.data || { url: options?.urlTujuan || '/mem-free/index.html' },
@@ -178,28 +189,7 @@ self.addEventListener('message', event => {
         saveUserState(event.data.user);
     }
 
-    // C. Jadwalkan notifikasi delayed
-    if (event.data.type === 'SCHEDULE_NOTIFICATION') {
-        const delay = event.data.delayMs || 3000;
-        setTimeout(() => {
-            const opts = Object.assign({
-                icon: baseOrigin + "/img/icon-192x192.png",
-                badge: baseOrigin + "/img/badge-96x96.png",
-                vibrate: [300, 100, 300, 100, 300],
-                requireInteraction: true,
-                silent: false,
-                renotify: true,
-                actions: [
-                    { action: 'open', title: '🚀 Buka Sekarang' },
-                    { action: 'close', title: 'Tutup' }
-                ]
-            }, event.data.options || {});
-
-            self.registration.showNotification(event.data.title, opts);
-        }, delay);
-    }
-
-    // D. Trigger background check langsung
+    // C. Trigger background check langsung
     if (event.data.type === 'CHECK_BACKGROUND_NOW') {
         runBackgroundDailyCheck();
     }
@@ -266,8 +256,8 @@ async function runBackgroundDailyCheck() {
                     icon: baseOrigin + "/img/icon-192x192.png",
                     badge: baseOrigin + "/img/badge-96x96.png",
                     vibrate: [300, 100, 300, 100, 300],
-                    tag: `ultah-${currentYear}`,
-                    renotify: true,
+                    tag: `cendekia-ultah-${currentYear}`,
+                    renotify: false,
                     requireInteraction: true,
                     silent: false,
                     data: { url: "/siswa/ultah.html" },
@@ -293,8 +283,8 @@ async function runBackgroundDailyCheck() {
             icon: baseOrigin + "/img/icon-192x192.png",
             badge: baseOrigin + "/img/badge-96x96.png",
             vibrate: [300, 100, 300, 100, 300],
-            tag: `game-${todayStr}`,
-            renotify: true,
+            tag: `cendekia-game-${todayStr}`,
+            renotify: false,
             requireInteraction: true,
             silent: false,
             data: { url: `${portal}/bermain.html` },
