@@ -1,16 +1,18 @@
 /**
  * ==========================================================================
  * CENDEKIA AKSARA - SISTEM NOTIFIKASI PUSAT (notifikasi.js)
- * Versi: 2.6.0 (Engine Notifikasi Latar Belakang & Layar Kunci HP)
+ * Versi: 2.7.0 (Executive Brand Notification Engine & Android Badge Precision)
  * 
  * Fitur Utama:
- * 1. Pemicu Notifikasi Layar Kunci HP (Walau Aplikasi Web Ditutup)
- * 2. Meminta Izin Secara Cepat & Izin Diingat Langsung (Persisten)
- * 3. Integrasi Otomatis OneSignal Web Push v16 & Service Worker Native
- * 4. Pemicu Otomatis: Game Harian Terbuka, Hadiah/Lencana, Ulang Tahun Siswa
- * 5. Tahan Banting: Jika API Offline / Server Mati, Notifikasi Berjalan Mandiri
- *    tanpa bug dan tanpa error.
- * 6. Banner In-App Elegan, Slide-in Drawer, Floating Bell, & Sintesis Audio Chime.
+ * 1. Logo Resmi Cendekia Aksara (/img/icon-192x192.png) pada Seluruh Notifikasi
+ * 2. Badge Status Bar Android Alpha Transparan (/img/badge-96x96.png)
+ *    Mencegah Masalah "Kotak Putih" (White Square Silhouette Bug)
+ * 3. Tombol Lonceng Mengambang Eksklusif dengan Inline Vector SVG Emas
+ *    (Bebas Masalah "Cuma Lingkaran Kosong" Tanpa Ketergantungan Font Eksternal)
+ * 4. Banner In-App Elegan Standar Aplikasi Besar (iOS/Android Heads-Up Style)
+ * 5. Pemicu Layar Kunci HP Otomatis: Game Harian, Ulang Tahun, XP & Lencana
+ * 6. Izin Push Diminta Cepat & Diingat Langsung Secara Persisten
+ * 7. Tahan Banting: Kebal Terhadap API Mati / Jaringan Offline Tanpa Galat
  * ==========================================================================
  */
 
@@ -43,8 +45,42 @@
 
     const PORTAL_PREFIX = detectPortalPrefix();
 
+    function getBaseUrl() {
+        return window.location.origin || "https://penugasan-admin-ai.vercel.app";
+    }
+
+    const OFFICIAL_LOGO_URL = getBaseUrl() + "/img/icon-192x192.png";
+    const OFFICIAL_BADGE_URL = getBaseUrl() + "/img/badge-96x96.png";
+
     // ======================================================================
-    // 1. AUDIO CHIME GENERATOR (SINTESIS NADA WEB AUDIO API - ZERO DEPENDENCY)
+    // 1. INLINE VECTOR SVGS (ZERO-DEPENDENCY - SELALU MUNCUL TAJAM & ANTI HILANG)
+    // ======================================================================
+    const ICONS = {
+        bell: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d4af37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`,
+        bellWhite: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`,
+        gamepad: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line><rect x="2" y="6" width="20" height="12" rx="6"></rect></svg>`,
+        cake: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"></path><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"></path><path d="M2 21h20"></path><line x1="7" y1="8" x2="7" y2="11"></line><line x1="12" y1="8" x2="12" y2="11"></line><line x1="17" y1="8" x2="17" y2="11"></line></svg>`,
+        trophy: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>`,
+        medal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"></circle><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path></svg>`,
+        star: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
+        mobile: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d4af37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg>`,
+        xmark: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>`,
+        trash: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>`,
+        checkCircle: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+    };
+
+    // Auto-inject FontAwesome CDN agar halaman member lama tetap kompatibel
+    function ensureFontAwesomeLoaded() {
+        if (!document.querySelector('link[href*="font-awesome"]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+            document.head.appendChild(link);
+        }
+    }
+
+    // ======================================================================
+    // 2. AUDIO CHIME GENERATOR (SINTESIS NADA WEB AUDIO API)
     // ======================================================================
     function playNotificationChime() {
         if (!isAudioChimeEnabled) return;
@@ -75,9 +111,7 @@
                 osc.start(now + idx * 0.08);
                 osc.stop(now + idx * 0.08 + 0.38);
             });
-        } catch (_) {
-            // Autoplay policy bypass
-        }
+        } catch (_) {}
     }
 
     function vibrateDevice(pattern = [300, 100, 300, 100, 300]) {
@@ -89,7 +123,7 @@
     }
 
     // ======================================================================
-    // 2. REGISTRASI SERVICE WORKER & BACKGROUND PUSH SYNC
+    // 3. REGISTRASI SERVICE WORKER & BACKGROUND PUSH SYNC
     // ======================================================================
     async function initServiceWorker() {
         if (!('serviceWorker' in navigator)) return null;
@@ -98,22 +132,21 @@
             const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             swRegistration = reg;
 
-            // Daftarkan Periodic Background Sync jika didukung peramban
             if ('periodicSync' in reg) {
                 try {
                     const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
                     if (status.state === 'granted') {
                         await reg.periodicSync.register('cendekia-daily-check', {
-                            minInterval: 12 * 60 * 60 * 1000 // Minimal cek tiap 12 jam
+                            minInterval: 12 * 60 * 60 * 1000
                         });
                     }
                 } catch (_) {}
             }
 
-            // Dengarkan pesan balik dari Service Worker
             navigator.serviceWorker.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'NEW_NOTIFICATION') {
-                    handleIncomingNotification(event.data.payload);
+                    addNotificationToHistory(event.data.payload);
+                    showInAppBanner(event.data.payload);
                 }
             });
 
@@ -124,7 +157,6 @@
         }
     }
 
-    // Sinkronisasi data user saat ini ke Service Worker agar SW bisa memantau saat web ditutup
     function syncUserDataToServiceWorker(user) {
         if (!user) return;
         const payload = {
@@ -146,7 +178,7 @@
     }
 
     // ======================================================================
-    // 3. ONESIGNAL SDK AUTO-LOADER & REGISTRASI PUSH LAYAR KUNCI
+    // 4. ONESIGNAL SDK AUTO-LOADER & REGISTRASI PUSH
     // ======================================================================
     function initOneSignal(user) {
         return new Promise((resolve) => {
@@ -154,7 +186,6 @@
 
             window.OneSignalDeferred = window.OneSignalDeferred || [];
 
-            // Muat skrip OneSignal jika belum ada di head
             if (!document.getElementById('cendekia-onesignal-sdk')) {
                 const s = document.createElement('script');
                 s.id = 'cendekia-onesignal-sdk';
@@ -175,7 +206,6 @@
 
                     oneSignalReady = true;
 
-                    // Sambungkan UID Siswa ke OneSignal untuk push presisi
                     if (user && user.uid) {
                         try {
                             await OneSignal.login(user.uid);
@@ -188,7 +218,6 @@
                         } catch (_) {}
                     }
 
-                    // Sinkronkan status izin OneSignal dengan localStorage
                     if (OneSignal.Notifications && OneSignal.Notifications.permission) {
                         localStorage.setItem(STORAGE_KEY_PERM_STATE, 'granted');
                     }
@@ -203,7 +232,7 @@
     }
 
     // ======================================================================
-    // 4. MANAJEMEN PENYIMPANAN RIWAYAT NOTIFIKASI
+    // 5. MANAJEMEN PENYIMPANAN RIWAYAT NOTIFIKASI
     // ======================================================================
     function getNotificationHistory() {
         try {
@@ -260,8 +289,39 @@
     }
 
     // ======================================================================
-    // 5. FLOATING NOTIFICATION BANNER (IN-APP TOAST)
+    // 6. IN-APP HEADS-UP NOTIFICATION BANNER (DILENGKAPI LOGO RESMI APP)
     // ======================================================================
+    function getCategoryPill(jenis) {
+        if (jenis === 'game' || jenis === 'game_score') {
+            return {
+                icon: ICONS.gamepad,
+                bg: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)',
+                color: '#ede9fe',
+                label: 'Mode Bermain'
+            };
+        } else if (jenis === 'ultah') {
+            return {
+                icon: ICONS.cake,
+                bg: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
+                color: '#fef3c7',
+                label: 'Ulang Tahun'
+            };
+        } else if (jenis === 'reward' || jenis === 'lencana') {
+            return {
+                icon: ICONS.trophy,
+                bg: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                color: '#d1fae5',
+                label: 'Pencapaian'
+            };
+        }
+        return {
+            icon: ICONS.bellWhite,
+            bg: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+            color: '#e0f2fe',
+            label: 'Info Resmi'
+        };
+    }
+
     function showInAppBanner(item) {
         const existing = document.getElementById('cendekia-toast-banner');
         if (existing) existing.remove();
@@ -270,32 +330,29 @@
         toast.id = 'cendekia-toast-banner';
         toast.className = 'cendekia-notif-toast';
 
-        let iconHtml = '<i class="fa-solid fa-bell"></i>';
-        let bgGrad = 'linear-gradient(135deg, #001f3f 0%, #003366 100%)';
+        const cat = getCategoryPill(item.jenis);
 
-        if (item.jenis === 'game' || item.jenis === 'game_score') {
-            iconHtml = '<i class="fa-solid fa-gamepad"></i>';
-            bgGrad = 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)';
-        } else if (item.jenis === 'ultah') {
-            iconHtml = '<i class="fa-solid fa-cake-candles"></i>';
-            bgGrad = 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)';
-        } else if (item.jenis === 'reward' || item.jenis === 'lencana') {
-            iconHtml = '<i class="fa-solid fa-medal"></i>';
-            bgGrad = 'linear-gradient(135deg, #065f46 0%, #059669 100%)';
-        }
-
-        toast.style.background = bgGrad;
         toast.innerHTML = `
-            <div class="cnt-icon-box" style="background:rgba(255,255,255,0.2);">${iconHtml}</div>
-            <div class="cnt-text-box">
-                <div class="cnt-title">${escapeHtml(item.judul)}</div>
-                <div class="cnt-desc">${escapeHtml(item.pesan)}</div>
+            <div class="cnt-toast-inner">
+                <div class="cnt-logo-container">
+                    <img src="${OFFICIAL_LOGO_URL}" alt="Cendekia Aksara" class="cnt-app-logo" onerror="this.onerror=null; this.src='/img/icon-192x192.png'">
+                    <span class="cnt-cat-badge" style="background:${cat.bg};">${cat.icon}</span>
+                </div>
+                <div class="cnt-text-container">
+                    <div class="cnt-meta-row">
+                        <span class="cnt-app-name">CENDEKIA AKSARA</span>
+                        <span class="cnt-dot">•</span>
+                        <span class="cnt-meta-time">Baru saja</span>
+                    </div>
+                    <div class="cnt-toast-title">${escapeHtml(item.judul)}</div>
+                    <div class="cnt-toast-msg">${escapeHtml(item.pesan)}</div>
+                </div>
+                <button type="button" class="cnt-close-toast" aria-label="Tutup">${ICONS.xmark}</button>
             </div>
-            <button type="button" class="cnt-close-btn" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
         `;
 
         toast.addEventListener('click', (e) => {
-            if (e.target.closest('.cnt-close-btn')) {
+            if (e.target.closest('.cnt-close-toast')) {
                 toast.classList.remove('active');
                 setTimeout(() => toast.remove(), 300);
                 return;
@@ -313,11 +370,11 @@
                 toast.classList.remove('active');
                 setTimeout(() => toast.remove(), 300);
             }
-        }, 5500);
+        }, 6000);
     }
 
     // ======================================================================
-    // 6. NATIVE BROWSER & SERVICE WORKER LOCKSCREEN NOTIFICATION
+    // 7. NATIVE BROWSER & SERVICE WORKER LOCKSCREEN NOTIFICATION (LOGO & BADGE)
     // ======================================================================
     function showNativeNotification(item) {
         if (!('Notification' in window)) return;
@@ -326,12 +383,12 @@
             const title = item.judul || "Cendekia Aksara";
             const options = {
                 body: item.pesan || "",
-                icon: "https://i.imgur.com/5Srjyo4.png",
-                badge: "https://i.imgur.com/5Srjyo4.png",
-                vibrate: [300, 100, 300, 100, 300], // Getar layar kunci
+                icon: OFFICIAL_LOGO_URL,        // Logo Besar High-Res Resmi
+                badge: OFFICIAL_BADGE_URL,      // Alpha Mask Transparan Android (Anti Kotak Putih)
+                vibrate: [300, 100, 300, 100, 300],
                 tag: (item.jenis || 'cendekia') + '-' + Date.now(),
                 renotify: true,
-                requireInteraction: true, // Banner tetap bertahan di layar kunci HP
+                requireInteraction: true,        // Bertahan di layar kunci HP
                 silent: false,
                 data: {
                     url: item.urlTujuan || `${PORTAL_PREFIX}/index.html`
@@ -342,7 +399,6 @@
                 ]
             };
 
-            // Kirim lewat Service Worker agar memicu layar kunci HP
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'SHOW_NOTIFICATION',
@@ -365,7 +421,7 @@
     }
 
     // ======================================================================
-    // 7. DISPATCHER PUSAT NOTIFIKASI (MULTI-CHANNEL DENGAN PERLINDUNGAN KEBAL ERROR)
+    // 8. DISPATCHER PUSAT NOTIFIKASI (MULTI-CHANNEL FAIL-SAFE)
     // ======================================================================
     async function kirimNotifikasi({ judul, pesan, urlTujuan, jenis = 'umum', icon = 'bell', targetUid = null, semester = null, send_after = null }) {
         if (!judul && !pesan) return;
@@ -378,21 +434,20 @@
             icon: icon
         };
 
-        // 1. Simpan ke Riwayat Lokal
+        // 1. Simpan Riwayat
         addNotificationToHistory(payload);
 
-        // 2. Bunyikan Chime Audio & Getaran HP
+        // 2. Chime Audio & Getaran HP
         playNotificationChime();
         vibrateDevice();
 
-        // 3. Tampilkan Banner In-App jika web sedang dibuka
+        // 3. Tampilkan Banner Heads-Up In-App
         showInAppBanner(payload);
 
-        // 4. Pemicu Notifikasi Layar Kunci HP
+        // 4. Pemicu Layar Kunci HP Native
         showNativeNotification(payload);
 
-        // 5. Kirim Push ke /api/notif untuk dipancarkan ke HP melalui OneSignal
-        // Sifatnya asinkron & fail-safe: jika API tidak aktif / offline, sistem lokal tetap jalan mulus
+        // 5. Kirim Push ke OneSignal API
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -415,7 +470,6 @@
                 return res.json();
             }).catch(() => {
                 clearTimeout(timeoutId);
-                // API Offline: Ditangani mandiri tanpa bug
             });
         } catch (_) {}
 
@@ -423,7 +477,7 @@
     }
 
     // ======================================================================
-    // 8. PEMINTA IZIN CEPAT & PENYIMPANAN IZIN PERSISTEN ("IZIN DIINGAT LANGSUNG")
+    // 9. PEMINTA IZIN CEPAT & PENYIMPANAN IZIN PERSISTEN
     // ======================================================================
     async function requestPushPermissionDirectly() {
         if (!('Notification' in window)) return 'unsupported';
@@ -434,18 +488,15 @@
                 perm = await Notification.requestPermission();
             }
 
-            // Simpan status izin langsung ke localStorage agar diingat permanen
             localStorage.setItem(STORAGE_KEY_PERM_STATE, perm);
 
             if (perm === 'granted') {
-                // Beri tahu OneSignal
                 if (window.OneSignal && OneSignal.Notifications) {
                     try {
                         await OneSignal.Notifications.requestPermission();
                     } catch (_) {}
                 }
 
-                // Kirim notifikasi sambutan langsung ke layar kunci HP
                 kirimNotifikasi({
                     judul: '🔔 Notifikasi Layar Kunci Aktif!',
                     pesan: 'Kamu akan menerima info game harian, skor terbaru, dan ucapan ultah langsung di HP walau aplikasi ditutup.',
@@ -453,11 +504,9 @@
                     jenis: 'umum'
                 });
 
-                // Jadwalkan pengingat game harian besok pagi jam 07:00 WIB
                 scheduleTomorrowMorningGamePush();
             }
 
-            // Tutup banner izin jika ada
             const promptBox = document.getElementById('cendekia-permission-prompt');
             if (promptBox) promptBox.remove();
 
@@ -468,11 +517,9 @@
         }
     }
 
-    // Jadwalkan pengingat game esok hari jam 07:00 WIB via API/OneSignal
     function scheduleTomorrowMorningGamePush() {
         try {
             const now = new Date();
-            // Jam 07:00 WIB = 00:00 UTC hari berikutnya
             const tomorrowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
             const sendAfterISO = tomorrowUTC.toISOString();
 
@@ -490,14 +537,12 @@
         } catch (_) {}
     }
 
-    // Cek dan tampilkan banner permintaan izin apik jika belum pernah diputuskan
     function checkAndPromptPermission() {
         if (!('Notification' in window)) return;
 
         const currentPerm = Notification.permission;
         const savedPerm = localStorage.getItem(STORAGE_KEY_PERM_STATE);
 
-        // Jika sudah diizinkan, pastikan tersimpan permanen
         if (currentPerm === 'granted') {
             if (savedPerm !== 'granted') {
                 localStorage.setItem(STORAGE_KEY_PERM_STATE, 'granted');
@@ -505,13 +550,11 @@
             return;
         }
 
-        // Jika sudah ditolak secara permanen oleh peramban, jangan spam popup
         if (currentPerm === 'denied') {
             localStorage.setItem(STORAGE_KEY_PERM_STATE, 'denied');
             return;
         }
 
-        // Tampilkan Banner Aktivasi Notifikasi Layar Kunci
         setTimeout(() => {
             if (document.getElementById('cendekia-permission-prompt')) return;
 
@@ -520,7 +563,7 @@
             prompt.className = 'cendekia-permission-box';
             prompt.innerHTML = `
                 <div style="display:flex; align-items:flex-start; gap:12px;">
-                    <div class="cpp-icon"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                    <div class="cpp-icon">${ICONS.mobile}</div>
                     <div style="flex:1;">
                         <div class="cpp-title">Aktifkan Notifikasi Layar Kunci HP</div>
                         <div class="cpp-desc">Dapatkan pengingat otomatis saat game harian terbuka & ucapan ulang tahun langsung di HP walau aplikasi sedang ditutup.</div>
@@ -546,10 +589,8 @@
     }
 
     // ======================================================================
-    // 9. PEMICU NOTIFIKASI OTOMATIS: GAME, ULANG TAHUN, DAN REWARD
+    // 10. PEMICU NOTIFIKASI OTOMATIS: GAME, ULANG TAHUN, DAN REWARD
     // ======================================================================
-
-    // A. Notifikasi Game & Mode Bermain Terbuka
     function cekNotifikasiGameHarian() {
         const todayStr = new Date().toISOString().split('T')[0];
         const lastNotifDate = localStorage.getItem(STORAGE_KEY_LAST_GAME);
@@ -566,7 +607,6 @@
         }
     }
 
-    // B. Notifikasi Skor Game Selesai
     function notifSkorBermain(modeName, score, xp) {
         kirimNotifikasi({
             judul: `🏆 Skor Bermain: Mode ${modeName || 'Literasi'}!`,
@@ -577,7 +617,6 @@
         });
     }
 
-    // C. Notifikasi Ulang Tahun Siswa
     function cekNotifikasiUlangTahun(user) {
         if (!user || !user.tanggalLahir) return;
 
@@ -599,14 +638,13 @@
                 pesan: 'Selamat hari lahir dari keluarga besar Cendekia Aksara! Buka kejutan spesial dan hadiah literasimu sekarang.',
                 urlTujuan: '/siswa/ultah.html',
                 jenis: 'ultah',
-                icon: 'cake-candles'
+                icon: 'cake'
             });
 
             localStorage.setItem(STORAGE_KEY_LAST_ULTAH, currentYear);
         }
     }
 
-    // D. Notifikasi Pemerolehan (XP / Lencana / Level Up)
     function notifPemerolehan({ tipe = 'lencana', nama = '', xp = 0, levelTitle = '' }) {
         if (tipe === 'lencana') {
             kirimNotifikasi({
@@ -630,13 +668,13 @@
                 pesan: `Tantangan "${nama}" selesai dikerjakan (+${xp} XP). Tetap konsisten belajar!`,
                 urlTujuan: `${PORTAL_PREFIX}/tantangan.html`,
                 jenis: 'reward',
-                icon: 'bullseye'
+                icon: 'trophy'
             });
         }
     }
 
     // ======================================================================
-    // 10. UI FLOATING BELL, SLIDE-IN DRAWER & STYLING
+    // 11. UI STYLING & FLOATING BELL WIDGET DENGAN VECTOR SVG EMAS
     // ======================================================================
     function injectNotificationStyles() {
         if (document.getElementById('cendekia-notif-styles')) return;
@@ -644,69 +682,117 @@
         const style = document.createElement('style');
         style.id = 'cendekia-notif-styles';
         style.textContent = `
-            /* FLOATING TOAST BANNER */
+            /* HEADS-UP TOAST BANNER (STANDAR APLIKASI BESAR) */
             .cendekia-notif-toast {
                 position: fixed;
-                top: -120px;
+                top: -140px;
                 left: 50%;
                 transform: translateX(-50%);
-                width: 92%;
-                max-width: 410px;
-                color: white;
-                border-radius: 14px;
-                padding: 12px 14px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                box-shadow: 0 10px 30px rgba(0, 31, 63, 0.35);
+                width: 94%;
+                max-width: 420px;
+                background: rgba(0, 26, 51, 0.95);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                border: 1.5px solid rgba(212, 175, 55, 0.45);
+                border-radius: 18px;
+                box-shadow: 0 16px 40px rgba(0, 15, 36, 0.45), 0 0 20px rgba(212, 175, 55, 0.2);
                 z-index: 99999;
-                transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1);
                 cursor: pointer;
                 box-sizing: border-box;
-                border: 1px solid rgba(255,255,255,0.25);
+                padding: 12px 14px;
+                color: #ffffff;
             }
             .cendekia-notif-toast.active {
                 top: 16px;
             }
-            .cnt-icon-box {
-                width: 38px;
-                height: 38px;
-                border-radius: 10px;
+            .cnt-toast-inner {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .cnt-logo-container {
+                position: relative;
+                width: 44px;
+                height: 44px;
+                flex-shrink: 0;
+            }
+            .cnt-app-logo {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                object-fit: cover;
+                background: #ffffff;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                border: 1.5px solid rgba(255,255,255,0.4);
+            }
+            .cnt-cat-badge {
+                position: absolute;
+                bottom: -3px;
+                right: -3px;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 16px;
-                flex-shrink: 0;
+                color: white;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                border: 1.5px solid #ffffff;
             }
-            .cnt-text-box {
+            .cnt-text-container {
                 flex: 1;
                 min-width: 0;
             }
-            .cnt-title {
-                font-size: 0.82rem;
+            .cnt-meta-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 2px;
+            }
+            .cnt-app-name {
+                font-size: 0.64rem;
                 font-weight: 800;
+                letter-spacing: 0.08em;
+                color: #d4af37;
+            }
+            .cnt-dot {
+                font-size: 0.6rem;
+                color: #94a3b8;
+            }
+            .cnt-meta-time {
+                font-size: 0.62rem;
+                color: #94a3b8;
+                font-weight: 600;
+            }
+            .cnt-toast-title {
+                font-size: 0.84rem;
+                font-weight: 800;
+                color: #ffffff;
                 line-height: 1.25;
                 margin-bottom: 2px;
             }
-            .cnt-desc {
-                font-size: 0.7rem;
-                opacity: 0.92;
+            .cnt-toast-msg {
+                font-size: 0.72rem;
+                color: #cbd5e1;
                 line-height: 1.35;
                 display: -webkit-box;
                 -webkit-line-clamp: 2;
                 -webkit-box-orient: vertical;
                 overflow: hidden;
             }
-            .cnt-close-btn {
+            .cnt-close-toast {
                 background: transparent;
                 border: none;
-                color: white;
-                opacity: 0.8;
-                font-size: 16px;
+                color: #94a3b8;
                 cursor: pointer;
                 padding: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: color 0.2s;
             }
-            .cnt-close-btn:hover { opacity: 1; }
+            .cnt-close-toast:hover { color: #ffffff; }
 
             /* PERMISSION PROMPT BOX */
             .cendekia-permission-box {
@@ -730,15 +816,13 @@
                 to { bottom: 20px; opacity: 1; }
             }
             .cpp-icon {
-                width: 40px;
-                height: 40px;
+                width: 42px;
+                height: 42px;
                 border-radius: 12px;
                 background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-                color: #d4af37;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 18px;
                 flex-shrink: 0;
             }
             .cpp-title {
@@ -780,52 +864,71 @@
                 cursor: pointer;
             }
 
-            /* FLOATING BELL WIDGET */
+            /* FLOATING BELL WIDGET DENGAN VECTOR SVG EMAS & AMBIENT GLOW */
             .cendekia-floating-bell {
                 position: fixed;
                 bottom: 84px;
                 right: 18px;
-                width: 44px;
-                height: 44px;
+                width: 48px;
+                height: 48px;
                 border-radius: 50%;
                 background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-                color: white;
+                border: 2px solid #d4af37;
+                box-shadow: 0 8px 24px rgba(0, 31, 63, 0.4), 0 0 15px rgba(212, 175, 55, 0.35);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                box-shadow: 0 4px 18px rgba(0, 31, 63, 0.3);
-                border: 2px solid #d4af37;
                 cursor: pointer;
-                z-index: 800;
-                transition: transform 0.2s;
+                z-index: 99990;
+                transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s;
+            }
+            .cendekia-floating-bell:hover {
+                transform: scale(1.08) translateY(-2px);
+                box-shadow: 0 12px 28px rgba(0, 31, 63, 0.5), 0 0 20px rgba(212, 175, 55, 0.5);
             }
             .cendekia-floating-bell:active {
-                transform: scale(0.92);
+                transform: scale(0.94);
+            }
+            .cendekia-bell-inner {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
+            }
+            .cendekia-bell-inner svg {
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                transition: transform 0.3s;
+            }
+            .cendekia-floating-bell:hover .cendekia-bell-inner svg {
+                transform: rotate(15deg);
             }
             .cendekia-bell-badge {
                 position: absolute;
                 top: -3px;
                 right: -3px;
-                background: #dc2626;
+                background: #e11d48;
                 color: white;
-                font-size: 0.6rem;
+                font-size: 0.62rem;
                 font-weight: 800;
                 padding: 2px 6px;
                 border-radius: 10px;
                 border: 2px solid white;
                 display: none;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             }
 
-            /* NOTIFICATION DRAWER / SLIDE-IN PANEL */
+            /* NOTIFICATION DRAWER */
             .cendekia-notif-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 18, 46, 0.5);
-                backdrop-filter: blur(4px);
-                z-index: 99990;
+                background: rgba(0, 18, 46, 0.55);
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+                z-index: 99995;
                 display: none;
                 justify-content: flex-end;
             }
@@ -839,7 +942,7 @@
                 background: #f8fafc;
                 display: flex;
                 flex-direction: column;
-                box-shadow: -6px 0 25px rgba(0, 0, 0, 0.2);
+                box-shadow: -8px 0 30px rgba(0, 0, 0, 0.25);
                 animation: slideDrawer 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             }
             @keyframes slideDrawer {
@@ -854,8 +957,20 @@
                 justify-content: space-between;
                 align-items: center;
             }
+            .cnd-brand-wrap {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .cnd-thumb-logo {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                object-fit: cover;
+                border: 1px solid #d4af37;
+            }
             .cnd-title {
-                font-size: 0.96rem;
+                font-size: 0.94rem;
                 font-weight: 800;
                 color: #003366;
                 margin: 0;
@@ -868,7 +983,7 @@
             }
             .cnd-item-card {
                 background: white;
-                border-radius: 12px;
+                border-radius: 14px;
                 padding: 12px;
                 margin-bottom: 10px;
                 border: 1.5px solid #e2e8f0;
@@ -880,7 +995,7 @@
             }
             .cnd-item-card:hover {
                 border-color: #cbd5e1;
-                box-shadow: 0 4px 12px rgba(0, 51, 102, 0.05);
+                box-shadow: 0 4px 14px rgba(0, 51, 102, 0.06);
             }
             .cnd-item-card.unread {
                 border-color: #93c5fd;
@@ -896,27 +1011,24 @@
                 border-radius: 50%;
                 background: #2563eb;
             }
-            .cnd-item-icon {
-                width: 36px;
-                height: 36px;
-                border-radius: 8px;
-                background: #e0f2fe;
-                color: #0284c7;
+            .cnd-card-icon {
+                width: 38px;
+                height: 38px;
+                border-radius: 10px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 15px;
                 flex-shrink: 0;
             }
             .cnd-item-title {
-                font-size: 0.8rem;
+                font-size: 0.82rem;
                 font-weight: 800;
                 color: #0f172a;
                 margin-bottom: 2px;
                 padding-right: 12px;
             }
             .cnd-item-desc {
-                font-size: 0.7rem;
+                font-size: 0.72rem;
                 color: #64748b;
                 line-height: 1.35;
                 margin-bottom: 4px;
@@ -932,7 +1044,7 @@
                 color: #94a3b8;
             }
             .cnd-empty-icon {
-                font-size: 42px;
+                font-size: 40px;
                 color: #cbd5e1;
                 margin-bottom: 8px;
             }
@@ -943,13 +1055,15 @@
     function injectFloatingBell() {
         if (document.getElementById('cendekia-floating-bell-btn')) return;
 
-        // Tombol Lonceng Mengambang
+        // Tombol Lonceng Mengambang Eksklusif dengan Inline Vector SVG Emas
         const bell = document.createElement('div');
         bell.id = 'cendekia-floating-bell-btn';
         bell.className = 'cendekia-floating-bell';
-        bell.title = 'Buka Pusat Notifikasi';
+        bell.title = 'Pusat Notifikasi Cendekia Aksara';
         bell.innerHTML = `
-            <i class="fa-solid fa-bell" style="font-size:18px;"></i>
+            <div class="cendekia-bell-inner">
+                ${ICONS.bell}
+            </div>
             <span id="cendekia-bell-badge" class="cendekia-bell-badge">0</span>
         `;
 
@@ -963,23 +1077,28 @@
         overlay.innerHTML = `
             <div class="cendekia-notif-drawer">
                 <div class="cnd-header">
-                    <div>
-                        <h3 class="cnd-title"><i class="fa-solid fa-bell" style="color:#d4af37; margin-right:6px;"></i> Pusat Notifikasi</h3>
-                        <div style="font-size:0.65rem; color:#64748b; margin-top:2px;" id="cnd-sw-status">Antena Push: Aktif</div>
+                    <div class="cnd-brand-wrap">
+                        <img src="${OFFICIAL_LOGO_URL}" alt="Logo" class="cnd-thumb-logo" onerror="this.onerror=null; this.src='/img/icon-192x192.png'">
+                        <div>
+                            <h3 class="cnd-title">Pusat Notifikasi</h3>
+                            <div style="font-size:0.65rem; color:#64748b; margin-top:2px;" id="cnd-sw-status">Antena Layar Kunci: Aktif</div>
+                        </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <button type="button" id="cnd-btn-mark-all" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.65rem; font-weight:800; padding:4px 8px; border-radius:6px; cursor:pointer;">
                             Baca Semua
                         </button>
                         <button type="button" id="cnd-btn-close" style="background:transparent; border:none; color:#64748b; font-size:18px; cursor:pointer; padding:4px;">
-                            <i class="fa-solid fa-xmark"></i>
+                            ${ICONS.xmark}
                         </button>
                     </div>
                 </div>
 
                 <!-- QUICK TEST & STATUS BAR -->
                 <div style="background:#fffbeb; padding:8px 14px; border-bottom:1px solid #fef3c7; display:flex; align-items:center; justify-content:space-between;">
-                    <span style="font-size:0.68rem; color:#92400e; font-weight:700;"><i class="fa-solid fa-mobile-screen"></i> Antena Layar Kunci HP</span>
+                    <span style="font-size:0.68rem; color:#92400e; font-weight:700; display:flex; align-items:center; gap:6px;">
+                        ${ICONS.checkCircle} Antena Layar Kunci HP
+                    </span>
                     <button type="button" id="cnd-btn-test-notif" style="background:#d97706; color:white; border:none; padding:4px 10px; border-radius:6px; font-size:0.65rem; font-weight:800; cursor:pointer;">
                         Uji Banner &amp; Getar
                     </button>
@@ -990,8 +1109,8 @@
                 </div>
 
                 <div style="padding:10px 14px; background:white; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                    <button type="button" id="cnd-btn-clear" style="background:none; border:none; color:#ef4444; font-size:0.7rem; font-weight:700; cursor:pointer;">
-                        <i class="fa-solid fa-trash-can"></i> Hapus Riwayat
+                    <button type="button" id="cnd-btn-clear" style="background:none; border:none; color:#ef4444; font-size:0.7rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        ${ICONS.trash} Hapus Riwayat
                     </button>
                     <span style="font-size:0.65rem; color:#94a3b8;">PT Cendekia Aksara Edukasi</span>
                 </div>
@@ -1012,7 +1131,6 @@
             clearAllNotifications();
         });
         document.getElementById('cnd-btn-test-notif').addEventListener('click', () => {
-            // Jika izin belum granted, pemicu izin langsung
             if (('Notification' in window) && Notification.permission !== 'granted') {
                 requestPushPermissionDirectly();
                 return;
@@ -1020,7 +1138,7 @@
 
             kirimNotifikasi({
                 judul: '🔔 Uji Coba Layar Kunci Berhasil!',
-                pesan: 'Engine notifikasi mandiri, push background, getaran HP, dan audio chime bekerja prima.',
+                pesan: 'Logo resmi, getaran HP, dan audio chime bekerja dengan standar aplikasi besar.',
                 urlTujuan: `${PORTAL_PREFIX}/bermain.html`,
                 jenis: 'game'
             });
@@ -1040,8 +1158,8 @@
             if (statusEl) {
                 const hasPerm = ('Notification' in window) && Notification.permission === 'granted';
                 statusEl.innerHTML = hasPerm 
-                    ? '<span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Layar Kunci &amp; Push: Aktif</span>' 
-                    : '<span style="color:#d97706;"><i class="fa-solid fa-triangle-exclamation"></i> Push Layar Kunci: Belum Diizinkan</span>';
+                    ? '<span style="color:#16a34a; font-weight:700;">● Layar Kunci &amp; Push: Aktif</span>' 
+                    : '<span style="color:#d97706; font-weight:700;">● Push Layar Kunci: Belum Diizinkan</span>';
             }
         }
     }
@@ -1075,7 +1193,7 @@
         if (list.length === 0) {
             container.innerHTML = `
                 <div class="cnd-empty">
-                    <div class="cnd-empty-icon"><i class="fa-solid fa-bell-slash"></i></div>
+                    <div class="cnd-empty-icon">${ICONS.bellWhite}</div>
                     <div style="font-size:0.85rem; font-weight:800; color:#475569; margin-bottom:4px;">Belum Ada Notifikasi</div>
                     <div style="font-size:0.72rem; color:#94a3b8; max-width:240px; margin:0 auto;">Notifikasi game terbuka, capaian literasi, dan ucapan ultah akan muncul di sini.</div>
                 </div>
@@ -1085,27 +1203,13 @@
 
         let html = '';
         list.forEach(item => {
-            let iconBox = '<i class="fa-solid fa-bell"></i>';
-            let iconBg = '#e0f2fe';
-            let iconColor = '#0284c7';
-
-            if (item.jenis === 'game' || item.jenis === 'game_score') {
-                iconBox = '<i class="fa-solid fa-gamepad"></i>';
-                iconBg = '#ede9fe';
-                iconColor = '#7c3aed';
-            } else if (item.jenis === 'ultah') {
-                iconBox = '<i class="fa-solid fa-cake-candles"></i>';
-                iconBg = '#fef3c7';
-                iconColor = '#d97706';
-            } else if (item.jenis === 'reward' || item.jenis === 'lencana') {
-                iconBox = '<i class="fa-solid fa-medal"></i>';
-                iconBg = '#dcfce7';
-                iconColor = '#16a34a';
-            }
+            const cat = getCategoryPill(item.jenis);
 
             html += `
                 <div class="cnd-item-card ${item.read ? '' : 'unread'}" onclick="window.CendekiaNotifikasi.openItem('${item.id}', '${item.urlTujuan}')">
-                    <div class="cnd-item-icon" style="background:${iconBg}; color:${iconColor};">${iconBox}</div>
+                    <div class="cnd-card-icon" style="background:${cat.bg}; color:white;">
+                        ${cat.icon}
+                    </div>
                     <div style="flex:1; min-width:0;">
                         <div class="cnd-item-title">${escapeHtml(item.judul)}</div>
                         <div class="cnd-item-desc">${escapeHtml(item.pesan)}</div>
@@ -1136,14 +1240,14 @@
     }
 
     // ======================================================================
-    // 11. INISIALISASI UTAMA & SINKRONISASI PENGGUNA
+    // 12. INISIALISASI UTAMA & SINKRONISASI PENGGUNA
     // ======================================================================
     async function init() {
+        ensureFontAwesomeLoaded();
         injectNotificationStyles();
         injectFloatingBell();
         await initServiceWorker();
 
-        // Ambil data user dari CendekiaApp atau localStorage
         let user = null;
         if (window.CendekiaApp && typeof window.CendekiaApp.getUser === 'function') {
             user = window.CendekiaApp.getUser();
@@ -1153,17 +1257,14 @@
             } catch (_) {}
         }
 
-        // Inisialisasi OneSignal SDK & kaitkan akun siswa
         initOneSignal(user);
 
-        // Sinkronisasi data siswa ke Service Worker
         if (user) {
             syncUserDataToServiceWorker(user);
             cekNotifikasiGameHarian();
             cekNotifikasiUlangTahun(user);
         }
 
-        // Periksa izin push dan aktifkan permintaan jika belum diputuskan
         checkAndPromptPermission();
     }
 
@@ -1174,7 +1275,7 @@
     }
 
     // ======================================================================
-    // 12. EKSPOR PUBLIK API (window.CendekiaNotifikasi)
+    // 13. EKSPOR PUBLIK API (window.CendekiaNotifikasi)
     // ======================================================================
     window.CendekiaNotifikasi = {
         init,

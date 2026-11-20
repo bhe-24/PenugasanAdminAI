@@ -1,18 +1,23 @@
 // ========================================================
-// CENDEKIA AKSARA - SERVICE WORKER & NOTIFIKASI PWA (V2.6)
+// CENDEKIA AKSARA - SERVICE WORKER & NOTIFIKASI PWA (V2.7)
 // Mendukung Notifikasi Push Native, Banner Layar Kunci HP,
-// Background Scheduler, Caching Pintar, serta Penanganan Offline / API Mati.
+// Logo Resmi App, Badge Alpha Transparan (Bebas Kotak Putih),
+// Background Scheduler, Caching Pintar, serta Penanganan Offline.
 // ========================================================
 
-// 1. IMPOR ANTENA ONESIGNAL (DENGAN TRY-CATCH AMAN TANPA CRASH OFFLINE)
+// 1. IMPOR ANTENA ONESIGNAL (DENGAN TRY-CATCH AMAN)
 try {
     importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 } catch (e) {
     console.warn("[SW] OneSignal SDK bypass (offline/unreachable):", e);
 }
 
-const CACHE_NAME = 'cendekia-cache-v2.6';
+const CACHE_NAME = 'cendekia-cache-v2.7';
 const USER_STATE_CACHE = 'cendekia-user-state-v1';
+
+function getAssetsUrl() {
+    return self.location.origin || "https://penugasan-admin-ai.vercel.app";
+}
 
 // 2. INSTALL & ACTIVATE SERVICE WORKER
 self.addEventListener('install', event => {
@@ -41,7 +46,6 @@ self.addEventListener('fetch', event => {
     if (url.includes('?id=') || url.includes('/api/')) {
         event.respondWith(
             fetch(event.request).catch(() => {
-                // Jika API offline, kembalikan respons JSON fallback khusus notif
                 if (url.includes('/api/notif')) {
                     return new Response(JSON.stringify({
                         success: true,
@@ -69,7 +73,7 @@ self.addEventListener('fetch', event => {
     );
 });
 
-// 4. TERIMA PUSH NOTIFICATION (ONESIGNAL / WEB PUSH DARI SERVER SAAT HP TERKUNCI & APP DITUTUP)
+// 4. TERIMA PUSH NOTIFICATION (ONESIGNAL / WEB PUSH SAAT HP TERKUNCI & APP DITUTUP)
 self.addEventListener('push', event => {
     let payload = {};
     if (event.data) {
@@ -83,25 +87,24 @@ self.addEventListener('push', event => {
         }
     }
 
-    // Ekstrak data dari struktur OneSignal atau W3C Web Push
+    const baseOrigin = getAssetsUrl();
     const custom = payload.custom ? (typeof payload.custom === 'string' ? JSON.parse(payload.custom) : payload.custom) : {};
     const title = payload.title || payload.headings?.en || payload.headings?.id || payload.judul || "Cendekia Aksara";
     const body = payload.body || payload.contents?.en || payload.contents?.id || payload.pesan || "Pemberitahuan baru dari Cendekia Aksara.";
     const targetUrl = payload.url || payload.urlTujuan || payload.data?.url || custom.u || "/mem-free/index.html";
-    const icon = payload.icon || "https://i.imgur.com/5Srjyo4.png";
 
-    // Konfigurasi Notifikasi untuk Layar Kunci HP:
-    // requireInteraction: true -> Banner tidak hilang sebelum digeser/diklik
-    // vibrate -> Pola getar agar HP terasa di kantong
-    // silent: false -> Bunyi notifikasi aktif
+    // Gunakan Logo Resmi Cendekia Aksara (High-Res 192x192) & Badge Transparan Android
+    const icon = payload.icon || (baseOrigin + "/img/icon-192x192.png");
+    const badge = payload.badge || (baseOrigin + "/img/badge-96x96.png");
+
     const options = {
         body: body,
         icon: icon,
-        badge: "https://i.imgur.com/5Srjyo4.png",
-        vibrate: [300, 100, 300, 100, 300],
+        badge: badge,
+        vibrate: [300, 100, 300, 100, 300], // Getaran bangunkan layar kunci HP
         tag: payload.tag || ("cendekia-" + Date.now()),
         renotify: true,
-        requireInteraction: true,
+        requireInteraction: true, // Banner tetap bertahan di layar kunci HP
         silent: false,
         data: {
             url: targetUrl,
@@ -120,7 +123,6 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
     event.notification.close();
 
-    // Jika pengguna menekan tombol "Tutup" pada aksi
     if (event.action === 'close') {
         return;
     }
@@ -131,14 +133,12 @@ self.addEventListener('notificationclick', event => {
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-            // Jika ada tab yang sudah terbuka, arahkan dan beri fokus
             for (let client of windowClients) {
                 if (client.url.includes(self.location.origin) && 'focus' in client) {
                     client.navigate(targetUrl);
                     return client.focus();
                 }
             }
-            // Jika aplikasi tertutup (tidak ada tab terbuka), luncurkan jendela baru
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);
             }
@@ -150,13 +150,15 @@ self.addEventListener('notificationclick', event => {
 self.addEventListener('message', event => {
     if (!event.data) return;
 
-    // A. Tampilkan notifikasi langsung via Service Worker dengan opsi layar kunci
+    const baseOrigin = getAssetsUrl();
+
+    // A. Tampilkan notifikasi langsung via Service Worker dengan opsi layar kunci & logo resmi
     if (event.data.type === 'SHOW_NOTIFICATION') {
         const { title, options } = event.data;
         const opts = {
             body: options?.body || '',
-            icon: options?.icon || "https://i.imgur.com/5Srjyo4.png",
-            badge: options?.badge || "https://i.imgur.com/5Srjyo4.png",
+            icon: options?.icon || (baseOrigin + "/img/icon-192x192.png"),
+            badge: options?.badge || (baseOrigin + "/img/badge-96x96.png"),
             vibrate: options?.vibrate || [300, 100, 300, 100, 300],
             tag: options?.tag || ('cendekia-' + Date.now()),
             renotify: true,
@@ -181,8 +183,8 @@ self.addEventListener('message', event => {
         const delay = event.data.delayMs || 3000;
         setTimeout(() => {
             const opts = Object.assign({
-                icon: "https://i.imgur.com/5Srjyo4.png",
-                badge: "https://i.imgur.com/5Srjyo4.png",
+                icon: baseOrigin + "/img/icon-192x192.png",
+                badge: baseOrigin + "/img/badge-96x96.png",
                 vibrate: [300, 100, 300, 100, 300],
                 requireInteraction: true,
                 silent: false,
@@ -240,6 +242,7 @@ async function runBackgroundDailyCheck() {
     const user = await getUserState();
     if (!user) return;
 
+    const baseOrigin = getAssetsUrl();
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const currentYear = now.getFullYear().toString();
@@ -260,8 +263,8 @@ async function runBackgroundDailyCheck() {
             if (!alreadyNotified) {
                 await self.registration.showNotification("🎉 Selamat Ulang Tahun!", {
                     body: `Hai ${user.name}! Ada kejutan spesial dan hadiah literasi menunggumu di Cendekia Aksara hari ini.`,
-                    icon: "https://i.imgur.com/5Srjyo4.png",
-                    badge: "https://i.imgur.com/5Srjyo4.png",
+                    icon: baseOrigin + "/img/icon-192x192.png",
+                    badge: baseOrigin + "/img/badge-96x96.png",
                     vibrate: [300, 100, 300, 100, 300],
                     tag: `ultah-${currentYear}`,
                     renotify: true,
@@ -287,8 +290,8 @@ async function runBackgroundDailyCheck() {
         const portal = user.portalPrefix || '/mem-free';
         await self.registration.showNotification("🎮 Mode Bermain Terbuka!", {
             body: "Mode Santai, Tantangan, dan Acak hari ini sudah siap dimainkan. Asah kosakatamu dan raih skor tertinggi!",
-            icon: "https://i.imgur.com/5Srjyo4.png",
-            badge: "https://i.imgur.com/5Srjyo4.png",
+            icon: baseOrigin + "/img/icon-192x192.png",
+            badge: baseOrigin + "/img/badge-96x96.png",
             vibrate: [300, 100, 300, 100, 300],
             tag: `game-${todayStr}`,
             renotify: true,
@@ -304,14 +307,13 @@ async function runBackgroundDailyCheck() {
     }
 }
 
-// 10. PERIODIC BACKGROUND SYNC (JIKA PERAMBAN MENDUKUNG PERIODICSYNC)
+// 10. PERIODIC BACKGROUND SYNC
 self.addEventListener('periodicsync', event => {
     if (event.tag === 'cendekia-daily-check' || event.tag === 'cendekia-sync') {
         event.waitUntil(runBackgroundDailyCheck());
     }
 });
 
-// Interval background worker saat service worker aktif
 setInterval(() => {
     runBackgroundDailyCheck();
-}, 3600000); // Cek berkala setiap jam saat service worker aktif
+}, 3600000);

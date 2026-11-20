@@ -32,8 +32,9 @@ export default async function handler(req, res) {
             "id": "Mode Santai, Tantangan, dan Acak hari ini sudah siap dimainkan. Asah kosakatamu dan raih skor tertinggi!"
         },
         url: "https://penugasan-admin-ai.vercel.app/mem-free/bermain.html",
-        chrome_web_icon: "https://i.imgur.com/5Srjyo4.png",
-        chrome_web_badge: "https://i.imgur.com/5Srjyo4.png",
+        chrome_web_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
+        chrome_web_badge: "https://penugasan-admin-ai.vercel.app/img/badge-96x96.png",
+        firefox_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
         priority: 10,
         ttl: 86400,
         web_push_topic: "game-harian-" + todayStr
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
         const data = await response.json().catch(() => ({}));
         return res.status(200).json({
             success: true,
-            message: "Push notifikasi game harian berhasil dipancarkan ke seluruh HP siswa.",
+            message: "Push notifikasi game harian dengan logo resmi berhasil dipancarkan ke seluruh HP siswa.",
             data
         });
     } catch (err) {

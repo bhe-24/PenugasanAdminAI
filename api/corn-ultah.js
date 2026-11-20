@@ -47,8 +47,9 @@ async function sendPush({ targetUserId, excludeUserId, judul, pesan, urlTujuan, 
             headings: { en: judul, id: judul },
             contents: { en: pesan, id: pesan },
             url: urlTujuan ? (urlTujuan.startsWith('http') ? urlTujuan : `https://penugasan-admin-ai.vercel.app${urlTujuan}`) : "https://penugasan-admin-ai.vercel.app/siswa/ultah.html",
-            chrome_web_icon: "https://i.imgur.com/5Srjyo4.png",
-            chrome_web_badge: "https://i.imgur.com/5Srjyo4.png",
+            chrome_web_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
+            chrome_web_badge: "https://penugasan-admin-ai.vercel.app/img/badge-96x96.png",
+            firefox_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
             priority: 10,
             ttl: 86400
         };
@@ -91,16 +92,14 @@ export default async function handler(req, res) {
             });
         }
 
-        // Ambil waktu hari ini (WIB - Asia/Jakarta)
         const today = new Date();
         const options = { timeZone: 'Asia/Jakarta' };
-        const localeDate = today.toLocaleDateString('en-CA', options); // Format: YYYY-MM-DD
+        const localeDate = today.toLocaleDateString('en-CA', options);
         const dateObj = new Date(localeDate);
 
         const currentMonthDay = `${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
         const currentYear = dateObj.getFullYear().toString();
 
-        // Tarik data siswa
         const usersSnap = await db.collection('users').where('role', '==', 'siswa').get();
         let totalNotified = 0;
 
@@ -136,7 +135,6 @@ export default async function handler(req, res) {
                     jenis: "ultah_teman"
                 });
 
-                // C. Update penanda tahun agar tidak spam
                 await docSnap.ref.update({
                     lastNotifiedYear: currentYear
                 });
