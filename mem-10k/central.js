@@ -643,6 +643,14 @@ const CendekiaApp = (function () {
         user.levelTitle = newTitle;
         saveUser(user);
 
+        if (leveledUp) {
+            try {
+                if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.notifPemerolehan === 'function') {
+                    window.CendekiaNotifikasi.notifPemerolehan({ tipe: 'level_up', levelTitle: newTitle });
+                }
+            } catch (_) {}
+        }
+
         // Evaluasi otomatis 6 lencana resmi
         checkAndAwardBadges(user);
 
@@ -793,6 +801,12 @@ const CendekiaApp = (function () {
     }
 
     function showBadgeUnlockedModal(badge) {
+        try {
+            if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.notifPemerolehan === 'function') {
+                window.CendekiaNotifikasi.notifPemerolehan({ tipe: 'lencana', nama: badge.name });
+            }
+        } catch (_) {}
+
         const overlay = document.createElement('div');
         overlay.className = 'app-modal-overlay';
         overlay.style.display = 'flex';
@@ -1210,6 +1224,15 @@ const CendekiaApp = (function () {
                 const ch = list.find(c => c.id === id || (id === 'tc_2' && c.id === 'tc_quiz') || (id === 'tc_3' && c.id === 'tc_game') || (id === 'tc_1' && c.id === 'tc_read') || (id === 'tc_4' && c.id === 'tc_write'));
                 const xpBonus = ch ? ch.rewardXp : 20;
                 addXP(xpBonus, `Tantangan Selesai (${ch ? ch.title : id})`);
+                try {
+                    if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.notifPemerolehan === 'function') {
+                        window.CendekiaNotifikasi.notifPemerolehan({
+                            tipe: 'tantangan',
+                            nama: ch ? ch.title : 'Tantangan Harian',
+                            xp: xpBonus
+                        });
+                    }
+                } catch (_) {}
                 return true;
             }
         } catch (e) {}
@@ -4435,6 +4458,16 @@ const CendekiaApp = (function () {
         const gameTitle = gameKey === 'kuis_pintar' ? 'Kuis Pintar' : gameKey.replace(/_/g, ' ');
         logActivity(`Menyelesaikan ${gameTitle} [Mode ${modeLabel}] (Skor: ${resultData.score || 0})`, gameKey === 'kuis_pintar' ? 'brain' : 'gamepad-2', gameKey === 'kuis_pintar' ? 'quiz' : 'game', resultData.xpEarned || 0);
         scheduleCloudMemorySync();
+
+        // 5. Trigger Notifikasi Skor Bermain Otomatis
+        try {
+            if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.notifSkorBermain === 'function') {
+                const finalScore = resultData.score !== undefined ? resultData.score : 100;
+                const finalXP = resultData.xpEarned || resultData.earnedXP || 25;
+                window.CendekiaNotifikasi.notifSkorBermain(modeLabel, finalScore, finalXP);
+            }
+        } catch (_) {}
+
         return payload;
     }
 
@@ -5029,6 +5062,16 @@ const CendekiaApp = (function () {
             lucide.createIcons();
         }
         syncWithFirebaseUser();
+
+        // Aktifkan notifikasi.js secara otomatis di seluruh halaman member
+        if (!window.CendekiaNotifikasi && typeof document !== 'undefined') {
+            const notifScript = document.createElement('script');
+            notifScript.src = '/js/notifikasi.js';
+            notifScript.defer = true;
+            document.head.appendChild(notifScript);
+        } else if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.syncUser === 'function') {
+            window.CendekiaNotifikasi.syncUser(getUser());
+        }
     }
 
     return {
