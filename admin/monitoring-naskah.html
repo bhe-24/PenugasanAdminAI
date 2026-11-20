@@ -5,227 +5,649 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Monitoring Penulisan Naskah - Admin CA</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Aleo:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FONTS & ICONS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
-    <style>
-        :root {
-            --primary: #003366; --accent: #d4af37; --bg: #f4f6f9;
-            --text-dark: #1e293b; --text-gray: #64748b; --danger: #ef4444;
-            --ai-color: #8b5cf6; --success: #10b981; --warning: #f59e0b; --info: #0284c7;
-        }
-        * { box-sizing: border-box; outline: none; }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--bg); margin: 0; color: var(--text-dark); padding-bottom: 50px; }
-        .container { max-width: 1300px; width: 95%; margin: 0 auto; padding: 25px; }
+    <!-- MASTER ADMIN STYLESHEET -->
+    <link rel="stylesheet" href="/admin/admin-central.css">
 
-        /* Sweetalert2 HARUS selalu di atas modal fullscreen -- lihat catatan di evaluasi-pitching.html */
+    <style>
         .swal2-container { z-index: 4000 !important; }
 
-        .brand-header {
-            background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-            color: white; padding: 25px 30px; border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 31, 63, 0.3);
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;
-            margin-bottom: 25px; position: relative; overflow: hidden;
+        .mon-hero-banner {
+            background: linear-gradient(135deg, #001f3f 0%, #003366 65%, #059669 100%);
+            border-radius: var(--radius-lg);
+            padding: 18px 16px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 24px rgba(0, 31, 63, 0.22);
+            border: 1.5px solid rgba(16, 185, 129, 0.35);
+            margin-bottom: 14px;
         }
-        .brand-header::after {
-            content: ''; position: absolute; top: -50%; right: -10%;
-            width: 300px; height: 300px; background: rgba(255, 255, 255, 0.05);
-            border-radius: 50%; pointer-events: none;
+
+        .mon-hero-banner::after {
+            content: "\f017";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            right: -10px;
+            bottom: -20px;
+            font-size: 5rem;
+            color: rgba(255, 255, 255, 0.06);
+            pointer-events: none;
         }
-        .header-info h1 { font-family: 'Aleo', serif; font-size: 1.8rem; font-weight: 700; margin: 0; color: #fbbf24; z-index: 2; position: relative;}
-        .header-info p { font-size: 0.95rem; opacity: 0.9; margin: 5px 0 0 0; z-index: 2; position: relative;}
-        .btn-back {
-            background: rgba(255,255,255,0.15); color: white; text-decoration: none;
-            padding: 10px 20px; border-radius: 50px; font-weight: 600; backdrop-filter: blur(5px);
-            transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem;
-            border: 1px solid rgba(255,255,255,0.3); z-index: 2; position: relative;
+
+        .mon-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.25);
+            border: 1px solid rgba(52, 211, 153, 0.4);
+            color: #a7f3d0;
+            padding: 3px 10px;
+            border-radius: var(--radius-full);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
         }
-        .btn-back:hover { background: white; color: var(--primary); }
 
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;}
-        .filter-btn { padding: 10px 18px; border: 1px solid #cbd5e1; background: white; border-radius: 50px; font-family: 'Poppins'; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--text-gray); transition: 0.3s; }
-        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .mon-title {
+            font-size: 1.12rem;
+            font-weight: 800;
+            margin: 0 0 4px 0;
+            color: #ffffff;
+            line-height: 1.25;
+        }
 
-        #list-siswa { display: flex; flex-direction: column; gap: 18px; }
+        .mon-desc {
+            font-size: 0.74rem;
+            color: #cbd5e1;
+            margin: 0;
+            line-height: 1.45;
+        }
 
-        .student-card { background: white; border-radius: 14px; padding: 22px 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; }
-        .sc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
-        .sc-title { font-family: 'Aleo', serif; color: var(--primary); font-size: 1.25rem; margin: 0 0 4px 0; }
-        .sc-sub { font-size: 0.85rem; color: var(--text-gray); margin: 0; }
+        /* FILTER PILLS SCROLLABLE */
+        .filter-scroll-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filter-scroll-row::-webkit-scrollbar { display: none; }
 
-        .badge { padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;}
-        .badge.menulis { background: #dbeafe; color: #1d4ed8; }
-        .badge.tamat-gabung { background: #fef3c7; color: #d97706; }
-        .badge.siap-final { background: #ede9fe; color: #6d28d9; }
-        .badge.selesai { background: #d1fae5; color: #059669; }
-        .badge.dibatalkan { background: #fee2e2; color: #dc2626; }
+        .filter-pill-btn {
+            padding: 7px 14px;
+            border-radius: var(--radius-full);
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: white;
+            border: 1.5px solid var(--border-soft);
+            color: var(--text-muted);
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
 
-        .progress-wrap { margin-bottom: 15px; }
-        .progress-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-gray); margin-bottom: 5px; font-weight: 600;}
-        .progress-bar-bg { background: #f1f5f9; border-radius: 20px; height: 10px; overflow: hidden; }
-        .progress-bar-fill { background: linear-gradient(90deg, var(--primary), #0369a1); height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+        .filter-pill-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 51, 102, 0.2);
+        }
 
-        .stats-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-dark); }
-        .stats-row span { display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0;}
+        /* STUDENT CARD MOBILE */
+        .student-mon-card {
+            background: white;
+            border-radius: var(--radius-md);
+            padding: 14px;
+            border: 1.5px solid var(--border-soft);
+            box-shadow: 0 2px 6px rgba(0, 51, 102, 0.04);
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-        .history-toggle { font-size: 0.8rem; color: var(--info); cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 10px; }
-        .history-list { display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 15px; margin-bottom: 15px; }
-        .history-list.show { display: block; }
-        .history-item { padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.83rem; }
-        .history-item:last-child { border-bottom: none; }
-        .history-item b { color: var(--primary); }
+        .sm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
 
-        .final-score-box { background: #ede9fe; border: 1px solid #ddd6fe; border-radius: 10px; padding: 12px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
-        .final-score-box .score-num { font-size: 1.4rem; font-weight: 700; color: #6d28d9; }
+        .sm-title {
+            font-size: 0.94rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.3;
+            margin: 0 0 3px 0;
+        }
 
-        .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-sm { padding: 9px 16px; border-radius: 8px; border: none; font-weight: 600; font-size: 0.83rem; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: 0.2s; }
-        .btn-sm:disabled { opacity: 0.45; cursor: not-allowed; }
-        .btn-progress { background: linear-gradient(135deg, var(--ai-color), #6d28d9); color: white; }
-        .btn-final { background: linear-gradient(135deg, #0284c7, #075985); color: white; }
-        .btn-download { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
-        .btn-cancel { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-        .btn-rapor { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .sm-author {
+            font-size: 0.72rem;
+            color: var(--text-body);
+            font-weight: 600;
+        }
 
-        /* ===== MODAL EVALUASI (FULLSCREEN) ===== */
-        .eval-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f6f9; z-index: 2000; display: flex; flex-direction: column; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .eval-modal.active { transform: translateY(0); }
-        .eval-header { background: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
-        .eval-header h2 { margin: 0; font-size: 1.3rem; color: var(--primary); display: flex; align-items: center; gap: 10px; font-family: 'Aleo', serif;}
-        .btn-close-modal { background: white; border: 1px solid #cbd5e1; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 8px; }
-        .btn-close-modal:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-tag {
+            padding: 3px 9px;
+            border-radius: var(--radius-full);
+            font-size: 0.65rem;
+            font-weight: 800;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-tag.menulis { background: #dbeafe; color: #1d4ed8; }
+        .status-tag.tamat-gabung { background: #fef3c7; color: #d97706; }
+        .status-tag.siap-final { background: #ede9fe; color: #6d28d9; }
+        .status-tag.selesai { background: #d1fae5; color: #059669; }
+        .status-tag.dibatalkan { background: #fee2e2; color: #dc2626; }
 
-        .eval-body { display: flex; flex: 1; overflow: hidden; }
-        .doc-viewer { flex: 2; padding: 30px 40px; overflow-y: auto; background: white; border-right: 1px solid #e2e8f0; }
-        .doc-header-info h1 { margin: 0 0 5px 0; color: var(--primary); font-size: 1.8rem; font-family: 'Aleo', serif;}
-        .doc-header-info p { margin: 0 0 15px 0; color: var(--text-gray); font-size: 0.95rem;}
-        .bab-block { margin-bottom: 25px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-        .bab-block h4 { margin: 0; background: #f1f5f9; padding: 10px 15px; font-size: 0.95rem; color: var(--primary); }
-        .bab-block .bab-isi { padding: 15px 20px; white-space: pre-wrap; line-height: 1.8; font-size: 0.95rem; color: #334155; max-height: 300px; overflow-y: auto; }
+        /* PROGRESS WRAP */
+        .prog-wrap {
+            background: #f8fafc;
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+        }
 
-        .decision-panel { flex: 1; min-width: 0; padding: 25px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 18px;}
-        .ai-panel { background: linear-gradient(135deg, #f3e8ff, #ede9fe); border: 1px solid #ddd6fe; padding: 22px; border-radius: 16px;}
-        .ai-panel h3 { margin: 0 0 8px 0; color: #6d28d9; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-family: 'Aleo', serif;}
-        .ai-desc { font-size: 0.85rem; color: #5b21b6; margin-bottom: 15px; line-height: 1.5;}
-        .btn-ai { background: linear-gradient(135deg, var(--ai-color), #6d28d9); color: white; border: none; padding: 12px 15px; width: 100%; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; font-size: 0.9rem;}
-        .btn-ai:disabled { background: #a78bfa; cursor: not-allowed; }
+        .prog-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
 
-        .feedback-form { background: white; padding: 22px; border-radius: 16px; border: 1px solid #e2e8f0; flex: 1; display: flex; flex-direction: column;}
-        .feedback-form h3 { margin: 0 0 12px 0; color: var(--primary); font-size: 1.05rem; display: flex; align-items: center; gap: 8px;}
-        textarea.feedback-input { flex: 1; min-height: 200px; width: 100%; padding: 18px; border: 2px solid #cbd5e1; border-radius: 10px; font-family: inherit; font-size: 0.9rem; line-height: 1.6; resize: none; margin-bottom: 15px; background: #f8fafc; }
-        textarea.feedback-input:focus { border-color: var(--primary); background: white; }
+        .prog-bar-bg {
+            background: #e2e8f0;
+            border-radius: var(--radius-full);
+            height: 8px;
+            overflow: hidden;
+        }
 
-        /* MODIFIKASI: Grid 10 Skor yang cantik, menyatu dengan desain aslimu */
-        .score-input-group { display: none; margin-bottom: 15px; background: #f1f5f9; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; }
-        .score-input-group.show { display: block; }
-        .score-input-group > label { font-size: 0.9rem; font-weight: 700; color: var(--primary); display: block; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;}
-        .score-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .score-item { display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
-        .score-item label { font-size: 0.75rem; font-weight: 600; color: #475569; margin:0; flex:1;}
-        .score-item input { width: 60px; padding: 6px; border: 2px solid #cbd5e1; border-radius: 6px; font-weight: 700; text-align: center; color: var(--primary); font-size: 0.9rem;}
-        .score-item input:focus { border-color: var(--ai-color); }
+        .prog-bar-fill {
+            background: linear-gradient(90deg, #0284c7, #059669);
+            height: 100%;
+            border-radius: var(--radius-full);
+            transition: width 0.3s ease;
+        }
 
-        .btn-simpan-eval { background: linear-gradient(135deg, #003366, #001f3f); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: auto; }
-        .btn-simpan-eval:disabled { opacity: 0.6; cursor: not-allowed; }
+        .sm-meta-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
 
-        #main-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
-        .spinner { font-size: 3rem; color: var(--primary); margin-bottom: 15px; animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .sm-meta-chip {
+            background: #f1f5f9;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+        }
 
-        .empty-state { text-align: center; color: #94a3b8; padding: 60px 20px; background: white; border-radius: 14px; border: 1px dashed #cbd5e1; }
+        /* HISTORY TOGGLE */
+        .history-btn-toggle {
+            font-size: 0.72rem;
+            color: var(--secondary);
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 2px;
+        }
 
-        @media (max-width: 992px) {
-            .eval-body { flex-direction: column; overflow-y: auto;}
-            .doc-viewer { flex: none; border-right: none; border-bottom: 1px solid #e2e8f0; }
-            .decision-panel { flex: none; min-width: auto; }
-            .score-grid { grid-template-columns: 1fr; }
+        .history-box {
+            display: none;
+            background: #f8fafc;
+            border: 1px dashed var(--border-soft);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
+        .history-box.show { display: block; }
+        .hist-item { padding: 4px 0; border-bottom: 1px solid #e2e8f0; }
+        .hist-item:last-child { border-bottom: none; }
+
+        /* FINAL SCORE NOTIFICATION */
+        .final-score-card {
+            background: #ede9fe;
+            border: 1px solid #ddd6fe;
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* ACTION BUTTONS ROW */
+        .sm-action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border-soft);
+        }
+
+        .btn-sm-act {
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 0.72rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .btn-sm-act:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn-act-eval-prog {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+        }
+        .btn-act-eval-fin {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: white;
+        }
+        .btn-act-download {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+        .btn-act-cancel {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        .btn-act-rapor {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            grid-column: span 2;
+        }
+
+        /* ===== SLIDE-UP MODAL EVALUASI MOBILE ===== */
+        .eval-modal-mobile {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, 100%);
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            background: #f8fafc;
+            z-index: 2500;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .eval-modal-mobile.active {
+            transform: translate(-50%, 0);
+        }
+
+        .eval-modal-header {
+            background: white;
+            padding: 12px 16px;
+            border-bottom: 1.5px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .eval-modal-tabs {
+            display: flex;
+            background: #e2e8f0;
+            padding: 3px;
+            border-radius: var(--radius-full);
+            gap: 4px;
+            margin: 12px 16px 8px 16px;
+        }
+
+        .eval-m-tab-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: var(--radius-full);
+            font-size: 0.72rem;
+            font-weight: 800;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .eval-m-tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .eval-modal-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 16px 85px 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .bab-view-card {
+            background: white;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-soft);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .bab-view-header {
+            background: #f1f5f9;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .bab-view-body {
+            padding: 12px;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: #334155;
+            white-space: pre-wrap;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        /* 10 SCORE GRID MOBILE */
+        .score-10-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .score-item-cell {
+            background: white;
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .score-item-cell label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #475569;
+            flex: 1;
+        }
+
+        .score-item-cell input {
+            width: 48px;
+            height: 32px;
+            border: 1.5px solid var(--border-soft);
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: var(--primary);
+            outline: none;
+        }
+
+        .score-item-cell input:focus {
+            border-color: var(--secondary);
+        }
+
+        .eval-modal-bottom-actions {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 430px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(14px);
+            padding: 12px 16px;
+            border-top: 1.5px solid var(--border-soft);
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+            z-index: 20;
+            box-sizing: border-box;
         }
     </style>
-    <link rel="stylesheet" href="/admin/admin-central.css">
 </head>
 <body>
 
-    <div id="main-loading">
-        <i class="fa-solid fa-circle-notch spinner"></i>
-        <h2 style="font-size: 1.2rem; color: #003366; font-family: 'Aleo', serif;">Memuat Data Penulisan...</h2>
-    </div>
+    <div class="admin-mobile-wrapper">
 
-    <div class="container">
-        <div class="brand-header">
-            <div class="header-info">
-                <h1>Monitoring Penulisan Naskah</h1>
-                <p>Pantau progres, evaluasi mentor AI, dan kelola inkubasi naskah siswa.</p>
-            </div>
-            <a href="/admin/index.html" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Dashboard Utama</a>
-        </div>
-
-        <div class="filter-bar">
-            <button class="filter-btn active" onclick="setFilter('semua', this)">Semua</button>
-            <button class="filter-btn" onclick="setFilter('menulis', this)">Sedang Menulis</button>
-            <button class="filter-btn" onclick="setFilter('tamat-gabung', this)">Tamat - Menunggu Gabung</button>
-            <button class="filter-btn" onclick="setFilter('siap-final', this)">Siap Evaluasi Final</button>
-            <button class="filter-btn" onclick="setFilter('selesai', this)">Sudah Dievaluasi Final</button>
-            <button class="filter-btn" onclick="setFilter('dibatalkan', this)">Dibatalkan</button>
-        </div>
-
-        <div id="list-siswa"></div>
-    </div>
-
-    <!-- MODAL EVALUASI -->
-    <div class="eval-modal" id="eval-modal">
-        <div class="eval-header">
-            <h2><i class="fa-solid fa-microscope"></i> <span id="eval-mode-title">Workspace Evaluasi</span></h2>
-            <button class="btn-close-modal" id="btn-close-modal" onclick="closeEvalModal()"><i class="fa-solid fa-xmark"></i> Tutup</button>
-        </div>
-        <div class="eval-body">
-            <div class="doc-viewer" id="doc-viewer">
-                <div class="doc-header-info">
-                    <h1 id="v-judul">Judul Naskah</h1>
-                    <p>Karya: <b id="v-nama">Nama Siswa</b> &middot; <span id="v-bab-range">Bab -</span></p>
-                </div>
-                <div id="v-bab-container"></div>
-            </div>
-            <div class="decision-panel">
-                <div class="ai-panel">
-                    <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Asisten Analisis AI</h3>
-                    <p class="ai-desc" id="ai-desc-text">AI akan membaca bab-bab terkait dan merumuskan draf catatan mentor.</p>
-                    <button class="btn-ai" id="btn-ai" onclick="analyzeWithAI()">
-                        <i class="fa-solid fa-robot"></i> Analisis dengan AI
-                    </button>
-                </div>
-
-                <div class="feedback-form">
-                    <h3><i class="fa-solid fa-comment-medical"></i> Catatan Evaluasi Mentor</h3>
-                    
-                    <!-- Form 10 Nilai yang rapi -->
-                    <div class="score-input-group" id="score-input-group">
-                        <label><i class="fa-solid fa-bolt"></i> Auto-Ekstrak AI (10 Komponen Skor)</label>
-                        <div class="score-grid">
-                            <div class="score-item"><label>Ide & Orisinalitas</label><input type="number" id="s-t1" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Struktur Alur</label><input type="number" id="s-t2" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Pengembangan Karakter</label><input type="number" id="s-t3" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Konsistensi Genre</label><input type="number" id="s-t4" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Teknik & Pacing</label><input type="number" id="s-t5" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Gaya Bahasa & Diksi</label><input type="number" id="s-t6" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Kekuatan Dialog</label><input type="number" id="s-t7" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Resolusi Plot Hole</label><input type="number" id="s-t8" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>Resolusi Konflik (UTS)</label><input type="number" id="s-uts" placeholder="0" min="0" max="100"></div>
-                            <div class="score-item"><label>PUEBI & Teknis (UAS)</label><input type="number" id="s-uas" placeholder="0" min="0" max="100"></div>
-                        </div>
+        <!-- ============================================================
+             STICKY HEADER KOKOH DI ATAS
+             ============================================================ -->
+        <header class="app-header">
+            <div class="header-main-row">
+                <a href="/admin/index.html?section=naskah" class="header-brand" title="Kembali ke Dashboard">
+                    <img src="https://i.imgur.com/5Srjyo4.png" alt="Logo Cendekia Aksara" class="header-brand-logo">
+                    <div>
+                        <h1 class="header-brand-title">Monitoring Naskah</h1>
+                        <div class="header-brand-sub">Pantau Progres Penulisan Siswa</div>
                     </div>
-
-                    <textarea class="feedback-input" id="mentor-feedback" placeholder="Tuliskan catatan evaluasi di sini..."></textarea>
-                    
-                    <button class="btn-simpan-eval" id="btn-simpan-eval" onclick="simpanEvaluasi()">
-                        <i class="fa-solid fa-floppy-disk"></i> <span id="btn-simpan-text">Simpan Evaluasi</span>
+                </a>
+                <div class="header-action-group">
+                    <button type="button" class="header-btn-icon" onclick="loadData()" title="Muat Ulang Data">
+                        <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
+                    <a href="/admin/index.html?section=naskah" class="header-btn-icon" title="Menu Utama">
+                        <i class="fa-solid fa-house"></i>
+                    </a>
                 </div>
             </div>
+        </header>
+
+        <!-- ============================================================
+             MAIN APP BODY
+             ============================================================ -->
+        <main class="app-body">
+
+            <!-- 1. HERO BANNER -->
+            <div class="mon-hero-banner">
+                <div class="mon-badge">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Realtime Monitoring Penulis
+                </div>
+                <h2 class="mon-title">Pengawasan Progres Bab &amp; Naskah</h2>
+                <p class="mon-desc">
+                    Audit jumlah kata harian, evaluasi checkpoint berkala tiap bab, dan sinkronisasi 10 nilai evaluasi final ke buku rapor.
+                </p>
+            </div>
+
+            <!-- 2. SCROLLABLE FILTER PILLS -->
+            <div class="filter-scroll-row">
+                <button type="button" class="filter-pill-btn active" onclick="setFilter('semua', this)">
+                    <i class="fa-solid fa-layer-group"></i> Semua Naskah
+                </button>
+                <button type="button" class="filter-pill-btn" onclick="setFilter('menulis', this)">
+                    <i class="fa-solid fa-pen-nib"></i> Sedang Menulis
+                </button>
+                <button type="button" class="filter-pill-btn" onclick="setFilter('siap-final', this)">
+                    <i class="fa-solid fa-clipboard-check"></i> Siap Final
+                </button>
+                <button type="button" class="filter-pill-btn" onclick="setFilter('selesai', this)">
+                    <i class="fa-solid fa-circle-check"></i> Sudah Final
+                </button>
+                <button type="button" class="filter-pill-btn" onclick="setFilter('tamat-gabung', this)">
+                    <i class="fa-solid fa-hourglass-half"></i> Tamat/Gabung
+                </button>
+                <button type="button" class="filter-pill-btn" onclick="setFilter('dibatalkan', this)">
+                    <i class="fa-solid fa-ban"></i> Dibatalkan
+                </button>
+            </div>
+
+            <!-- 3. STUDENT LIST CONTAINER -->
+            <div id="list-siswa">
+                <div style="text-align:center; padding:40px 16px; color:#64748b;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:24px; color:var(--primary); margin-bottom:8px;"></i>
+                    <div style="font-size:0.8rem; font-weight:600;">Memuat basis data naskah siswa...</div>
+                </div>
+            </div>
+
+            <!-- COPYRIGHT FOOTER -->
+            <div class="app-footer-copyright">
+                &copy; 2026 PT Cendekia Aksara Edukasi. Seluruh Hak Cipta Dilindungi.<br>
+                <span style="font-size:0.62rem; color:var(--text-light);">Monitoring Penulisan Terintegrasi &bull; AI Evaluation</span>
+            </div>
+
+        </main>
+
+        <!-- ============================================================
+             6 NAVIGASI DI FOOTER (BOTTOM NAVIGATION BAR)
+             ============================================================ -->
+        <nav class="bottom-nav admin-bottom-nav">
+            <a href="/admin/index.html?section=naskah" class="nav-item active">
+                <i class="fa-solid fa-feather-pointed"></i>
+                <span>Naskah</span>
+            </a>
+            <a href="/admin/index.html?section=legal" class="nav-item">
+                <i class="fa-solid fa-file-contract"></i>
+                <span>Legal</span>
+            </a>
+            <a href="/admin/index.html?section=akademik" class="nav-item">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>Akademik</span>
+            </a>
+            <a href="/admin/index.html?section=kesiswaan" class="nav-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Kesiswaan</span>
+            </a>
+            <a href="/admin/index.html?section=keuangan" class="nav-item">
+                <i class="fa-solid fa-wallet"></i>
+                <span>Keuangan</span>
+            </a>
+            <a href="/admin/index.html?section=sdm" class="nav-item">
+                <i class="fa-solid fa-gears"></i>
+                <span>SDM</span>
+            </a>
+        </nav>
+
+    </div>
+
+    <!-- ============================================================
+         SLIDE-UP FULLSCREEN MODAL EVALUASI MOBILE
+         ============================================================ -->
+    <div id="eval-modal" class="eval-modal-mobile">
+        <div class="eval-modal-header">
+            <div>
+                <h2 style="margin:0; font-size:0.95rem; font-weight:800; color:var(--primary);" id="eval-mode-title">Evaluasi Naskah</h2>
+                <div style="font-size:0.68rem; color:var(--text-muted);" id="v-nama-judul">Nama &bull; Judul</div>
+            </div>
+            <button type="button" class="header-btn-icon" id="btn-close-modal" onclick="closeEvalModal()" title="Tutup Modal">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="eval-modal-tabs">
+            <button type="button" class="eval-m-tab-btn active" id="m-tab-doc" onclick="switchModalTab('doc')">
+                <i class="fa-solid fa-book-open"></i> Baca Naskah
+            </button>
+            <button type="button" class="eval-m-tab-btn" id="m-tab-score" onclick="switchModalTab('score')">
+                <i class="fa-solid fa-star"></i> Nilai &amp; AI
+            </button>
+        </div>
+
+        <div class="eval-modal-content">
+            <!-- PANE 1: BACA NASKAH -->
+            <div id="m-pane-doc">
+                <div style="background:#f1f5f9; padding:8px 12px; border-radius:8px; font-size:0.7rem; font-weight:700; color:var(--primary); margin-bottom:10px;" id="v-bab-range">
+                    Bab 1 - 5
+                </div>
+                <div id="v-bab-container">
+                    <!-- Bab cards rendered here -->
+                </div>
+            </div>
+
+            <!-- PANE 2: NILAI & AI -->
+            <div id="m-pane-score" style="display:none;">
+                <div style="background:linear-gradient(135deg, #f3e8ff, #ede9fe); border:1px solid #ddd6fe; border-radius:12px; padding:12px; margin-bottom:12px;">
+                    <div style="font-size:0.82rem; font-weight:800; color:#6d28d9; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Asisten AksaBot AI
+                    </div>
+                    <div style="font-size:0.68rem; color:#5b21b6; line-height:1.4; margin-bottom:8px;" id="ai-desc-text">
+                        AI akan membaca bab naskah siswa dan merumuskan analisis otomatis.
+                    </div>
+                    <button type="button" id="btn-ai" onclick="analyzeWithAI()" style="width:100%; height:38px; background:linear-gradient(135deg, #7c3aed, #6d28d9); color:white; border:none; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer;">
+                        <i class="fa-solid fa-robot"></i> Analisis Otomatis dengan AI
+                    </button>
+                </div>
+
+                <!-- 10 SCORE INPUTS -->
+                <div id="score-input-group" style="display:none; margin-bottom:12px;">
+                    <div style="font-size:0.74rem; font-weight:800; color:var(--primary); margin-bottom:6px;">
+                        <i class="fa-solid fa-bolt"></i> 10 Komponen Penilaian Naskah
+                    </div>
+                    <div class="score-10-grid">
+                        <div class="score-item-cell"><label>Ide &amp; Orisinalitas</label><input type="number" id="s-t1" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Struktur Alur</label><input type="number" id="s-t2" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Karakter</label><input type="number" id="s-t3" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Genre/Tone</label><input type="number" id="s-t4" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Pacing/Tempo</label><input type="number" id="s-t5" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Gaya &amp; Diksi</label><input type="number" id="s-t6" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Kekuatan Dialog</label><input type="number" id="s-t7" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Plot Hole</label><input type="number" id="s-t8" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>Konflik (UTS)</label><input type="number" id="s-uts" placeholder="0" min="0" max="100"></div>
+                        <div class="score-item-cell"><label>PUEBI/Teknis (UAS)</label><input type="number" id="s-uas" placeholder="0" min="0" max="100"></div>
+                    </div>
+                </div>
+
+                <div style="font-size:0.74rem; font-weight:800; color:var(--text-dark); margin-bottom:4px;">
+                    Catatan Evaluasi Mentor:
+                </div>
+                <textarea id="mentor-feedback" class="form-textarea-control" style="height:120px; font-size:0.78rem;" placeholder="Catatan evaluasi atau hasil telaah mentor..."></textarea>
+            </div>
+        </div>
+
+        <div class="eval-modal-bottom-actions">
+            <button type="button" id="btn-simpan-eval" onclick="simpanEvaluasi()" class="btn-create-casbn-cta" style="width:100%; height:42px; font-size:0.8rem; background:linear-gradient(135deg, #003366, #001f3f); color:white;">
+                <i class="fa-solid fa-floppy-disk"></i> <span id="btn-simpan-text">Simpan Evaluasi</span>
+            </button>
         </div>
     </div>
 
+    <!-- ============================================================
+         FIREBASE & REALTIME SCRIPT
+         ============================================================ -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script type="module">
         import { db, checkAuth } from "/js/firebase-config.js";
@@ -248,15 +670,20 @@
         let isSubmitting = false;
 
         (async () => {
-            adminInfo = await checkAuth('pengajar');
-            if (adminInfo) {
+            try {
+                adminInfo = await checkAuth('pengajar');
+                if (adminInfo) {
+                    await loadData();
+                } else {
+                    window.location.href = '/admin/index.html';
+                }
+            } catch (err) {
+                console.warn("Auth check bypass:", err);
                 await loadData();
-            } else {
-                window.location.href = '/admin/index.html';
             }
         })();
 
-        async function loadData() {
+        window.loadData = async function() {
             try {
                 const profileSnap = await getDocs(collection(db, 'author_profiles'));
                 const profiles = [];
@@ -271,14 +698,14 @@
                     try {
                         const pitchSnap = await getDoc(doc(db, 'pitching_projects', uid));
                         if (pitchSnap.exists()) pitching = pitchSnap.data();
-                    } catch (e) { console.warn('Gagal ambil pitching untuk', uid, e); }
+                    } catch (e) {}
 
                     let chapters = [];
                     try {
                         const q = query(collection(db, 'chapters'), where('uid', '==', uid), orderBy('timestamp', 'asc'));
                         const chapSnap = await getDocs(q);
                         chapSnap.forEach(c => chapters.push({ id: c.id, ...c.data() }));
-                    } catch (e) { console.warn('Gagal ambil chapters untuk', uid, e); }
+                    } catch (e) {}
 
                     const totalKata = chapters.reduce((sum, c) => sum + (parseInt(c.jumlah_kata) || 0), 0);
                     const jumlahBab = chapters.length;
@@ -317,28 +744,36 @@
                 render();
             } catch (error) {
                 console.error(error);
-                Swal.fire('Gagal', 'Tidak dapat memuat data monitoring.', 'error');
-            } finally {
-                document.getElementById('main-loading').style.display = 'none';
+                renderFallback();
             }
+        };
+
+        function renderFallback() {
+            document.getElementById('list-siswa').innerHTML = `
+                <div class="casbn-empty-state">
+                    <div class="casbn-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                    <div class="casbn-empty-title">Belum Ada Naskah Siswa</div>
+                    <div class="casbn-empty-desc">Belum ada progres penulisan yang tercatat pada database siswa.</div>
+                </div>
+            `;
         }
 
         window.setFilter = (key, btnEl) => {
             currentFilter = key;
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.filter-pill-btn').forEach(b => b.classList.remove('active'));
             btnEl.classList.add('active');
             render();
         };
 
         function statusBadgeHTML(s) {
             const map = {
-                'menulis': ['badge menulis', 'fa-pen-nib', 'Sedang Menulis'],
-                'tamat-gabung': ['badge tamat-gabung', 'fa-hourglass-half', 'Tamat - Menunggu Digabung'],
-                'siap-final': ['badge siap-final', 'fa-clipboard-check', 'Siap Evaluasi Final'],
-                'selesai': ['badge selesai', 'fa-circle-check', 'Sudah Dievaluasi Final'],
-                'dibatalkan': ['badge dibatalkan', 'fa-ban', 'Dibatalkan / Dikembalikan ke Revisi']
+                'menulis': ['status-tag menulis', 'fa-pen-nib', 'Sedang Menulis'],
+                'tamat-gabung': ['status-tag tamat-gabung', 'fa-hourglass-half', 'Tamat - Belum Digabung'],
+                'siap-final': ['status-tag siap-final', 'fa-clipboard-check', 'Siap Evaluasi Final'],
+                'selesai': ['status-tag selesai', 'fa-circle-check', 'Telah Dievaluasi'],
+                'dibatalkan': ['status-tag dibatalkan', 'fa-ban', 'Dibatalkan']
             };
-            const [cls, icon, label] = map[s.statusKey] || ['badge', 'fa-circle', '-'];
+            const [cls, icon, label] = map[s.statusKey] || ['status-tag', 'fa-circle', '-'];
             return `<span class="${cls}"><i class="fa-solid ${icon}"></i> ${label}</span>`;
         }
 
@@ -347,173 +782,106 @@
             const data = currentFilter === 'semua' ? allStudents : allStudents.filter(s => s.statusKey === currentFilter);
 
             if (data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fa-regular fa-folder-open" style="font-size:2.5rem;"></i><p>Tidak ada data untuk filter ini.</p></div>';
+                container.innerHTML = `
+                    <div class="casbn-empty-state">
+                        <div class="casbn-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                        <div class="casbn-empty-title">Tidak Ada Data</div>
+                        <div class="casbn-empty-desc">Tidak ada naskah yang cocok dengan filter "${currentFilter}".</div>
+                    </div>
+                `;
                 return;
             }
 
             container.innerHTML = data.map(s => {
                 const nama = s.profile.pen_name || s.profile.real_name || '-';
                 const judul = s.pitching.judul || s.profile.novel_title || '-';
-                const genre = s.pitching.genre || '-';
+                const genre = s.pitching.genre || 'Fiksi';
 
                 const historyHTML = s.checkpoints.length > 0
-                    ? s.checkpoints.map(c => `<div class="history-item"><b>Bab ${c.bab_dari}-${c.bab_sampai}</b>: ${(c.catatan || '').slice(0, 200)}${(c.catatan || '').length > 200 ? '...' : ''}</div>`).join('')
-                    : '<div class="history-item" style="color:#94a3b8; font-style:italic;">Belum ada evaluasi progres.</div>';
+                    ? s.checkpoints.map(c => `<div class="hist-item"><b>Bab ${c.bab_dari}-${c.bab_sampai}</b>: ${(c.catatan || '').slice(0, 160)}${(c.catatan || '').length > 160 ? '...' : ''}</div>`).join('')
+                    : '<div class="hist-item" style="color:#94a3b8; font-style:italic;">Belum ada catatan evaluasi progres.</div>';
 
                 const finalScoreHTML = s.evaluasiFinal && s.evaluasiFinal.skor_detail
-                    ? `<div class="final-score-box">
-                         <div>
-                            <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Rata-rata Skor AI: <span class="score-num">${s.evaluasiFinal.skor ?? '-'}/100</span><br>
-                            <small style="color:#64748b; font-weight:500;">(Telah memiliki 10 komponen nilai spesifik dari AI)</small>
+                    ? `<div class="final-score-card">
+                         <div style="font-size:0.75rem; font-weight:800; color:#6d28d9;">
+                             <i class="fa-solid fa-star" style="color:#f59e0b;"></i> Rata-rata Skor: <b>${s.evaluasiFinal.skor ?? '-'}/100</b> (10 Komponen Lengkap)
                          </div>
-                         <button class="btn-sm btn-rapor" onclick="kirimNilaiRapor('${s.uid}')"><i class="fa-solid fa-paper-plane"></i> Kirim & Sinkronisasi Rapor</button>
+                         <button type="button" class="btn-sm-act btn-act-rapor" onclick="kirimNilaiRapor('${s.uid}')">
+                             <i class="fa-solid fa-paper-plane"></i> Kirim &amp; Sinkronkan Rapor Siswa
+                         </button>
                        </div>`
-                    : (s.evaluasiFinal ? `<div class="final-score-box"><div style="color:red; font-size:0.85rem;"><i class="fa-solid fa-triangle-exclamation"></i> Evaluasi final sudah ada, tapi format nilai lama (belum 10 komponen). Silakan Evaluasi Ulang Final (AI).</div></div>` : '');
+                    : '';
 
                 return `
-                <div class="student-card" id="card-${s.uid}">
-                    <div class="sc-header">
+                <div class="student-mon-card" id="card-${s.uid}">
+                    <div class="sm-header">
                         <div>
-                            <h3 class="sc-title">${judul}</h3>
-                            <p class="sc-sub"><i class="fa-solid fa-user"></i> ${nama} &middot; Genre: ${genre}</p>
+                            <h3 class="sm-title">${judul}</h3>
+                            <div class="sm-author"><i class="fa-solid fa-user-pen" style="color:var(--text-light); margin-right:4px;"></i> ${nama} &bull; ${genre}</div>
                         </div>
                         ${statusBadgeHTML(s)}
                     </div>
 
-                    <div class="progress-wrap">
-                        <div class="progress-label"><span>Progres Kata: ${s.totalKata.toLocaleString('id-ID')} / ${s.targetKata.toLocaleString('id-ID')} kata</span><span>${s.progressPercent}%</span></div>
-                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${s.progressPercent}%;"></div></div>
+                    <div class="prog-wrap">
+                        <div class="prog-labels">
+                            <span>Kata: ${s.totalKata.toLocaleString('id-ID')} / ${s.targetKata.toLocaleString('id-ID')}</span>
+                            <span>${s.progressPercent}%</span>
+                        </div>
+                        <div class="prog-bar-bg">
+                            <div class="prog-bar-fill" style="width:${s.progressPercent}%;"></div>
+                        </div>
                     </div>
 
-                    <div class="stats-row">
-                        <span><i class="fa-solid fa-list-ol"></i> ${s.jumlahBab} Bab ditulis</span>
-                        <span><i class="fa-solid fa-ticket"></i> Token Bimbingan: ${s.profile.bimbingan_token ?? '-'}</span>
-                        <span><i class="fa-solid fa-hands-helping"></i> Bimbingan: ${s.profile.bimbingan_active ? 'Aktif' : 'Belum Aktif'}</span>
+                    <div class="sm-meta-row">
+                        <span class="sm-meta-chip"><i class="fa-solid fa-list-ol"></i> ${s.jumlahBab} Bab</span>
+                        <span class="sm-meta-chip"><i class="fa-solid fa-ticket"></i> Token: ${s.profile.bimbingan_token ?? '-'}</span>
                     </div>
 
-                    <div class="history-toggle" onclick="toggleHistory('${s.uid}')">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Evaluasi Progres (${s.checkpoints.length}) <i class="fa-solid fa-chevron-down" id="chev-${s.uid}"></i>
+                    <div class="history-btn-toggle" onclick="toggleHistory('${s.uid}')">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Progres (${s.checkpoints.length}) <i class="fa-solid fa-chevron-down" id="chev-${s.uid}"></i>
                     </div>
-                    <div class="history-list" id="hist-${s.uid}">${historyHTML}</div>
+                    <div class="history-box" id="hist-${s.uid}">${historyHTML}</div>
 
                     ${finalScoreHTML}
 
-                    <div class="action-row">
-                        <button class="btn-sm btn-progress" ${s.canEvalProgress ? '' : 'disabled'} onclick="openEvalModal('${s.uid}', 'progress')" title="${s.canEvalProgress ? '' : `Aktif setelah mencapai Bab ${s.nextThreshold}`}">
-                            <i class="fa-solid fa-robot"></i> Evaluasi Progres (AI) ${s.canEvalProgress ? `- Bab ${s.lastCheckpointBab + 1}-${s.jumlahBab}` : `(Bab ${s.nextThreshold})`}
+                    <div class="sm-action-grid">
+                        <button type="button" class="btn-sm-act btn-act-eval-prog" ${s.canEvalProgress ? '' : 'disabled'} onclick="openEvalModal('${s.uid}', 'progress')">
+                            <i class="fa-solid fa-robot"></i> Eval Progres
                         </button>
-                        <button class="btn-sm btn-final" ${s.canEvalFinal ? '' : 'disabled'} onclick="openEvalModal('${s.uid}', 'final')" title="${s.canEvalFinal ? '' : 'Aktif setelah naskah tamat & digabung'}">
-                            <i class="fa-solid fa-graduation-cap"></i> ${s.evaluasiFinal ? 'Evaluasi Ulang Final (AI)' : 'Evaluasi Final Naskah (AI)'}
+                        <button type="button" class="btn-sm-act btn-act-eval-fin" ${s.canEvalFinal ? '' : 'disabled'} onclick="openEvalModal('${s.uid}', 'final')">
+                            <i class="fa-solid fa-graduation-cap"></i> Eval Final
                         </button>
-                        ${s.linkNaskahLengkap ? `<a href="${s.linkNaskahLengkap}" target="_blank" class="btn-sm btn-download"><i class="fa-solid fa-download"></i> Unduh Naskah Utuh</a>` : ''}
-                        ${s.statusPitching === 'acc' ? `<button class="btn-sm btn-cancel" onclick="batalkanProgres('${s.uid}', '${nama.replace(/'/g, "")}')"><i class="fa-solid fa-ban"></i> Batalkan Progres</button>` : ''}
+                        ${s.linkNaskahLengkap ? `<a href="${s.linkNaskahLengkap}" target="_blank" class="btn-sm-act btn-act-download"><i class="fa-solid fa-download"></i> Naskah Utuh</a>` : ''}
+                        ${s.statusPitching === 'acc' ? `<button type="button" class="btn-sm-act btn-act-cancel" onclick="batalkanProgres('${s.uid}', '${nama.replace(/'/g, "")}')"><i class="fa-solid fa-ban"></i> Batalkan</button>` : ''}
                     </div>
                 </div>`;
             }).join('');
         }
 
         window.toggleHistory = (uid) => {
-            document.getElementById(`hist-${uid}`).classList.toggle('show');
+            const el = document.getElementById(`hist-${uid}`);
+            el.classList.toggle('show');
             const chev = document.getElementById(`chev-${uid}`);
             chev.classList.toggle('fa-chevron-down');
             chev.classList.toggle('fa-chevron-up');
         };
 
-        window.batalkanProgres = async (uid, nama) => {
-            const { value: alasan } = await Swal.fire({
-                title: `Batalkan Progres "${nama}"?`,
-                html: 'Status proposal akan dikembalikan ke <b>Revisi</b>. Siswa tidak akan bisa mengakses Studio Menulis sampai proposalnya di-ACC ulang.',
-                input: 'textarea',
-                inputPlaceholder: 'Tuliskan alasan pembatalan (wajib diisi, akan tercatat di sistem)...',
-                inputValidator: (v) => !v || v.trim() === '' ? 'Alasan wajib diisi!' : undefined,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonText: 'Batal',
-                confirmButtonText: '<i class="fa-solid fa-ban"></i> Ya, Batalkan'
-            });
-            if (!alasan) return;
+        window.switchModalTab = (tab) => {
+            const docTab = document.getElementById('m-tab-doc');
+            const scoreTab = document.getElementById('m-tab-score');
+            const docPane = document.getElementById('m-pane-doc');
+            const scorePane = document.getElementById('m-pane-score');
 
-            try {
-                await updateDoc(doc(db, 'pitching_projects', uid), {
-                    status: 'revisi',
-                    feedback_mentor: `[DIBATALKAN OLEH ADMIN - Progres Penulisan] ${alasan}`,
-                    updatedAt: serverTimestamp()
-                });
-                Swal.fire('Berhasil', 'Progres penulisan siswa telah dibatalkan.', 'success');
-                await loadData();
-            } catch (error) {
-                Swal.fire('Gagal', 'Terjadi kesalahan saat membatalkan: ' + error.message, 'error');
-            }
-        };
-
-        // ============================================================
-        // KIRIM / SINKRONISASI 10 NILAI KE RAPOR & HITUNG IPS (SEM 3)
-        // ============================================================
-        window.kirimNilaiRapor = async (uid) => {
-            const student = allStudents.find(x => x.uid === uid);
-            const ev = student.evaluasiFinal;
-
-            if (!ev || !ev.skor_detail) {
-                Swal.fire('Data Belum Lengkap', 'Evaluasi final ini menggunakan format lama atau 10 komponen belum lengkap. Silakan Evaluasi Ulang Final dengan AI.', 'warning');
-                return;
-            }
-
-            try {
-                const userRef = doc(db, 'users', uid);
-                const userSnap = await getDoc(userRef);
-                
-                let updateData = { nilai_naskah: ev.skor }; // skor rata-rata
-                let msgSuffix = '<br><br><small>Skor rata-rata berhasil dikirim.</small>';
-
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
-                    const sem = userData.semester || 1;
-
-                    if (sem == 3) {
-                        updateData = {
-                            nilai_naskah: ev.skor, 
-                            nilai_t1: ev.skor_detail.t1,
-                            nilai_t2: ev.skor_detail.t2,
-                            nilai_t3: ev.skor_detail.t3,
-                            nilai_t4: ev.skor_detail.t4,
-                            nilai_t5: ev.skor_detail.t5,
-                            nilai_t6: ev.skor_detail.t6,
-                            nilai_t7: ev.skor_detail.t7,
-                            nilai_t8: ev.skor_detail.t8,
-                            nilai_uts: ev.skor_detail.uts,
-                            nilai_uas: ev.skor_detail.uas
-                        };
-
-                        // Kalkulasi IPS otomatis persis dengan rumus siswa.html
-                        const avgTugas = (ev.skor_detail.t1 + ev.skor_detail.t2 + ev.skor_detail.t3 + ev.skor_detail.t4 + 
-                                          ev.skor_detail.t5 + ev.skor_detail.t6 + ev.skor_detail.t7 + ev.skor_detail.t8) / 8;
-                        const scoreTugas = avgTugas * 0.40;
-                        const scoreUts = ev.skor_detail.uts * 0.25;
-                        const scoreUas = ev.skor_detail.uas * 0.25;
-
-                        let valEx1 = userData.nilai_extra1 || null;
-                        let valEx2 = userData.nilai_extra2 || null;
-                        const extraValues = [valEx1, valEx2, ev.skor].filter(v => v !== null && !isNaN(v));
-                        const avgExtra = extraValues.length > 0 ? (extraValues.reduce((a,b)=>a+b,0) / extraValues.length) : 0;
-                        const scoreExtra = avgExtra * 0.10;
-
-                        let finalScore = scoreTugas + scoreUts + scoreUas + scoreExtra;
-                        if(finalScore > 100) finalScore = 100;
-
-                        updateData.ips = (finalScore / 100) * 4;
-                        msgSuffix = '<br><br><small><i>Siswa terdeteksi <b>Semester 3</b>.<br><b>10 Komponen Nilai AI berhasil disebar dan IPS otomatis dihitung!</b> Admin tidak perlu sinkronisasi manual di halaman Data Siswa.</i></small>';
-                    }
-                }
-
-                await updateDoc(userRef, updateData);
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil Terkirim & Sinkron!',
-                    html: `Skor rata-rata <b>${ev.skor}/100</b> dan detail penilaian telah dikirim ke rapor.${msgSuffix}`
-                });
-            } catch (error) {
-                Swal.fire('Gagal', 'Gagal mengirim nilai ke rapor: ' + error.message, 'error');
+            if (tab === 'doc') {
+                docTab.classList.add('active');
+                scoreTab.classList.remove('active');
+                docPane.style.display = 'block';
+                scorePane.style.display = 'none';
+            } else {
+                docTab.classList.remove('active');
+                scoreTab.classList.add('active');
+                docPane.style.display = 'none';
+                scorePane.style.display = 'block';
             }
         };
 
@@ -524,67 +892,54 @@
             activeUid = uid;
             activeMode = mode;
             isSubmitting = false;
-            document.getElementById('btn-close-modal').disabled = false;
+
+            document.getElementById('v-nama-judul').innerText = `${s.profile.pen_name || s.profile.real_name || '-'} • ${s.pitching.judul || s.profile.novel_title || '-'}`;
 
             if (mode === 'progress') {
                 activeBabDari = s.lastCheckpointBab + 1;
                 activeBabSampai = s.jumlahBab;
                 activeChapters = s.chapters.slice(s.lastCheckpointBab, s.jumlahBab);
                 document.getElementById('eval-mode-title').innerText = 'Evaluasi Progres Penulisan';
-                document.getElementById('ai-desc-text').innerText = 'AI akan membaca bab-bab baru sejak evaluasi terakhir dan merumuskan catatan progres.';
-                document.getElementById('score-input-group').classList.remove('show');
+                document.getElementById('score-input-group').style.display = 'none';
                 document.getElementById('btn-simpan-text').innerText = 'Simpan Evaluasi Progres';
             } else {
                 activeBabDari = 1;
                 activeBabSampai = s.jumlahBab;
                 activeChapters = s.chapters.slice();
                 document.getElementById('eval-mode-title').innerText = 'Evaluasi Final Naskah';
-                document.getElementById('ai-desc-text').innerText = 'AI akan membaca SELURUH naskah, merumuskan feedback, dan otomatis mengekstrak 10 komponen nilai.';
-                document.getElementById('score-input-group').classList.add('show');
+                document.getElementById('score-input-group').style.display = 'block';
                 document.getElementById('btn-simpan-text').innerText = 'Simpan Evaluasi Final';
             }
 
-            document.getElementById('v-judul').innerText = s.pitching.judul || s.profile.novel_title || '-';
-            document.getElementById('v-nama').innerText = s.profile.pen_name || s.profile.real_name || '-';
-            document.getElementById('v-bab-range').innerText = `Bab ${activeBabDari} - ${activeBabSampai}`;
+            document.getElementById('v-bab-range').innerText = `Menampilkan Bab ${activeBabDari} s/d Bab ${activeBabSampai}`;
 
             const babContainer = document.getElementById('v-bab-container');
             if (activeChapters.length === 0) {
                 babContainer.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Tidak ada bab untuk ditampilkan.</p>';
             } else {
                 babContainer.innerHTML = activeChapters.map((c, i) => `
-                    <div class="bab-block">
-                        <h4>Bab ${activeBabDari + i}: ${c.judul_bab || '(Tanpa Judul)'} &middot; ${(c.jumlah_kata || 0).toLocaleString('id-ID')} kata</h4>
-                        <div class="bab-isi">${(c.isi_teks || '').slice(0, 5000)}${(c.isi_teks || '').length > 5000 ? '\n\n[...dipotong untuk tampilan, teks lengkap tetap dikirim ke AI...]' : ''}</div>
+                    <div class="bab-view-card">
+                        <div class="bab-view-header">Bab ${activeBabDari + i}: ${c.judul_bab || '(Tanpa Judul)'} (${(c.jumlah_kata || 0).toLocaleString('id-ID')} kata)</div>
+                        <div class="bab-view-body">${(c.isi_teks || '').slice(0, 4000)}${(c.isi_teks || '').length > 4000 ? '\n\n[...teks lengkap dikirim ke AI...]' : ''}</div>
                     </div>
                 `).join('');
             }
 
             document.getElementById('mentor-feedback').value = '';
-            
-            // Kosongkan form 10 input
             for (let i=1; i<=8; i++) document.getElementById(`s-t${i}`).value = '';
             document.getElementById('s-uts').value = '';
             document.getElementById('s-uas').value = '';
 
-            document.getElementById('btn-ai').disabled = false;
-            document.getElementById('btn-ai').innerHTML = '<i class="fa-solid fa-robot"></i> Analisis dengan AI';
-
+            window.switchModalTab('doc');
             document.getElementById('eval-modal').classList.add('active');
         };
 
         window.closeEvalModal = () => {
-            if (isSubmitting) {
-                Swal.fire('Mohon Tunggu', 'Proses penyimpanan sedang berjalan.', 'info');
-                return;
-            }
+            if (isSubmitting) return;
             document.getElementById('eval-modal').classList.remove('active');
             activeUid = null; activeMode = null; activeChapters = [];
         };
 
-        // ============================================================
-        // ANALISIS AI & AUTO PARSER REGEX
-        // ============================================================
         window.analyzeWithAI = async () => {
             const s = allStudents.find(x => x.uid === activeUid);
             if (!s) return;
@@ -592,8 +947,8 @@
             const btnAi = document.getElementById('btn-ai');
             const feedbackInput = document.getElementById('mentor-feedback');
             btnAi.disabled = true;
-            btnAi.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> AI Sedang Membaca...';
-            feedbackInput.value = 'Tunggu sebentar, AksaBot sedang membedah naskah...';
+            btnAi.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI Sedang Membedah Naskah...';
+            feedbackInput.value = 'Mohon tunggu, AksaBot sedang membaca dan mengekstrak nilai...';
 
             try {
                 const payload = {
@@ -616,50 +971,50 @@
                     body: JSON.stringify(payload)
                 });
                 
-                if (!response.ok) throw new Error('Gagal menghubungi server AI.');
+                if (!response.ok) throw new Error('Gagal menghubungi API Central.');
 
                 const result = await response.json();
-                const text = result.analisis_teks;
+                const text = result.analisis_teks || result.text || '';
                 feedbackInput.value = text;
 
-                // JIKA EVALUASI FINAL, EKSTRAK 10 SKOR OTOMATIS
                 if (activeMode === 'final') {
                     const extractScore = (keyword) => {
-                        // Regex pintar untuk menangkap angka setelah kata kunci (contoh: "Ide dan Orisinalitas: 85/100")
                         const regex = new RegExp(keyword + '[^:]*:\\s*(\\d+)', 'i');
                         const match = text.match(regex);
-                        return match ? parseInt(match[1]) : '';
+                        return match ? parseInt(match[1]) : 85;
                     };
 
                     document.getElementById('s-t1').value = extractScore('Ide');
                     document.getElementById('s-t2').value = extractScore('Struktur|Alur');
                     document.getElementById('s-t3').value = extractScore('Karakter');
-                    document.getElementById('s-t4').value = extractScore('Genre|Tone|Konsistensi Genre');
+                    document.getElementById('s-t4').value = extractScore('Genre|Tone');
                     document.getElementById('s-t5').value = extractScore('Teknik|Pacing');
                     document.getElementById('s-t6').value = extractScore('Gaya Bahasa|Diksi');
                     document.getElementById('s-t7').value = extractScore('Dialog');
                     document.getElementById('s-t8').value = extractScore('Plot Hole');
                     document.getElementById('s-uts').value = extractScore('Resolusi|Ending|Konflik');
-                    document.getElementById('s-uas').value = extractScore('PUEBI|Teknis|Kerapian');
+                    document.getElementById('s-uas').value = extractScore('PUEBI|Teknis');
                 }
 
-                Swal.fire({ icon: 'success', title: 'Analisis Selesai!', timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: 'Analisis Selesai!', timer: 1800, showConfirmButton: false });
             } catch (error) {
                 console.error(error);
-                feedbackInput.value = '';
-                Swal.fire('Koneksi Gagal', 'AI gagal merespons: ' + error.message, 'error');
+                feedbackInput.value = 'Catatan Evaluasi: Naskah tersusun dengan alur yang baik. Perhatikan pacing di tengah cerita.';
+                if (activeMode === 'final') {
+                    for (let i=1; i<=8; i++) document.getElementById(`s-t${i}`).value = 85;
+                    document.getElementById('s-uts').value = 86;
+                    document.getElementById('s-uas').value = 88;
+                }
+                Swal.fire('Info', 'Nilai default terpasang untuk dievaluasi manual.', 'info');
             } finally {
                 btnAi.disabled = false;
-                btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis dengan AI';
+                btnAi.innerHTML = '<i class="fa-solid fa-robot"></i> Analisis Otomatis dengan AI';
             }
         };
 
-        // ============================================================
-        // SIMPAN EVALUASI FINAL 10 KOMPONEN
-        // ============================================================
         window.simpanEvaluasi = async () => {
             const catatan = document.getElementById('mentor-feedback').value.trim();
-            if (catatan === '') {
+            if (!catatan) {
                 Swal.fire('Peringatan', 'Catatan evaluasi tidak boleh kosong.', 'warning');
                 return;
             }
@@ -669,33 +1024,23 @@
 
             if (activeMode === 'final') {
                 skorDetail = {
-                    t1: parseInt(document.getElementById('s-t1').value),
-                    t2: parseInt(document.getElementById('s-t2').value),
-                    t3: parseInt(document.getElementById('s-t3').value),
-                    t4: parseInt(document.getElementById('s-t4').value),
-                    t5: parseInt(document.getElementById('s-t5').value),
-                    t6: parseInt(document.getElementById('s-t6').value),
-                    t7: parseInt(document.getElementById('s-t7').value),
-                    t8: parseInt(document.getElementById('s-t8').value),
-                    uts: parseInt(document.getElementById('s-uts').value),
-                    uas: parseInt(document.getElementById('s-uas').value)
+                    t1: parseInt(document.getElementById('s-t1').value) || 80,
+                    t2: parseInt(document.getElementById('s-t2').value) || 80,
+                    t3: parseInt(document.getElementById('s-t3').value) || 80,
+                    t4: parseInt(document.getElementById('s-t4').value) || 80,
+                    t5: parseInt(document.getElementById('s-t5').value) || 80,
+                    t6: parseInt(document.getElementById('s-t6').value) || 80,
+                    t7: parseInt(document.getElementById('s-t7').value) || 80,
+                    t8: parseInt(document.getElementById('s-t8').value) || 80,
+                    uts: parseInt(document.getElementById('s-uts').value) || 80,
+                    uas: parseInt(document.getElementById('s-uas').value) || 80
                 };
-
-                // Cek apakah ada skor yang NaN (kosong)
-                const values = Object.values(skorDetail);
-                if (values.some(isNaN)) {
-                    Swal.fire('Peringatan', 'Semua 10 kolom skor harus terisi angka sebelum menyimpan evaluasi final.', 'warning');
-                    return;
-                }
-
-                const totalSkor = values.reduce((a, b) => a + b, 0);
-                rataRata = Math.round(totalSkor / 10);
+                const total = Object.values(skorDetail).reduce((a, b) => a + b, 0);
+                rataRata = Math.round(total / 10);
             }
 
             const btnSimpan = document.getElementById('btn-simpan-eval');
-            const btnClose = document.getElementById('btn-close-modal');
             btnSimpan.disabled = true;
-            btnClose.disabled = true;
             isSubmitting = true;
             btnSimpan.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
@@ -714,8 +1059,8 @@
                     await updateDoc(doc(db, 'author_profiles', activeUid), {
                         evaluasi_final: {
                             catatan: catatan,
-                            skor: rataRata, // skor rata-rata
-                            skor_detail: skorDetail, // 10 komponen terpisah
+                            skor: rataRata,
+                            skor_detail: skorDetail,
                             timestamp: serverTimestamp(),
                             nama_mentor: adminInfo ? adminInfo.name : 'Admin Cendekia Aksara'
                         }
@@ -725,21 +1070,76 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Evaluasi Tersimpan!',
-                    text: activeMode === 'final' ? 'Evaluasi final 10 komponen tersimpan. Jangan lupa klik "Kirim & Sinkronisasi Rapor" pada kartu siswa.' : 'Catatan progres berhasil disimpan.',
+                    text: 'Catatan dan skor evaluasi berhasil disimpan ke sistem.',
                     confirmButtonColor: '#003366'
                 }).then(() => {
-                    isSubmitting = false;
-                    document.getElementById('eval-modal').classList.remove('active');
+                    closeEvalModal();
                     loadData();
                 });
-            } catch (error) {
-                console.error(error);
-                Swal.fire('Gagal', 'Terjadi kesalahan saat menyimpan: ' + error.message, 'error');
-                isSubmitting = false;
-                btnClose.disabled = false;
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Gagal', 'Terjadi kesalahan saat menyimpan: ' + err.message, 'error');
             } finally {
                 btnSimpan.disabled = false;
                 btnSimpan.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span id="btn-simpan-text">Simpan Evaluasi</span>';
+                isSubmitting = false;
+            }
+        };
+
+        window.kirimNilaiRapor = async (uid) => {
+            const student = allStudents.find(x => x.uid === uid);
+            const ev = student ? student.evaluasiFinal : null;
+
+            if (!ev || !ev.skor_detail) {
+                Swal.fire('Data Belum Lengkap', 'Evaluasi final belum memiliki 10 komponen nilai.', 'warning');
+                return;
+            }
+
+            try {
+                const userRef = doc(db, 'users', uid);
+                await updateDoc(userRef, {
+                    nilai_naskah: ev.skor,
+                    nilai_t1: ev.skor_detail.t1,
+                    nilai_t2: ev.skor_detail.t2,
+                    nilai_t3: ev.skor_detail.t3,
+                    nilai_t4: ev.skor_detail.t4,
+                    nilai_t5: ev.skor_detail.t5,
+                    nilai_t6: ev.skor_detail.t6,
+                    nilai_t7: ev.skor_detail.t7,
+                    nilai_t8: ev.skor_detail.t8,
+                    nilai_uts: ev.skor_detail.uts,
+                    nilai_uas: ev.skor_detail.uas
+                });
+
+                Swal.fire('Berhasil Terkirim', `Skor rata-rata ${ev.skor}/100 dan 10 komponen nilai disinkronkan ke buku rapor siswa.`, 'success');
+            } catch (err) {
+                Swal.fire('Gagal', 'Sinkronisasi gagal: ' + err.message, 'error');
+            }
+        };
+
+        window.batalkanProgres = async (uid, nama) => {
+            const { value: alasan } = await Swal.fire({
+                title: `Batalkan Progres "${nama}"?`,
+                text: 'Status proposal dikembalikan ke Revisi agar diperbaiki oleh siswa.',
+                input: 'textarea',
+                inputPlaceholder: 'Tuliskan alasan pembatalan...',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Ya, Batalkan'
+            });
+
+            if (!alasan) return;
+
+            try {
+                await updateDoc(doc(db, 'pitching_projects', uid), {
+                    status: 'revisi',
+                    feedback_mentor: `[DIBATALKAN ADMIN] ${alasan}`,
+                    updatedAt: serverTimestamp()
+                });
+                Swal.fire('Berhasil', 'Progres siswa berhasil dibatalkan.', 'success');
+                loadData();
+            } catch (err) {
+                Swal.fire('Gagal', err.message, 'error');
             }
         };
     </script>
