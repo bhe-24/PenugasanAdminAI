@@ -300,6 +300,27 @@ if (window.__cendekia_notifikasi_loaded__) {
             return list.filter(item => !item.read).length;
         }
 
+        function cleanupStaleLevelUpHistory(actualLevel) {
+            if (!actualLevel || actualLevel <= 1) return;
+            try {
+                const history = getNotificationHistory();
+                let changed = false;
+                const cleaned = history.filter(item => {
+                    if (item.jenis === 'reward' && item.judul && item.judul.includes('Naik Tingkat Literasi')) {
+                        const match = item.pesan && item.pesan.match(/Level\s+(\d+)/i);
+                        if (match && parseInt(match[1], 10) < actualLevel) {
+                            changed = true;
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                if (changed) {
+                    saveNotificationHistory(cleaned);
+                }
+            } catch (_) {}
+        }
+
         // ======================================================================
         // 6. IN-APP HEADS-UP NOTIFICATION BANNER
         // ======================================================================
@@ -683,7 +704,7 @@ if (window.__cendekia_notifikasi_loaded__) {
             }
         }
 
-        function notifPemerolehan({ tipe = 'lencana', nama = '', xp = 0, levelTitle = '' }) {
+        function notifPemerolehan({ tipe = 'lencana', nama = '', xp = 0, levelTitle = '', level = null }) {
             if (tipe === 'lencana') {
                 kirimNotifikasi({
                     judul: '🏅 Lencana Baru Terbuka!',
@@ -693,9 +714,32 @@ if (window.__cendekia_notifikasi_loaded__) {
                     icon: 'medal'
                 });
             } else if (tipe === 'level_up') {
+                // Ambil data user aktual dari sistem database / profil
+                let user = null;
+                if (window.CendekiaApp && typeof window.CendekiaApp.getUser === 'function') {
+                    user = window.CendekiaApp.getUser();
+                } else {
+                    try {
+                        user = JSON.parse(localStorage.getItem('cendekia_free_user') || localStorage.getItem('cendekia_user') || 'null');
+                    } catch (_) {}
+                }
+
+                const dbUserLvl = parseInt(user?.level || localStorage.getItem('user_level') || localStorage.getItem('cendekia_user_level'));
+                const actualLevel = (!isNaN(dbUserLvl) && dbUserLvl > 0) ? dbUserLvl : (parseInt(level) || 1);
+                const actualSemester = parseInt(user?.semester || localStorage.getItem('user_semester')) || 1;
+
+                // VALIDASI KETAT: Jika ada proses lama yang memicu notifikasi level lebih rendah dari level aktual database
+                // (misal: user di database sudah Level 12, tapi ada trigger usang Level 2), abaikan notifikasi salah tersebut!
+                if (level && !isNaN(parseInt(level)) && parseInt(level) < actualLevel) {
+                    console.warn(`[CendekiaNotifikasi] Abaikan notif level palsu (Trigger: Level ${level}, Database: Level ${actualLevel})`);
+                    return;
+                }
+
+                const finalTitle = levelTitle || `Level ${actualLevel} • Semester ${actualSemester}`;
+
                 kirimNotifikasi({
                     judul: '⭐ Naik Tingkat Literasi!',
-                    pesan: `Luar biasa! Kamu berhasil naik ke ${levelTitle || nama}. Akses materi baru kini terbuka.`,
+                    pesan: `Luar biasa! Kamu berhasil naik ke ${finalTitle}. Akses materi baru kini terbuka.`,
                     urlTujuan: `${PORTAL_PREFIX}/index.html`,
                     jenis: 'reward',
                     icon: 'star'
@@ -1289,8 +1333,13 @@ if (window.__cendekia_notifikasi_loaded__) {
                 user = window.CendekiaApp.getUser();
             } else {
                 try {
-                    user = JSON.parse(localStorage.getItem('cendekia_free_user') || 'null');
+                    user = JSON.parse(localStorage.getItem('cendekia_free_user') || localStorage.getItem('cendekia_user') || 'null');
                 } catch (_) {}
+            }
+
+            const dbUserLvl = parseInt(user?.level || localStorage.getItem('user_level') || localStorage.getItem('cendekia_user_level'));
+            if (!isNaN(dbUserLvl) && dbUserLvl > 1) {
+                cleanupStaleLevelUpHistory(dbUserLvl);
             }
 
             initOneSignal(user);

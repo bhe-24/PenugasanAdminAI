@@ -197,6 +197,11 @@ const CendekiaApp = (function () {
                 if (l.bioSingkat || l.bio) user.bioSingkat = l.bioSingkat || l.bio;
                 if (l.nis || l.nomorInduk || l.idSiswa) user.nis = l.nis || l.nomorInduk || l.idSiswa;
                 if (l.ips !== undefined) user.ips = l.ips;
+                if (l.level !== undefined && l.level !== null) {
+                    const parsedLvl = parseInt(l.level);
+                    if (!isNaN(parsedLvl) && parsedLvl > 0) user.level = Math.max(user.level || 1, parsedLvl);
+                }
+                if (l.levelTitle) user.levelTitle = l.levelTitle;
                 if (typeof l.xp === 'number' && l.xp > (user.xp || 0)) user.xp = l.xp;
                 if (l.tier) user.tier = l.tier;
                 if (l.packageId) user.packageId = l.packageId;
@@ -212,11 +217,13 @@ const CendekiaApp = (function () {
                 user.photo = standalonePhoto;
             }
 
-            // Fallback nama & semester mandiri dari localStorage
+            // Fallback nama, semester & level mandiri dari localStorage
             const standaloneName = localStorage.getItem('user_name');
             if (standaloneName && (!user.name || user.name === 'Siswa Cendekia')) user.name = standaloneName;
             const standaloneSem = localStorage.getItem('user_semester');
             if (standaloneSem) user.semester = parseInt(standaloneSem) || user.semester || 1;
+            const standaloneLvl = parseInt(localStorage.getItem('user_level') || localStorage.getItem('cendekia_user_level'));
+            if (!isNaN(standaloneLvl) && standaloneLvl > 0) user.level = Math.max(user.level || 1, standaloneLvl);
             const standalonePkg = localStorage.getItem('user_package');
             if (standalonePkg && !user.packageId) user.packageId = standalonePkg;
 
@@ -236,15 +243,24 @@ const CendekiaApp = (function () {
         checkStreak(user);
 
         // Selaraskan Level & Title dengan XP aktual secara presisi (Level 1 s/d 100)
+        // PENTING: Jangan me-reset level pengguna yang sudah dicapai di database!
         const currentXp = user.xp || 0;
-        user.level = 1;
-        const userSem = parseInt(user.semester) || 1;
-        user.levelTitle = formatLevelSemesterTitle(1, userSem);
+        let calculatedLevel = user.level || 1;
         for (let i = LEVELS.length - 1; i >= 0; i--) {
             if (currentXp >= LEVELS[i].minXp) {
-                user.level = LEVELS[i].level;
-                user.levelTitle = formatLevelSemesterTitle(user.level, user.semester || LEVELS[i].semester);
+                calculatedLevel = Math.max(calculatedLevel, LEVELS[i].level);
                 break;
+            }
+        }
+        user.level = Math.max(user.level || 1, calculatedLevel);
+        const userSem = parseInt(user.semester) || 1;
+        user.levelTitle = formatLevelSemesterTitle(user.level, userSem);
+
+        // Selaraskan ambang minimal XP sesuai level yang telah dicapai user di database
+        if (user.level > 1 && user.level <= LEVELS.length) {
+            const minXpRequired = LEVELS[user.level - 1].minXp;
+            if ((user.xp || 0) < minXpRequired) {
+                user.xp = minXpRequired;
             }
         }
 
@@ -626,18 +642,19 @@ const CendekiaApp = (function () {
             user.stats.ideasArchived = Math.max(user.stats.ideasArchived || 0, getIdeas().length || 1);
         }
 
-        // Cek Level (Rentang 1 s/d 100)
-        let newLevel = user.level || 1;
+        // Cek Level (Rentang 1 s/d 100) - Level tidak boleh turun dari level database!
+        const oldLevel = user.level || 1;
+        let newLevel = oldLevel;
 
         for (let i = LEVELS.length - 1; i >= 0; i--) {
             if (user.xp >= LEVELS[i].minXp) {
-                newLevel = LEVELS[i].level;
+                newLevel = Math.max(newLevel, LEVELS[i].level);
                 break;
             }
         }
 
         const newTitle = formatLevelSemesterTitle(newLevel, user.semester);
-        const leveledUp = newLevel > user.level;
+        const leveledUp = newLevel > oldLevel;
         user.level = newLevel;
         user.levelTitle = newTitle;
         saveUser(user);
@@ -645,7 +662,7 @@ const CendekiaApp = (function () {
         if (leveledUp) {
             try {
                 if (window.CendekiaNotifikasi && typeof window.CendekiaNotifikasi.notifPemerolehan === 'function') {
-                    window.CendekiaNotifikasi.notifPemerolehan({ tipe: 'level_up', levelTitle: newTitle });
+                    window.CendekiaNotifikasi.notifPemerolehan({ tipe: 'level_up', levelTitle: newTitle, level: newLevel });
                 }
             } catch (_) {}
         }
@@ -2397,6 +2414,18 @@ const CendekiaApp = (function () {
                             if (d.bioSingkat && !currentUser.bioSingkat) { currentUser.bioSingkat = d.bioSingkat; updated = true; }
                             if (d.ips !== undefined) { currentUser.ips = d.ips; updated = true; }
                             if (d.semester) { currentUser.semester = parseInt(d.semester) || currentUser.semester; updated = true; }
+                            if (d.level !== undefined && d.level !== null) {
+                                const cloudLvl = parseInt(d.level);
+                                if (!isNaN(cloudLvl) && cloudLvl > 0) {
+                                    currentUser.level = Math.max(currentUser.level || 1, cloudLvl);
+                                    currentUser.levelTitle = d.levelTitle || formatLevelSemesterTitle(currentUser.level, currentUser.semester);
+                                    if (currentUser.level > 1 && currentUser.level <= LEVELS.length) {
+                                        const minXp = LEVELS[currentUser.level - 1].minXp;
+                                        if ((currentUser.xp || 0) < minXp) currentUser.xp = minXp;
+                                    }
+                                    updated = true;
+                                }
+                            }
 
                             // Sinkronkan XP & Statistik dari Cloud (Ingatan lintas perangkat & sesi)
                             if (typeof d.xp === 'number' && (isDifferentAccount || d.xp > (currentUser.xp || 0))) {
