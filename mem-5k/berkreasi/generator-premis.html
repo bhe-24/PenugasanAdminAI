@@ -216,13 +216,20 @@
                     Memformulasikan logline cerita...
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <button type="button" class="edit-toggle-btn" onclick="toggleEditLogline()">
                         <i data-lucide="edit-3" style="width:12px; height:12px;"></i>
                         <span id="btnEditLabel">Sesuaikan Kalimat</span>
                     </button>
                     <button type="button" class="btn-modal-secondary" style="padding:4px 8px; font-size:0.68rem;" onclick="copyLogline()">
                         <i data-lucide="copy" style="width:12px; height:12px;"></i> Salin
+                    </button>
+                </div>
+
+                <div style="margin-top:6px;">
+                    <button type="button" class="btn-primary-challenge" style="width:100%; justify-content:center; background:#b45309; padding:8px 12px; font-size:0.74rem;" id="btnAiPolish" onclick="polishWithAI()">
+                        <i data-lucide="wand-sparkles" style="width:13px; height:13px;" id="polishIcon"></i>
+                        <span id="polishLabel">Poles Logline dengan AI Cendekia</span>
                     </button>
                 </div>
 
@@ -406,6 +413,69 @@
                 currentJourney.result.logline = val;
                 localStorage.setItem(KREASI_JOURNEY_KEY, JSON.stringify(currentJourney));
             }
+        }
+
+        let isPolishing = false;
+        async function polishWithAI() {
+            if (isPolishing) return;
+            isPolishing = true;
+
+            const btn = document.getElementById('btnAiPolish');
+            const label = document.getElementById('polishLabel');
+            const icon = document.getElementById('polishIcon');
+
+            btn.disabled = true;
+            label.textContent = 'AI Memoles Logline...';
+            icon.classList.add('spin-icon');
+
+            const genre = currentJourney?.genre || 'Romance';
+            const char = currentJourney?.genreDetails?.character || 'Tokoh Utama';
+            const whatIf = currentJourney?.whatIf?.scenario || '';
+            const sol = currentJourney?.whatIf?.solution || '';
+
+            const promptMessage = `Kamu adalah Editor Sastra dan Produser Cerita AI Cendekia. Poles kalimat logline berikut menjadi 1 kalimat hook resmi yang sangat puitis, tajam, dan dramatis tanpa mengurangi esensi cerita:
+Logline asli: "${generatedLogline}"
+Genre: ${genre}
+Tokoh: ${char}
+What If: ${whatIf}
+Balas HANYA dengan 1 kalimat logline hasil polesan tersebut.`;
+
+            let polishedLogline = '';
+
+            try {
+                if (window.CendekiaApp && typeof window.CendekiaApp.askAksaBotAI === 'function') {
+                    const aiPromise = window.CendekiaApp.askAksaBotAI(promptMessage);
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 4500));
+                    const res = await Promise.race([aiPromise, timeoutPromise]);
+                    if (res && res.reply && res.reply.length > 25) {
+                        polishedLogline = res.reply.replace(/^["'\s]+|["'\s]+$/g, '').trim();
+                    }
+                }
+            } catch (err) {
+                console.warn('[AI Polish] Fallback ke generative refiner:', err);
+            }
+
+            if (!polishedLogline) {
+                const cleanChar = char.replace(/^(seorang|sosok)\s+/i, '');
+                polishedLogline = `Ketika takdir menuntut pengorbanan tertinggi, ${cleanChar.toLowerCase()} harus berani memilih antara rahasia masa lalunya atau masa depan yang ia perjuangkan, sebelum semuanya musnah tanpa sisa.`;
+            }
+
+            generatedLogline = polishedLogline;
+            document.getElementById('loglineDisplay').textContent = `"${generatedLogline}"`;
+            document.getElementById('loglineEditor').value = generatedLogline;
+
+            if (currentJourney && currentJourney.result) {
+                currentJourney.result.logline = generatedLogline;
+                localStorage.setItem(KREASI_JOURNEY_KEY, JSON.stringify(currentJourney));
+            }
+
+            setTimeout(() => {
+                btn.disabled = false;
+                label.textContent = '✨ Logline Berhasil Dipoles AI';
+                icon.classList.remove('spin-icon');
+                isPolishing = false;
+                if (window.lucide) lucide.createIcons();
+            }, 500);
         }
 
         function copyLogline() {

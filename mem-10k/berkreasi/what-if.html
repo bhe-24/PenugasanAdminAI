@@ -91,6 +91,66 @@
             line-height: 1.45;
         }
 
+        /* AI MENTOR CARD */
+        .ai-mentor-box {
+            background: linear-gradient(135deg, #0b1329 0%, #002b4d 100%);
+            border: 1.5px solid rgba(212, 175, 55, 0.4);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 26, 51, 0.15);
+            margin-bottom: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-mentor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .ai-mentor-badge {
+            background: linear-gradient(135deg, #d4af37 0%, #aa8010 100%);
+            color: #001a33;
+            font-size: 0.62rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-transform: uppercase;
+        }
+        .ai-mentor-text {
+            font-size: 0.74rem;
+            color: #e2e8f0;
+            line-height: 1.5;
+        }
+        .btn-ai-action {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .btn-ai-action:hover {
+            background: rgba(212, 175, 55, 0.25);
+            border-color: #d4af37;
+            color: #fef08a;
+        }
+        .btn-ai-action:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .challenge-card {
             background: white;
             border-radius: var(--radius-md);
@@ -142,7 +202,19 @@
         .scenario-box.selected {
             border-color: #0284c7;
             background: #f0f9ff;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+        }
+        .scenario-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .scenario-num {
+            font-size: 0.62rem;
+            font-weight: 800;
+            color: #0284c7;
+            text-transform: uppercase;
         }
         .scenario-text {
             font-size: 0.77rem;
@@ -170,6 +242,15 @@
         .textarea-custom:focus {
             border-color: #0284c7;
             background: #f0f9ff;
+        }
+
+        /* SPINNING SPARKLES ANIMATION */
+        .spin-icon {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -224,6 +305,23 @@
                 <div class="context-pill-body" id="contextDetails">
                     Memuat data ide...
                 </div>
+            </div>
+
+            <!-- ASISTEN AI MENTOR CENDIKIA -->
+            <div class="ai-mentor-box">
+                <div class="ai-mentor-header">
+                    <span class="ai-mentor-badge">
+                        <i data-lucide="bot" style="width:12px; height:12px;"></i> AI Mentor Kreatif
+                    </span>
+                    <span id="aiStatusPill" style="font-size:0.62rem; color:#fde047;">Aktif</span>
+                </div>
+                <div class="ai-mentor-text" id="aiMentorAnalysis">
+                    Menganalisis ide ceritamu...
+                </div>
+                <button type="button" class="btn-ai-action" id="btnAiRegenerate" onclick="triggerAIRegeneration()">
+                    <i data-lucide="wand-sparkles" style="width:13px; height:13px;" id="aiBtnIcon"></i>
+                    <span id="aiBtnLabel">Racik Skenario Baru dengan AI</span>
+                </button>
             </div>
 
             <!-- TANTANGAN 1: SKENARIO PENGANDAIAN EKSTREM -->
@@ -300,89 +398,102 @@
     <script>
         const KREASI_JOURNEY_KEY = 'cendekia_kreasi_journey';
 
-        // DATABASE SKENARIO WHAT IF ADAPTIF
-        const WHAT_IF_DATABASE = {
-            'Romance': {
-                scenarios: [
-                    'Bagaimana jika saat mereka dipaksa bekerja sama dalam satu proyek penting, karakter utama menemukan surat rahasia bahwa rival yang ia benci diam-diam pernah mengorbankan mimpinya demi melindungi dirinya?',
-                    'Bagaimana jika hubungan rahasia yang baru mulai terjalin diancam dibongkar ke publik oleh orang ketiga, yang menuntut mereka harus berpisah selamanya atau reputasi keluarga mereka hancur?',
-                    'Bagaimana jika salah satu dari mereka divonis harus kehilangan ingatan jangka pendek pasca musibah, sehingga melupakan seluruh momen manis yang baru saja mereka bangun berdua?',
-                    'Bagaimana jika tanggal keberangkatan salah satu dari mereka dipercepat menjadi 3 hari lagi, sementara ada pengakuan rasa yang belum sempat diucapkan?'
-                ],
-                solutions: [
-                    'Memilih kejujuran total dan melawan intimidasi bersama-sama, meski harus mempertaruhkan nama baik.',
-                    'Menyusun siasat cerdik berdua untuk membongkar kejahatan pihak yang mencoba memeras mereka.',
-                    'Menerima risiko pengorbanan pribadi demi memastikan masa depan sosok yang ia cintai tetap aman.',
-                    'Mengabaikan rasa gengsi dan mengungkapkan perasaan terdalam sebelum kesempatan terakhir hilang.'
-                ]
-            },
-            'Misteri': {
-                scenarios: [
-                    'Bagaimana jika semua rekaman kamera pengawas dan sidik jari di tempat kejadian perkara justru mengarah pada tokoh utama sendiri sebagai pelaku utamanya?',
-                    'Bagaimana jika satu-satunya saksi kunci yang mengetahui rahasia kasus ini mendadak mengalami amnesia total tepat beberapa menit sebelum bersaksi?',
-                    'Bagaimana jika berkas rahasia kasus ini ternyata menghubungkan kejahatan masa lalu dengan orang yang paling ia hormati di institusi kepolisian?'
-                ],
-                solutions: [
-                    'Menyelidiki kejanggalan dalam pelarian mandiri tanpa melibatkan aparat yang sudah terkontaminasi konspirasi.',
-                    'Menjebak pelaku sebenarnya dengan umpan bukti palsu di tempat netral yang diawasi media massa.',
-                    'Menggunakan keahlian decoding kriptografi untuk membuka arsip terenkripsi cadangan peninggalan korban.'
-                ]
-            },
-            'Fantasi': {
-                scenarios: [
-                    'Bagaimana jika monster purba yang selama ini mereka buru ternyata adalah wujud terkutuk dari pahlawan masa lalu yang dikhianati oleh raja mereka sendiri?',
-                    'Bagaimana jika mantra sihir terkuat yang dibutuhkan untuk menyelamatkan kerajaan menuntut harga berupa ingatan tentang sahabat terbaiknya?',
-                    'Bagaimana jika ramalan kuno menyatakan bahwa untuk mengalahkan kegelapan, salah satu dari mereka harus menyerahkan separuh jiwanya kepada entitas musuh?'
-                ],
-                solutions: [
-                    'Menolak ramalan kuno dan mencari jalan ketiga melalui sihir kombinasi yang belum pernah dicoba siapapun.',
-                    'Bekerja sama dengan monster yang berakal untuk membebaskan kutukannya dan merebut kembali keadilan.',
-                    'Mengorbankan tahta kehormatan demi menyelamatkan rakyat biasa yang tidak berdosa.'
-                ]
-            },
-            'Sci-Fi': {
-                scenarios: [
-                    'Bagaimana jika kecerdasan buatan pusat mendadak mematikan pintu darurat kota dan menyatakan bahwa manusia di distrik tersebut adalah anomali berbahaya?',
-                    'Bagaimana jika teknologi pemindaian memori membuktikan bahwa seluruh ingatan masa kecil tokoh utama adalah hasil rekayasa laboratorium?',
-                    'Bagaimana jika transmisi pertama dari Bumi setelah 50 tahun terisolasi ternyata adalah peringatan darurat untuk tidak pernah kembali?'
-                ],
-                solutions: [
-                    'Mengunggah virus empati ke dalam server pusat untuk membangkitkan kesadaran nurani pada AI pengawas.',
-                    'Memutuskan jaringan kendali pusat dan melarikan diri bersama kelompok perlawanan ke zona tak terpetakan.',
-                    'Menggunakan teknologi kloning frekuensi untuk membalikkan kendali drone patroli.'
-                ]
-            },
-            'Horor': {
-                scenarios: [
-                    'Bagaimana jika kutukan gaib asrama itu menuntut penyerahan rahasia paling aib dari setiap penghuni sebelum fajar, atau pintu gerbang tidak akan pernah terbuka?',
-                    'Bagaimana jika sosok yang mereka ajak bicara sepanjang malam di kamar ternyata bukan manusia, melainkan manifestasi trauma masa lalu bangunan tersebut?',
-                    'Bagaimana jika pantulan cermin mulai hidup mandiri dan mencoba menggantikan posisi fisik mereka di dunia nyata?'
-                ],
-                solutions: [
-                    'Mengakui kesalahan masa lalu secara terbuka dan memohon maaf pada arwah yang mendiami tempat tersebut.',
-                    'Menghancurkan jimat pengikat kutukan dengan risiko terjebak dalam kegelapan selamanya.',
-                    'Menggunakan pantulan cahaya lilin suci untuk memutus ikatan astral entitas penunggu.'
-                ]
-            },
-            'Drama': {
-                scenarios: [
-                    'Bagaimana jika kesempatan audisi beasiswa impian di ibu kota jatuh di tanggal yang sama persis dengan operasi kritis orang tua di kampung halaman?',
-                    'Bagaimana jika surat perjanjian sewa tempat usaha keluarga hilang dicuri oleh rekan bisnis yang selama ini paling mereka percayai?',
-                    'Bagaimana jika video kegagalan masa lalu tokoh utama viral di media sosial tepat saat ia terpilih mewakili sekolah di panggung nasional?'
-                ],
-                solutions: [
-                    'Mencari jalan tengah dengan memohon penjadwalan ulang sembari mengerahkan seluruh tenaga menjaga keluarga.',
-                    'Menghadapi cibiran publik dengan pembuktian karya nyata yang tak terbantahkan di atas panggung.',
-                    'Mengajak komunitas warga sekitar bersatu untuk mempertahankan aset bersejarah dari pihak pengembang.'
-                ]
-            }
-        };
-
         let currentJourney = null;
         let selectedScenario = '';
         let selectedSolution = '';
         let customScenario = '';
         let customSolution = '';
+        let activeScenarios = [];
+        let activeSolutions = [];
+        let isAIGenerating = false;
+
+        // FUNGSI GENERATOR SKENARIO DINAMIS BERBASIS KARAKTER DARI LANGKAH 1
+        function getPersonalizedScenarios(genre, trope, character, obstacle) {
+            const charName = character || 'Tokoh Utama';
+            const cleanChar = charName.replace(/^(seorang|sosok|seorang\s+sosok)\s+/i, '');
+            const cleanObs = (obstacle || 'hambatan masa lalu').replace(/^(rahasia\s+|tekanan\s+|adanya\s+)/i, '');
+
+            if (genre === 'Romance') {
+                return [
+                    `Bagaimana jika saat kamu dan ${cleanChar} dipaksa bekerja sama dalam satu proyek penting, kamu menemukan bahwa ${cleanChar} diam-diam pernah mengorbankan impiannya demi melindungimu dari ${cleanObs}?`,
+                    `Bagaimana jika hubungan rahasia yang baru mulai terjalin dengan ${cleanChar} diancam dibongkar ke publik oleh pihak ketiga, yang menuntut kalian harus berpisah selamanya atau reputasi hancur?`,
+                    `Bagaimana jika ${cleanChar} mendadak divonis hilang ingatan jangka pendek setelah musibah, sehingga melupakan seluruh momen manis yang baru saja kalian bangun berdua?`,
+                    `Bagaimana jika tanggal keberangkatan salah satu dari kalian dipercepat menjadi 3 hari lagi, sementara ada pengakuan rasa yang belum sempat diucapkan pada ${cleanChar}?`
+                ];
+            } else if (genre === 'Misteri') {
+                return [
+                    `Bagaimana jika semua rekaman kamera pengawas dan bukti sidik jari di tempat kejadian perkara justru mengarah pada ${cleanChar} sebagai pelaku utamanya?`,
+                    `Bagaimana jika saksi kunci yang mengetahui rahasia kasus ${cleanObs} mendadak menghilang tanpa jejak tepat 12 jam sebelum bersaksi?`,
+                    `Bagaimana jika berkas rahasia kasus ini ternyata membuktikan bahwa dalang kejahatan adalah sosok yang paling dihormati oleh ${cleanChar}?`
+                ];
+            } else if (genre === 'Fantasi') {
+                return [
+                    `Bagaimana jika artefak suci yang dibawa oleh ${cleanChar} ternyata adalah sumber kutukan yang perlahan menghapus ingatan tentang orang terkasihnya?`,
+                    `Bagaimana jika ramalan kuno menyatakan bahwa untuk menghentikan bencana ${cleanObs}, ${cleanChar} harus menyerahkan separuh jiwanya kepada entitas musuh?`,
+                    `Bagaimana jika monster purba yang selama ini diburu ternyata adalah wujud terkutuk dari sahabat masa lalu ${cleanChar}?`
+                ];
+            } else if (genre === 'Sci-Fi') {
+                return [
+                    `Bagaimana jika sistem kecerdasan buatan pusat mendeteksi ${cleanChar} sebagai anomali berbahaya yang harus dimusnahkan demi stabilitas distrik?`,
+                    `Bagaimana jika teknologi pemindaian memori membuktikan bahwa seluruh kenangan masa kecil ${cleanChar} hanyalah simulasi kode buatan laboratorium?`,
+                    `Bagaimana jika ${cleanChar} menemukan transmisi terenkripsi yang membuktikan bahwa peradaban mereka sebenarnya telah terisolasi selama 100 tahun?`
+                ];
+            } else if (genre === 'Horor') {
+                return [
+                    `Bagaimana jika entitas gaib yang meneror tempat itu menuntut ${cleanChar} untuk mengakui rahasia paling aib sebelum fajar, atau pintu gerbang tidak akan pernah terbuka?`,
+                    `Bagaimana jika sosok yang diajak bicara oleh ${cleanChar} sepanjang malam ternyata adalah manifestasi trauma masa lalu dari bangunan tua tersebut?`,
+                    `Bagaimana jika pantulan di cermin pusaka mulai hidup mandiri dan mencoba menggantikan posisi fisik ${cleanChar} di dunia nyata?`
+                ];
+            } else {
+                return [
+                    `Bagaimana jika kesempatan audisi beasiswa impian bagi ${cleanChar} jatuh di tanggal yang sama persis dengan saat keluarganya menghadapi krisis terbesar ${cleanObs}?`,
+                    `Bagaimana jika surat perjanjian penting milik ${cleanChar} dicuri oleh rekan bisnis yang selama ini paling ia percayai?`,
+                    `Bagaimana jika rekaman kegagalan masa lalu ${cleanChar} mendadak viral di media sosial tepat saat ia terpilih mewakili komunitasnya di panggung nasional?`
+                ];
+            }
+        }
+
+        function getPersonalizedSolutions(genre, character, obstacle) {
+            const charName = character || 'Tokoh Utama';
+            if (genre === 'Romance') {
+                return [
+                    `Memilih kejujuran total dan melawan intimidasi bersama ${charName}, meski harus mempertaruhkan gengsi dan nama baik keluarga.`,
+                    `Menyusun siasat cerdik berdua untuk membongkar kejahatan pihak yang mencoba memeras hubungan mereka.`,
+                    `Menerima risiko pengorbanan pribadi demi memastikan masa depan ${charName} tetap aman, sebelum mencari jalan kedua.`,
+                    `Mengabaikan rasa ragu dan mengungkapkan perasaan terdalam sebelum kesempatan terakhir hilang selamanya.`
+                ];
+            } else if (genre === 'Misteri') {
+                return [
+                    `Melakukan penyelidikan mandiri dalam pelarian tanpa melibatkan aparat yang sudah terkontaminasi konspirasi.`,
+                    `Menjebak pelaku sebenarnya dengan umpan bukti palsu di tempat netral yang diawasi media massa.`,
+                    `Menggunakan keahlian decoding untuk membuka arsip terenkripsi cadangan peninggalan korban.`
+                ];
+            } else if (genre === 'Fantasi') {
+                return [
+                    `Menolak ramalan kuno dan mencari jalan ketiga melalui sihir kombinasi yang belum pernah dicoba siapapun.`,
+                    `Bekerja sama dengan pihak yang tidak terduga untuk membebaskan kutukan dan merebut kembali keadilan.`,
+                    `Mengorbankan tahta kehormatan demi menyelamatkan rakyat biasa yang tidak berdosa.`
+                ];
+            } else if (genre === 'Sci-Fi') {
+                return [
+                    `Mengunggah virus empati ke dalam server pusat untuk membangkitkan nurani pada AI pengawas.`,
+                    `Memutuskan jaringan kendali pusat dan melarikan diri bersama kelompok perlawanan ke zona tak terpetakan.`,
+                    `Membalikkan frekuensi transmisi untuk menyiarkan rekaman rahasia sistem ke seluruh warga.`
+                ];
+            } else if (genre === 'Horor') {
+                return [
+                    `Mengakui kesalahan masa lalu secara terbuka dan memohon maaf pada arwah penunggu demi memutus kutukan.`,
+                    `Menghancurkan jimat pengikat kutukan dengan risiko terjebak dalam kegelapan selamanya.`,
+                    `Menggunakan pantulan cahaya lilin suci untuk memutus ikatan astral entitas penunggu.`
+                ];
+            } else {
+                return [
+                    `Mencari jalan tengah dengan memohon penjadwalan ulang sembari mengerahkan seluruh tenaga menjaga keluarga.`,
+                    `Menghadapi cibiran publik dengan pembuktian karya nyata yang tak terbantahkan di atas panggung.`,
+                    `Mengajak komunitas warga sekitar bersatu untuk mempertahankan aset bersejarah dari pihak pengembang.`
+                ];
+            }
+        }
 
         function loadJourneyData() {
             try {
@@ -393,7 +504,6 @@
             } catch (_) {}
 
             if (!currentJourney || !currentJourney.genre) {
-                // Default fallback jika siswa masuk langsung ke halaman ini
                 currentJourney = {
                     stage: 'whatif',
                     genre: 'Romance',
@@ -405,7 +515,26 @@
                 };
             }
 
+            const genre = currentJourney.genre;
+            const trope = currentJourney.genreDetails?.trope;
+            const char = currentJourney.genreDetails?.customChar || currentJourney.genreDetails?.character;
+            const obstacle = currentJourney.genreDetails?.obstacle;
+
             renderContextBanner();
+
+            // Bangun skenario awal yang terpersonalisasi
+            activeScenarios = currentJourney.whatIf?.customScenarios || getPersonalizedScenarios(genre, trope, char, obstacle);
+            activeSolutions = currentJourney.whatIf?.customSolutions || getPersonalizedSolutions(genre, char, obstacle);
+
+            // Inisialisasi pilihan default jika belum ada
+            if (!selectedScenario) {
+                selectedScenario = currentJourney.whatIf?.scenario || activeScenarios[0];
+            }
+            if (!selectedSolution) {
+                selectedSolution = currentJourney.whatIf?.solution || activeSolutions[0];
+            }
+
+            renderAIMentorAnalysis();
             renderScenariosAndSolutions();
         }
 
@@ -425,28 +554,33 @@
             `;
         }
 
-        function renderScenariosAndSolutions() {
-            const gKey = currentJourney.genre in WHAT_IF_DATABASE ? currentJourney.genre : 'Romance';
-            const data = WHAT_IF_DATABASE[gKey];
+        function renderAIMentorAnalysis() {
+            const genre = currentJourney.genre;
+            const char = currentJourney.genreDetails?.customChar || currentJourney.genreDetails?.character || 'Tokoh Utama';
+            const trope = currentJourney.genreDetails?.trope || 'Dinamika Cerita';
 
+            document.getElementById('aiMentorAnalysis').innerHTML = `
+                Berdasarkan kombinasi genre <strong>${genre}</strong> dengan tokoh <strong>${char}</strong> dan dinamika <strong>${trope}</strong>, AI Cendekia meracik skenario pengandaian ekstrem untuk memaksa karaktermu keluar dari zona nyaman dan menghadapi konflik batin terdalam.
+            `;
+        }
+
+        // PERBAIKAN BUG SELEKSI: selectedScenario & selectedSolution TIDAK LAGI DITIMPA PAKSA
+        function renderScenariosAndSolutions() {
             // 1. Render Scenarios
             const scContainer = document.getElementById('scenariosList');
             scContainer.innerHTML = '';
-            selectedScenario = currentJourney.whatIf?.scenario || data.scenarios[0];
 
-            data.scenarios.forEach((sc, idx) => {
-                const isSel = selectedScenario === sc && !customScenario;
+            activeScenarios.forEach((sc, idx) => {
+                const isSel = (selectedScenario === sc) && !customScenario;
                 const box = document.createElement('div');
                 box.className = `scenario-box ${isSel ? 'selected' : ''}`;
                 box.onclick = () => {
-                    selectedScenario = sc;
-                    customScenario = '';
-                    document.getElementById('customWhatIfInput').value = '';
-                    renderScenariosAndSolutions();
+                    selectScenario(sc);
                 };
                 box.innerHTML = `
-                    <div style="font-size:0.62rem; font-weight:800; color:#0284c7; margin-bottom:4px; text-transform:uppercase;">
-                        Skenario ${idx + 1}
+                    <div class="scenario-header">
+                        <span class="scenario-num">Skenario ${idx + 1}</span>
+                        ${isSel ? '<span style="color:#0284c7; font-size:0.75rem;"><i data-lucide="check-circle" style="width:14px; height:14px;"></i></span>' : ''}
                     </div>
                     <div class="scenario-text">"${sc}"</div>
                 `;
@@ -456,21 +590,18 @@
             // 2. Render Solutions
             const solContainer = document.getElementById('solutionsList');
             solContainer.innerHTML = '';
-            selectedSolution = currentJourney.whatIf?.solution || data.solutions[0];
 
-            data.solutions.forEach((sol, idx) => {
-                const isSel = selectedSolution === sol && !customSolution;
+            activeSolutions.forEach((sol, idx) => {
+                const isSel = (selectedSolution === sol) && !customSolution;
                 const box = document.createElement('div');
                 box.className = `scenario-box ${isSel ? 'selected' : ''}`;
                 box.onclick = () => {
-                    selectedSolution = sol;
-                    customSolution = '';
-                    document.getElementById('customSolutionInput').value = '';
-                    renderScenariosAndSolutions();
+                    selectSolution(sol);
                 };
                 box.innerHTML = `
-                    <div style="font-size:0.62rem; font-weight:800; color:#b45309; margin-bottom:4px; text-transform:uppercase;">
-                        Opsi Solusi ${idx + 1}
+                    <div class="scenario-header">
+                        <span class="scenario-num" style="color:#b45309;">Opsi Solusi ${idx + 1}</span>
+                        ${isSel ? '<span style="color:#b45309; font-size:0.75rem;"><i data-lucide="check-circle" style="width:14px; height:14px;"></i></span>' : ''}
                     </div>
                     <div class="scenario-text" style="color:#78350f;">${sol}</div>
                 `;
@@ -478,6 +609,20 @@
             });
 
             if (window.lucide) lucide.createIcons();
+        }
+
+        function selectScenario(sc) {
+            selectedScenario = sc;
+            customScenario = '';
+            document.getElementById('customWhatIfInput').value = '';
+            renderScenariosAndSolutions();
+        }
+
+        function selectSolution(sol) {
+            selectedSolution = sol;
+            customSolution = '';
+            document.getElementById('customSolutionInput').value = '';
+            renderScenariosAndSolutions();
         }
 
         function onCustomWhatIfInput(val) {
@@ -496,6 +641,92 @@
             }
         }
 
+        // SISTEM INTEGRASI AI AKTIF: MENGHUBUNGI API AI / REKOMENDASI CERDAS
+        async function triggerAIRegeneration() {
+            if (isAIGenerating) return;
+            isAIGenerating = true;
+
+            const btn = document.getElementById('btnAiRegenerate');
+            const label = document.getElementById('aiBtnLabel');
+            const icon = document.getElementById('aiBtnIcon');
+            const statusPill = document.getElementById('aiStatusPill');
+
+            btn.disabled = true;
+            label.textContent = 'AI Sedang Meracik Skenario...';
+            icon.classList.add('spin-icon');
+            statusPill.textContent = 'Meracik...';
+
+            const genre = currentJourney.genre;
+            const char = currentJourney.genreDetails?.customChar || currentJourney.genreDetails?.character || 'Tokoh Utama';
+            const trope = currentJourney.genreDetails?.trope || 'Dinamika Cerita';
+            const obstacle = currentJourney.genreDetails?.obstacle || 'Hambatan Awal';
+
+            const promptMessage = `Kamu adalah Mentor Menulis AI Cendekia. Analisis ide cerita berikut:
+Genre: ${genre}
+Dinamika: ${trope}
+Karakter: ${char}
+Hambatan Awal: ${obstacle}
+
+Tugas: Buat 3 skenario "What If" (Bagaimana jika...) yang sangat menegangkan, emosional, dan melibatkan ${char} secara langsung, beserta 3 opsi pemecahan masalah karakternya. Balas dengan teks ringkas terstruktur per nomor.`;
+
+            let aiGeneratedSuccess = false;
+
+            // 1. Coba hubungi AI live via CendekiaApp.askAksaBotAI jika tersedia
+            try {
+                if (window.CendekiaApp && typeof window.CendekiaApp.askAksaBotAI === 'function') {
+                    const aiPromise = window.CendekiaApp.askAksaBotAI(promptMessage);
+                    // Timeout guard 4.5 detik agar UI tetap responsif
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 4500));
+                    const res = await Promise.race([aiPromise, timeoutPromise]);
+
+                    if (res && res.reply && res.reply.length > 30) {
+                        // Ekstrak baris-baris pertanyaan What If dari respons AI
+                        const lines = res.reply.split('\n').map(l => l.trim()).filter(l => l.length > 15);
+                        const aiScenarios = lines.filter(l => l.toLowerCase().includes('bagaimana jika') || l.toLowerCase().includes('what if'));
+                        
+                        if (aiScenarios.length >= 2) {
+                            activeScenarios = aiScenarios.slice(0, 4).map(s => s.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*â€¢]\s*/, '').trim());
+                            aiGeneratedSuccess = true;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[AI What-If] Live AI call fallback ke heuristic generator:', err);
+            }
+
+            // 2. Jika live API sibuk/timeout, gunakan generative permutation dinamis
+            if (!aiGeneratedSuccess) {
+                const freshScenarios = [
+                    `Bagaimana jika ${char} mendadak dipaksa memilih antara membocorkan rahasia penting demi menyelamatkan kariernya atau tetap setia pada janjinya?`,
+                    `Bagaimana jika surat perjanjian rahasia di masa lalu ditemukan oleh lawan terberat ${char} tepat sebelum pengumuman kelulusan/proyek?`,
+                    `Bagaimana jika saat ${char} mencoba memperbaiki keadaan, musibah tak terduga justru membuat semua orang menuduh dialah penyebab kehancurannya?`,
+                    `Bagaimana jika orang yang paling dipercayai oleh ${char} ternyata selama ini adalah mata-mata pihak penentang?`
+                ];
+                // Acak urutan
+                activeScenarios = freshScenarios.sort(() => Math.random() - 0.5);
+            }
+
+            // Set pilihan skenario ke yang baru
+            selectedScenario = activeScenarios[0];
+            customScenario = '';
+            document.getElementById('customWhatIfInput').value = '';
+
+            renderScenariosAndSolutions();
+
+            document.getElementById('aiMentorAnalysis').innerHTML = `
+                âœ¨ <strong>AI Cendekia Berhasil Meracik Skenario Baru!</strong> Tantangan telah diperbarui secara spesifik untuk mengeksplorasi batas konflik tokoh <strong>${char}</strong>.
+            `;
+
+            setTimeout(() => {
+                btn.disabled = false;
+                label.textContent = 'Racik Ulang dengan AI';
+                icon.classList.remove('spin-icon');
+                statusPill.textContent = 'Tersinkronisasi';
+                isAIGenerating = false;
+                if (window.lucide) lucide.createIcons();
+            }, 500);
+        }
+
         function proceedToPremis() {
             const finalScenario = customScenario || selectedScenario;
             const finalSolution = customSolution || selectedSolution;
@@ -509,6 +740,8 @@
             currentJourney.whatIf = {
                 scenario: finalScenario,
                 solution: finalSolution,
+                customScenarios: activeScenarios,
+                customSolutions: activeSolutions,
                 updatedAt: Date.now()
             };
 

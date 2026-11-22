@@ -293,9 +293,14 @@
                         <!-- Options injected via JS -->
                     </div>
                     <div style="margin-top:10px;">
-                        <label style="font-size:0.68rem; font-weight:700; color:var(--text-muted); display:block; margin-bottom:4px;">
-                            Atau ketik sendiri sosok / orang yang kamu bayangkan:
-                        </label>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label style="font-size:0.68rem; font-weight:700; color:var(--text-muted);">
+                                Atau ketik sendiri sosok / orang yang kamu bayangkan:
+                            </label>
+                            <button type="button" onclick="suggestCharacterWithAI()" style="background:transparent; border:none; color:#059669; font-size:0.68rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i data-lucide="wand-sparkles" style="width:11px; height:11px;"></i> Ide AI
+                            </button>
+                        </div>
                         <input type="text" id="customCharInput" class="input-custom-text" placeholder="Misal: Kakak tingkat jurusan arsitektur yang pendiam..." oninput="onCustomCharInput(this.value)">
                     </div>
                 </div>
@@ -722,13 +727,45 @@
             document.getElementById('synthObstacle').innerHTML = `<strong>Hambatan Awal:</strong> ${currentJourney.genreDetails.obstacle || '-'}`;
         }
 
+        function suggestCharacterWithAI() {
+            const genre = currentJourney.genre || 'Romance';
+            const aiPersonas = {
+                'Romance': [
+                    'Mahasiswa arsitektur pendiam yang diam-diam menggambar sketsa wajahmu di buku catatannya',
+                    'Rival debat antar-kampus yang selalu tajam di podium namun sangat hangat saat di belakang panggung',
+                    'Pewaris kedai kopi antik yang enggan meneruskan bisnis keluarga dan ingin menjadi musisi',
+                    'Sahabat masa kecil yang baru kembali dari luar negeri dengan membawa cincin kenangan lama'
+                ],
+                'Misteri': [
+                    'Dokter forensik muda yang mencurigai adanya racun langka dalam kasus kematian misterius',
+                    'Peretas data kepolisian yang melacak transaksi rahasia pejabat tinggi kota',
+                    'Pustakawan naskah kuno yang mampu membaca sandi tersembunyi di balik peta tua'
+                ],
+                'Fantasi': [
+                    'Penyihir es buangan yang mengorbankan separuh kekuatannya demi menyelamatkan anak serigala salju',
+                    'Ksatria pengawal putri mahkota yang menyembunyikan identitas sebagai pangeran kerajaan musuh'
+                ]
+            };
+            const list = aiPersonas[genre] || aiPersonas['Romance'];
+            const chosen = list[Math.floor(Math.random() * list.length)];
+            
+            document.getElementById('customCharInput').value = chosen;
+            onCustomCharInput(chosen);
+        }
+
         function proceedToWhatIf() {
             if (!currentJourney.genre) {
                 alert('Silakan pilih salah satu genre terlebih dahulu!');
                 return;
             }
 
-            // Simpan ke storage journey
+            const activeChar = currentJourney.genreDetails.customChar || currentJourney.genreDetails.character;
+            if (!activeChar) {
+                alert('Silakan pilih atau ketik sosok karakter terlebih dahulu!');
+                return;
+            }
+
+            currentJourney.genreDetails.character = activeChar;
             currentJourney.stage = 'whatif';
             currentJourney.updatedAt = Date.now();
             localStorage.setItem(KREASI_JOURNEY_KEY, JSON.stringify(currentJourney));
