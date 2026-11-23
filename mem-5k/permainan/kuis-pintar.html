@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kuis Pintar Pilihan Ganda - Member 5K Cendekia</title>
+    <title>Kuis Pintar Pilihan Ganda - Member Free Cendekia</title>
     
     <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -548,6 +548,31 @@
             });
         }
 
+        // Helper render evaluasi langsung per butir soal (Kaidah, Kunci Benar, & Kutipan Materi)
+        function getQuestionEvalHtml(q, selectedOpt) {
+            const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
+            const isCorrect = selectedOpt === correctIdx;
+            const opts = q.options || [];
+            const correctLetter = String.fromCharCode(65 + correctIdx);
+            const correctText = (opts[correctIdx] || '').replace(/^[A-D]\.\s*/i, '');
+
+            return `
+                <div class="q-eval-result-box ${isCorrect ? 'q-eval-correct' : 'q-eval-wrong'}" style="margin-top:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <strong>${isCorrect ? '✓ Jawaban Anda Tepat!' : '✗ Jawaban Belum Tepat'}</strong>
+                        <span style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:50px; background:${isCorrect ? '#d1fae5; color:#065f46;' : '#fee2e2; color:#991b1b;'}">
+                            ${isCorrect ? '+ Poin Benar' : 'Evaluasi Langsung'}
+                        </span>
+                    </div>
+                    ${!isCorrect ? `<div style="font-size:0.78rem; margin-bottom:6px;">Kunci Jawaban yang Benar: <b style="color:#059669;">${correctLetter}. ${correctText}</b></div>` : ''}
+                    <div class="q-eval-explanation" style="font-style:normal; margin-top:6px; padding-top:6px; border-top:1px dashed rgba(0,0,0,0.12); font-size:0.75rem; color:#334155; line-height:1.45;">
+                        <strong style="color:var(--primary);"><i data-lucide="book-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Rujukan Materi:</strong> ${q.kutipanMateri || 'Kurikulum Literasi Cendekia Aksara'}<br>
+                        <strong style="color:#334155; margin-top:4px; display:inline-block;"><i data-lucide="lightbulb" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Pembahasan Kaidah:</strong> ${q.exp || q.explanation || 'Pembahasan tertera pada materi pembelajaran.'}
+                    </div>
+                </div>
+            `;
+        }
+
         // Render seluruh 15 butir soal ke bawah
         function renderQuestionsList(isReviewMode = false) {
             const container = document.getElementById('questionsListArea');
@@ -557,6 +582,7 @@
                 const qNum = idx + 1;
                 const isAnswered = userAnswers[idx] !== undefined;
                 const selectedOpt = userAnswers[idx];
+                const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
 
                 const card = document.createElement('div');
                 card.className = `question-item-card ${isAnswered ? 'answered' : ''}`;
@@ -571,34 +597,33 @@
                     // Bersihkan awalan 'A. ' jika ada
                     const cleanOpt = opt.replace(/^[A-D]\.\s*/i, '');
 
+                    let optCustomStyle = '';
+                    if (isAnswered) {
+                        if (isSelected) {
+                            if (optIdx === correctIdx) {
+                                optCustomStyle = 'border-color:#059669; background:#ecfdf5; color:#065f46; font-weight:700;';
+                            } else {
+                                optCustomStyle = 'border-color:#dc2626; background:#fef2f2; color:#991b1b;';
+                            }
+                        } else if (optIdx === correctIdx) {
+                            optCustomStyle = 'border-color:#059669; background:#f0fdf4;';
+                        }
+                    }
+
                     optionsHtml += `
-                        <label class="option-label-card ${isSelected ? 'selected' : ''}" onclick="handleOptionSelect(${idx}, ${optIdx})">
+                        <label class="option-label-card ${isSelected ? 'selected' : ''}" style="${optCustomStyle}" onclick="handleOptionSelect(${idx}, ${optIdx})">
                             <input type="radio" name="opt_radio_${idx}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${isReviewMode ? 'disabled' : ''}>
                             <span class="opt-letter-circle">${letter}</span>
                             <span class="opt-text-val">${cleanOpt}</span>
+                            ${isAnswered && optIdx === correctIdx ? '<span style="font-size:0.68rem; font-weight:700; color:#059669; margin-left:auto;"><i data-lucide="check" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Benar</span>' : ''}
                         </label>
                     `;
                 });
 
-                // Area Pembahasan (Hanya muncul jika sudah disubmit)
+                // Area Pembahasan & Evaluasi Langsung
                 let evalHtml = '';
-                if (isReviewMode) {
-                    const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
-                    const isCorrect = selectedOpt === correctIdx;
-                    const correctLetter = String.fromCharCode(65 + correctIdx);
-                    const correctText = (opts[correctIdx] || '').replace(/^[A-D]\.\s*/i, '');
-
-                    evalHtml = `
-                        <div class="q-eval-result-box ${isCorrect ? 'q-eval-correct' : 'q-eval-wrong'}">
-                            <div>
-                                <strong>${isCorrect ? '✓ Jawaban Anda Tepat!' : '✗ Jawaban Belum Tepat'}</strong><br>
-                                ${!isCorrect ? `Kunci Jawaban Benar: <strong>${correctLetter}. ${correctText}</strong>` : ''}
-                            </div>
-                            <div class="q-eval-explanation">
-                                <strong>Kaidah &amp; Pembahasan:</strong> ${q.exp || q.explanation || 'Pembahasan tertera pada kaidah materi kurikulum.'}
-                            </div>
-                        </div>
-                    `;
+                if (isAnswered || isReviewMode) {
+                    evalHtml = `<div class="q-eval-container">${getQuestionEvalHtml(q, selectedOpt)}</div>`;
                 }
 
                 card.innerHTML = `
@@ -622,7 +647,7 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        // Handler saat siswa memilih opsi jawaban
+        // Handler saat siswa memilih opsi jawaban (Evaluasi Langsung Otomatis & Kutipan Materi)
         window.handleOptionSelect = (qIdx, optIdx) => {
             if (isSubmitted) return; // Mode evaluasi terkunci
 
@@ -635,18 +660,39 @@
                 mode: currentMode
             }, currentMode);
 
-            // Perbarui visual opsi kartu yang dipilih
+            const q = rawQuestions[qIdx];
+            const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
+
+            // Perbarui visual opsi kartu yang dipilih secara instan
             const card = document.getElementById(`qCard_${qIdx}`);
             if (card) {
                 card.classList.add('answered');
                 const labels = card.querySelectorAll('.option-label-card');
                 labels.forEach((lbl, idx) => {
+                    const radio = lbl.querySelector('input[type="radio"]');
                     if (idx === optIdx) {
                         lbl.classList.add('selected');
-                        const radio = lbl.querySelector('input[type="radio"]');
                         if (radio) radio.checked = true;
+                        if (idx === correctIdx) {
+                            lbl.style.borderColor = '#059669';
+                            lbl.style.background = '#ecfdf5';
+                            lbl.style.color = '#065f46';
+                            lbl.style.fontWeight = '700';
+                        } else {
+                            lbl.style.borderColor = '#dc2626';
+                            lbl.style.background = '#fef2f2';
+                            lbl.style.color = '#991b1b';
+                        }
+                    } else if (idx === correctIdx) {
+                        // Sorot opsi yang benar agar siswa langsung paham
+                        lbl.classList.remove('selected');
+                        lbl.style.borderColor = '#059669';
+                        lbl.style.background = '#f0fdf4';
                     } else {
                         lbl.classList.remove('selected');
+                        lbl.style.borderColor = '';
+                        lbl.style.background = '';
+                        lbl.style.color = '';
                     }
                 });
 
@@ -655,8 +701,17 @@
                 if (tag) {
                     tag.className = 'q-status-tag done';
                     tag.innerHTML = '<i data-lucide="check-circle-2" style="width:13px; height:13px;"></i> Terjawab';
-                    if (window.lucide) lucide.createIcons();
                 }
+
+                // Render atau perbarui kotak evaluasi langsung
+                let evalContainer = card.querySelector('.q-eval-container');
+                if (!evalContainer) {
+                    evalContainer = document.createElement('div');
+                    evalContainer.className = 'q-eval-container';
+                    card.appendChild(evalContainer);
+                }
+                evalContainer.innerHTML = getQuestionEvalHtml(q, optIdx);
+                if (window.lucide) lucide.createIcons();
             }
 
             updateProgressDisplay();

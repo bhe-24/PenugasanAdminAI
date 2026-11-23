@@ -583,58 +583,86 @@ Format output WAJIB JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json:
             // [MEMBER FREE] GENERATOR SOAL HARIAN BERLAKU 24 JAM
             // ---------------------------------------------------------
             case 'generate-mem-free-daily': {
-                const { materials } = payload;
+                const { materials, activeMaterialId, dateKey: clientDateKey } = payload;
                 if (!materials || (Array.isArray(materials) && materials.length === 0)) {
                     return res.status(400).json({ error: 'Bahan ajar materi kosong. Harap unggah materi di Admin terlebih dahulu.' });
                 }
 
-                // Chunking & intisari cerdas bahan ajar agar bebas token overflow
+                const todayKey = clientDateKey || new Date().toISOString().slice(0, 10);
+
+                // 1. Ekstrak materi rujukan utama & sistematika materi
+                let primaryMaterial = null;
+                let candidateMaterials = Array.isArray(materials) ? materials : [materials];
+
+                if (activeMaterialId) {
+                    primaryMaterial = candidateMaterials.find(m => (m.id === activeMaterialId || m.docId === activeMaterialId));
+                }
+                if (!primaryMaterial) {
+                    primaryMaterial = candidateMaterials.find(m => m.isPrimaryActive);
+                }
+                if (!primaryMaterial) {
+                    // Pilih berdasarkan rolling harian jika belum ada yang ditandai utama
+                    const dayHash = todayKey.split('-').reduce((acc, part) => acc + (parseInt(part, 10) || 0), 0);
+                    const chosenIdx = dayHash % candidateMaterials.length;
+                    primaryMaterial = candidateMaterials[chosenIdx];
+                }
+
+                // 2. Susun referensi bahan ajar dari sistematika bagian agar hemat token & kaya konteks
                 let combinedText = "";
-                if (Array.isArray(materials)) {
-                    combinedText = materials.map((m, idx) => {
-                        const cat = m.category || m.id || `Modul-${idx + 1}`;
-                        const title = m.title || 'Materi Pembelajaran';
-                        const summary = m.summary || '';
-                        let contentChunk = (m.content || '').trim();
-                        // Ambil intisari maksimal 1.200 karakter per modul
-                        if (contentChunk.length > 1200) {
-                            contentChunk = contentChunk.slice(0, 1200) + '... [Intisari Kaidah Terpilih]';
-                        }
-                        let examplesChunk = (m.examples || '').trim();
-                        if (examplesChunk.length > 350) {
-                            examplesChunk = examplesChunk.slice(0, 350) + '...';
-                        }
-                        return `=== MODUL [${cat.toUpperCase()}]: ${title} ===\nRINGKASAN: ${summary}\nMATERI POKOK & KAIDAH:\n${contentChunk}\nCONTOH / KASUS:\n${examplesChunk}`;
-                    }).join('\n\n------------------------------------\n\n');
-                } else if (typeof materials === 'string') {
-                    combinedText = materials.slice(0, 3500);
-                } else if (typeof materials === 'object') {
-                    combinedText = JSON.stringify(materials).slice(0, 3500);
+                let materialTitle = primaryMaterial?.title || 'Materi Literasi';
+                let primarySummary = primaryMaterial?.summary || '';
+
+                if (primaryMaterial && primaryMaterial.sections && Array.isArray(primaryMaterial.sections) && primaryMaterial.sections.length > 0) {
+                    const secList = primaryMaterial.sections;
+                    combinedText += `=== BAHAN AJAR UTAMA: ${materialTitle} ===\nRINGKASAN: ${primarySummary}\nTOTAL SISTEMATIKA: ${secList.length} BAGIAN\n\n`;
+
+                    secList.forEach((sec, idx) => {
+                        const secContent = (sec.content || '').slice(0, 1200);
+                        combinedText += `--- [BAGIAN ${idx + 1}: ${sec.title || 'Sub-Bab'}] ---\n${secContent}\n\n`;
+                    });
+                } else if (primaryMaterial) {
+                    const raw = primaryMaterial.rawContent || primaryMaterial.fullText || primaryMaterial.content || '';
+                    const cleanChunk = raw.slice(0, 4000);
+                    combinedText += `=== BAHAN AJAR UTAMA: ${materialTitle} ===\nRINGKASAN: ${primarySummary}\nKONTEN MATERI:\n${cleanChunk}\n\n`;
+                }
+
+                // Tambahkan modul materi pendamping lain secara ringkas jika ada
+                const otherMats = candidateMaterials.filter(m => m !== primaryMaterial).slice(0, 3);
+                if (otherMats.length > 0) {
+                    combinedText += `=== MATERI PENDAMPING KURIKULUM ===\n`;
+                    otherMats.forEach(om => {
+                        const omTitle = om.title || 'Modul Literasi';
+                        const omSummary = om.summary || (om.content || '').slice(0, 300);
+                        combinedText += `- [${om.category || 'Materi'}]: ${omTitle} • ${omSummary}\n`;
+                    });
                 }
 
                 if (!combinedText || combinedText.trim().length < 15) {
                     return res.status(400).json({ error: 'Bahan ajar materi terlalu singkat untuk dijadikan referensi soal.' });
                 }
 
-                // Sabuk pengaman token (maksimal 3.500 karakter referensi padat)
-                const safeMateri = combinedText.length > 3500 ? combinedText.substring(0, 3500) + '... [Bagian Intisari]' : combinedText;
+                // Sabuk pengaman token (maksimal 4.500 karakter referensi padat terstruktur)
+                const safeMateri = combinedText.length > 4500 ? combinedText.substring(0, 4500) + '... [Bagian Sistematika Terpilih]' : combinedText;
 
-                const systemPrompt = `Anda adalah Kurator Edukasi Ahli & Perancang Kurikulum Soal Literasi di Cendekia Aksara.
-Tugas Anda: Menganalisis materi referensi bahan ajar yang diberikan dan menyusun 1 paket lengkap soal latihan harian dan permainan literasi untuk siswa Member Free.
+                const systemPrompt = `Anda adalah Kurator Edukasi Ahli, Penguji Literasi Nasional, & Perancang Bank Soal Adaptif di Cendekia Aksara.
+Tugas Anda: Menganalisis materi bahan ajar "${materialTitle}" dan menyusun 1 paket lengkap soal latihan harian dan permainan literasi untuk siswa Member Free (Berlaku Tanggal: ${todayKey}).
 
 ATURAN MATERI SOAL (SANGAT KETAT & WAJIB DIPATUHI):
-1. DILARANG KERAS membuat soal tentang profil pembuat, biografi pendiri/penulis, identitas pengembang, sejarah organisasi/yayasan, nama pengajar, atau nama aplikasi. Hal tersebut di luar konteks literasi!
-2. SEMUA 15 SOAL KUIS PILIHAN GANDA WAJIB MURNI menguji kompetensi akademis literasi & kaidah kebahasaan Indonesia berdasarkan materi:
-   - Kaidah Ejaan EYD V (penggunaan huruf kapital, huruf miring, penulisan kata turunan berimbuhan)
-   - Penulisan kata baku KBBI vs bentuk tidak baku yang sering keliru
-   - Penggunaan tanda baca yang tepat (tanda koma, titik dua, tanda hubung, tanda petik)
-   - Kalimat efektif, ketepatan konjungsi, dan kelogisan nalar kalimat
-   - Diksi, pilihan kata, sinonim/antonim kontekstual, majas/gaya bahasa
-   - Unsur intrinsik sastra (tema, alur, perwatakan, latar, sudut pandang, amanat)
-   - Analisis perbaikan kalimat rancu / tidak logis
-3. SETIAP SOAL HARUS BERSIFAT MANDIRI (self-contained) tanpa kata rujukan seperti "Menurut teks di atas...".
-4. Penjelasan (exp/desc) harus padat dan ringkas (1-2 kalimat edukatif yang menjelaskan kaidah kebahasaannya).
-5. Format output WAJIB berupa JSON MURNI tanpa penjelasan, tanpa pembuka/penutup, dan tanpa pembungkus \`\`\`json.
+1. DILARANG KERAS membuat soal tentang profil pembuat, biografi pendiri/penulis, identitas pengembang, sejarah organisasi/yayasan, nama pengajar, atau nama aplikasi!
+2. DILARANG SELALU MENGULANG JAWABAN ATAU TOPIK MONOTON ("sastra", "tema", "alur")!
+   - Soal HARUS bervariasi luas dan kaya wawasan sesuai isi bahan ajar yang diberikan:
+   - Kaidah Ejaan EYD V: huruf kapital pada nama geografi/gelar, huruf miring untuk istilah asing/judul karya, penulisan kata turunan (me- + KTPS), penulisan gabungan kata/kata majemuk.
+   - Kata Baku KBBI vs Bentuk Tidak Baku: misal analisis kata baku yang sering salah tulis (antre vs antri, sekadar vs sekedar, dsb).
+   - Tanda Baca & Sintaksis: tanda koma sebelum konjungsi pertentangan, titik dua, tanda petik langsung, tanda hubung.
+   - Kalimat Efektif & Logika Nalar: eliminasi subjek ganda, pleonasme, ketidaksejajaran bentuk (paralelisme).
+   - Stilistika & Majas: personifikasi, metafora, simile, litotes, hiperbola, paradoks, ironi.
+   - Wawasan isi materi konkret sesuai bab/sub-bab yang tertera pada teks bahan ajar.
+3. KUTIPAN MATERI (kutipanMateri) WAJIB DISERTAKAN PADA SETIAP BUTIR SOAL:
+   - Berikan kutipan/rujukan langsung kalimat dari materi yang menjadi dasar pembuatan soal (contoh: "Kutipan materi: 'Huruf kapital dipakai sebagai huruf pertama unsur nama gelar kehormatan yang diikuti nama orang.'").
+   - Keterangan ini akan langsung ditampilkan kepada siswa agar siswa langsung memahami rujukan materi secara ilmiah dan transparan.
+4. SETIAP SOAL HARUS BERSIFAT MANDIRI (self-contained) tanpa kata rujukan rancu seperti "Menurut teks di atas...".
+5. Penjelasan (exp/desc) harus padat dan mendalam (1-2 kalimat edukatif yang menerangkan kaidah yang benar).
+6. Format output WAJIB berupa JSON MURNI tanpa penjelasan dan tanpa pembungkus \`\`\`json.
 
 STRUKTUR JSON YANG DIHASILKAN:
 {
@@ -643,26 +671,30 @@ STRUKTUR JSON YANG DIHASILKAN:
       "q": "Pertanyaan pilihan ganda seputar kaidah/konsep literasi?",
       "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
       "answer": 0,
-      "exp": "Pembahasan edukatif ringkas 1-2 kalimat mengenai kaidah yang benar."
+      "exp": "Pembahasan edukatif ringkas 1-2 kalimat mengenai kaidah yang benar.",
+      "kutipanMateri": "Kutipan langsung dari bahan ajar: '...'"
     }
   ],
   "tebak_kata": [
     {
-      "word": "KATA",
-      "clue": "Petunjuk makna istilah dari materi (Wajib kata tunggal HURUF KAPITAL tanpa spasi, 4-10 huruf)"
+      "word": "KOSAKATA",
+      "clue": "Petunjuk makna istilah dari materi (Wajib kata tunggal HURUF KAPITAL tanpa spasi, 4-10 huruf)",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "susun_kata": [
     {
       "word": "ISTILAH",
-      "clue": "Petunjuk makna istilah dari materi"
+      "clue": "Petunjuk makna istilah dari materi",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "teka_teki": [
     {
       "riddle": "Teka-teki analogis/kreatif seputar materi?",
       "answer": "JAWABAN",
-      "clue": "Petunjuk singkat"
+      "clue": "Petunjuk singkat",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "tebak_sastra": [
@@ -671,14 +703,16 @@ STRUKTUR JSON YANG DIHASILKAN:
       "question": "Pertanyaan analisis kutipan?",
       "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
       "answer": 0,
-      "desc": "Penjelasan wawasan literasi."
+      "desc": "Penjelasan wawasan literasi.",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "sambung_cerita": [
     {
       "theme": "Tema naratif sesuai materi",
       "prompt": "Paragraf pembuka cerita...",
-      "guidance": "Instruksi kreatif untuk siswa"
+      "guidance": "Instruksi kreatif untuk siswa",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "perbaiki_kalimat": [
@@ -686,26 +720,114 @@ STRUKTUR JSON YANG DIHASILKAN:
       "err": "Kalimat yang mengandung kesalahan tata bahasa/ejaan dari materi.",
       "options": ["Versi perbaikan A", "Versi perbaikan B", "Versi perbaikan C"],
       "correct": 0,
-      "exp": "Penjelasan kaidah ringkas."
+      "exp": "Penjelasan kaidah ringkas.",
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ],
   "tantangan_cepat": [
     {
       "word": "KATA",
-      "isBaku": true
+      "isBaku": true,
+      "kutipanMateri": "Kutipan materi: '...'"
     }
   ]
 }
 
 JUMLAH BUTIR TARGET:
-- kuis_pintar: TEPAT 15 BUTIR SOAL PILIHAN GANDA (berkualitas tinggi, bernomor 1 s.d. 15)
-- tebak_kata: 5 butir kata literasi KBBI
+- kuis_pintar: TEPAT 15 BUTIR SOAL PILIHAN GANDA (berkualitas tinggi, bernomor 1 s.d. 15, opsi A s.d. D)
+- tebak_kata: 5 butir kata literasi KBBI bervariasi (BUKAN sastra/tema/alur terus menerus!)
 - susun_kata: 5 butir kata
 - teka_teki: 5 butir
 - tebak_sastra: 3 butir
 - sambung_cerita: 2 butir
 - perbaiki_kalimat: 3 butir
 - tantangan_cepat: 5 butir`;
+
+                // Helper normalisasi dan penambahan kutipanMateri jika AI lupa menyertakan
+                const enrichQuestions = (rawObj) => {
+                    if (!rawObj || typeof rawObj !== 'object') return rawObj;
+                    const res = { ...rawObj };
+
+                    if (Array.isArray(res.kuis_pintar)) {
+                        res.kuis_pintar = res.kuis_pintar.map((item, idx) => ({
+                            id: `kp_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            q: item.q || item.question || 'Pertanyaan kaidah kebahasaan',
+                            options: Array.isArray(item.options) ? item.options : ['Opsi A', 'Opsi B', 'Opsi C', 'Opsi D'],
+                            answer: typeof item.answer === 'number' ? item.answer : 0,
+                            exp: item.exp || item.explanation || 'Pembahasan kaidah literasi.',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}": ${primarySummary || 'Kaidah literasi bahasa Indonesia.'}`
+                        }));
+                    }
+
+                    if (Array.isArray(res.tebak_kata)) {
+                        res.tebak_kata = res.tebak_kata.map((item, idx) => ({
+                            id: `tk_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            word: (item.word || '').toUpperCase().trim(),
+                            clue: item.clue || 'Istilah kosakata literasi baku',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}": ${item.clue || ''}`
+                        }));
+                    }
+
+                    if (Array.isArray(res.tebak_sastra)) {
+                        res.tebak_sastra = res.tebak_sastra.map((item, idx) => ({
+                            id: `ts_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            quote: item.quote || '',
+                            question: item.question || 'Analisis karya sastra',
+                            options: Array.isArray(item.options) ? item.options : ['Opsi A', 'Opsi B', 'Opsi C', 'Opsi D'],
+                            answer: typeof item.answer === 'number' ? item.answer : 0,
+                            desc: item.desc || item.exp || '',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}"`
+                        }));
+                    }
+
+                    if (Array.isArray(res.perbaiki_kalimat)) {
+                        res.perbaiki_kalimat = res.perbaiki_kalimat.map((item, idx) => ({
+                            id: `pk_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            err: item.err || item.kalimat || '',
+                            options: Array.isArray(item.options) ? item.options : [],
+                            correct: typeof item.correct === 'number' ? item.correct : 0,
+                            exp: item.exp || '',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}"`
+                        }));
+                    }
+
+                    if (Array.isArray(res.teka_teki)) {
+                        res.teka_teki = res.teka_teki.map((item, idx) => ({
+                            id: `tt_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            riddle: item.riddle || item.prompt || '',
+                            answer: (item.answer || '').toUpperCase().trim(),
+                            clue: item.clue || item.hint || '',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}"`
+                        }));
+                    }
+
+                    if (Array.isArray(res.susun_kata)) {
+                        res.susun_kata = res.susun_kata.map((item, idx) => ({
+                            id: `sk_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            word: (item.word || '').toUpperCase().trim(),
+                            clue: item.clue || '',
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}"`
+                        }));
+                    }
+
+                    if (Array.isArray(res.tantangan_cepat)) {
+                        res.tantangan_cepat = res.tantangan_cepat.map((item, idx) => ({
+                            id: `tc_${todayKey}_${idx + 1}`,
+                            difficulty: idx % 2 === 0 ? 'santai' : 'tantangan',
+                            word: (item.word || '').toUpperCase().trim(),
+                            isBaku: typeof item.isBaku === 'boolean' ? item.isBaku : true,
+                            kutipanMateri: item.kutipanMateri || `Rujukan materi "${materialTitle}"`
+                        }));
+                    }
+
+                    return res;
+                };
 
                 let lastErr = null;
                 // 1. Coba Groq LPU dengan model stabil
@@ -728,7 +850,8 @@ JUMLAH BUTIR TARGET:
                             const parsed = extractJSON(textResponse);
 
                             if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
-                                return res.status(200).json({ success: true, modelUsed: modelName, questions: parsed });
+                                const enriched = enrichQuestions(parsed);
+                                return res.status(200).json({ success: true, modelUsed: modelName, questions: enriched, activeMaterialTitle: materialTitle });
                             }
                         } catch (err) {
                             console.warn(`[MemFree Daily] Model ${modelName} gagal:`, err.message);
@@ -757,7 +880,8 @@ JUMLAH BUTIR TARGET:
                         const parsed = extractJSON(text);
 
                         if (parsed && (parsed.kuis_pintar || parsed.tebak_kata)) {
-                            return res.status(200).json({ success: true, modelUsed: 'gemini-2.5-flash', questions: parsed });
+                            const enriched = enrichQuestions(parsed);
+                            return res.status(200).json({ success: true, modelUsed: 'gemini-2.5-flash', questions: enriched, activeMaterialTitle: materialTitle });
                         }
                     } catch (gemErr) {
                         console.error(`[MemFree Daily] Gemini fallback gagal:`, gemErr.message);
@@ -768,8 +892,6 @@ JUMLAH BUTIR TARGET:
                 return res.status(500).json({ error: "Gagal memproses soal harian dengan AI: " + (lastErr?.message || "Format respons tidak valid") });
             }
 
-            // ---------------------------------------------------------
-            // [B] KOREKSI UJIAN
             // ---------------------------------------------------------
             case 'grade-ujian': {
                 let { instruction, rubric, answer, studentName } = payload;

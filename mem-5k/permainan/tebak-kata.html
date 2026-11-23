@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tebak Kata - Member 5K Cendekia</title>
+    <title>Tebak Kata - Member Free Cendekia</title>
     
     <link rel="icon" type="image/png" sizes="512x512" href="https://i.imgur.com/5Srjyo4.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -106,6 +106,10 @@
                         <i data-lucide="sparkles" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Petunjuk Makna Kata:
                     </strong>
                     <span id="clueText">...</span>
+                    <div id="citationBox" style="display:none; margin-top:8px; padding-top:6px; border-top:1px dashed #cbd5e1; font-size:0.72rem; color:#0369a1; align-items:center; gap:5px;">
+                        <i data-lucide="book-open" style="width:13px; height:13px; flex-shrink:0;"></i>
+                        <span id="citationText">Rujukan Materi Kurikulum</span>
+                    </div>
                 </div>
 
                 <!-- KOTAK HURUF KATA -->
@@ -201,6 +205,7 @@
                         id: w.id,
                         word: (w.word || '').toUpperCase().trim(),
                         clue: w.clue || '',
+                        kutipanMateri: w.kutipanMateri || w.citation || '',
                         difficulty: w.difficulty || 'santai'
                     }));
 
@@ -244,6 +249,18 @@
             document.getElementById('wordIdx').textContent = currentWordIdx + 1;
             document.getElementById('wordTotal').textContent = words.length;
             document.getElementById('clueText').textContent = `"${target.clue}"`;
+
+            const citeBox = document.getElementById('citationBox');
+            const citeText = document.getElementById('citationText');
+            if (citeBox && citeText) {
+                if (target.kutipanMateri) {
+                    citeText.textContent = target.kutipanMateri;
+                    citeBox.style.display = 'flex';
+                } else {
+                    citeBox.style.display = 'none';
+                }
+            }
+
             guessedLetters = [];
             wrongTries = 0;
             document.getElementById('triesLeft').textContent = maxWrong - wrongTries;
@@ -351,7 +368,8 @@
                 selectedText: cur.word,
                 correctText: cur.word,
                 clue: cur.clue,
-                exp: `Makna kata: "${cur.clue}". Kosakata baku KBBI: ${cur.word}.`
+                kutipanMateri: cur.kutipanMateri,
+                exp: `Makna kata: "${cur.clue}". Kosakata baku KBBI: ${cur.word}. ${cur.kutipanMateri ? `[${cur.kutipanMateri}]` : ''}`
             });
 
             // Simpan progres ke autosave draft
@@ -367,11 +385,23 @@
             fb.style.display = 'block';
             fb.style.background = '#ecfdf5';
             fb.style.color = '#065f46';
-            fb.style.border = '1px solid #a7f3d0';
+            fb.style.border = '1.5px solid #a7f3d0';
             fb.innerHTML = `
-                <strong>Tepat Sekali! 🎉</strong> Kamu berhasil menebak kata <b>${cur.word}</b> (${elapsedSec} detik)${isFast ? ' &bull; <i>Bonus Cepat +5 XP!</i>' : ''}.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:6px 14px; font-size:0.75rem;" onclick="nextWord()">Kata Berikutnya &rarr;</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <strong style="font-size:0.86rem; color:#047857;"><i data-lucide="check-circle-2" style="width:16px; height:16px; display:inline-block; vertical-align:middle;"></i> Tepat Sekali! 🎉</strong>
+                    <span style="font-size:0.7rem; background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:50px; font-weight:700;">+${earnedPoints} XP</span>
+                </div>
+                <div style="font-size:0.82rem; margin-bottom:6px; color:#1e293b;">
+                    Kata yang berhasil ditebak: <b style="color:#059669; font-size:1rem; letter-spacing:1px;">${cur.word}</b> (${elapsedSec} detik)${isFast ? ' &bull; <i>Bonus Cepat +5 XP!</i>' : ''}.
+                </div>
+                ${cur.kutipanMateri ? `
+                    <div style="background:#ffffff; border:1px solid #6ee7b7; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:0.72rem; color:#475569; line-height:1.45;">
+                        <strong style="color:#047857;"><i data-lucide="book-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Rujukan Materi:</strong> ${cur.kutipanMateri}
+                    </div>
+                ` : ''}
+                <button type="button" class="btn-primary-challenge" style="padding:8px 16px; font-size:0.78rem;" onclick="nextWord()">Lanjut ke Kata Berikutnya &rarr;</button>
             `;
+            if (window.lucide) lucide.createIcons();
             disableAllKeys();
         }
 
@@ -388,8 +418,24 @@
                 selectedText: '(Gagal menebak)',
                 correctText: cur.word,
                 clue: cur.clue,
-                exp: `Makna kata: "${cur.clue}". Bentuk kosakata baku KBBI yang benar adalah ${cur.word}.`
+                kutipanMateri: cur.kutipanMateri,
+                exp: `Makna kata: "${cur.clue}". Bentuk kosakata baku KBBI yang benar adalah ${cur.word}. ${cur.kutipanMateri ? `[${cur.kutipanMateri}]` : ''}`
             });
+
+            // Tampilkan seluruh huruf yang benar di kotak sel
+            const container = document.getElementById('wordCells');
+            if (container) {
+                container.innerHTML = '';
+                for (let char of cur.word) {
+                    const cell = document.createElement('div');
+                    cell.className = 'word-cell filled';
+                    cell.style.background = '#fee2e2';
+                    cell.style.borderColor = '#dc2626';
+                    cell.style.color = '#991b1b';
+                    cell.textContent = char;
+                    container.appendChild(cell);
+                }
+            }
 
             // Simpan progres ke autosave draft
             CendekiaApp.saveGameDraft('tebak_kata', {
@@ -404,11 +450,26 @@
             fb.style.display = 'block';
             fb.style.background = '#fef2f2';
             fb.style.color = '#991b1b';
-            fb.style.border = '1px solid #fecaca';
+            fb.style.border = '1.5px solid #fecaca';
             fb.innerHTML = `
-                <strong>Kesempatan Habis! 😢</strong> Kata yang benar adalah <b>${cur.word}</b>.<br><br>
-                <button type="button" class="btn-primary-challenge" style="padding:6px 14px; font-size:0.75rem;" onclick="nextWord()">Lanjut ke Kata Berikutnya &rarr;</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <strong style="font-size:0.86rem; color:#b91c1c;"><i data-lucide="x-circle" style="width:16px; height:16px; display:inline-block; vertical-align:middle;"></i> Kesempatan Habis!</strong>
+                    <span style="font-size:0.7rem; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:50px; font-weight:700;">Jawaban Terbuka Langsung</span>
+                </div>
+                <div style="font-size:0.82rem; margin-bottom:6px; color:#1e293b;">
+                    Kata yang benar adalah: <b style="color:#059669; font-size:1rem; letter-spacing:1px;">${cur.word}</b>
+                </div>
+                ${cur.kutipanMateri ? `
+                    <div style="background:#ffffff; border:1px solid #fca5a5; border-radius:6px; padding:8px 10px; margin-bottom:8px; font-size:0.72rem; color:#475569; line-height:1.45;">
+                        <strong style="color:#b91c1c;"><i data-lucide="book-open" style="width:12px; height:12px; display:inline-block; vertical-align:middle;"></i> Rujukan Materi:</strong> ${cur.kutipanMateri}
+                    </div>
+                ` : ''}
+                <div style="font-size:0.75rem; color:#64748b; margin-bottom:12px;">
+                    <b>Makna:</b> "${cur.clue}". Pelajari kata ini untuk menambah wawasan literasi Anda.
+                </div>
+                <button type="button" class="btn-primary-challenge" style="padding:8px 16px; font-size:0.78rem;" onclick="nextWord()">Lanjut ke Kata Berikutnya &rarr;</button>
             `;
+            if (window.lucide) lucide.createIcons();
             disableAllKeys();
         }
 

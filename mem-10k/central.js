@@ -4087,12 +4087,28 @@ const CendekiaApp = (function () {
     ];
 
     function getQuestionBank(gameKey) {
+        const enrichCitation = (items) => {
+            if (!Array.isArray(items)) return [];
+            return items.map(item => {
+                if (!item.kutipanMateri) {
+                    if (item.exp || item.explanation || item.desc) {
+                        item.kutipanMateri = `Rujukan Kaidah Bahan Ajar: "${item.exp || item.explanation || item.desc}"`;
+                    } else if (item.clue || item.hint) {
+                        item.kutipanMateri = `Rujukan Kosakata KBBI & Materi: "${item.clue || item.hint}"`;
+                    } else {
+                        item.kutipanMateri = `Rujukan Kurikulum Literasi Cendekia Aksara.`;
+                    }
+                }
+                return item;
+            });
+        };
+
         try {
             const key = 'cendekia_qbank_' + gameKey;
             const raw = localStorage.getItem(key);
             if (raw) {
                 const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                if (Array.isArray(parsed) && parsed.length > 0) return enrichCitation(parsed);
             }
         } catch (e) {}
 
@@ -4105,6 +4121,8 @@ const CendekiaApp = (function () {
         else if (gameKey === 'perbaiki_kalimat') fallback = DEFAULT_BANK_PERBAIKI_KALIMAT;
         else if (gameKey === 'tantangan_cepat') fallback = DEFAULT_BANK_TANTANGAN_CEPAT;
         else if (gameKey === 'sambung_cerita') fallback = DEFAULT_BANK_SAMBUNG_CERITA;
+
+        fallback = enrichCitation(fallback);
 
         try {
             localStorage.setItem('cendekia_qbank_' + gameKey, JSON.stringify(fallback));
@@ -4850,13 +4868,22 @@ const CendekiaApp = (function () {
     }
 
     // Generate pool soal harian baru dari materi via backend API Groq (Reset 00:00 WIB)
+        // Generate pool soal harian baru dari materi via backend API Groq (Reset 00:00 WIB)
     async function generateDailyPoolFromMaterials(materials) {
+        let primaryId = null;
+        if (Array.isArray(materials)) {
+            const p = materials.find(m => m.isPrimaryActive);
+            if (p) primaryId = p.id || p.docId;
+        }
+
         const res = await fetch('/api/central', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'generate-mem-free-daily',
-                materials: materials
+                materials: materials,
+                activeMaterialId: primaryId,
+                dateKey: getTodayDateKeyWIB()
             })
         });
 
@@ -4877,100 +4904,121 @@ const CendekiaApp = (function () {
             expiresAt: expiresAt,
             dateKey: getTodayDateKeyWIB(),
             questions: resData.questions,
-            materialsCount: materials.length,
+            materialsCount: Array.isArray(materials) ? materials.length : 1,
+            activeMaterialTitle: resData.activeMaterialTitle || 'Kurikulum Literasi',
             modelUsed: resData.modelUsed || 'AI Engine',
             status: 'active'
         };
 
-        // Simpan ke Firestore untuk dibagikan ke seluruh member free
+        // Simpan ke Firestore untuk dibagikan ke seluruh member (User 2, 3, dst langsung memuat instan)
         try {
             const fb = await getFirebaseBridge();
-            if (fb) {
+            if (fb && fb.db) {
                 await fb.setDoc(fb.doc(fb.db, "mem_free_daily_pool", "active_pool"), poolDoc);
             }
         } catch (e) {
             console.warn('[Cendekia Central] Gagal menyimpan pool ke Firestore:', e);
         }
 
-        // Simpan ke localStorage
+        // Simpan ke localStorage & offline backup bank soal
         try {
             localStorage.setItem(STORAGE_KEY_DAILY_POOL, JSON.stringify(poolDoc));
+            localStorage.setItem('cendekia_offline_bank_soal_backup', JSON.stringify({
+                dateKey: getTodayDateKeyWIB(),
+                expiresAt: expiresAt,
+                questions: resData.questions
+            }));
         } catch (e) {}
 
         return poolDoc;
     }
 
-    // Helper sinkronisasi latihan harian untuk game/kuis (Bank Soal terkurasi, Anti-Repetisi 7 Hari, AI Sync & Seleksi Mode)
+    // Helper sinkronisasi latihan harian untuk game/kuis (Arsitektur First User of the Day + Offline Bank Soal)
     async function ensureDailyGame(gameKey, options = {}) {
         const { onLoading, onNoMaterials, onReady } = options;
         if (onLoading) onLoading("Memeriksa kesiapan latihan harian & bank soal...");
 
         try {
-            // 1. Baca mode aktif (dari opsi, URL parameter ?mode=, atau localStorage)
+            // 1. Baca mode aktif
             const urlParams = typeof window !== 'undefined' && window.location ? new URLSearchParams(window.location.search) : new URLSearchParams();
             const activeMode = normalizeGameMode(options.mode || urlParams.get('mode') || localStorage.getItem('cendekia_active_game_mode') || 'santai');
+            const targetCount = gameKey === 'kuis_pintar' ? 15 : (gameKey === 'sambung_cerita' ? 3 : 10);
+            const todayKey = getTodayDateKeyWIB();
 
-            // 2. Cek apakah ada draft hari ini untuk mode game ini agar user melanjutkan pengerjaan
+            // 2. Cek apakah ada draft hari ini untuk mode game ini (Resume Draft Pengerjaan)
             const draft = getGameDraft(gameKey, activeMode);
             if (draft && draft.questions && draft.questions.length > 0) {
                 if (onReady) onReady(draft.questions, { mode: activeMode, isDraft: true, draftData: draft });
                 return;
             }
-            const targetCount = gameKey === 'kuis_pintar' ? 15 : (gameKey === 'sambung_cerita' ? 3 : 10);
 
-            // 3. Periksa apakah ada paket soal dari pool harian (jika ada, masukkan ke Bank Soal agar tersimpan permanen)
-            try {
-                const poolRes = await getDailyPool();
-                if (poolRes.active && poolRes.data && poolRes.data.questions) {
-                    const poolQuestions = poolRes.data.questions[gameKey];
-                    if (Array.isArray(poolQuestions) && poolQuestions.length > 0) {
-                        addToQuestionBank(gameKey, poolQuestions);
-                    }
-                }
-            } catch (err) {}
-
-            // 4. Seleksi soal dari Bank Soal dengan mode aktif & anti-repetisi 7 hari
-            const selectedQuestions = selectQuestionsFromBank(gameKey, targetCount, activeMode);
-            if (selectedQuestions && selectedQuestions.length > 0) {
-                if (onReady) onReady(selectedQuestions, { mode: activeMode, source: 'bank_soal' });
-                return;
-            }
-
-            // 5. Fallback ke pembacaan bahan ajar jika bank soal lokal belum siap
-            if (onLoading) onLoading("Mengecek ketersediaan bahan ajar kurikulum dari Admin...");
-            const materials = await getAllMaterials();
-
-            if (!materials || materials.length === 0) {
-                // Bank soal default selalu tersedia sebagai jaminan
-                const fallbackQ = getQuestionBank(gameKey);
-                if (fallbackQ && fallbackQ.length > 0) {
-                    const fallbackSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
-                    if (onReady) onReady(fallbackSelected, { mode: activeMode, source: 'default_bank' });
+            // 3. Cek apakah Pool Harian Hari Ini sudah ada (Sudah pernah digenerate oleh User Pertama hari ini)
+            const poolRes = await getDailyPool();
+            if (poolRes.active && poolRes.data && poolRes.data.questions) {
+                const poolQuestions = poolRes.data.questions[gameKey];
+                if (Array.isArray(poolQuestions) && poolQuestions.length > 0) {
+                    addToQuestionBank(gameKey, poolQuestions);
+                    const selected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                    if (onReady) onReady(selected, { mode: activeMode, source: 'daily_pool', poolMeta: poolRes.data });
                     return;
                 }
+            }
 
-                if (onNoMaterials) {
-                    onNoMaterials("Bahan ajar materi belum diunggah oleh Admin di sistem. Soal latihan harian belum dapat disiapkan.");
+            // 4. JIKA BELUM ADA POOL HARI INI -> USER PERTAMA HARI INI (FIRST USER OF THE DAY)
+            const isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
+
+            if (isOnline) {
+                if (onLoading) onLoading("Mengecek ketersediaan bahan ajar kurikulum dari Admin...");
+                let materials = [];
+                try {
+                    materials = await getAllMaterials();
+                } catch (matErr) {
+                    console.warn('[Cendekia Central] Gagal membaca materi:', matErr);
+                }
+
+                if (materials && materials.length > 0) {
+                    const primaryMat = materials.find(m => m.isPrimaryActive) || materials[0];
+                    const matTitle = primaryMat?.title || 'Kurikulum Literasi';
+                    if (onLoading) {
+                        onLoading(`Menyiapkan Bank Soal Hari Ini... AI sedang meracik variasi soal dari materi "${matTitle}"...`);
+                    }
+
+                    try {
+                        const newPool = await generateDailyPoolFromMaterials(materials);
+                        const poolGameData = newPool.questions && newPool.questions[gameKey];
+
+                        if (poolGameData && Array.isArray(poolGameData) && poolGameData.length > 0) {
+                            addToQuestionBank(gameKey, poolGameData);
+                            const finalSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                            if (onReady) onReady(finalSelected, { mode: activeMode, source: 'ai_daily_generated', poolMeta: newPool });
+                            return;
+                        }
+                    } catch (genErr) {
+                        console.warn('[Cendekia Central] AI generate harian terkendala, beralih ke Bank Soal offline:', genErr);
+                    }
+                }
+            }
+
+            // 5. MODE OFFLINE ATAU FALLBACK CADANGAN BANK SOAL
+            // Jika siswa offline atau AI sedang sibuk/penuh, muat bank soal lokal yang telah tercache
+            const fallbackBank = getQuestionBank(gameKey);
+            if (fallbackBank && fallbackBank.length > 0) {
+                const fallbackSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
+                if (onReady) {
+                    onReady(fallbackSelected, {
+                        mode: activeMode,
+                        source: isOnline ? 'fallback_bank' : 'offline_bank',
+                        isOffline: !isOnline
+                    });
                 }
                 return;
             }
 
-            // 6. User pertama memicu generate via AI Groq lalu ditampung ke Bank Soal
-            if (onLoading) onLoading("Sistem sedang menganalisis materi kurikulum & memproses paket soal latihan 24 jam...");
-            const newPool = await generateDailyPoolFromMaterials(materials);
-            const poolGameData = newPool.questions[gameKey];
-
-            if (poolGameData && Array.isArray(poolGameData) && poolGameData.length > 0) {
-                addToQuestionBank(gameKey, poolGameData);
-                const finalSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
-                if (onReady) onReady(finalSelected, newPool);
-            } else {
-                const fallbackSelected = selectQuestionsFromBank(gameKey, targetCount, activeMode);
-                if (onReady) onReady(fallbackSelected, { mode: activeMode, source: 'default_bank' });
+            if (onNoMaterials) {
+                onNoMaterials("Bahan ajar materi belum diunggah oleh Admin di sistem. Soal latihan harian belum dapat disiapkan.");
             }
         } catch (err) {
             console.error('[Cendekia Central] Error ensureDailyGame:', err);
-            // Fallback aman ke Bank Soal internal
             const fallbackSelected = selectQuestionsFromBank(gameKey, gameKey === 'kuis_pintar' ? 15 : 10, 'santai');
             if (fallbackSelected && fallbackSelected.length > 0 && onReady) {
                 onReady(fallbackSelected, { mode: 'santai', source: 'default_bank' });
@@ -4980,8 +5028,7 @@ const CendekiaApp = (function () {
         }
     }
 
-    // Helper format hitung mundur (misal: "18j 24m 10d")
-    function formatTimeRemaining(ms) {
+function formatTimeRemaining(ms) {
         if (ms <= 0) return 'Kadaluarsa';
         const totalSecs = Math.floor(ms / 1000);
         const hours = Math.floor(totalSecs / 3600);
