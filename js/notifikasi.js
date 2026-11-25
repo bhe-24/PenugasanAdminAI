@@ -1135,21 +1135,12 @@ if (window.__cendekia_notifikasi_loaded__) {
         }
 
         function injectFloatingBell() {
-            if (document.getElementById('cendekia-floating-bell-btn')) return;
+            // Lonceng mengambang dihapus agar tidak menutupi antarmuka;
+            // sebagai gantinya laci notifikasi tetap dimuat & tombol pusat notifikasi dipasang inline di bawah halaman beranda member.
+            const legacyBell = document.getElementById('cendekia-floating-bell-btn');
+            if (legacyBell) legacyBell.remove();
 
-            const bell = document.createElement('div');
-            bell.id = 'cendekia-floating-bell-btn';
-            bell.className = 'cendekia-floating-bell';
-            bell.title = 'Pusat Notifikasi Cendekia Aksara';
-            bell.innerHTML = `
-                <div class="cendekia-bell-inner">
-                    ${ICONS.bell}
-                </div>
-                <span id="cendekia-bell-badge" class="cendekia-bell-badge">0</span>
-            `;
-
-            bell.addEventListener('click', toggleDrawer);
-            document.body.appendChild(bell);
+            if (document.getElementById('cendekia-notif-drawer-overlay')) return;
 
             const overlay = document.createElement('div');
             overlay.id = 'cendekia-notif-drawer-overlay';
@@ -1244,15 +1235,71 @@ if (window.__cendekia_notifikasi_loaded__) {
             }
         }
 
-        function updateBellBadge() {
-            const badge = document.getElementById('cendekia-bell-badge');
-            if (!badge) return;
+        function mountInlineNotificationWidget(targetId = 'cendekia-inline-notif-mount') {
+            const mount = document.getElementById(targetId);
+            if (!mount) return;
+
             const unread = getUnreadCount();
-            if (unread > 0) {
-                badge.innerText = unread > 9 ? '9+' : unread;
-                badge.style.display = 'block';
-            } else {
-                badge.style.display = 'none';
+            const list = getNotificationHistory();
+            const latest = list.length > 0 ? list[0] : null;
+            const hasPerm = ('Notification' in window) && Notification.permission === 'granted';
+
+            mount.innerHTML = `
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:16px; padding:14px 16px; box-shadow:0 4px 14px rgba(15,23,42,0.05); margin-top:16px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <div style="position:relative; width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,#001f3f,#0f172a); color:#d4af37; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px;">
+                                ${ICONS.bell}
+                                <span id="cendekia-bell-badge" class="cendekia-inline-notif-badge" style="position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:#ef4444; color:white; font-size:10px; font-weight:800; line-height:18px; text-align:center; border:2px solid white; display:${unread > 0 ? 'block' : 'none'};">${unread > 9 ? '9+' : unread}</span>
+                            </div>
+                            <div style="min-width:0;">
+                                <div style="font-size:0.82rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
+                                    <span>Pusat Notifikasi</span>
+                                    <span style="font-size:0.6rem; font-weight:700; padding:2px 7px; border-radius:999px; background:${hasPerm ? '#dcfce7' : '#fef3c7'}; color:${hasPerm ? '#15803d' : '#b45309'};">${hasPerm ? 'Push Aktif' : 'Push Mati'}</span>
+                                </div>
+                                <div id="cendekia-inline-notif-preview" style="font-size:0.7rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:210px; margin-top:2px;">
+                                    ${latest ? escapeHtml(latest.judul) : 'Pantau info game, tugas, & capaian di sini.'}
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="cendekia-inline-open-btn" style="background:#001f3f; color:white; border:none; border-radius:10px; padding:8px 12px; font-size:0.72rem; font-weight:800; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+                            Lihat
+                        </button>
+                    </div>
+                    ${!hasPerm && ('Notification' in window) ? `
+                    <button type="button" id="cendekia-inline-perm-btn" style="width:100%; background:#fffbeb; border:1px dashed #f59e0b; color:#92400e; border-radius:10px; padding:7px 10px; font-size:0.7rem; font-weight:700; cursor:pointer; text-align:center;">
+                        Aktifkan Izin Notifikasi Layar Kunci &amp; Pengingat Harian
+                    </button>` : ''}
+                </div>
+            `;
+
+            const openBtn = document.getElementById('cendekia-inline-open-btn');
+            if (openBtn) openBtn.addEventListener('click', toggleDrawer);
+
+            const permBtn = document.getElementById('cendekia-inline-perm-btn');
+            if (permBtn) {
+                permBtn.addEventListener('click', () => {
+                    requestPushPermissionDirectly();
+                    setTimeout(() => mountInlineNotificationWidget(targetId), 1200);
+                });
+            }
+        }
+
+        function updateBellBadge() {
+            const unread = getUnreadCount();
+            const badges = document.querySelectorAll('#cendekia-bell-badge, .cendekia-inline-notif-badge');
+            badges.forEach((badge) => {
+                if (unread > 0) {
+                    badge.innerText = unread > 9 ? '9+' : unread;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            });
+            const previewEl = document.getElementById('cendekia-inline-notif-preview');
+            if (previewEl) {
+                const list = getNotificationHistory();
+                previewEl.textContent = list.length > 0 ? list[0].judul : 'Pantau info game, tugas, & capaian di sini.';
             }
         }
 
@@ -1326,6 +1373,7 @@ if (window.__cendekia_notifikasi_loaded__) {
             ensureFontAwesomeLoaded();
             injectNotificationStyles();
             injectFloatingBell();
+            mountInlineNotificationWidget();
             await initServiceWorker();
 
             let user = null;
@@ -1373,6 +1421,7 @@ if (window.__cendekia_notifikasi_loaded__) {
             syncUser: syncUserDataToServiceWorker,
             openItem,
             toggleDrawer,
+            renderInlineWidget: mountInlineNotificationWidget,
             markAllAsRead,
             clearAllNotifications,
             playChime: playNotificationChime,

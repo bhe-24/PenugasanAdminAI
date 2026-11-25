@@ -1876,6 +1876,165 @@ Format output WAJIB JSON murni tanpa markdown:
                 return res.status(200).json(parsed);
             }
 
+            // ---------------------------------------------------------
+            // [SISWA] ANALISIS TARGET AKADEMIK & REKOMENDASI AI TERSTRUKTUR
+            // ---------------------------------------------------------
+            case 'analyze-student-target': {
+                const {
+                    studentName = 'Peserta',
+                    semester = 1,
+                    className = 'Kelas Reguler',
+                    ips = 0,
+                    targetIps = 3.0,
+                    scores = {},
+                    attendancePct = 0,
+                    submittedCount = 0,
+                    totalAssignments = 0,
+                    unsubmittedTasks = [],
+                    availableMaterials = [],
+                    wordCount = 0,
+                    quizAvg = 0
+                } = payload;
+
+                const numIps = Number(ips) || 0;
+                const numTarget = Math.max(0.5, Math.min(4.0, Number(targetIps) || 3.0));
+                const gapIps = Number((numTarget - numIps).toFixed(2));
+                const statusTarget = numIps >= numTarget
+                    ? 'Target Tercapai'
+                    : (gapIps <= 0.4 ? 'Mendekati Target' : 'Perlu Akselerasi');
+
+                const unsubmittedArr = Array.isArray(unsubmittedTasks) ? unsubmittedTasks.slice(0, 8) : [];
+                const materialsArr = Array.isArray(availableMaterials) ? availableMaterials.slice(0, 8) : [];
+
+                const scoreEntries = Object.entries(scores || {})
+                    .filter(([, val]) => val !== null && val !== undefined && val !== '' && !Number.isNaN(Number(val)))
+                    .map(([k, v]) => ({ key: k, val: Number(v) }));
+                const weakestScores = scoreEntries
+                    .filter((item) => item.val < 75)
+                    .sort((a, b) => a.val - b.val)
+                    .slice(0, 4);
+
+                const buildDeterministicFallback = () => {
+                    const recs = [];
+                    if (unsubmittedArr.length > 0) {
+                        const tList = unsubmittedArr.slice(0, 2).map((t) => `${t.judul || t.title}${t.mapel ? ` (${t.mapel})` : ''}`).join(', ');
+                        recs.push({
+                            priority: 'Tinggi',
+                            category: 'Tugas / Jobdesk',
+                            title: `Selesaikan ${unsubmittedArr.length} Tugas Tertunda`,
+                            actionDetail: `Prioritaskan pengumpulan tugas: ${tList}. Tugas kosong langsung menurunkan bobot nilai komponen.`
+                        });
+                    }
+                    if (weakestScores.length > 0) {
+                        const wList = weakestScores.slice(0, 2).map((s) => `${s.key.toUpperCase()} (${s.val})`).join(', ');
+                        recs.push({
+                            priority: 'Tinggi',
+                            category: 'Perbaikan Skor',
+                            title: `Tingkatkan Nilai Komponen Lemah`,
+                            actionDetail: `Skor ${wList} masih di bawah 75 (batas nilai B). Pelajari catatan mentor atau kerjakan pengayaan tambahan untuk menaikkan IPS.`
+                        });
+                    }
+                    if (Number(semester) >= 3 && Number(wordCount) < 10000) {
+                        recs.push({
+                            priority: 'Sedang',
+                            category: 'Progres Inkubasi Naskah',
+                            title: `Tambah Setoran Kata Studio Menulis`,
+                            actionDetail: `Total kata Anda saat ini ${Number(wordCount).toLocaleString('id-ID')} kata. Konsisten menyicil 500-1.000 kata/hari agar memenuhi target kurasi naskah.`
+                        });
+                    }
+                    if (materialsArr.length > 0) {
+                        const mList = materialsArr.slice(0, 2).map((m) => m.title || m.judul || m).join(' & ');
+                        recs.push({
+                            priority: 'Sedang',
+                            category: 'Referensi Bacaan',
+                            title: `Pelajari Materi Pendukung Kelas`,
+                            actionDetail: `Baca dan pahami materi: ${mList} lalu uji pemahaman di kuis harian untuk memperkuat penguasaan teori.`
+                        });
+                    }
+                    if (Number(attendancePct) < 80) {
+                        recs.push({
+                            priority: 'Sedang',
+                            category: 'Presensi Kelas',
+                            title: `Jaga Kehadiran Minimal 80%`,
+                            actionDetail: `Kehadiran Anda tercatat ${attendancePct}%. Pastikan aktif mengisi presensi sesi bimbingan agar memenuhi syarat evaluasi semester.`
+                        });
+                    }
+                    if (recs.length === 0) {
+                        recs.push({
+                            priority: 'Optimal',
+                            category: 'Pertahankan Performa',
+                            title: 'Pertahankan Ritme & Kualitas Karya',
+                            actionDetail: ' seluruh komponen utama sudah berada di jalur baik. Perdalam bacaan lanjutan dan pertahankan konsistensi nilai A (>= 85).'
+                        });
+                    }
+
+                    const summary = numIps >= numTarget
+                        ? `Selamat ${studentName}, IPS Anda (${numIps.toFixed(2)}) sudah melampaui target ${numTarget.toFixed(2)}. Pertahankan konsistensi nilai dan kehadiran.`
+                        : `Saat ini IPS Anda (${numIps.toFixed(2)}) masih selisih ${gapIps.toFixed(2)} poin dari target ${numTarget.toFixed(2)}. Fokus utama ada pada penyelesaian tugas tertunda dan penguatan materi.`;
+
+                    return {
+                        source: 'structured-fallback',
+                        statusTarget,
+                        gapIps,
+                        summaryAnalysis: summary,
+                        gapInfo: `Kehadiran ${attendancePct}% | Tugas selesai ${submittedCount}/${totalAssignments || '-'} | Rata kuis ${quizAvg || 0}`,
+                        recommendations: recs.slice(0, 4)
+                    };
+                };
+
+                try {
+                    const systemPrompt = `Kamu adalah Penasihat Akademik AI di platform literasi & penulisan buku Cendekia Aksara.
+Analisislah capaian siswa secara objektif berdasarkan data nyata berikut dan berikan strategi konkret, singkat, padat untuk layar ponsel agar siswa mencapai Target IPS-nya.
+Patuhi aturan ketat:
+1. Keluaran WAJIB JSON Object murni tanpa markdown \`\`\`json atau teks pembuka.
+2. Gunakan format persis berikut:
+{
+  "summaryAnalysis": "2 kalimat ringkas tentang posisi IPS saat ini vs target dan langkah utama.",
+  "gapInfo": "1 kalimat ringkas menyoroti komponen paling menentukan (tugas belum dikerjakan / nilai terendah / kehadiran).",
+  "recommendations": [
+    {
+      "priority": "Tinggi | Sedang | Pertahankan",
+      "category": "Tugas & Jobdesk | Materi & Buku | Latihan & Presensi | Inkubasi Naskah",
+      "title": "Judul aksi singkat maks 6 kata",
+      "actionDetail": "Instruksi spesifik menyebutkan nama tugas, skor komponen, atau judul materi yang harus dikerjakan/dibaca."
+    }
+  ]
+}
+3. Maksimal 4 item di "recommendations", urutkan dari dampak paling tinggi ke rendah. Sebutkan nama tugas atau judul materi yang benar-benar ada di data jika tersedia. Bahasa Indonesia ramah, tegas, motivatif.`;
+
+                    const userPrompt = `Data Siswa:
+- Nama: ${studentName}
+- Kelas: ${className} (Semester ${semester})
+- IPS Saat Ini: ${numIps.toFixed(2)} | Target IPS Siswa: ${numTarget.toFixed(2)} (Selisih: ${gapIps.toFixed(2)})
+- Kehadiran: ${attendancePct}%
+- Tugas Terkumpul: ${submittedCount} dari ${totalAssignments}
+- Rata-rata Kuis: ${quizAvg}
+- Jumlah Kata Studio (jika Sem 3+): ${wordCount}
+- Nilai Komponen: ${JSON.stringify(scores || {})}
+- Tugas Belum Dikerjakan: ${JSON.stringify(unsubmittedArr)}
+- Materi/Buku Tersedia di Sistem: ${JSON.stringify(materialsArr)}`;
+
+                    const rawRes = await generateWithFallback(systemPrompt, userPrompt, 0.4, true, false);
+                    const parsed = extractJSON(rawRes);
+
+                    if (!parsed || !Array.isArray(parsed.recommendations) || parsed.recommendations.length === 0) {
+                        return res.status(200).json(buildDeterministicFallback());
+                    }
+
+                    return res.status(200).json({
+                        source: 'ai',
+                        statusTarget,
+                        gapIps,
+                        summaryAnalysis: parsed.summaryAnalysis || buildDeterministicFallback().summaryAnalysis,
+                        gapInfo: parsed.gapInfo || buildDeterministicFallback().gapInfo,
+                        recommendations: parsed.recommendations.slice(0, 4)
+                    });
+                } catch (aiErr) {
+                    console.warn("analyze-student-target AI fallback:", aiErr.message);
+                    return res.status(200).json(buildDeterministicFallback());
+                }
+            }
+
             default:
                 return res.status(404).json({ error: `Action '${action}' tidak dikenali oleh sistem API Central.` });
         }

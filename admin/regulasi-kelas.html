@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Regulasi &amp; Verifikasi Kelas - Admin Cendekia Aksara</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <style>
+        :root {
+            --primary: #003366;
+            --primary-dark: #001f3f;
+            --accent: #d4af37;
+            --bg-color: #f1f5f9;
+            --text-dark: #0f172a;
+            --text-gray: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+        body { background: var(--bg-color); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+        .admin-header {
+            width: 100%; background: white; padding: 14px 5%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            border-bottom: 3px solid var(--primary); position: sticky; top: 0; z-index: 100;
+            flex-wrap: wrap;
+        }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { height: 40px; width: 40px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
+        .header-brand h1 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--primary); font-weight: 700; margin: 0; }
+        .header-brand span { display: block; font-size: 0.7rem; color: var(--text-gray); }
+
+        .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .btn-header {
+            background: #e2e8f0; color: #334155; padding: 8px 13px; border-radius: 8px;
+            text-decoration: none; font-size: 0.82rem; font-weight: 600; border: none; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
+        }
+        .btn-header:hover { background: #cbd5e1; }
+        .btn-header-primary { background: var(--primary); color: white; }
+        .btn-header-primary:hover { background: var(--primary-dark); }
+
+        .container { width: 95%; max-width: 1260px; margin: 22px auto 40px; flex: 1; }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white; padding: 16px 18px; border-radius: 14px; border: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.02);
+        }
+        .stat-card h3 { font-size: 0.74rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-card p { font-size: 1.65rem; font-weight: 800; color: var(--primary); font-family: 'Playfair Display', serif; line-height: 1.1; }
+        .stat-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+
+        .toolbar {
+            background: white; border: 1px solid #e2e8f0; border-radius: 14px;
+            padding: 14px 16px; margin-bottom: 18px; display: flex; flex-direction: column; gap: 12px;
+        }
+        .tabs-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tab-btn {
+            background: #f8fafc; border: 1px solid #cbd5e1; color: #475569;
+            padding: 8px 13px; border-radius: 10px; font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
+        }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .tab-count { background: rgba(255,255,255,0.2); padding: 1px 7px; border-radius: 999px; font-size: 0.72rem; }
+        .tab-btn:not(.active) .tab-count { background: #e2e8f0; color: #334155; }
+
+        .filters-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-box {
+            flex: 1; min-width: 220px; position: relative;
+        }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.85rem; }
+        .search-box input, .filter-select {
+            width: 100%; padding: 9px 12px 9px 34px; border: 1px solid #cbd5e1; border-radius: 10px;
+            font-size: 0.82rem; outline: none; background: white; color: var(--text-dark);
+        }
+        .filter-select { width: auto; min-width: 165px; padding-left: 12px; font-weight: 600; }
+
+        .table-card {
+            background: white; border: 1px solid #e2e8f0; border-radius: 14px;
+            overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 760px; }
+        th {
+            background: #f8fafc; color: #475569; font-size: 0.74rem; text-transform: uppercase;
+            letter-spacing: 0.4px; text-align: left; padding: 12px 14px; border-bottom: 1px solid #e2e8f0;
+        }
+        td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 0.82rem; vertical-align: middle; }
+        tr:hover td { background: #fafafa; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+        }
+        .badge-pending { background: #fef3c7; color: #b45309; }
+        .badge-verified { background: #dcfce7; color: #15803d; }
+        .badge-rejected { background: #fee2e2; color: #b91c1c; }
+        .badge-empty { background: #f1f5f9; color: #475569; }
+        .badge-sem { background: #e0f2fe; color: #0369a1; }
+
+        .btn-sm {
+            border: none; border-radius: 8px; padding: 6px 10px; font-size: 0.74rem; font-weight: 700;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+        }
+        .btn-approve { background: #059669; color: white; }
+        .btn-approve:hover { background: #047857; }
+        .btn-edit { background: #0284c7; color: white; }
+        .btn-edit:hover { background: #0369a1; }
+        .btn-reject { background: #fee2e2; color: #b91c1c; }
+        .btn-reject:hover { background: #fecaca; }
+        .btn-detail { background: #f1f5f9; color: #334155; }
+        .btn-detail:hover { background: #e2e8f0; }
+
+        .empty-state {
+            text-align: center; padding: 48px 20px; color: var(--text-gray);
+        }
+        .empty-state i { font-size: 2.2rem; color: #cbd5e1; margin-bottom: 10px; }
+
+        #loading-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.92); z-index: 999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+        }
+        #loading-overlay.hidden { display: none; }
+        .spinner {
+            width: 38px; height: 38px; border: 4px solid #e2e8f0; border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 640px) {
+            .admin-header { padding: 12px 4%; }
+            .header-brand h1 { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <p style="font-size:0.85rem; font-weight:700; color:var(--primary);">Memuat Data Regulasi &amp; Kelas...</p>
+</div>
+
+<header class="admin-header">
+    <a href="/admin/index.html" class="header-brand">
+        <img src="https://i.imgur.com/8Qn3a6a.png" alt="Logo" onerror="this.src='/img/icon-192x192.png'">
+        <div>
+            <h1>Regulasi &amp; Verifikasi Kelas</h1>
+            <span>Penempatan Rombel, Verifikasi Siswa Baru, &amp; Mutasi Semester</span>
+        </div>
+    </a>
+    <div class="header-actions">
+        <button type="button" class="btn-header btn-header-primary" onclick="openCreateClassModal()">
+            <i class="fa-solid fa-plus"></i> Buat Rombel Kelas
+        </button>
+        <a href="/admin/presensi-kelas.html" class="btn-header">
+            <i class="fa-solid fa-chalkboard-user"></i> Kelola Kelas
+        </a>
+        <a href="/admin/index.html" class="btn-header">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+        </a>
+    </div>
+</header>
+
+<main class="container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div>
+                <h3>Menunggu Verifikasi</h3>
+                <p id="statPending">0</p>
+            </div>
+            <div class="stat-icon" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-hourglass-half"></i></div>
+        </div>
+        <div class="stat-card">
+            <div>
+                <h3>Siswa Terdaftar di Kelas</h3>
+                <p id="statEnrolled">0</p>
+            </div>
+            <div class="stat-icon" style="background:#dcfce7; color:#15803d;"><i class="fa-solid fa-user-check"></i></div>
+        </div>
+        <div class="stat-card">
+            <div>
+                <h3>Belum Masuk Kelas</h3>
+                <p id="statUnassigned">0</p>
+            </div>
+            <div class="stat-icon" style="background:#fee2e2; color:#dc2626;"><i class="fa-solid fa-user-slash"></i></div>
+        </div>
+        <div class="stat-card">
+            <div>
+                <h3>Total Rombel Aktif</h3>
+                <p id="statClasses">0</p>
+            </div>
+            <div class="stat-icon" style="background:#e0f2fe; color:#0284c7;"><i class="fa-solid fa-school"></i></div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tabs-row">
+            <button type="button" class="tab-btn active" data-tab="pending" onclick="switchTab('pending')">
+                <i class="fa-solid fa-clock"></i> Menunggu Verifikasi <span class="tab-count" id="countTabPending">0</span>
+            </button>
+            <button type="button" class="tab-btn" data-tab="registrations" onclick="switchTab('registrations')">
+                <i class="fa-solid fa-file-signature"></i> Riwayat Pengajuan <span class="tab-count" id="countTabReg">0</span>
+            </button>
+            <button type="button" class="tab-btn" data-tab="unassigned" onclick="switchTab('unassigned')">
+                <i class="fa-solid fa-user-plus"></i> Akun Belum Masuk Kelas <span class="tab-count" id="countTabUnassigned">0</span>
+            </button>
+            <button type="button" class="tab-btn" data-tab="enrolled" onclick="switchTab('enrolled')">
+                <i class="fa-solid fa-users-gear"></i> Siswa Aktif &amp; Mutasi <span class="tab-count" id="countTabEnrolled">0</span>
+            </button>
+        </div>
+
+        <div class="filters-row">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Cari nama siswa, email, NIS, instansi, atau kelas..." oninput="renderTable()">
+            </div>
+            <select id="filterSemester" class="filter-select" onchange="renderTable()">
+                <option value="all">Semua Semester</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+            </select>
+            <button type="button" class="btn-header" onclick="reloadAllData()">
+                <i class="fa-solid fa-rotate"></i> Muat Ulang
+            </button>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Siswa / Pendaftar</th>
+                        <th>Kontak &amp; Asal</th>
+                        <th>Kelas &amp; Semester</th>
+                        <th>Status Regulasi</th>
+                        <th>Waktu</th>
+                        <th>Aksi Admin</th>
+                    </tr>
+                </thead>
+                <tbody id="regulasiTableBody"></tbody>
+            </table>
+        </div>
+        <div id="emptyState" class="empty-state" style="display:none;">
+            <i class="fa-regular fa-folder-open"></i>
+            <h4 style="color:#334155; margin-bottom:4px;">Tidak Ada Data di Kategori Ini</h4>
+            <p style="font-size:0.8rem;">Ubah filter pencarian atau pilih tab regulasi lainnya.</p>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+        getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc,
+        arrayUnion, arrayRemove, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDpUWUIzPXIZN6rrNtsIqcL6VfOE2RLVl0",
+        authDomain: "mading-cf676.firebaseapp.com",
+        projectId: "mading-cf676",
+        storageBucket: "mading-cf676.firebasestorage.app",
+        messagingSenderId: "72175203671",
+        appId: "1:72175203671:web:7a0676a55beb64bc96ba12"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentAdmin = null;
+    let activeTab = 'pending';
+    let allRegistrations = [];
+    let allUsers = [];
+    let allClasses = [];
+    let studentClassMap = {}; // uid -> [{ id, name, semester }]
+
+    function escapeHtml(str) {
+        if (!str && str !== 0) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatDate(val) {
+        if (!val) return '-';
+        try {
+            const d = typeof val.toDate === 'function' ? val.toDate() : new Date(val);
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (_) {
+            return '-';
+        }
+    }
+
+    function generateDefaultNis() {
+        const yr = String(new Date().getFullYear()).slice(-2);
+        const rnd = Math.floor(1000 + Math.random() * 9000);
+        return `CA-${yr}${rnd}`;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.href = '/index.html';
+            return;
+        }
+        try {
+            const snap = await getDoc(doc(db, 'users', user.uid));
+            if (!snap.exists() || !['admin', 'pengajar'].includes(snap.data().role)) {
+                Swal.fire('Akses Ditolak', 'Halaman ini khusus Admin atau Pengajar.', 'error')
+                    .then(() => { window.location.href = '/index.html'; });
+                return;
+            }
+            currentAdmin = { uid: user.uid, ...snap.data() };
+            await reloadAllData();
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Gagal Memuat', err.message, 'error');
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+    });
+
+    window.reloadAllData = async function () {
+        document.getElementById('loading-overlay').classList.remove('hidden');
+        try {
+            const [regSnap, usersSnap, classSnap] = await Promise.all([
+                getDocs(collection(db, 'class_registrations')),
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'classes'))
+            ]);
+
+            allRegistrations = regSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            allUsers = usersSnap.docs.map((d) => ({ id: d.id, uid: d.id, ...d.data() }));
+            allClasses = classSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+            studentClassMap = {};
+            allClasses.forEach((cls) => {
+                const members = Array.isArray(cls.students) ? cls.students : [];
+                members.forEach((uid) => {
+                    if (!studentClassMap[uid]) studentClassMap[uid] = [];
+                    studentClassMap[uid].push({
+                        id: cls.id,
+                        name: cls.name || cls.nama || 'Kelas Reguler',
+                        semester: Number(cls.semester || 1)
+                    });
+                });
+            });
+
+            updateCounters();
+            renderTable();
+        } catch (err) {
+            console.error('Error loading regulasi data:', err);
+            Swal.fire('Gagal', 'Tidak dapat mengambil data regulasi kelas: ' + err.message, 'error');
+        } finally {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+    };
+
+    function getStudentsOnly() {
+        return allUsers.filter((u) => !u.role || u.role === 'siswa');
+    }
+
+    function updateCounters() {
+        const pendingRegs = allRegistrations.filter((r) => r.status === 'pending_verification');
+        const students = getStudentsOnly();
+        const enrolledUsers = students.filter((u) => (studentClassMap[u.id] || []).length > 0);
+        const unassignedUsers = students.filter((u) => (studentClassMap[u.id] || []).length === 0);
+
+        document.getElementById('statPending').textContent = pendingRegs.length;
+        document.getElementById('statEnrolled').textContent = enrolledUsers.length;
+        document.getElementById('statUnassigned').textContent = unassignedUsers.length;
+        document.getElementById('statClasses').textContent = allClasses.length;
+
+        document.getElementById('countTabPending').textContent = pendingRegs.length;
+        document.getElementById('countTabReg').textContent = allRegistrations.length;
+        document.getElementById('countTabUnassigned').textContent = unassignedUsers.length;
+        document.getElementById('countTabEnrolled').textContent = enrolledUsers.length;
+    }
+
+    window.switchTab = function (tab) {
+        activeTab = tab;
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        renderTable();
+    };
+
+    window.renderTable = function () {
+        const tbody = document.getElementById('regulasiTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const keyword = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+        const semFilter = document.getElementById('filterSemester').value;
+
+        let rows = [];
+        const students = getStudentsOnly();
+
+        if (activeTab === 'pending') {
+            rows = allRegistrations
+                .filter((r) => r.status === 'pending_verification')
+                .map((r) => ({ mode: 'reg', uid: r.uid || r.id, reg: r, user: allUsers.find((u) => u.id === (r.uid || r.id)) || {} }));
+        } else if (activeTab === 'registrations') {
+            rows = allRegistrations
+                .slice()
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+                .map((r) => ({ mode: 'reg', uid: r.uid || r.id, reg: r, user: allUsers.find((u) => u.id === (r.uid || r.id)) || {} }));
+        } else if (activeTab === 'unassigned') {
+            rows = students
+                .filter((u) => (studentClassMap[u.id] || []).length === 0)
+                .map((u) => ({
+                    mode: 'user',
+                    uid: u.id,
+                    user: u,
+                    reg: allRegistrations.find((r) => (r.uid || r.id) === u.id) || null
+                }));
+        } else {
+            rows = students
+                .filter((u) => (studentClassMap[u.id] || []).length > 0)
+                .map((u) => ({
+                    mode: 'user',
+                    uid: u.id,
+                    user: u,
+                    reg: allRegistrations.find((r) => (r.uid || r.id) === u.id) || null
+                }));
+        }
+
+        const filtered = rows.filter((item) => {
+            const u = item.user || {};
+            const r = item.reg || {};
+            const classes = studentClassMap[item.uid] || [];
+            const name = (r.name || u.name || u.displayName || '').toLowerCase();
+            const email = (r.email || u.email || '').toLowerCase();
+            const inst = (r.instansi || u.instansi || '').toLowerCase();
+            const nis = (u.nis || r.nis || '').toLowerCase();
+            const clsNames = classes.map((c) => c.name.toLowerCase()).join(' ');
+            const semVal = String(classes[0]?.semester || r.requestedSemester || u.semester || 1);
+
+            const matchSearch = !keyword || name.includes(keyword) || email.includes(keyword) || inst.includes(keyword) || nis.includes(keyword) || clsNames.includes(keyword);
+            const matchSem = semFilter === 'all' || semVal === semFilter;
+            return matchSearch && matchSem;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        tbody.innerHTML = filtered.map((item) => {
+            const u = item.user || {};
+            const r = item.reg || {};
+            const uid = item.uid;
+            const nama = r.name || u.name || u.displayName || 'Tanpa Nama';
+            const email = r.email || u.email || '-';
+            const wa = r.whatsapp || u.whatsapp || '-';
+            const inst = r.instansi || u.instansi || '-';
+            const tier = (r.package || u.package || 'free').toUpperCase();
+            const classes = studentClassMap[uid] || [];
+            const activeCls = classes[0] || null;
+            const requestedSem = r.requestedSemester || u.semester || 1;
+            const nis = u.nis || '-';
+
+            let statusBadge = '<span class="badge badge-empty"><i class="fa-regular fa-circle"></i> Belum Terdaftar</span>';
+            if (activeCls) {
+                statusBadge = '<span class="badge badge-verified"><i class="fa-solid fa-check-circle"></i> Aktif di Kelas</span>';
+            } else if (r.status === 'pending_verification') {
+                statusBadge = '<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Menunggu Verifikasi</span>';
+            } else if (r.status === 'rejected') {
+                statusBadge = '<span class="badge badge-rejected"><i class="fa-solid fa-ban"></i> Ditolak</span>';
+            }
+
+            const classColHtml = activeCls
+                ? `<strong>${escapeHtml(activeCls.name)}</strong><br><span class="badge badge-sem" style="margin-top:4px;">Semester ${activeCls.semester}</span>`
+                : `<span style="color:#64748b; font-size:0.78rem;">Belum masuk rombel</span><br><span class="badge badge-sem" style="margin-top:4px;">Ajuan: Sem ${requestedSem}</span>`;
+
+            const timeVal = r.createdAt || u.createdAt || '';
+
+            const rejectBtn = (r && r.status === 'pending_verification')
+                ? `<button type="button" class="btn-sm btn-reject" onclick="rejectRegistration('${escapeHtml(uid)}', '${escapeHtml(nama)}')"><i class="fa-solid fa-xmark"></i> Tolak</button>`
+                : (activeCls
+                    ? `<button type="button" class="btn-sm btn-reject" onclick="removeStudentFromClass('${escapeHtml(uid)}', '${escapeHtml(activeCls.id)}', '${escapeHtml(nama)}')"><i class="fa-solid fa-user-minus"></i> Keluarkan</button>`
+                    : '');
+
+            return `
+                <tr>
+                    <td>
+                        <strong style="color:var(--primary);">${escapeHtml(nama)}</strong>
+                        <div style="font-size:0.72rem; color:#64748b;">NIS: ${escapeHtml(nis)} &bull; Paket: <b>${escapeHtml(tier)}</b></div>
+                    </td>
+                    <td>
+                        <div style="font-size:0.78rem;"><b>${escapeHtml(inst)}</b></div>
+                        <div style="font-size:0.72rem; color:#64748b;">${escapeHtml(email)}</div>
+                        <div style="font-size:0.72rem; color:#059669;"><i class="fa-brands fa-whatsapp"></i> ${escapeHtml(wa)}</div>
+                    </td>
+                    <td>${classColHtml}</td>
+                    <td>${statusBadge}</td>
+                    <td style="font-size:0.75rem; color:#64748b;">${escapeHtml(formatDate(timeVal))}</td>
+                    <td>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="btn-sm btn-detail" onclick="viewStudentDetail('${escapeHtml(uid)}')">
+                                <i class="fa-solid fa-eye"></i> Detail
+                            </button>
+                            <button type="button" class="btn-sm ${activeCls ? 'btn-edit' : 'btn-approve'}" onclick="openAssignModal('${escapeHtml(uid)}')">
+                                <i class="fa-solid ${activeCls ? 'fa-right-left' : 'fa-user-check'}"></i> ${activeCls ? 'Mutasi' : 'Verifikasi'}
+                            </button>
+                            ${rejectBtn}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    window.viewStudentDetail = function (uid) {
+        const u = allUsers.find((x) => x.id === uid) || {};
+        const r = allRegistrations.find((x) => (x.uid || x.id) === uid) || {};
+        const classes = studentClassMap[uid] || [];
+        Swal.fire({
+            title: 'Detail Peserta & Pengajuan',
+            html: `
+                <div style="text-align:left; font-size:0.84rem; line-height:1.6; background:#f8fafc; padding:14px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <p><b>Nama:</b> ${escapeHtml(r.name || u.name || '-')}</p>
+                    <p><b>Email:</b> ${escapeHtml(r.email || u.email || '-')}</p>
+                    <p><b>WhatsApp:</b> ${escapeHtml(r.whatsapp || u.whatsapp || '-')}</p>
+                    <p><b>Instansi:</b> ${escapeHtml(r.instansi || u.instansi || '-')}</p>
+                    <p><b>NIS:</b> ${escapeHtml(u.nis || '-')}</p>
+                    <p><b>Kelas Aktif:</b> ${classes.length ? classes.map((c) => `${escapeHtml(c.name)} (Sem ${c.semester})`).join(', ') : 'Belum terdaftar di rombel'}</p>
+                    <p><b>Pilihan Semester Pendaftar:</b> Semester ${escapeHtml(r.requestedSemester || u.semester || '-')}</p>
+                    <hr style="margin:10px 0; border-color:#cbd5e1;">
+                    <p><b>Alasan / Minat Menulis:</b><br>${escapeHtml(r.reason || r.alasan || u.alasan || 'Tidak ada catatan.')}</p>
+                    ${r.rejectReason ? `<p style="color:#b91c1c; margin-top:8px;"><b>Alasan Penolakan:</b> ${escapeHtml(r.rejectReason)}</p>` : ''}
+                </div>
+            `,
+            confirmButtonColor: '#003366'
+        });
+    };
+
+    window.openAssignModal = async function (uid) {
+        const u = allUsers.find((x) => x.id === uid) || {};
+        const r = allRegistrations.find((x) => (x.uid || x.id) === uid) || {};
+        const currentCls = (studentClassMap[uid] || [])[0] || null;
+
+        const nama = r.name || u.name || u.displayName || 'Peserta';
+        const defaultSem = Number(currentCls?.semester || r.requestedSemester || u.semester || 1);
+        const defaultNis = u.nis || generateDefaultNis();
+
+        if (allClasses.length === 0) {
+            Swal.fire('Belum Ada Rombel Kelas', 'Silakan klik tombol "Buat Rombel Kelas" di kanan atas terlebih dahulu.', 'warning');
+            return;
+        }
+
+        const buildClassOptions = (sem) => {
+            const sorted = allClasses.slice().sort((a, b) => {
+                const aMatch = Number(a.semester || 1) === Number(sem) ? 0 : 1;
+                const bMatch = Number(b.semester || 1) === Number(sem) ? 0 : 1;
+                if (aMatch !== bMatch) return aMatch - bMatch;
+                return Number(a.semester || 1) - Number(b.semester || 1);
+            });
+            return sorted.map((c) => {
+                const count = Array.isArray(c.students) ? c.students.length : 0;
+                const selected = (currentCls && currentCls.id === c.id) || (!currentCls && Number(c.semester || 1) === Number(sem)) ? 'selected' : '';
+                return `<option value="${escapeHtml(c.id)}" ${selected}>Sem ${c.semester || 1} — ${escapeHtml(c.name || 'Kelas')} (${count} siswa)</option>`;
+            }).join('');
+        };
+
+        const { value: formValues } = await Swal.fire({
+            title: currentCls ? 'Mutasi Kelas & Semester' : 'Verifikasi & Penempatan Kelas',
+            html: `
+                <div style="text-align:left; font-size:0.84rem;">
+                    <p style="margin-bottom:10px; color:#334155;">Peserta: <b>${escapeHtml(nama)}</b></p>
+                    <label style="display:block; font-weight:700; margin-bottom:4px;">Nomor Induk Siswa (NIS)</label>
+                    <input id="swalNis" class="swal2-input" style="margin:0 0 12px; width:100%; font-size:0.86rem;" value="${escapeHtml(defaultNis)}">
+
+                    <label style="display:block; font-weight:700; margin-bottom:4px;">Tetapkan Semester Resmi</label>
+                    <select id="swalSemester" class="swal2-select" style="margin:0 0 12px; width:100%; font-size:0.86rem;">
+                        <option value="1" ${defaultSem === 1 ? 'selected' : ''}>Semester 1 (Dasar Literasi)</option>
+                        <option value="2" ${defaultSem === 2 ? 'selected' : ''}>Semester 2 (Pengembangan Karya)</option>
+                        <option value="3" ${defaultSem === 3 ? 'selected' : ''}>Semester 3 (Inkubasi &amp; Penerbitan)</option>
+                    </select>
+
+                    <label style="display:block; font-weight:700; margin-bottom:4px;">Masukkan ke Rombel Kelas</label>
+                    <select id="swalClassId" class="swal2-select" style="margin:0; width:100%; font-size:0.86rem;">
+                        ${buildClassOptions(defaultSem)}
+                    </select>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan & Aktifkan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#059669',
+            didOpen: () => {
+                const semEl = document.getElementById('swalSemester');
+                const clsEl = document.getElementById('swalClassId');
+                semEl.addEventListener('change', () => {
+                    const semNum = Number(semEl.value);
+                    const match = allClasses.find((c) => Number(c.semester || 1) === semNum);
+                    if (match) clsEl.value = match.id;
+                });
+            },
+            preConfirm: () => {
+                const nis = document.getElementById('swalNis').value.trim();
+                const sem = Number(document.getElementById('swalSemester').value);
+                const classId = document.getElementById('swalClassId').value;
+                if (!classId) {
+                    Swal.showValidationMessage('Pilih rombel kelas tujuan.');
+                    return false;
+                }
+                return { nis: nis || defaultNis, sem, classId };
+            }
+        });
+
+        if (!formValues) return;
+
+        try {
+            Swal.showLoading();
+            const targetClass = allClasses.find((c) => c.id === formValues.classId);
+            const targetClassName = targetClass?.name || 'Kelas Reguler';
+
+            // Keluarkan dari kelas lama jika berbeda
+            const prevClasses = studentClassMap[uid] || [];
+            for (const prev of prevClasses) {
+                if (prev.id !== formValues.classId) {
+                    await updateDoc(doc(db, 'classes', prev.id), {
+                        students: arrayRemove(uid)
+                    });
+                }
+            }
+
+            // Tambahkan ke kelas tujuan
+            await updateDoc(doc(db, 'classes', formValues.classId), {
+                students: arrayUnion(uid)
+            });
+
+            // Mutakhirkan profil siswa
+            await setDoc(doc(db, 'users', uid), {
+                semester: formValues.sem,
+                classId: formValues.classId,
+                className: targetClassName,
+                nis: formValues.nis,
+                status: 'active',
+                classRegStatus: 'verified',
+                verifiedAt: new Date().toISOString()
+            }, { merge: true });
+
+            // Mutakhirkan catatan pendaftaran jika ada
+            await setDoc(doc(db, 'class_registrations', uid), {
+                uid,
+                name: nama,
+                email: r.email || u.email || '',
+                status: 'verified',
+                assignedClassId: formValues.classId,
+                assignedClassName: targetClassName,
+                assignedSemester: formValues.sem,
+                verifiedBy: currentAdmin?.name || 'Admin',
+                verifiedAt: new Date().toISOString()
+            }, { merge: true });
+
+            await Swal.fire('Berhasil', `${nama} resmi ditempatkan di ${targetClassName} (Semester ${formValues.sem}).`, 'success');
+            await reloadAllData();
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Gagal Menyimpan', err.message, 'error');
+        }
+    };
+
+    window.rejectRegistration = async function (uid, nama) {
+        const { value: reason, isConfirmed } = await Swal.fire({
+            title: `Tolak Pendaftaran ${nama}?`,
+            input: 'text',
+            inputLabel: 'Alasan penolakan (akan dilihat peserta agar bisa mendaftar ulang)',
+            inputPlaceholder: 'Contoh: Data nomor WhatsApp atau instansi belum sesuai',
+            showCancelButton: true,
+            confirmButtonText: 'Tolak Pendaftaran',
+            confirmButtonColor: '#ef4444'
+        });
+
+        if (!isConfirmed) return;
+
+        try {
+            await setDoc(doc(db, 'class_registrations', uid), {
+                status: 'rejected',
+                rejectReason: reason || 'Pengajuan perlu dilengkapi ulang.',
+                rejectedAt: new Date().toISOString(),
+                rejectedBy: currentAdmin?.name || 'Admin'
+            }, { merge: true });
+
+            await setDoc(doc(db, 'users', uid), {
+                classRegStatus: 'rejected'
+            }, { merge: true });
+
+            Swal.fire('Ditolak', 'Status pengajuan diperbarui.', 'info');
+            await reloadAllData();
+        } catch (err) {
+            Swal.fire('Gagal', err.message, 'error');
+        }
+    };
+
+    window.removeStudentFromClass = async function (uid, classId, nama) {
+        const res = await Swal.fire({
+            title: `Keluarkan ${nama} dari kelas?`,
+            text: 'Kartu siswa pada akun ini akan kembali berstatus belum terdaftar di kelas resmi.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Ya, Keluarkan'
+        });
+        if (!res.isConfirmed) return;
+
+        try {
+            await updateDoc(doc(db, 'classes', classId), { students: arrayRemove(uid) });
+            await setDoc(doc(db, 'users', uid), {
+                classId: '',
+                className: '',
+                classRegStatus: 'unregistered'
+            }, { merge: true });
+            Swal.fire('Selesai', `${nama} dikeluarkan dari rombel kelas.`, 'success');
+            await reloadAllData();
+        } catch (err) {
+            Swal.fire('Gagal', err.message, 'error');
+        }
+    };
+
+    window.openCreateClassModal = async function () {
+        const { value: cls } = await Swal.fire({
+            title: 'Buat Rombel Kelas Baru',
+            html: `
+                <div style="text-align:left; font-size:0.84rem;">
+                    <label style="font-weight:700; display:block; margin-bottom:4px;">Nama Kelas</label>
+                    <input id="newClassName" class="swal2-input" style="margin:0 0 12px; width:100%;" placeholder="Contoh: Kelas Aksara A - Batch 4">
+                    <label style="font-weight:700; display:block; margin-bottom:4px;">Semester</label>
+                    <select id="newClassSem" class="swal2-select" style="margin:0 0 12px; width:100%;">
+                        <option value="1">Semester 1</option>
+                        <option value="2">Semester 2</option>
+                        <option value="3">Semester 3</option>
+                    </select>
+                    <label style="font-weight:700; display:block; margin-bottom:4px;">Keterangan Singkat</label>
+                    <input id="newClassDesc" class="swal2-input" style="margin:0; width:100%;" placeholder="Fokus penulisan dasar & bimbingan pekanan">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Buat Kelas',
+            confirmButtonColor: '#003366',
+            preConfirm: () => {
+                const name = document.getElementById('newClassName').value.trim();
+                const semester = Number(document.getElementById('newClassSem').value);
+                const desc = document.getElementById('newClassDesc').value.trim();
+                if (!name) {
+                    Swal.showValidationMessage('Nama kelas wajib diisi.');
+                    return false;
+                }
+                return { name, semester, desc };
+            }
+        });
+
+        if (!cls) return;
+
+        try {
+            await addDoc(collection(db, 'classes'), {
+                name: cls.name,
+                semester: cls.semester,
+                desc: cls.desc || 'Kelas bimbingan resmi Cendekia Aksara',
+                students: [],
+                status: 'active',
+                createdAt: serverTimestamp()
+            });
+            Swal.fire('Kelas Dibuat', `Rombel ${cls.name} (Semester ${cls.semester}) siap digunakan.`, 'success');
+            await reloadAllData();
+        } catch (err) {
+            Swal.fire('Gagal Membuat Kelas', err.message, 'error');
+        }
+    };
+</script>
+</body>
+</html>
