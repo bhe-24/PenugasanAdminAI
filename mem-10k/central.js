@@ -990,7 +990,7 @@ const CendekiaApp = (function () {
         }
 
         // 4. Aktivitas dari game latihan, modul bacaan, tantangan harian, & kunjungan
-        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat', 'tulis_aku'];
         const userObj = getUser();
         const visitDates = Array.isArray(userObj.visitDates) ? userObj.visitDates : [];
 
@@ -4300,7 +4300,7 @@ const CendekiaApp = (function () {
         }
 
         // Akumulasi dari game result hari ini jika ada (seluruh 8 arena & 3 mode)
-        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat'];
+        const gameKeys = ['kuis_pintar', 'tebak_kata', 'susun_kata', 'teka_teki', 'tebak_sastra', 'sambung_cerita', 'perbaiki_kalimat', 'tantangan_cepat', 'tulis_aku'];
         let gameResultsTotal = 0;
         const modes = ['santai', 'tantangan', 'acak'];
         gameKeys.forEach(gk => {
@@ -4330,7 +4330,8 @@ const CendekiaApp = (function () {
                 { key: 'tebak_sastra', title: 'Tebak Sastra', link: `${PORTAL_PREFIX}/permainan/tebak-sastra.html`, total: 10, icon: 'book-open', color: '#059669', bg: '#dcfce7' },
                 { key: 'sambung_cerita', title: 'Sambung Cerita', link: `${PORTAL_PREFIX}/permainan/sambung-cerita.html`, total: 3, icon: 'book-text', color: '#2563eb', bg: '#dbeafe' },
                 { key: 'perbaiki_kalimat', title: 'Perbaiki Kalimat', link: `${PORTAL_PREFIX}/permainan/perbaiki-kalimat.html`, total: 10, icon: 'spell-check', color: '#e11d48', bg: '#ffe4e6' },
-                { key: 'tantangan_cepat', title: 'Tantangan Cepat', link: `${PORTAL_PREFIX}/permainan/tantangan-cepat.html`, total: 10, icon: 'timer', color: '#ea580c', bg: '#ffedd5' }
+                { key: 'tantangan_cepat', title: 'Tantangan Cepat', link: `${PORTAL_PREFIX}/permainan/tantangan-cepat.html`, total: 10, icon: 'timer', color: '#ea580c', bg: '#ffedd5' },
+                { key: 'tulis_aku', title: 'Tulis Aku (Si Beruang)', link: `${PORTAL_PREFIX}/permainan/tulis-aku.html`, total: 8, icon: 'feather', color: '#b45309', bg: '#fef3c7' }
             );
         }
 

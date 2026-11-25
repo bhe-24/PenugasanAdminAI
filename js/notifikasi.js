@@ -27,6 +27,8 @@ if (window.__cendekia_notifikasi_loaded__) {
         const STORAGE_KEY_HISTORY = 'cendekia_notifikasi_history';
         const STORAGE_KEY_SETTINGS = 'cendekia_notifikasi_settings';
         const STORAGE_KEY_LAST_GAME = 'cendekia_last_game_notif_date';
+        const STORAGE_KEY_LAST_BERUANG = 'cendekia_last_beruang_notif_date';
+        const STORAGE_KEY_BERUANG_AWAKE = 'cendekia_tulis_aku_awake_date';
         const STORAGE_KEY_LAST_ULTAH = 'cendekia_last_ultah_notif_year';
         const STORAGE_KEY_PERM_STATE = 'cendekia_notif_permission_state';
         const ONESIGNAL_APP_ID = "a64fbdf1-dc29-48a3-a3a9-09e61157bca9";
@@ -590,6 +592,22 @@ if (window.__cendekia_notifikasi_loaded__) {
                         send_after: sendAfterISO
                     })
                 }).catch(() => {});
+
+                // Jadwalkan pengingat Si Beruang pukul 06:00 WIB (23:00 UTC) untuk member 5K/10K/Pro
+                if (PORTAL_PREFIX === '/mem-5k' || PORTAL_PREFIX === '/mem-10k' || PORTAL_PREFIX === '/mem-pro') {
+                    const bear06WibUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + (now.getUTCHours() >= 23 ? 1 : 0), 23, 0, 0));
+                    fetch('/api/notif', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            judul: '🐻 Si Beruang Kembali Tidur!',
+                            pesan: 'Yah beruangnya sudah tidur lagi, ayo bangunkan beruangnya dan raih banyak poin!',
+                            urlTujuan: `${PORTAL_PREFIX}/permainan/tulis-aku.html`,
+                            jenis: 'beruang',
+                            send_after: bear06WibUTC.toISOString()
+                        })
+                    }).catch(() => {});
+                }
             } catch (_) {}
         }
 
@@ -660,6 +678,38 @@ if (window.__cendekia_notifikasi_loaded__) {
                     pesan: 'Mode Santai, Tantangan, dan Acak hari ini sudah siap dimainkan. Asah kosakatamu dan raih skor tertinggi!',
                     urlTujuan: `${PORTAL_PREFIX}/bermain.html`,
                     jenis: 'game',
+                    icon: 'gamepad'
+                });
+            }
+        }
+
+        function getWibClockInfo() {
+            const d = new Date(Date.now() + 7 * 3600000);
+            const dayKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+            return { dayKey, hour: d.getUTCHours() };
+        }
+
+        function cekNotifikasiBeruangPagi(user) {
+            const pkg = String(user?.package || user?.tier || localStorage.getItem('user_package') || '').toLowerCase();
+            const isEligiblePortal = PORTAL_PREFIX === '/mem-5k' || PORTAL_PREFIX === '/mem-10k' || PORTAL_PREFIX === '/mem-pro';
+            const isEligiblePkg = pkg.includes('5k') || pkg.includes('10k') || pkg.includes('pro');
+            if (!isEligiblePortal && !isEligiblePkg) return;
+
+            const { dayKey, hour } = getWibClockInfo();
+            if (hour < 6) return; // Pemicu mulai pukul 06:00 WIB
+
+            const isAlreadyAwakeToday = localStorage.getItem(STORAGE_KEY_BERUANG_AWAKE) === dayKey;
+            const alreadySentToday = localStorage.getItem(STORAGE_KEY_LAST_BERUANG) === dayKey;
+
+            if (!isAlreadyAwakeToday && !alreadySentToday) {
+                localStorage.setItem(STORAGE_KEY_LAST_BERUANG, dayKey);
+                const targetPrefix = isEligiblePortal ? PORTAL_PREFIX : (pkg.includes('pro') ? '/mem-pro' : (pkg.includes('10k') ? '/mem-10k' : '/mem-5k'));
+
+                kirimNotifikasi({
+                    judul: '🐻 Si Beruang Kembali Tidur!',
+                    pesan: 'Yah beruangnya sudah tidur lagi, ayo bangunkan beruangnya dan raih banyak poin!',
+                    urlTujuan: `${targetPrefix}/permainan/tulis-aku.html`,
+                    jenis: 'beruang',
                     icon: 'gamepad'
                 });
             }
@@ -1395,6 +1445,7 @@ if (window.__cendekia_notifikasi_loaded__) {
             if (user) {
                 syncUserDataToServiceWorker(user);
                 cekNotifikasiGameHarian();
+                cekNotifikasiBeruangPagi(user);
                 cekNotifikasiUlangTahun(user);
             }
 
@@ -1415,6 +1466,7 @@ if (window.__cendekia_notifikasi_loaded__) {
             kirim: kirimNotifikasi,
             requestPermission: requestPushPermissionDirectly,
             notifGameTerbuka: cekNotifikasiGameHarian,
+            cekBeruangPagi: cekNotifikasiBeruangPagi,
             notifSkorBermain: notifSkorBermain,
             notifUltah: cekNotifikasiUlangTahun,
             notifPemerolehan: notifPemerolehan,

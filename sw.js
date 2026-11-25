@@ -295,6 +295,38 @@ async function runBackgroundDailyCheck() {
         });
         await cache.put(new Request(gameKey), new Response("done"));
     }
+
+    // C. PENGINGAT SI BERUANG TIDUR (MULAI 06:00 WIB UNTUK MEMBER 5K, 10K, PRO)
+    const portalPrefix = user.portalPrefix || '/mem-free';
+    const isBearEligible = portalPrefix === '/mem-5k' || portalPrefix === '/mem-10k' || portalPrefix === '/mem-pro';
+    if (isBearEligible) {
+        const wibNow = new Date(Date.now() + 7 * 3600000);
+        const wibDayStr = `${wibNow.getUTCFullYear()}-${String(wibNow.getUTCMonth() + 1).padStart(2, '0')}-${String(wibNow.getUTCDate()).padStart(2, '0')}`;
+        const wibHour = wibNow.getUTCHours();
+
+        if (wibHour >= 6) {
+            const bearKey = `/__beruang_notified_${wibDayStr}__`;
+            const bearAlreadyNotified = await cache.match(bearKey);
+            if (!bearAlreadyNotified) {
+                await self.registration.showNotification("🐻 Si Beruang Kembali Tidur!", {
+                    body: "Yah beruangnya sudah tidur lagi, ayo bangunkan beruangnya dan raih banyak poin!",
+                    icon: baseOrigin + "/img/icon-192x192.png",
+                    badge: baseOrigin + "/img/badge-96x96.png",
+                    vibrate: [300, 100, 300, 100, 300],
+                    tag: `cendekia-beruang-${wibDayStr}`,
+                    renotify: false,
+                    requireInteraction: true,
+                    silent: false,
+                    data: { url: `${portalPrefix}/permainan/tulis-aku.html` },
+                    actions: [
+                        { action: 'open', title: '🐻 Bangunkan Beruang' },
+                        { action: 'close', title: 'Tutup' }
+                    ]
+                });
+                await cache.put(new Request(bearKey), new Response("done"));
+            }
+        }
+    }
 }
 
 // 10. PERIODIC BACKGROUND SYNC
