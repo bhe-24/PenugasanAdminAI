@@ -4,6 +4,47 @@
 // Proteksi Anti-Spam: Mencegah Broadcast Liar Yang Mengakibatkan Notifikasi Ganda
 
 export default async function handler(req, res) {
+    if (req.method === 'GET' && req.query?.cron === 'beruang') {
+        const ONESIGNAL_APP_ID = "a64fbdf1-dc29-48a3-a3a9-09e61157bca9";
+        const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_API_KEY;
+        if (!ONESIGNAL_REST_API_KEY) {
+            return res.status(200).json({
+                success: true,
+                mode: 'simulation',
+                message: 'OneSignal REST API Key belum diset. Cron Si Beruang 06:00 WIB siap berjalan.'
+            });
+        }
+        const wibNow = new Date(Date.now() + 7 * 3600000);
+        const wibDateStr = `${wibNow.getUTCFullYear()}-${String(wibNow.getUTCMonth() + 1).padStart(2, '0')}-${String(wibNow.getUTCDate()).padStart(2, '0')}`;
+        try {
+            const response = await fetch("https://onesignal.com/api/v1/notifications", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Basic " + ONESIGNAL_REST_API_KEY
+                },
+                body: JSON.stringify({
+                    app_id: ONESIGNAL_APP_ID,
+                    target_channel: "push",
+                    included_segments: ["Total Subscriptions"],
+                    headings: { en: "🐻 Si Beruang Kembali Tidur!", id: "🐻 Si Beruang Kembali Tidur!" },
+                    contents: { en: "Yah beruangnya sudah tidur lagi, ayo bangunkan beruangnya dan raih banyak poin!", id: "Yah beruangnya sudah tidur lagi, ayo bangunkan beruangnya dan raih banyak poin!" },
+                    url: "https://penugasan-admin-ai.vercel.app/mem-5k/permainan/tulis-aku.html",
+                    chrome_web_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
+                    chrome_web_badge: "https://penugasan-admin-ai.vercel.app/img/badge-96x96.png",
+                    firefox_icon: "https://penugasan-admin-ai.vercel.app/img/icon-192x192.png",
+                    priority: 10,
+                    ttl: 64800,
+                    web_push_topic: "cendekia-beruang-" + wibDateStr
+                })
+            });
+            const data = await response.json().catch(() => ({}));
+            return res.status(200).json({ success: true, mode: 'cron_beruang', data });
+        } catch (err) {
+            return res.status(200).json({ success: false, mode: 'cron_beruang_error', error: err.message });
+        }
+    }
+
     if (req.method === 'GET') {
         return res.status(200).json({
             status: 'online',

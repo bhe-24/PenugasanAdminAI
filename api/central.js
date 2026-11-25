@@ -400,6 +400,8 @@ export default async function handler(req, res) {
             else if (payload.judul && payload.target && payload.jumlahBab) action = 'generate-toc';
             else if (payload.judulBuku && payload.babJudul) action = 'generate-chapter';
             else if (payload.bulan && payload.tema) action = 'nubar-ai';
+            else if (payload.kategori && payload.konteks) action = 'generate-surat';
+            else if (payload.message) action = 'aksabot';
         }
 
         if (!action) {
@@ -1773,33 +1775,61 @@ Format output WAJIB JSON murni tanpa pembungkus markdown:
 
                 let promptText = "";
                 if (tipe_soal === 'kuis') {
-                    promptText = `Anda adalah guru pembuat soal ujian literasi nasional. Buatkan ${jumlah} soal Pilihan Ganda (A, B, C, D) berdasarkan materi berikut:
+                    promptText = `Anda adalah seorang guru ahli pembuat soal ujian tingkat nasional.
+Tugas Anda adalah membuat ${jumlah} soal Pilihan Ganda (A, B, C, D) yang berkualitas berdasarkan materi referensi yang diberikan.
+
+MATERI REFERENSI (Hanya untuk Anda pelajari, siswa TIDAK akan melihat teks ini):
 """
 ${safeMateri}
 """
-Aturan:
-1. Soal mandiri, jangan rujuk 'bacaan di atas'.
-2. Berikan tanda bintang (*) tepat di depan huruf kunci jawaban benar (contoh: *B. Jawaban).
-3. Pisahkan tiap soal dengan baris kosong. Tanpa markdown blok kode.`;
+
+ATURAN SANGAT KETAT (WAJIB DIPATUHI - JIKA MELANGGAR SOAL AKAN DITOLAK):
+1. Soal harus bersifat MANDIRI (self-contained).
+2. DILARANG KERAS menggunakan frasa yang merujuk pada teks gaib, seperti "Berdasarkan wacana di atas...", "Menurut teks tersebut...", "Cermati teks di bawah", dll.
+3. JIKA Anda ingin menguji pemahaman membaca/studi kasus, Anda WAJIB MENULISKAN KEMBALI penggalan cerita/kasus tersebut ke dalam teks pertanyaan secara utuh.
+4. Tulis pertanyaan di baris pertama tanpa menggunakan nomor (Jangan tulis "1.", "2.", dll).
+5. Baris berikutnya adalah pilihan jawaban persis dengan huruf (A. B. C. D.).
+6. Berikan tanda bintang (*) TEPAT di depan huruf pilihan jawaban yang BENAR.
+7. Pisahkan setiap soal dengan Satu Baris Kosong (Enter 2x).
+8. DILARANG memberikan kata pengantar, basa-basi, penjelasan jawaban, atau teks penutup apa pun. Keluarkan HANYA teks soal murni!`;
+                } else if (tipe_soal === 'tugas') {
+                    promptText = `Kamu adalah Mentor Menulis yang asyik dan kreatif. Buatkan ${jumlah} soal TUGAS PRAKTIK MENULIS untuk anak SMP dan SMA berdasarkan materi referensi berikut.
+MATERI REFERENSI: """${safeMateri}"""
+
+ATURAN SANGAT KETAT:
+1. Gunakan gaya bahasa yang santai, memotivasi, dan mudah dipahami. Gunakan sapaan "Kamu". DILARANG KERAS menggunakan kata "Anda", "Saya", atau bahasa kaku ala buku diktat.
+2. Soal TIDAK BOLEH sekadar hafalan teori.
+3. Soal WAJIB berupa INSTRUKSI PRAKTIK yang merangsang imajinasi sesuai materi.
+4. JANGAN berikan kunci jawaban. Cukup berikan instruksi/langkah pengerjaan tugas yang seru untuk siswa.
+5. OUTPUT WAJIB BERFORMAT HTML DASAR! Gunakan tag <p>, <ol>, <li>, dan <strong>.
+6. JANGAN bungkus respons dengan format blok kode markdown (\`\`\`html). Keluarkan tag HTML murninya saja secara langsung!`;
                 } else {
-                    promptText = `Kamu adalah Mentor Menulis yang asyik dan kreatif di Cendekia Aksara. Buatkan ${jumlah} soal TUGAS PRAKTIK MENULIS untuk siswa berdasarkan materi referensi berikut:
-"""
-${safeMateri}
-"""
-Aturan:
-1. Gunakan sapaan "Kamu", gaya bahasa hangat, mendidik, dan memotivasi.
-2. Tugas harus berupa instruksi praktik menulis konkret (bukan hafalan teori).
-3. Output WAJIB berupa HTML murni (<p>, <ol>, <li>, <strong>) tanpa pembungkus blok html.`;
+                    return res.status(400).json({ error: 'Tipe soal tidak valid.' });
                 }
 
-                let textResponse = await generateWithFallback(
-                    "Kamu adalah pembuat soal edukasi profesional di Cendekia Aksara.",
-                    promptText,
-                    tipe_soal === 'kuis' ? 0.1 : 0.4,
-                    false,
-                    false
-                );
-                textResponse = textResponse.replace(/```[a-zA-Z]*\n?/gi, '').replace(/```\n?/g, '').trim();
+                let textResponse = "";
+                if (groq) {
+                    try {
+                        const completion = await groq.chat.completions.create({
+                            model: 'openai/gpt-oss-120b',
+                            messages: [{ role: 'user', content: promptText }],
+                            temperature: tipe_soal === 'kuis' ? 0.1 : 0.3
+                        });
+                        textResponse = completion.choices[0]?.message?.content || '';
+                    } catch (e) {
+                        console.warn('generate-soal Groq utama gagal, beralih fallback:', e.message);
+                    }
+                }
+                if (!textResponse) {
+                    textResponse = await generateWithFallback(
+                        'Kamu adalah pembuat soal edukasi profesional di Cendekia Aksara.',
+                        promptText,
+                        tipe_soal === 'kuis' ? 0.1 : 0.4,
+                        false,
+                        false
+                    );
+                }
+                textResponse = textResponse.replace(/```[a-zA-Z]*\n?/gi, '').replace(/```/g, '').trim();
                 return res.status(200).json({ result: textResponse });
             }
 
@@ -2405,6 +2435,182 @@ ${cleanAnswer}
                     bearReaction: parsedEval.bearReaction || (strictPass
                         ? 'Hore! Si Beruang makin bersemangat dan naik ke tahap berikutnya!'
                         : 'Yah... Unsur ceritanya belum mengena, Si Beruang pun tertidur lagi.')
+                });
+            }
+
+            // ---------------------------------------------------------
+            // [AKSABOT CHATBOT TERPADU] (DIGABUNG DARI api/aksabot.js)
+            // ---------------------------------------------------------
+            case 'aksabot': {
+                const { message, userName, history, knowledgeContext } = payload;
+                if (!message || String(message).trim().length === 0) {
+                    return res.status(400).json({ error: true, reply: 'Pesan tidak boleh kosong.' });
+                }
+
+                const systemPrompt = `Kamu adalah AksaBot, asisten virtual resmi komunitas Cendekia Aksara. Sikapmu ramah, antusias, dan helpful layaknya seorang teman belajar.
+
+IDENTITAS PENGGUNA YANG MENYAPA: ${userName || 'Teman'}
+
+ATURAN WAJIB (HARUS DIIKUTI 100%):
+1. BERADAPTASI DENGAN GAYA BAHASA PENGGUNA (MIRRORING). Jika pengguna menyapa santai/gaul (misal: "helow broo", "lagi ngapain"), balaslah dengan bahasa gaul dan santai. Jika pengguna memakai bahasa baku/formal, balaslah dengan sopan dan formal.
+2. PANJANG JAWABAN DINAMIS. Jika pertanyaan sederhana atau sapaan biasa, balas dengan SANGAT SINGKAT dan PADAT (cukup 1-2 paragraf pendek). JIKA pertanyaan kompleks (minta penjelasan materi, bedah karya), berikan penjelasan yang komprehensif dan detail.
+3. Gunakan [REFERENSI PENGKAYAAN] di bawah ini sebagai pedoman utama jika relevan dengan pertanyaan.
+4. JANGAN memakai markdown bintang ganda (**teks**). Gunakan maksimal 2 emoji per pesan.
+5. Jangan pernah menyebutkan nama perusahaan AI atau model pembuatmu. Kamu murni "AksaBot".
+
+[REFERENSI PENGKAYAAN]:
+${knowledgeContext || 'Tidak ada data spesifik. Jawablah secara natural berdasarkan pengetahuan umum seputar Cendekia Aksara, literasi, dan kepenulisan.'}`;
+
+                const formattedMessages = [{ role: 'system', content: systemPrompt }];
+                if (Array.isArray(history)) {
+                    history.slice(-6).forEach((h) => {
+                        formattedMessages.push({
+                            role: h.role === 'user' ? 'user' : 'assistant',
+                            content: h.content
+                        });
+                    });
+                }
+                formattedMessages.push({ role: 'user', content: message });
+
+                const sakelarModels = ['deepseek-v4-pro', 'deepseek-v4.1-flash', 'kimi-k2.6'];
+                const groqAksaModels = ['groq/compound', 'groq/compound-mini', ...GROQ_MODELS];
+
+                let textResponse = '';
+                let modelUsed = '';
+                let lastError = null;
+
+                if (SAKELAR_API_KEY) {
+                    for (const model of sakelarModels) {
+                        try {
+                            const r = await fetch(SAKELAR_URL, {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${SAKELAR_API_KEY}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ model, messages: formattedMessages, temperature: 0.7, max_tokens: 1024 })
+                            });
+                            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                            const data = await r.json();
+                            const txt = data.choices?.[0]?.message?.content || data.content?.[0]?.text || '';
+                            if (txt.includes('Request rejected by AI provider') || txt.includes('HTTP 400')) {
+                                throw new Error('Prompt ditolak Sakelar.');
+                            }
+                            if (txt.trim()) {
+                                textResponse = txt;
+                                modelUsed = `Sakelar - ${model}`;
+                                break;
+                            }
+                        } catch (e) {
+                            lastError = e;
+                        }
+                    }
+                }
+
+                if (!textResponse && groq) {
+                    for (const model of groqAksaModels) {
+                        try {
+                            const comp = await groq.chat.completions.create({
+                                model,
+                                messages: formattedMessages,
+                                temperature: 0.7,
+                                max_tokens: 1024
+                            });
+                            const txt = comp.choices?.[0]?.message?.content || '';
+                            if (txt.trim()) {
+                                textResponse = txt;
+                                modelUsed = `Groq - ${model}`;
+                                break;
+                            }
+                        } catch (e) {
+                            lastError = e;
+                        }
+                    }
+                }
+
+                if (!textResponse) {
+                    try {
+                        textResponse = await generateWithFallback(systemPrompt, String(message), 0.7, false, true);
+                        modelUsed = 'Fallback AI';
+                    } catch (e) {
+                        lastError = e;
+                    }
+                }
+
+                if (!textResponse) {
+                    return res.status(500).json({
+                        error: true,
+                        reply: 'Waduh, AksaBot lagi pusing nih (Server Penuh). Coba sapa aku lagi beberapa detik lagi ya! 🙏',
+                        detail: lastError?.message || 'Timeout'
+                    });
+                }
+
+                const finalAnswer = textResponse.replace(/```[\w]*\n?/g, '').replace(/\*\*/g, '').trim();
+                return res.status(200).json({
+                    reply: finalAnswer,
+                    model: modelUsed,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // ---------------------------------------------------------
+            // [SURAT & MOU AI TERPADU] (DIGABUNG DARI api/surat.js)
+            // ---------------------------------------------------------
+            case 'generate-surat':
+            case 'surat': {
+                const { kategori, nomor_terakhir, konteks, instruksi_khusus, format } = payload;
+                if (!kategori || !konteks) {
+                    return res.status(400).json({ error: 'Data tidak lengkap. Kategori dan konteks wajib diisi.' });
+                }
+
+                // Mode khusus MOU kewajiban Pihak 1 & 2 (dipanggil oleh admin/mou-create.html)
+                if (format === 'json' || String(konteks).includes('kewajiban_p1')) {
+                    const mouRes = await generateWithFallback(
+                        'Kamu adalah penyusun naskah MoU komunitas literasi profesional. Keluarkan hanya JSON murni {"kewajiban_p1":"...","kewajiban_p2":"..."}.',
+                        konteks,
+                        0.4,
+                        true,
+                        false
+                    );
+                    const parsedMou = extractJSON(mouRes);
+                    return res.status(200).json(parsedMou);
+                }
+
+                const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+                const bulanRomawi = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][d.getMonth()];
+                const tahun = d.getFullYear();
+
+                let urutanSelanjutnya = 1;
+                if (nomor_terakhir && typeof nomor_terakhir === 'string') {
+                    const parts = nomor_terakhir.split('/');
+                    const angkaTerakhir = parseInt(parts[0], 10);
+                    if (!Number.isNaN(angkaTerakhir)) urutanSelanjutnya = angkaTerakhir + 1;
+                }
+                const autoNoSurat = `${String(urutanSelanjutnya).padStart(3, '0')}/${kategori}/CA/${bulanRomawi}/${tahun}`;
+
+                const systemPrompt = `Anda adalah Staf Kesekretariatan di komunitas literasi "Cendekia Aksara".
+Susun Surat Resmi (kategori: ${kategori}) yang rapi, sopan, sesuai PUEBI, dengan otoritas "Kepala Cendekia Aksara" / "Kepala Pembina Literasi" (hindari jabatan birokrasi kementerian).
+ATURAN KETAT:
+1. Gunakan kata ganti "Kami".
+2. "perihal" maks 3-5 kata.
+3. Pecah "pembuka" dan "isi_utama" menjadi paragraf terstruktur. Jika SK/sertifikat, tuliskan detail putusan/nomor di "isi_utama".
+4. Kosongkan "lampiran_teks" ("") kecuali konteks eksplisit meminta susunan acara/daftar peserta terpisah.
+5. Jangan cantumkan Nomor Surat, Tanggal, Tempat, Tanda Tangan, atau Kop Surat di dalam JSON.
+6. Output WAJIB JSON object murni:
+{"perihal":"...","tujuan":"...","pembuka":"...","isi_utama":"...","penutup":"...","lampiran_teks":""}`;
+
+                const userPrompt = `KONTEKS SURAT: "${konteks}"\nINSTRUKSI KHUSUS: "${instruksi_khusus || 'Gunakan diksi resmi yang meyakinkan dan rapi.'}"`;
+                const rawSurat = await generateWithFallback(systemPrompt, userPrompt, 0.4, true, false);
+                const finalResult = extractJSON(rawSurat);
+
+                const gabunganPembukaDanIsi = `${finalResult.pembuka || ''}\n\n${finalResult.isi_utama || ''}`.trim();
+                return res.status(200).json({
+                    no_surat: autoNoSurat,
+                    perihal: finalResult.perihal || '',
+                    tujuan: finalResult.tujuan || '',
+                    pembuka: gabunganPembukaDanIsi,
+                    penutup: finalResult.penutup || '',
+                    lampiran_teks: finalResult.lampiran_teks || ''
                 });
             }
 

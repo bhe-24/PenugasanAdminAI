@@ -2228,15 +2228,16 @@ const CendekiaApp = (function () {
         if (window.lucide) lucide.createIcons();
     }
 
-    // 9B. ASISTEN AI AKSABOT / MENTOR AI (KHUSUS MEMBER 10K - TERHUBUNG LANGSUNG KE /api/aksabot & FALLBACK /api/central)
+    // 9B. ASISTEN AI AKSABOT / MENTOR AI (TERPUSAT DI /api/central)
     async function askAksaBotAI(message, history = []) {
         const user = getUser();
-        // 1. Prioritas utama: Endpoint resmi AksaBot (/api/aksabot)
+        // 1. Prioritas utama: Action 'aksabot' di /api/central
         try {
-            const res = await fetch('/api/aksabot', {
+            const res = await fetch('/api/central', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    action: 'aksabot',
                     message,
                     userName: user.name || 'Siswa Cendekia',
                     history: Array.isArray(history) ? history.slice(-8) : []
@@ -2247,7 +2248,7 @@ const CendekiaApp = (function () {
                 return { success: true, reply: data.reply, source: 'aksabot', model: data.model || 'AksaBot' };
             }
         } catch (err) {
-            console.warn('[AksaBot] /api/aksabot fallback ke mentor-consultation:', err);
+            console.warn('[AksaBot] fallback ke mentor-consultation:', err);
         }
 
         // 2. Fallback: Endpoint Mentor AI Literasi (/api/central)
