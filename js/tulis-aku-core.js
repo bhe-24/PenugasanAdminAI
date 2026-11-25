@@ -33,6 +33,8 @@ let state = {
     activeReserveIdx: -1,
     seenFingerprints: [],
     completedLogs: [],
+    solvedStep1Map: {},   // { [challengeId]: { words: [...], note: '...' } }
+    guessAttemptsMap: {}, // { [challengeId]: number }
     isEvaluating: false,
     playReserveMode: false
 };
@@ -131,7 +133,7 @@ function getProgressStorageKey(mode = state.mode) {
 }
 
 function getPoolStorageKey(slot = state.slot12Key, mode = state.mode) {
-    return `tulis_aku_pool_${slot}_${mode}`;
+    return `tulis_aku_pool_v2_${slot}_${mode}`;
 }
 
 function loadLocalSeenBank() {
@@ -195,6 +197,8 @@ function saveDailyProgress() {
         reserveQuestions: state.reserveQuestions,
         activeReserveIdx: state.activeReserveIdx,
         completedLogs: state.completedLogs.slice(0, 25),
+        solvedStep1Map: state.solvedStep1Map,
+        guessAttemptsMap: state.guessAttemptsMap,
         playReserveMode: state.playReserveMode,
         updatedAt: Date.now()
     };
@@ -219,7 +223,7 @@ function saveDailyProgress() {
     }
 }
 
-async function fetchFreshQuestionsFromAI(excludeList = [], reserveOnly = false) {
+async function fetchFreshQuestionsFromServer(excludeList = [], reserveOnly = false) {
     const res = await fetch('/api/central', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,7 +238,7 @@ async function fetchFreshQuestionsFromAI(excludeList = [], reserveOnly = false) 
     });
     const data = await res.json();
     if (!data || !Array.isArray(data.questions)) {
-        throw new Error('Gagal menerima daftar soal dari AI.');
+        throw new Error('Gagal menyiapkan daftar tantangan baru.');
     }
     return data.questions;
 }
@@ -248,7 +252,7 @@ async function ensureQuestionsForCurrentSlot(forceNewSlot = false) {
     const seenSet = new Set(state.seenFingerprints.map((x) => String(x).toLowerCase()));
     let poolQuestions = [];
 
-    // 1. Cek pool cache di slot 12.00 WIB saat ini (Firestore bersama / localStorage)
+    // 1. Cek pool cache di slot 12.00 WIB saat ini (v2 critical-thinking format)
     try {
         const cachedRaw = localStorage.getItem(getPoolStorageKey());
         if (cachedRaw) {
@@ -259,7 +263,7 @@ async function ensureQuestionsForCurrentSlot(forceNewSlot = false) {
 
     if (poolQuestions.length === 0) {
         try {
-            const poolSnap = await getDoc(doc(db, 'tulis_aku_daily_pool', `${state.slot12Key}_${state.mode}`));
+            const poolSnap = await getDoc(doc(db, 'tulis_aku_daily_pool', `${state.slot12Key}_${state.mode}_v2`));
             if (poolSnap.exists() && Array.isArray(poolSnap.data().questions)) {
                 poolQuestions = poolSnap.data().questions;
             }
@@ -274,40 +278,39 @@ async function ensureQuestionsForCurrentSlot(forceNewSlot = false) {
 
     const missingStages = [];
     for (let s = 1; s <= 8; s++) {
-        // Pertahankan soal stage yang belum selesai hari ini kalau tidak ganti slot 12 WIB
         const existingLocal = !forceNewSlot ? state.stageQuestions.find((q) => Number(q.stage) === s) : null;
-        if (existingLocal && (s <= state.stage || !seenSet.has(String(existingLocal.fingerprint || '').toLowerCase()))) {
+        if (existingLocal && (s <= state.stage || (existingLocal.examplePattern && !seenSet.has(String(existingLocal.fingerprint || '').toLowerCase())))) {
             continue;
         }
         const fromPool = unseenPool.find((q) => !q.isReserve && Number(q.stage) === s);
         if (!fromPool) missingStages.push(s);
     }
 
-    // Jika pool slot ini belum ada atau ada soal yang sudah pernah dikerjakan (duplikat bank soal), minta soal baru ke AI
+    // Jika pool slot ini belum ada atau ada soal yang sudah pernah dikerjakan (duplikat bank soal), ambil soal baru
     if (missingStages.length > 0 || poolQuestions.length === 0 || forceNewSlot) {
         try {
             const excludeAll = [
                 ...state.seenFingerprints,
                 ...poolQuestions.map((q) => q.fingerprint).filter(Boolean)
             ];
-            const aiQuestions = await fetchFreshQuestionsFromAI(excludeAll, false);
-            poolQuestions = aiQuestions;
+            const freshQuestions = await fetchFreshQuestionsFromServer(excludeAll, false);
+            poolQuestions = freshQuestions;
             try {
                 localStorage.setItem(getPoolStorageKey(), JSON.stringify({
                     slotKey: state.slot12Key,
                     mode: state.mode,
-                    questions: aiQuestions,
+                    questions: freshQuestions,
                     savedAt: Date.now()
                 }));
             } catch (_) {}
-            setDoc(doc(db, 'tulis_aku_daily_pool', `${state.slot12Key}_${state.mode}`), {
+            setDoc(doc(db, 'tulis_aku_daily_pool', `${state.slot12Key}_${state.mode}_v2`), {
                 slotKey: state.slot12Key,
                 mode: state.mode,
-                questions: aiQuestions,
+                questions: freshQuestions,
                 createdAt: new Date().toISOString()
             }, { merge: true }).catch(() => {});
         } catch (err) {
-            console.warn('AI pool fallback error:', err);
+            console.warn('Pool fallback error:', err);
         }
     }
 
@@ -407,6 +410,18 @@ function updateBearView(moodOverride = null, captionOverride = null) {
     }
 }
 
+function scrubSecretsClient(text, secrets = []) {
+    let out = String(text || '');
+    (secrets || []).forEach((kw, idx) => {
+        const clean = String(kw || '').trim();
+        if (clean.length < 3) return;
+        const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`["']?\\b${escaped}\\b["']?`, 'gi');
+        out = out.replace(re, `[Kata ${idx + 1}]`);
+    });
+    return out;
+}
+
 function renderChallengeArea() {
     const area = document.getElementById('taChallengeArea');
     const winBox = document.getElementById('taVictoryPanel');
@@ -426,8 +441,8 @@ function renderChallengeArea() {
     if (!ch) {
         area.innerHTML = `
             <div class="ta-challenge-card" style="text-align:center;">
-                <p style="font-size:0.78rem; color:#475569; margin-bottom:10px;">Soal cadangan di sesi ini sudah habis terjawab! Tekan tombol di bawah untuk mengambil soal baru dari AI.</p>
-                <button type="button" id="taBtnLoadMoreReserve" class="ta-btn-submit">Ambil Soal Cadangan Baru (AI)</button>
+                <p style="font-size:0.78rem; color:#475569; margin-bottom:10px;">Soal cadangan di sesi ini sudah habis terjawab! Tekan tombol di bawah untuk mengambil tantangan baru.</p>
+                <button type="button" id="taBtnLoadMoreReserve" class="ta-btn-submit">Muat Soal Cadangan Baru</button>
             </div>
         `;
         const btnMore = document.getElementById('taBtnLoadMoreReserve');
@@ -435,15 +450,61 @@ function renderChallengeArea() {
         return;
     }
 
-    const reqWords = Array.isArray(ch.requiredWords) ? ch.requiredWords : [];
+    const reqWords = Array.isArray(ch.requiredWords) ? ch.requiredWords.filter(Boolean) : [];
     const forbidden = Array.isArray(ch.forbiddenWords) ? ch.forbiddenWords : [];
     const targetStageLabel = state.playReserveMode
         ? `Soal Cadangan #${state.activeReserveIdx + 1}`
         : `Tantangan Bangunkan Tahap ${Math.min(8, state.stage + 1)} / 8`;
 
     const modeInfoText = state.mode === 'tantangan'
-        ? 'Mode Tantangan (Ketat & Bonus Kecepatan Maksimal)'
-        : (state.mode === 'acak' ? 'Mode Acak (Bentuk Tulisan Berganti Dinamis)' : 'Mode Santai (Mengalir & Ramah Pemula)');
+        ? 'Mode Tantangan (Ketat & Logis)'
+        : (state.mode === 'acak' ? 'Mode Acak (Bentuk Dinamis)' : 'Mode Santai (Terarah & Mengalir)');
+
+    const solvedInfo = state.solvedStep1Map[ch.id] || null;
+    const step1Unlocked = reqWords.length === 0 || Boolean(solvedInfo);
+    const attempts = Number(state.guessAttemptsMap[ch.id] || 0);
+
+    const themeText = ch.themeSummary || ch.requiredTheme || ch.title || 'Kreativitas Bahasa';
+    const patternText = ch.examplePattern || scrubSecretsClient(ch.prompt, reqWords);
+    const writePromptText = scrubSecretsClient(ch.prompt, reqWords);
+
+    const forbiddenChips = forbidden.map((fw) =>
+        `<span class="ta-req-chip" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca;">⛔ Dilarang: "${escapeHtml(fw)}"</span>`
+    ).join('');
+
+    const step1Html = step1Unlocked
+        ? `
+            <div class="ta-step-solved">
+                <div style="font-size:0.72rem; font-weight:800; color:#15803d; margin-bottom:3px;">
+                    ✅ Langkah 1 Terpecahkan! Kata Kunci: ${(solvedInfo?.words || reqWords).map((w) => `<span class="ta-kw-badge">${escapeHtml(w)}</span>`).join(' ')}
+                </div>
+                ${solvedInfo?.note ? `<div style="font-size:0.68rem; color:#166534; line-height:1.4;">${escapeHtml(solvedInfo.note)}</div>` : ''}
+            </div>
+        `
+        : `
+            <div class="ta-step1-box" id="taStep1Box">
+                <div style="font-size:0.73rem; font-weight:800; color:#92400e; margin-bottom:4px;">
+                    🔍 Langkah 1 (Asah Logika): Tebak ${reqWords.length} Kata Kunci Rahasia
+                </div>
+                <p style="font-size:0.68rem; color:#78350f; line-height:1.45; margin-bottom:8px;">
+                    Cermati <b>Tema</b> dan <b>Pola Contoh Soal</b> di atas, lalu temukan kata kunci untuk mengisi bagian <b>[Kata 1]</b>${reqWords.length > 1 ? ' dan <b>[Kata 2]</b>' : ''} sebelum mulai menulis!
+                </p>
+                <div class="ta-guess-grid">
+                    ${reqWords.map((_, idx) => `
+                        <input type="text" id="taGuessInput_${idx}" class="ta-guess-input" placeholder="Tebak Kata ${idx + 1}..." autocomplete="off">
+                    `).join('')}
+                </div>
+                <div id="taGuessFeedbackSlot"></div>
+                <button type="button" id="taBtnCheckGuess" class="ta-btn-guess">
+                    🧩 Cek Tebakan ke Si Beruang
+                </button>
+                ${attempts >= 2 ? `
+                    <button type="button" id="taBtnLogicHint" class="ta-btn-hint">
+                        💡 Minta Petunjuk Logika Tambahan
+                    </button>
+                ` : ''}
+            </div>
+        `;
 
     area.innerHTML = `
         <div class="ta-challenge-card">
@@ -454,40 +515,76 @@ function renderChallengeArea() {
                 <span class="ta-pill is-gold">+${Number(ch.xpReward || 20)} XP</span>
             </div>
 
-            <div style="font-size:0.9rem; font-weight:800; color:#0f172a;">
+            <div style="font-size:0.9rem; font-weight:800; color:#0f172a; margin-bottom:7px;">
                 ${escapeHtml(ch.title || 'Tantangan Menulis')}
                 <span style="font-size:0.65rem; font-weight:700; color:#2563eb; background:#eff6ff; padding:2px 7px; border-radius:999px; margin-left:4px;">
                     ${escapeHtml(ch.formatLabel || 'Menulis Kreatif')}
                 </span>
             </div>
 
-            <div class="ta-prompt-box">${escapeHtml(ch.prompt)}</div>
-
-            <div class="ta-req-chips">
-                ${reqWords.map((w) => `<span class="ta-req-chip">Kata wajib: "${escapeHtml(w)}"</span>`).join('')}
-                ${ch.requiredTheme ? `<span class="ta-req-chip is-theme">Unsur wajib: ${escapeHtml(ch.requiredTheme)}</span>` : ''}
-                ${forbidden.map((fw) => `<span class="ta-req-chip" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca;">Dilarang: "${escapeHtml(fw)}"</span>`).join('')}
+            <div class="ta-theme-box">
+                <span style="font-weight:800; color:#1e3a8a;">📌 Tema:</span> ${escapeHtml(themeText)}
             </div>
 
-            <div style="font-size:0.64rem; color:#64748b; margin-bottom:7px;">
-                <b>Ketentuan:</b> ${escapeHtml(modeInfoText)} &bull; Min. ${ch.minWords || 10} kata${ch.minLines > 1 ? ` &bull; Min. ${ch.minLines} baris` : ''}.
+            <div class="ta-prompt-box">${escapeHtml(patternText)}</div>
+
+            ${forbiddenChips ? `<div class="ta-req-chips">${forbiddenChips}</div>` : ''}
+
+            ${step1Html}
+
+            <div class="ta-step2-box ${step1Unlocked ? '' : 'is-locked'}" id="taStep2Box">
+                <div style="font-size:0.73rem; font-weight:800; color:#001f3f; margin-bottom:4px;">
+                    ✍️ Langkah 2: Tulis Karyamu Secara Logis
+                </div>
+                <div style="font-size:0.69rem; color:#334155; line-height:1.45; margin-bottom:6px;">
+                    ${escapeHtml(writePromptText)}
+                </div>
+                <div style="font-size:0.63rem; color:#64748b; margin-bottom:7px;">
+                    <b>Ketentuan:</b> ${escapeHtml(modeInfoText)} &bull; Min. ${ch.minWords || 10} kata${ch.minLines > 1 ? ` &bull; Min. ${ch.minLines} baris` : ''}.
+                </div>
+
+                <textarea id="taAnswerInput" class="ta-textarea" ${step1Unlocked ? '' : 'disabled'} placeholder="${step1Unlocked ? 'Rangkai tulisanmu dengan alur sebab-akibat yang logis menggunakan kata kunci hasil tebakanmu...' : '🔒 Tebak kata kunci di Langkah 1 terlebih dahulu untuk membuka kotak menulis...'}"></textarea>
+
+                <div class="ta-editor-meta">
+                    <span><b id="taLiveWordCount">0</b> kata &bull; <b id="taLiveLineCount">0</b> baris</span>
+                    <span>🐻 Kirim ke Si Beruang untuk dibaca</span>
+                </div>
+
+                <div id="taEvalFeedbackSlot"></div>
+
+                <button type="button" id="taBtnSubmitAnswer" class="ta-btn-submit" ${step1Unlocked ? '' : 'disabled'}>
+                    🐻 Kirim ke Si Beruang
+                </button>
             </div>
-
-            <textarea id="taAnswerInput" class="ta-textarea" placeholder="Tulis karyamu di sini secara utuh sesuai instruksi..."></textarea>
-
-            <div class="ta-editor-meta">
-                <span><b id="taLiveWordCount">0</b> kata &bull; <b id="taLiveLineCount">0</b> baris</span>
-                <span>Evaluasi cepat via <b>Groq AI</b></span>
-            </div>
-
-            <button type="button" id="taBtnSubmitAnswer" class="ta-btn-submit">
-                Kirim ke Si Beruang &amp; Periksa (Groq AI)
-            </button>
-
-            <div id="taEvalFeedbackSlot"></div>
         </div>
     `;
 
+    // Bind Step 1 Events
+    const btnCheckGuess = document.getElementById('taBtnCheckGuess');
+    if (btnCheckGuess) btnCheckGuess.addEventListener('click', checkKeywordGuess);
+    reqWords.forEach((_, idx) => {
+        const gInp = document.getElementById(`taGuessInput_${idx}`);
+        if (gInp) {
+            gInp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    checkKeywordGuess();
+                }
+            });
+        }
+    });
+
+    const btnHint = document.getElementById('taBtnLogicHint');
+    if (btnHint) {
+        btnHint.addEventListener('click', () => {
+            const gSlot = document.getElementById('taGuessFeedbackSlot');
+            if (gSlot) {
+                gSlot.innerHTML = `<div class="ta-eval-box" style="background:#fffbeb; border-color:#fcd34d; color:#78350f; margin-bottom:7px;"><b>💡 Petunjuk Si Beruang:</b> ${escapeHtml(ch.logicHints || 'Pikirkan hubungan benda/peristiwa yang paling masuk akal pada tema tersebut.')}</div>`;
+            }
+        });
+    }
+
+    // Bind Step 2 Events
     const textarea = document.getElementById('taAnswerInput');
     if (textarea) {
         textarea.addEventListener('input', () => {
@@ -501,6 +598,87 @@ function renderChallengeArea() {
 
     const submitBtn = document.getElementById('taBtnSubmitAnswer');
     if (submitBtn) submitBtn.addEventListener('click', submitChallengeAnswer);
+}
+
+async function checkKeywordGuess() {
+    const ch = getCurrentTargetChallenge();
+    if (!ch || state.isEvaluating) return;
+    const reqWords = Array.isArray(ch.requiredWords) ? ch.requiredWords.filter(Boolean) : [];
+    const guessedWords = reqWords.map((_, idx) => (document.getElementById(`taGuessInput_${idx}`)?.value || '').trim());
+
+    if (guessedWords.some((g) => !g)) {
+        const gSlot = document.getElementById('taGuessFeedbackSlot');
+        if (gSlot) {
+            gSlot.innerHTML = `<div class="ta-eval-box is-fail" style="margin-bottom:7px;">Isi semua kotak kata kunci berdasarkan petunjuk tema &amp; pola dulu ya!</div>`;
+        }
+        return;
+    }
+
+    const btnGuess = document.getElementById('taBtnCheckGuess');
+    state.isEvaluating = true;
+    if (btnGuess) {
+        btnGuess.disabled = true;
+        btnGuess.textContent = '🐻 Si Beruang Memeriksa Tebakanmu...';
+    }
+
+    try {
+        const resp = await fetch('/api/central', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'evaluate-tulis-aku-answer',
+                phase: 'guess-keywords',
+                mode: state.mode,
+                stage: ch.stage || state.stage + 1,
+                challenge: ch,
+                guessedWords
+            })
+        });
+        const res = await resp.json();
+
+        if (res.guessPassed) {
+            state.solvedStep1Map[ch.id] = {
+                words: Array.isArray(res.acceptedWords) && res.acceptedWords.length ? res.acceptedWords : guessedWords,
+                note: res.feedback || ''
+            };
+            saveDailyProgress();
+            renderChallengeArea();
+            const taEl = document.getElementById('taAnswerInput');
+            if (taEl) taEl.focus();
+            updateBearView(state.stage === 0 ? 'sleeping' : 'idle', 'Kata kunci terpecahkan! Sekarang susun tulisanmu secara logis ya!');
+        } else {
+            state.guessAttemptsMap[ch.id] = Number(state.guessAttemptsMap[ch.id] || 0) + 1;
+            saveDailyProgress();
+            const gSlot = document.getElementById('taGuessFeedbackSlot');
+            if (gSlot) {
+                gSlot.innerHTML = `<div class="ta-eval-box is-fail" style="margin-bottom:7px;">🤔 <b>Belum Pas:</b> ${escapeHtml(res.feedback || 'Coba telusuri ulang logika pola contohnya.')}</div>`;
+            }
+            if (state.guessAttemptsMap[ch.id] >= 2 && !document.getElementById('taBtnLogicHint')) {
+                // Tampilkan tombol petunjuk tambahan setelah 2x salah menebak
+                renderChallengeArea();
+                reqWords.forEach((_, idx) => {
+                    const el = document.getElementById(`taGuessInput_${idx}`);
+                    if (el) el.value = guessedWords[idx] || '';
+                });
+                const gSlotAfter = document.getElementById('taGuessFeedbackSlot');
+                if (gSlotAfter) {
+                    gSlotAfter.innerHTML = `<div class="ta-eval-box is-fail" style="margin-bottom:7px;">🤔 <b>Belum Pas:</b> ${escapeHtml(res.feedback || 'Coba telusuri ulang logika pola contohnya.')}</div>`;
+                }
+            }
+        }
+    } catch (err) {
+        const gSlot = document.getElementById('taGuessFeedbackSlot');
+        if (gSlot) {
+            gSlot.innerHTML = `<div class="ta-eval-box is-fail" style="margin-bottom:7px;">Koneksi terganggu, coba kirim ulang tebakanmu ya!</div>`;
+        }
+    } finally {
+        state.isEvaluating = false;
+        const b = document.getElementById('taBtnCheckGuess');
+        if (b) {
+            b.disabled = false;
+            b.textContent = '🧩 Cek Tebakan ke Si Beruang';
+        }
+    }
 }
 
 function renderVictoryPanel() {
@@ -561,7 +739,7 @@ async function loadExtraReserveBatch() {
     }
     try {
         const excludeAll = [...state.seenFingerprints, ...state.reserveQuestions.map((q) => q.fingerprint)];
-        const fresh = await fetchFreshQuestionsFromAI(excludeAll, true);
+        const fresh = await fetchFreshQuestionsFromServer(excludeAll, true);
         state.reserveQuestions = fresh;
         state.activeReserveIdx = 0;
         saveDailyProgress();
@@ -579,15 +757,15 @@ function renderEvalFeedback(res, passed, failedStageMsg = '') {
 
     const c = res.criteria || {};
     const rows = [
-        { label: 'Unsur & Kata Wajib', obj: c.unsurWajib },
+        { label: 'Kesesuaian Tema & Kata Kunci', obj: c.unsurWajib },
         { label: 'Bentuk & Ketentuan', obj: c.kesesuaianBentuk },
-        { label: 'Daya Hidup Cerita', obj: c.kedalamanKreatif }
+        { label: 'Alur Logika & Kekuatan Cerita', obj: c.kedalamanKreatif }
     ];
 
     slot.innerHTML = `
         <div class="ta-eval-box ${passed ? 'is-pass' : 'is-fail'}">
             <div style="display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-bottom:4px; color:${passed ? '#15803d' : '#b91c1c'};">
-                <span>${passed ? '✅ Si Beruang Bangun & Bertumbuh!' : '💤 Jawaban Ditolak — Beruang Tidur Lagi!'}</span>
+                <span>${passed ? '✅ Si Beruang Bangun & Bertumbuh!' : '💤 Belum Tepat — Beruang Tidur Lagi!'}</span>
                 <span>Skor ${res.score || 0}/100</span>
             </div>
             <div style="font-size:0.71rem; color:#1e293b; font-weight:600;">${escapeHtml(res.feedback || '')}</div>
@@ -633,6 +811,13 @@ async function submitChallengeAnswer() {
     const btnEl = document.getElementById('taBtnSubmitAnswer');
     if (!ch || !inputEl) return;
 
+    const reqWords = Array.isArray(ch.requiredWords) ? ch.requiredWords.filter(Boolean) : [];
+    const solvedInfo = state.solvedStep1Map[ch.id];
+    if (reqWords.length > 0 && !solvedInfo) {
+        alert('Pecahkan dulu kata kunci rahasia pada Langkah 1 ya!');
+        return;
+    }
+
     const userAnswer = inputEl.value.trim();
     if (!userAnswer) {
         alert('Tuliskan karyamu terlebih dahulu sebelum membangunkan Si Beruang!');
@@ -643,10 +828,10 @@ async function submitChallengeAnswer() {
     state.isEvaluating = true;
     if (btnEl) {
         btnEl.disabled = true;
-        btnEl.textContent = 'Groq AI Sedang Memeriksa Karyamu...';
+        btnEl.textContent = '🐻 Si Beruang Sedang Membaca Tulisanmu...';
     }
 
-    updateBearView('thinking', 'Hmm... Si Beruang sedang membaca tulisanmu dengan teliti bersama Groq AI...');
+    updateBearView('thinking', 'Hmm... Si Beruang sedang membaca alur logika tulisanmu dengan teliti...');
 
     try {
         const resp = await fetch('/api/central', {
@@ -654,9 +839,11 @@ async function submitChallengeAnswer() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'evaluate-tulis-aku-answer',
+                phase: 'evaluate-writing',
                 mode: state.mode,
                 stage: ch.stage || state.stage + 1,
                 challenge: ch,
+                acceptedWords: solvedInfo?.words || reqWords,
                 userAnswer
             })
         });
@@ -670,12 +857,21 @@ async function submitChallengeAnswer() {
                 dropMsg = `Karena ini Mode Tantangan, Si Beruang turun kembali ke Tahap ${state.stage} dan tertidur!`;
             }
             saveDailyProgress();
-            updateBearView('sad_sleep', evalRes.bearReaction || 'Yah... unsur tantangannya belum terasa pas, Si Beruang tidur lagi!');
+            updateBearView('sad_sleep', evalRes.bearReaction || 'Yah... alur logika atau unsurnya belum terasa pas, Si Beruang tidur lagi!');
             renderEvalFeedback(evalRes, false, dropMsg);
+            if (btnEl) {
+                state.isEvaluating = false;
+                btnEl.disabled = false;
+                btnEl.style.cssText = '';
+                btnEl.innerHTML = '✍️ Perbaiki & Kirim ke Si Beruang';
+                btnEl.onclick = () => { btnEl.onclick = null; submitChallengeAnswer(); };
+            }
             return;
         }
 
-        // LULUS! Simpan ke bank soal anti-duplikasi agar tidak muncul lagi
+        // LULUS! Kunci textarea agar jawaban + catatan terbaca tenang
+        inputEl.disabled = true;
+
         saveSeenQuestionToBank(ch, evalRes);
         const earned = Number(ch.xpReward || 20);
         state.xpEarnedToday += earned;
@@ -688,10 +884,18 @@ async function submitChallengeAnswer() {
             saveDailyProgress();
             updateBearView('celebrating', evalRes.bearReaction || 'Keren! Soal cadangan selesai dengan cemerlang!');
             renderEvalFeedback(evalRes, true);
-            setTimeout(() => {
-                renderChallengeArea();
-                updateBearView();
-            }, 1900);
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.style.cssText = 'background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);color:white;';
+                btnEl.innerHTML = '✅ Lanjut ke Soal Berikutnya →';
+                btnEl.onclick = () => {
+                    btnEl.onclick = null;
+                    btnEl.style.cssText = '';
+                    renderChallengeArea();
+                    updateBearView();
+                    document.getElementById('taStageCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+            }
             return;
         }
 
@@ -730,23 +934,35 @@ async function submitChallengeAnswer() {
         updateBearView('celebrating', evalRes.bearReaction || `Yeay! Si Beruang naik ke Tahap ${state.stage}!`);
         renderEvalFeedback(evalRes, true);
 
-        setTimeout(() => {
-            renderChallengeArea();
-            updateBearView();
-        }, 2000);
+        // Tombol HIJAU — penjelasan berada DI ATAS tombol (kosong di bawah tombol); baru lanjut saat diklik
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.style.cssText = 'background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);color:white;';
+            btnEl.innerHTML = state.completedToday ? '🎉 Lihat Hasil Akhir' : '✅ Lanjut ke Soal Berikutnya →';
+            btnEl.onclick = () => {
+                btnEl.onclick = null;
+                btnEl.style.cssText = '';
+                renderChallengeArea();
+                updateBearView();
+                document.getElementById('taStageCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+        }
     } catch (err) {
         console.error('Error evaluasi Tulis Aku:', err);
         updateBearView(state.stage === 0 ? 'sleeping' : 'idle', 'Koneksi sedikit terganggu, coba kirim lagi tulisanmu!');
         const slot = document.getElementById('taEvalFeedbackSlot');
         if (slot) {
-            slot.innerHTML = `<div class="ta-eval-box is-fail">Gagal menghubungi AI: ${escapeHtml(err.message)}</div>`;
+            slot.innerHTML = `<div class="ta-eval-box is-fail">Gagal mengirim ke Si Beruang — coba lagi sebentar ya!</div>`;
         }
-    } finally {
         state.isEvaluating = false;
         if (btnEl) {
             btnEl.disabled = false;
-            btnEl.textContent = 'Kirim ke Si Beruang & Periksa (Groq AI)';
+            btnEl.style.cssText = '';
+            btnEl.innerHTML = '🐻 Kirim ke Si Beruang';
+            btnEl.onclick = submitChallengeAnswer;
         }
+    } finally {
+        state.isEvaluating = false;
     }
 }
 
@@ -754,9 +970,15 @@ function renderFullArena() {
     const xpBadge = document.getElementById('taXpBadge');
     if (xpBadge) xpBadge.textContent = `+${state.xpEarnedToday} XP`;
 
-    document.querySelectorAll('.ta-mode-btn').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.mode === state.mode);
-    });
+    const modePill = document.getElementById('taActiveModePill');
+    if (modePill) {
+        const modeMap = {
+            santai: '☕ Mode Santai',
+            tantangan: '⚡ Mode Tantangan',
+            acak: '🎲 Mode Acak'
+        };
+        modePill.textContent = modeMap[state.mode] || '☕ Mode Santai';
+    }
 
     updateBearView();
     renderChallengeArea();
@@ -767,7 +989,6 @@ async function loadGameSession() {
     state.slot12Key = get12WibSlotKey();
     state.playReserveMode = false;
 
-    // 1. Muat bank soal yang sudah pernah dikerjakan agar tidak muncul ulang
     state.seenFingerprints = loadLocalSeenBank();
     if (state.uid) {
         try {
@@ -779,7 +1000,6 @@ async function loadGameSession() {
         } catch (_) {}
     }
 
-    // 2. Cek progres hari ini (reset otomatis setiap 00:00 WIB karena key mengandung wibDayKey!)
     let saved = null;
     try {
         saved = JSON.parse(localStorage.getItem(getProgressStorageKey()) || 'null');
@@ -804,6 +1024,8 @@ async function loadGameSession() {
         state.reserveQuestions = Array.isArray(saved.reserveQuestions) ? saved.reserveQuestions : [];
         state.activeReserveIdx = saved.activeReserveIdx ?? -1;
         state.completedLogs = Array.isArray(saved.completedLogs) ? saved.completedLogs : [];
+        state.solvedStep1Map = (saved.solvedStep1Map && typeof saved.solvedStep1Map === 'object') ? saved.solvedStep1Map : {};
+        state.guessAttemptsMap = (saved.guessAttemptsMap && typeof saved.guessAttemptsMap === 'object') ? saved.guessAttemptsMap : {};
     } else {
         state.stage = 0;
         state.sleepLock = true;
@@ -816,6 +1038,8 @@ async function loadGameSession() {
         state.reserveQuestions = [];
         state.activeReserveIdx = -1;
         state.completedLogs = [];
+        state.solvedStep1Map = {};
+        state.guessAttemptsMap = {};
     }
 
     const slotChanged = saved && saved.slot12Key && saved.slot12Key !== state.slot12Key;
@@ -823,16 +1047,6 @@ async function loadGameSession() {
 }
 
 function initUiControls() {
-    document.querySelectorAll('.ta-mode-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const nextMode = btn.dataset.mode;
-            if (!nextMode || nextMode === state.mode) return;
-            state.mode = nextMode;
-            try { localStorage.setItem('cendekia_active_game_mode', nextMode); } catch (_) {}
-            loadGameSession();
-        });
-    });
-
     const btnBack = document.getElementById('taBackLink');
     if (btnBack && cfg.backUrl) btnBack.href = cfg.backUrl;
 }

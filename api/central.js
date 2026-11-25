@@ -2091,40 +2091,226 @@ Patuhi aturan ketat:
                 ];
 
                 const FALLBACK_BANK = [
-                    { stage: 1, format: 'puisi_2_larik', formatLabel: 'Puisi 2 Larik', title: 'Sapaan Embun Pagi', prompt: 'Buatlah puisi 2 larik yang memadukan kata "embun" dan "langkah" untuk membangunkan semangat pagi.', requiredWords: ['embun', 'langkah'], requiredTheme: 'semangat awal pagi', minLines: 2, minWords: 8, evaluationHints: 'Kedua kata wajib muncul dalam 2 baris puitis.', fingerprint: 'fb-embun-langkah-s1' },
-                    { stage: 2, format: 'puisi_2_larik', formatLabel: 'Puisi 2 Larik', title: 'Lampu Kota Senja', prompt: 'Tuliskan puisi 2 larik berima dengan kata wajib "senja" dan "lentera" tentang penantian di jalan pulang.', requiredWords: ['senja', 'lentera'], requiredTheme: 'penantian di jalan pulang', minLines: 2, minWords: 10, evaluationHints: 'Terdapat 2 larik, rima terjaga, menyebut senja & lentera.', fingerprint: 'fb-senja-lentera-s2' },
-                    { stage: 3, format: 'paragraf_adegan', formatLabel: '1 Paragraf Adegan', title: 'Gejolak Kantin Pabrik', prompt: 'Tuliskan 1 paragraf adegan yang menggambarkan suasana mogok kerja di pelataran pabrik dengan menyertakan unsur "spanduk" dan "kopi dingin".', requiredWords: ['spanduk', 'kopi'], requiredTheme: 'mogok kerja karyawan/buruh', minLines: 1, minWords: 22, evaluationHints: 'Adegan harus benar-benar memuat aksi atau konflik mogok kerja, bukan sekadar minum kopi biasa.', fingerprint: 'fb-mogok-kerja-s3' },
-                    { stage: 4, format: 'paragraf_adegan', formatLabel: '1 Paragraf Adegan', title: 'Hujan di Peron Terakhir', prompt: 'Susun 1 paragraf adegan perpisahan di stasiun saat kereta terakhir hampir berangkat, wajib memuat kata "tiket" dan rasa gugup tokoh.', requiredWords: ['tiket'], requiredTheme: 'perpisahan di stasiun dan rasa gugup', minLines: 1, minWords: 26, evaluationHints: 'Ada suasana stasiun/kereta, unsur perpisahan, dan penggambaran rasa gugup.', fingerprint: 'fb-stasiun-tiket-s4' },
-                    { stage: 5, format: 'dialog_singkat', formatLabel: 'Adegan & Dialog', title: 'Rahasia Ruang Redaksi', prompt: 'Tuliskan 1 paragraf adegan plus dialog singkat antara jurnalis dan editor tentang berita yang terancam dicekal, wajib memuat kata "tinta" dan "kebenaran".', requiredWords: ['tinta', 'kebenaran'], requiredTheme: 'konflik kebebasan pers di ruang redaksi', minLines: 2, minWords: 32, evaluationHints: 'Mengandung percakapan 2 tokoh + konflik penyensoran berita.', fingerprint: 'fb-redaksi-tinta-s5' },
-                    { stage: 6, format: 'paragraf_adegan', formatLabel: '1 Paragraf Konflik', title: 'Pasar Apung Menjelang Badai', prompt: 'Buatlah 1 paragraf adegan penuh ketegangan di pasar tradisional menjelang badai datang, padukan citraan suara dan bau dengan kata wajib "perahu" serta "ombak".', requiredWords: ['perahu', 'ombak'], requiredTheme: 'ketegangan warga menghadapi badai', minLines: 1, minWords: 36, evaluationHints: 'Wajib terasa citraan suara/bau dan kepanikan badai.', fingerprint: 'fb-badai-perahu-s6' },
-                    { stage: 7, format: 'monolog_batin', formatLabel: 'Monolog Reflektif', title: 'Timbangan Nurani Hakim', prompt: 'Tuliskan 1 paragraf monolog batin seorang pengambil keputusan yang dilematis antara persahabatan dan keadilan, sertakan metafora "palu" serta "bayangan".', requiredWords: ['palu', 'bayangan'], requiredTheme: 'dilema batin antara persahabatan dan keadilan', minLines: 1, minWords: 40, evaluationHints: 'Harus memperlihatkan dilema moral batin dan metafora.', fingerprint: 'fb-palu-keadilan-s7' },
-                    { stage: 8, format: 'paragraf_adegan', formatLabel: 'Karya Puncak Bijaksana', title: 'Penjaga Mercusuar Terakhir', prompt: 'Rangkai 1 paragraf penutup yang filosofis tentang seorang penjaga mercusuar tua yang mewariskan cahaya keberanian, wajib memadukan kata "lilin", "badai", dan pesan tentang harapan.', requiredWords: ['lilin', 'badai'], requiredTheme: 'warisan keberanian dan harapan', minLines: 1, minWords: 42, evaluationHints: 'Kedalaman filosofis tinggi, seluruh unsur terikat mulus.', fingerprint: 'fb-mercusuar-lilin-s8' },
-                    { stage: 4, format: 'puisi_2_larik', formatLabel: 'Puisi 2 Larik Kontras', title: 'Api dan Beku', prompt: 'Buatlah puisi 2 larik bermajas paradoks yang memadukan kata "bara" dan "salju" tentang keteguhan hati.', requiredWords: ['bara', 'salju'], requiredTheme: 'keteguhan hati dalam kontras', minLines: 2, minWords: 10, evaluationHints: 'Mengandung pertentangan makna yang puitis.', fingerprint: 'fb-bara-salju-cad1' },
-                    { stage: 5, format: 'paragraf_adegan', formatLabel: '1 Paragraf Adegan', title: 'Dapur Restoran Jam Sibuk', prompt: 'Tuliskan 1 paragraf adegan kekacauan dapur restoran saat tamu VIP protes keras, wajib memuat kata "kompor" dan "piring".', requiredWords: ['kompor', 'piring'], requiredTheme: 'tekanan kerja di dapur saat komplain', minLines: 1, minWords: 28, evaluationHints: 'Tempo cepat dan jelas adanya keluhan pelanggan.', fingerprint: 'fb-dapur-vip-cad2' },
-                    { stage: 6, format: 'puisi_2_larik', formatLabel: 'Puisi 2 Larik Imajinatif', title: 'Aksara di Atas Pasir', prompt: 'Susun 2 larik puisi tentang keikhlasan dengan kata wajib "ombak" dan "nama" tanpa memakai kata "sedih".', requiredWords: ['ombak', 'nama'], forbiddenWords: ['sedih'], requiredTheme: 'keikhlasan melepaskan kenangan', minLines: 2, minWords: 10, evaluationHints: 'Dilarang memakai kata sedih; harus terasa ikhlas.', fingerprint: 'fb-ombak-nama-cad3' },
-                    { stage: 7, format: 'monolog_batin', formatLabel: 'Monolog Tokoh', title: 'Kursi Kosong di Wisuda', prompt: 'Tuliskan 1 paragraf monolog batin mahasiswa perantau saat melihat satu kursi kosong di hari kelulusannya, wajib menyebut "amplop" dan "doa".', requiredWords: ['amplop', 'doa'], requiredTheme: 'rindu keluarga dan perjuangan perantau', minLines: 1, minWords: 36, evaluationHints: 'Harus kuat nuansa pengorbanan perantauan.', fingerprint: 'fb-wisuda-doa-cad4' }
+                    {
+                        stage: 1,
+                        format: 'puisi_2_larik',
+                        formatLabel: 'Puisi 2 Larik',
+                        title: 'Sapaan Pagi Pertama',
+                        themeSummary: 'Semangat awal pagi sebelum memulai perjalanan baru',
+                        examplePattern: 'Contoh pola: "Saat [Kata 1] dingin masih bergantung di ujung daun hijau, kuayunkan [Kata 2] pertama menyusuri jalan setapak."',
+                        prompt: 'Temukan dua kata kunci dari contoh pola di atas, lalu susunlah puisi 2 larik orisinal versimu tentang membangunkan semangat pagi.',
+                        requiredWords: ['embun', 'langkah'],
+                        logicHints: 'Kata 1 adalah tetesan uap air bening yang menempel di daun pada pagi hari; Kata 2 adalah gerakan kaki saat mulai berjalan.',
+                        requiredTheme: 'semangat awal pagi',
+                        minLines: 2,
+                        minWords: 8,
+                        evaluationHints: 'Kedua kata kunci terjalin dalam alur imaji pagi ke tindakan awal secara puitis dalam 2 larik.',
+                        fingerprint: 'fb-embun-langkah-v2-s1'
+                    },
+                    {
+                        stage: 2,
+                        format: 'puisi_2_larik',
+                        formatLabel: 'Puisi 2 Larik',
+                        title: 'Penjaga Cahaya Sore',
+                        themeSummary: 'Penantian hangat di jalan pulang saat langit mulai meredup',
+                        examplePattern: 'Contoh pola: "Di ujung [Kata 1] yang jingga kemerahan, nyala [Kata 2] tua di teras menjadi penunjuk arah pulang."',
+                        prompt: 'Pecahkan dua kata kunci pada pola waktu dan benda bercahaya di atas, lalu ciptakan puisi 2 larik berima bertema penantian pulang.',
+                        requiredWords: ['senja', 'lentera'],
+                        logicHints: 'Kata 1 adalah waktu peralihan sore menuju malam saat langit jingga; Kata 2 adalah lampu bertangkai/kaca penerang jalan.',
+                        requiredTheme: 'penantian di jalan pulang',
+                        minLines: 2,
+                        minWords: 10,
+                        evaluationHints: 'Terdapat 2 larik berima, transisi sore ke cahaya penunjuk arah terasa logis dan hangat.',
+                        fingerprint: 'fb-senja-lentera-v2-s2'
+                    },
+                    {
+                        stage: 3,
+                        format: 'paragraf_adegan',
+                        formatLabel: '1 Paragraf Adegan',
+                        title: 'Gejolak Pelataran Kerja',
+                        themeSummary: 'Aksi solidaritas pekerja yang menghentikan mesin demi keadilan upah',
+                        examplePattern: 'Contoh pola: "Belasan pekerja membentangkan [Kata 1] tuntutan di gerbang gerah, sementara segelas [Kata 2] di meja pos penjaga terlanjur dingin tak tersentuh."',
+                        prompt: 'Identifikasi benda simbol protes dan minuman yang ditinggalkan pada pola di atas, lalu tulis 1 paragraf adegan sebab-akibat saat aksi berhenti kerja berlangsung.',
+                        requiredWords: ['spanduk', 'kopi'],
+                        logicHints: 'Kata 1 adalah kain panjang berisi tulisan tuntutan aksi; Kata 2 adalah minuman hitam hangat teman begadang/kerja yang dibiarkan dingin.',
+                        requiredTheme: 'mogok kerja karyawan/buruh',
+                        minLines: 1,
+                        minWords: 22,
+                        evaluationHints: 'Wajib ada alur sebab-akibat aksi mogok kerja yang konkret, bukan sekadar bersantai minum.',
+                        fingerprint: 'fb-mogok-kerja-v2-s3'
+                    },
+                    {
+                        stage: 4,
+                        format: 'paragraf_adegan',
+                        formatLabel: '1 Paragraf Adegan',
+                        title: 'Detik Terakhir di Peron',
+                        themeSummary: 'Perpisahan yang tertahan rasa gugup sebelum keberangkatan jauh',
+                        examplePattern: 'Contoh pola: "Jari-jarinya meremas kertas [Kata 1] hingga kusut sebelum masuk gerbong, sementara peluit panjang memicu [Kata 2] di sudut rel."',
+                        prompt: 'Tebak dokumen perjalanan dan curah cuaca/air mata yang tersirat pada pola di atas, lalu tulis 1 paragraf adegan perpisahan di stasiun dengan alasan kepergian yang masuk akal.',
+                        requiredWords: ['tiket', 'hujan'],
+                        logicHints: 'Kata 1 adalah karcis resmi naik kereta; Kata 2 adalah air yang turun dari langit mendung dan mengaburkan pandangan.',
+                        requiredTheme: 'perpisahan di stasiun dan rasa gugup',
+                        minLines: 1,
+                        minWords: 26,
+                        evaluationHints: 'Logika adegan stasiun, sebab gugupnya tokoh, serta transisi sebelum kereta jalan harus padu.',
+                        fingerprint: 'fb-stasiun-tiket-v2-s4'
+                    },
+                    {
+                        stage: 5,
+                        format: 'dialog_singkat',
+                        formatLabel: 'Adegan & Dialog',
+                        title: 'Naskah Terlarang di Redaksi',
+                        themeSummary: 'Konflik jurnalis dan editor menghadapi tekanan penyensoran berita',
+                        examplePattern: 'Contoh pola: "Draf liputan masih basah oleh [Kata 1] mesin cetak ketika pemimpin redaksi bertanya lirih: berani membela [Kata 2] meski terancam dibredel?"',
+                        prompt: 'Temukan dua kata kunci media cetak dan nilai moral pada pola di atas, lalu susun adegan berkonflik lengkap dengan dialog singkat yang menunjukkan pertentangan argumen kedua tokoh.',
+                        requiredWords: ['tinta', 'kebenaran'],
+                        logicHints: 'Kata 1 adalah cairan warna pada pena atau mesin cetak koran; Kata 2 adalah hal yang nyata dan jujur yang diperjuangkan pers.',
+                        requiredTheme: 'konflik kebebasan pers di ruang redaksi',
+                        minLines: 2,
+                        minWords: 32,
+                        evaluationHints: 'Memuat percakapan 2 tokoh dengan argumen logis pro-kontra atas risiko penyiaran berita.',
+                        fingerprint: 'fb-redaksi-tinta-v2-s5'
+                    },
+                    {
+                        stage: 6,
+                        format: 'paragraf_adegan',
+                        formatLabel: '1 Paragraf Konflik',
+                        title: 'Pesisir Menjelang Topan',
+                        themeSummary: 'Kepanikan nelayan & pedagang mengamankan muatan saat cuaca laut berbalik',
+                        examplePattern: 'Contoh pola: "Tali tambat [Kata 1] berderit keras saat gulungan [Kata 2] gelap mulai menghantam tiang dermaga kayu."',
+                        prompt: 'Tebak sarana laut dan ancaman air pada pola di atas, lalu rangkai 1 paragraf adegan penuh citraan bunyi serta sebab-akibat evakuasi warga pesisir.',
+                        requiredWords: ['perahu', 'ombak'],
+                        logicHints: 'Kata 1 adalah kendaraan air dari kayu untuk melaut; Kata 2 adalah gulungan air laut yang bergulung besar menuju pantai.',
+                        requiredTheme: 'ketegangan warga menghadapi badai laut',
+                        minLines: 1,
+                        minWords: 36,
+                        evaluationHints: 'Wajib terasa citraan bunyi/situasi bahaya serta reaksi logis penyelamatan di dermaga.',
+                        fingerprint: 'fb-badai-perahu-v2-s6'
+                    },
+                    {
+                        stage: 7,
+                        format: 'monolog_batin',
+                        formatLabel: 'Monolog Reflektif',
+                        title: 'Timbangan Nurani Ruang Sidang',
+                        themeSummary: 'Dilema batin seorang pemutus hukum antara ikatan sahabat dan keadilan',
+                        examplePattern: 'Contoh pola: "Tangannya gemetar memegang [Kata 1] kayu sebelum ketukan putusan, dihantui [Kata 2] masa lalu sahabat karibnya sendiri."',
+                        prompt: 'Pecahkan simbol pengetuk sidang dan jejak gelap ingatan pada pola di atas, lalu tulis 1 paragraf monolog batin yang menimbang dua sisi argumen moral secara kritis sebelum mengambil sikap.',
+                        requiredWords: ['palu', 'bayangan'],
+                        logicHints: 'Kata 1 adalah alat ketuk hakim saat menutup atau memutuskan sidang; Kata 2 adalah siluet gelap yang membuntuti objek atau ingatan.',
+                        requiredTheme: 'dilema batin antara persahabatan dan keadilan',
+                        minLines: 1,
+                        minWords: 40,
+                        evaluationHints: 'Harus memperlihatkan pertimbangan logis kedua pilihan (sahabat vs hukum) dan keteguhan batin.',
+                        fingerprint: 'fb-palu-keadilan-v2-s7'
+                    },
+                    {
+                        stage: 8,
+                        format: 'paragraf_adegan',
+                        formatLabel: 'Karya Puncak Bijaksana',
+                        title: 'Menara Penuntun Terakhir',
+                        themeSummary: 'Warisan ketabahan penjaga menara laut tua saat malam tergelap tiba',
+                        examplePattern: 'Contoh pola: "Meski hanya tersisa nyala [Kata 1] kecil di ruang jaga, penjaga tua tetap tenang menatap [Kata 2] dahsyat yang mengamuk di luar kaca."',
+                        prompt: 'Temukan simbol cahaya kecil dan amukan alam pada pola di atas, lalu tutup perjalanan dengan 1 paragraf bermakna filosofis mengenai estafet keberanian.',
+                        requiredWords: ['lilin', 'badai'],
+                        logicHints: 'Kata 1 adalah batang penerang bersumbu kecil dari malam; Kata 2 adalah angin kencang disertai hujan lebat di tengah malam.',
+                        requiredTheme: 'warisan keberanian dan harapan',
+                        minLines: 1,
+                        minWords: 42,
+                        evaluationHints: 'Kedalaman filosofis kuat, alur sebab-akibat ketabahan dan warisan harapan utuh.',
+                        fingerprint: 'fb-mercusuar-lilin-v2-s8'
+                    },
+                    {
+                        stage: 4,
+                        format: 'puisi_2_larik',
+                        formatLabel: 'Puisi 2 Larik Kontras',
+                        title: 'Dua Sisi Keteguhan',
+                        themeSummary: 'Keteguhan hati yang tetap hangat meski dikepung suasana membekukan',
+                        examplePattern: 'Contoh pola: "Di dada tersimpan [Kata 1] menyala, meski dunia menabur [Kata 2] di setiap sudutnya."',
+                        prompt: 'Tebak dua kata yang saling berlawanan suhu pada pola di atas, lalu susun puisi 2 larik bermajas paradoks tentang keteguhan hati.',
+                        requiredWords: ['bara', 'salju'],
+                        logicHints: 'Kata 1 adalah arang merah yang masih menyala panas; Kata 2 adalah butiran es putih dingin yang turun di musim dingin.',
+                        requiredTheme: 'keteguhan hati dalam kontras',
+                        minLines: 2,
+                        minWords: 10,
+                        evaluationHints: 'Mengandung pertentangan makna logis yang menyatu dalam tema keteguhan.',
+                        fingerprint: 'fb-bara-salju-v2-cad1'
+                    },
+                    {
+                        stage: 5,
+                        format: 'paragraf_adegan',
+                        formatLabel: '1 Paragraf Adegan',
+                        title: 'Jam Sibuk Dapur Restoran',
+                        themeSummary: 'Tekanan kerja koki saat pesanan mendesak dan tamu penting mulai protes',
+                        examplePattern: 'Contoh pola: "Api [Kata 1] menyala tinggi di tengah teriakan pramusaji, tepat ketika satu [Kata 2] keramik hampir terlepas dari genggaman."',
+                        prompt: 'Tebak alat masak dan wadah saji pada pola di atas, lalu tulis 1 paragraf adegan ber-tempo cepat tentang cara tim dapur mengatasi kekacauan pesanan.',
+                        requiredWords: ['kompor', 'piring'],
+                        logicHints: 'Kata 1 adalah perapian atau tungku untuk memasak makanan; Kata 2 adalah wadah bundar datar tempat meletakkan hidangan.',
+                        requiredTheme: 'tekanan kerja di dapur saat komplain',
+                        minLines: 1,
+                        minWords: 28,
+                        evaluationHints: 'Jelas ada pemicu masalah dapur, reaksi cepat tokoh, dan penyelesaian sementara.',
+                        fingerprint: 'fb-dapur-vip-v2-cad2'
+                    },
+                    {
+                        stage: 6,
+                        format: 'puisi_2_larik',
+                        formatLabel: 'Puisi 2 Larik Imajinatif',
+                        title: 'Jejak yang Dihapus Air',
+                        themeSummary: 'Keikhlasan melepaskan kenangan tanpa perlu mengucapkan kata duka',
+                        examplePattern: 'Contoh pola: "Biarkan sapuan [Kata 1] menyentuh pantai senja, menghapus guratan [Kata 2] di pasir tanpa sesal."',
+                        prompt: 'Pecahkan kata gerak air laut dan identitas tertulis pada pola di atas, lalu tulis puisi 2 larik bertema keikhlasan (DILARANG memakai kata "sedih").',
+                        requiredWords: ['ombak', 'nama'],
+                        forbiddenWords: ['sedih'],
+                        logicHints: 'Kata 1 adalah arus air laut yang naik turun ke pantai; Kata 2 adalah sebutan atau identitas seseorang yang biasa ditulis di pasir.',
+                        requiredTheme: 'keikhlasan melepaskan kenangan',
+                        minLines: 2,
+                        minWords: 10,
+                        evaluationHints: 'Dilarang memakai kata sedih; citraan keikhlasan harus terasa logis.',
+                        fingerprint: 'fb-ombak-nama-v2-cad3'
+                    },
+                    {
+                        stage: 7,
+                        format: 'monolog_batin',
+                        formatLabel: 'Monolog Tokoh',
+                        title: 'Kursi Kosong di Hari Kelulusan',
+                        themeSummary: 'Rindu seorang perantau terhadap keluarga jauh pada momen wisuda',
+                        examplePattern: 'Contoh pola: "Dari saku toga ia keluarkan [Kata 1] kusam kiriman kampung, menyimpan catatan [Kata 2] ibu sebelum ia merantau."',
+                        prompt: 'Temukan pembungkus surat kiriman dan harapan batin orang tua pada pola di atas, lalu rangkai 1 paragraf monolog batin yang menyentuh dan masuk akal.',
+                        requiredWords: ['amplop', 'doa'],
+                        logicHints: 'Kata 1 adalah sampul kertas persegi panjang pembungkus surat atau uang kiriman; Kata 2 adalah permohonan tulus kepada Tuhan.',
+                        requiredTheme: 'rindu keluarga dan perjuangan perantau',
+                        minLines: 1,
+                        minWords: 36,
+                        evaluationHints: 'Alur rindu dan refleksi perjuangan perantauan terbangun runtut.',
+                        fingerprint: 'fb-wisuda-doa-v2-cad4'
+                    }
                 ];
 
                 const modeSpec = cleanMode === 'tantangan'
-                    ? 'MODE TANTANGAN (Ketat): setiap tantangan wajib punya batasan jelas (minimal kata/unsur pemicu lebih padat & spesifik, menuntut presisi konflik atau majas).'
+                    ? 'MODE TANTANGAN (Ketat & Kritis): setiap tantangan menuntut logika sebab-akibat tajam, analogi mendalam, dan ketepatan diksi.'
                     : cleanMode === 'acak'
-                        ? 'MODE ACAK (Bervariasi): campur secara acak bentuk tantangan (puisi 2 larik, 1 paragraf adegan dramatis, dialog singkat, monolog batin, pantun/kutipan).'
-                        : 'MODE SANTAI (Ramah & Mengalir): soal ringan-menengah, fokus membiasakan imajinasi siswa dengan 1-2 unsur wajib yang jelas.';
+                        ? 'MODE ACAK (Bervariasi): campur secara acak bentuk tantangan (puisi 2 larik, 1 paragraf adegan dramatis, dialog singkat, monolog batin).'
+                        : 'MODE SANTAI (Ramah & Terarah): soal bertema ringan-menengah dengan petunjuk pola logika yang jelas bagi pemula.';
 
-                const systemPrompt = `Kamu adalah Perancang Tantangan Menulis Kreatif untuk game "Tulis Aku" (membantu Si Beruang Kecil bertumbuh dari Tahap 1 hingga 8).
-Tugasmu menyusun ${count} tantangan menulis berbahasa Indonesia dalam bentuk JSON Array murni TANPA markdown atau penjelasan tambahan.
+                const systemPrompt = `Kamu adalah Perancang Teka-Teki Menulis Kritis untuk permainan literasi "Tulis Aku" (membantu Si Beruang bertumbuh dari Tahap 1 hingga 8).
+Tugasmu menyusun ${count} tantangan menulis berbahasa Indonesia dalam JSON Array murni TANPA markdown.
+
+KONSEP PEDAGOGIS WAJIB (BERPIKIR KRITIS):
+- Kata kunci wajib (requiredWords) TIDAK BOLEH langsung dibocorkan atau disebutkan di dalam "examplePattern" maupun "prompt"!
+- Siswa diberi TEMA ("themeSummary") + CONTOH POLA TEKA-TEKI LOGIKA ("examplePattern" memakai [Kata 1], [Kata 2]) agar mereka MENALAR DAN MENEBAK SENDIRI kata kuncinya sebelum menulis!
+- Setelah menebak, baru mereka menulis karya sesuai alur logika pada "prompt".
 
 KETENTUAN MODE: ${modeSpec}
 
-TINGKAT KESULITAN PER TAHAP (semakin tinggi tahap, semakin sulit & dalam):
-- Tahap 1-2 (Bayi & Balita): tantangan ringan seperti puisi 2 larik dengan 2 kata wajib atau 2-3 kalimat pengamatan suasana.
-- Tahap 3-4 (Anak-anak & Remaja Awal): 1 paragraf adegan konkret (misal mogok kerja, antrean tiket, ruang kelas, pasar malam) dengan kata & konflik wajib.
-- Tahap 5-6 (Remaja & Dewasa Muda): adegan berkonflik/dialog, wajib memasukkan pancaindra & titik emosi.
-- Tahap 7-8 (Dewasa & Tua Bijaksana): dilema moral, monolog filosofis, atau adegan klimaks dengan multi-unsur kompleks & metafora.
-- Item ke-9 s.d. ke-${count} (setelah 8 tahap): tandai "isReserve": true sebagai SOAL CADANGAN dengan tahap acak 4-8!
+TINGKAT KESULITAN PER TAHAP (semakin tinggi tahap, semakin kompleks logikanya):
+- Tahap 1-2: Puisi 2 larik bertema sederhana + teka-teki 2 benda/perasaan konkret.
+- Tahap 3-4: 1 paragraf adegan ber-sebab-akibat konkret (situasi kerja, stasiun, sekolah, pasar) dengan 2 kata kunci tersembunyi.
+- Tahap 5-6: Adegan berkonflik atau dialog + citraan indrawi + logika tindakan tokoh.
+- Tahap 7-8: Monolog reflektif / dilema moral / penutup filosofis dengan 2 unsur kiasan tersembunyi.
+- Item ke-9 s.d. ke-${count}: tandai "isReserve": true sebagai SOAL CADANGAN (tahap 4-8).
 
 ATURAN ANTI-DUPLIKASI:
-DILARANG mengulang atau memparafrase topik/kata kunci yang sudah ada pada daftar terlarang berikut:
+DILARANG mengulang kata kunci atau topik berikut:
 ${JSON.stringify(Array.from(excludedSet).slice(-40))}
 
 FORMAT TIAP ELEMEN JSON:
@@ -2133,17 +2319,20 @@ FORMAT TIAP ELEMEN JSON:
   "isReserve": false,
   "format": "puisi_2_larik | paragraf_adegan | dialog_singkat | monolog_batin",
   "formatLabel": "Label singkat maks 3 kata",
-  "title": "Judul tantangan kreatif (3-5 kata)",
-  "prompt": "Instruksi konkret jelas (mis. menulis puisi 2 larik dari kata A & B, atau 1 paragraf adegan tentang situasi X beserta unsur Y).",
-  "requiredWords": ["kata_wajib_1", "kata_wajib_2"],
-  "requiredTheme": "Inti tema/adegan yang wajib tercermin",
+  "title": "Judul tantangan (3-5 kata)",
+  "themeSummary": "Gambaran tema / situasi utama (diberitahukan ke siswa)",
+  "examplePattern": "Contoh kalimat berpola rumpang [Kata 1] dan [Kata 2] sebagai teka-teki logika — DILARANG menyebut isi requiredWords di sini!",
+  "prompt": "Instruksi menulis kreatif menggunakan kata kunci yang berhasil ditebak dari pola di atas — DILARANG menyebut isi requiredWords!",
+  "requiredWords": ["kata_kunci_1", "kata_kunci_2"],
+  "logicHints": "Petunjuk sebab-akibat/makna tanpa membocorkan kata langsung jika siswa salah menebak.",
+  "requiredTheme": "Inti konflik/tema yang wajib hidup dalam tulisan",
   "minLines": 2,
   "minWords": 12,
-  "evaluationHints": "Pertimbangan utama untuk menilai kelulusan",
+  "evaluationHints": "Kunci alur logika sebab-akibat yang dinilai",
   "fingerprint": "kode-unik-topik-tanpa-spasi"
 }`;
 
-                const userPrompt = `Buatkan ${count} soal Tulis Aku (${reserveOnly ? 'khusus soal cadangan segar' : '8 tahap utama 1..8 + 4 cadangan'}) untuk mode "${cleanMode}" pada slot "${slotKey}". Pastikan setiap soal memiliki kombinasi kata kunci & latar adegan yang segar dan unik.`;
+                const userPrompt = `Buatkan ${count} soal Tulis Aku (${reserveOnly ? 'khusus soal cadangan segar' : '8 tahap utama 1..8 + 4 cadangan'}) untuk mode "${cleanMode}" pada slot "${slotKey}". WAJIB: isi "examplePattern" dan "prompt" TIDAK BOLEH mengandung kata di "requiredWords" agar siswa menalar dan menebak sendiri kata kuncinya dulu!`;
 
                 let generated = [];
                 try {
@@ -2158,7 +2347,7 @@ FORMAT TIAP ELEMEN JSON:
                                         { role: 'user', content: userPrompt }
                                     ],
                                     temperature: 0.85,
-                                    max_tokens: 3200
+                                    max_tokens: 3600
                                 });
                                 rawText = stripThinkBlocks(completion.choices[0]?.message?.content || '');
                                 if (rawText) break;
@@ -2180,6 +2369,19 @@ FORMAT TIAP ELEMEN JSON:
                 const cleanQuestions = [];
                 const seenLocal = new Set(excludedSet);
 
+                // Pelindung anti-bocor: pastikan requiredWords TIDAK muncul mentah di examplePattern / prompt
+                const scrubSecretWords = (txt, secrets, fallbackPlaceholder = '[Kata Kunci]') => {
+                    let out = String(txt || '');
+                    (secrets || []).forEach((kw, idx) => {
+                        const cleanKw = String(kw || '').trim();
+                        if (cleanKw.length < 3) return;
+                        const escaped = cleanKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const re = new RegExp(`["']?\\b${escaped}\\b["']?`, 'gi');
+                        out = out.replace(re, `[Kata ${idx + 1}]`);
+                    });
+                    return out;
+                };
+
                 const pushIfUnique = (qObj, fallbackStage, isRes) => {
                     if (!qObj || !qObj.prompt) return false;
                     const normTitle = String(qObj.title || '').toLowerCase().trim();
@@ -2193,6 +2395,8 @@ FORMAT TIAP ELEMEN JSON:
 
                     const st = Math.max(1, Math.min(8, Number(qObj.stage) || fallbackStage || 1));
                     const baseMinWords = cleanMode === 'tantangan' ? (10 + st * 4) : (6 + st * 3);
+                    const reqWordsArr = Array.isArray(qObj.requiredWords) ? qObj.requiredWords.slice(0, 2).filter(Boolean) : [];
+
                     cleanQuestions.push({
                         id: `${fp}_${Date.now().toString(36)}`,
                         fingerprint: fp,
@@ -2203,13 +2407,16 @@ FORMAT TIAP ELEMEN JSON:
                         format: qObj.format || 'paragraf_adegan',
                         formatLabel: qObj.formatLabel || 'Tantangan Menulis',
                         title: qObj.title || `Tantangan Tahap ${st}`,
-                        prompt: qObj.prompt,
-                        requiredWords: Array.isArray(qObj.requiredWords) ? qObj.requiredWords.slice(0, 4) : [],
+                        themeSummary: qObj.themeSummary || qObj.requiredTheme || qObj.title || 'Tema Kreatif',
+                        examplePattern: scrubSecretWords(qObj.examplePattern || `Pola konteks: cermati petunjuk pada tema "${qObj.requiredTheme || qObj.title}" untuk menemukan ${reqWordsArr.length || 2} kata kuncinya.`, reqWordsArr),
+                        prompt: scrubSecretWords(qObj.prompt, reqWordsArr),
+                        requiredWords: reqWordsArr,
+                        logicHints: scrubSecretWords(qObj.logicHints || 'Cermati hubungan sebab-akibat dan benda/unsur pada contoh pola.', reqWordsArr),
                         forbiddenWords: Array.isArray(qObj.forbiddenWords) ? qObj.forbiddenWords : [],
-                        requiredTheme: qObj.requiredTheme || qObj.title || 'tema tantangan',
+                        requiredTheme: qObj.requiredTheme || qObj.themeSummary || qObj.title || 'tema tantangan',
                         minLines: Number(qObj.minLines) || (qObj.format === 'puisi_2_larik' ? 2 : 1),
                         minWords: Math.max(qObj.format === 'puisi_2_larik' ? 6 : baseMinWords, Number(qObj.minWords) || 8),
-                        evaluationHints: qObj.evaluationHints || 'Seluruh kata kunci & tema wajib menyatu secara logis.',
+                        evaluationHints: qObj.evaluationHints || 'Alur logika sebab-akibat & kata kunci wajib menyatu.',
                         xpReward: (cleanMode === 'tantangan' ? 25 : 15) + st * 3
                     });
                     return true;
@@ -2242,16 +2449,129 @@ FORMAT TIAP ELEMEN JSON:
             }
 
             // ---------------------------------------------------------
-            // [PERMAINAN TULIS AKU] EVALUATOR JAWABAN SUPER CEPAT (GROQ FIRST)
+            // [PERMAINAN TULIS AKU] EVALUATOR KRITIS (TEBAK KATA KUNCI + JURI LOGIKA)
             // ---------------------------------------------------------
             case 'evaluate-tulis-aku-answer': {
                 const {
+                    phase = 'evaluate-writing',
                     mode = 'santai',
                     stage = 1,
                     challenge = {},
-                    userAnswer = ''
+                    userAnswer = '',
+                    guessedWords = [],
+                    acceptedWords = []
                 } = payload;
 
+                const stripThinkBlocks = (raw) => String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+                const reqWords = Array.isArray(challenge.requiredWords) ? challenge.requiredWords : [];
+
+                // --- FASE 1: VERIFIKASI TEBAKAN KATA KUNCI KRITIS ---
+                if (phase === 'guess-keywords') {
+                    const cleanGuesses = (Array.isArray(guessedWords) ? guessedWords : [])
+                        .map((g) => sanitizeText(String(g || '')).toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\s-]/gi, '').trim())
+                        .filter(Boolean);
+
+                    if (cleanGuesses.length < Math.max(1, reqWords.length)) {
+                        return res.status(200).json({
+                            guessPassed: false,
+                            feedback: `Isi semua ${Math.max(1, reqWords.length)} kotak kata kunci berdasarkan pola contoh di atas ya!`
+                        });
+                    }
+
+                    // Cek kecocokan langsung atau akar kata bersih
+                    const targetClean = reqWords.map((w) => String(w || '').toLowerCase().trim());
+                    const exactMatchAll = targetClean.length > 0 && targetClean.every((tw, idx) => {
+                        const g = cleanGuesses[idx] || '';
+                        return g === tw || (g.length >= 3 && (g.includes(tw) || tw.includes(g)));
+                    }) || (
+                        // Juga izinkan jika urutannya tertukar
+                        targetClean.length > 1 && targetClean.every((tw) => cleanGuesses.some((g) => g === tw || (g.length >= 3 && (g.includes(tw) || tw.includes(g)))))
+                    );
+
+                    if (exactMatchAll) {
+                        return res.status(200).json({
+                            guessPassed: true,
+                            acceptedWords: reqWords,
+                            feedback: `Tepat sekali! Kata kunci "${reqWords.join('" dan "')}" menyatu pas dengan pola logika dan temanya. Sekarang tuangkan ke dalam tulisanmu!`
+                        });
+                    }
+
+                    // Evaluasi kecocokan logis/sinonim secara cerdas bila tebakan beda kata namun masuk akal
+                    const logicPrompt = `Kamu adalah Pemandu Logika Bahasa untuk Si Beruang di game Tulis Aku.
+Siswa harus menebak kata kunci tersembunyi untuk slot [Kata 1]${reqWords.length > 1 ? ', [Kata 2]' : ''} dari pola contoh berikut:
+- Tema: ${challenge.themeSummary || challenge.requiredTheme || '-'}
+- Contoh Pola Rumpang: ${challenge.examplePattern || challenge.prompt || '-'}
+- Jawaban Kunci Referensi: ${JSON.stringify(reqWords)}
+- Tebakan Siswa: ${JSON.stringify(cleanGuesses)}
+
+TUGAS KRITIS:
+1. Cek apakah tebakan siswa BENAR secara logika sebab-akibat dan makna konteks ketika dimasukkan ke dalam slot rumpang [Kata 1]${reqWords.length > 1 ? ' / [Kata 2]' : ''} pada contoh pola!
+2. Jika sama persis atau merupakan padanan kata / sinonim konkret yang benar-benar masuk akal dan selaras dengan tema -> "guessPassed": true.
+3. Jika melenceng atau kurang logis -> "guessPassed": false, lalu beri komentar logika singkat + petunjuk menuntun (JANGAN pernah menyebut/membocorkan isi ${JSON.stringify(reqWords)} secara langsung!).
+4. DILARANG menyebut kata "AI", "sistem", atau "model". Gunakan sudut pandang Si Beruang.
+
+KELUARAN WAJIB JSON MURNI:
+{
+  "guessPassed": true atau false,
+  "acceptedWords": ["kata_diterima_1", ...],
+  "feedback": "1 kalimat tanggapan kritis & ramah dari Si Beruang (tanpa membocorkan kunci jawaban jika salah)."
+}`;
+
+                    let guessEval = null;
+                    if (groq) {
+                        for (const mName of GROQ_MODELS) {
+                            try {
+                                const comp = await groq.chat.completions.create({
+                                    model: mName,
+                                    messages: [
+                                        { role: 'system', content: logicPrompt },
+                                        { role: 'user', content: `Evaluasi logika tebakan siswa: ${JSON.stringify(cleanGuesses)}` }
+                                    ],
+                                    temperature: 0.2,
+                                    max_tokens: 400
+                                });
+                                const candidate = extractJSON(stripThinkBlocks(comp.choices[0]?.message?.content || ''));
+                                if (candidate && typeof candidate.guessPassed === 'boolean') {
+                                    guessEval = candidate;
+                                    break;
+                                }
+                            } catch (_) {}
+                        }
+                    }
+
+                    if (!guessEval) {
+                        try {
+                            const rawF = stripThinkBlocks(await generateWithFallback(logicPrompt, `Tebakan: ${JSON.stringify(cleanGuesses)}`, 0.2, true, false));
+                            guessEval = extractJSON(rawF);
+                        } catch (_) {}
+                    }
+
+                    if (!guessEval) {
+                        guessEval = {
+                            guessPassed: false,
+                            feedback: `Hmm, kata "${cleanGuesses.join(', ')}" belum terasa pas saat dimasukkan ke rumpang pola contoh di atas. ${challenge.logicHints || 'Coba telusuri lagi hubungan benda dan suasananya!'}`
+                        };
+                    }
+
+                    // Jika jawaban siswa salah dan AI tidak sengaja menulis kata kunci, bersihkan dari feedback!
+                    let safeGuessFeedback = String(guessEval.feedback || '');
+                    if (!guessEval.guessPassed) {
+                        targetClean.forEach((kw) => {
+                            if (kw.length >= 3) {
+                                const re = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+                                safeGuessFeedback = safeGuessFeedback.replace(re, '****');
+                            }
+                        });
+                    }
+
+                    return res.status(200).json({
+                        guessPassed: Boolean(guessEval.guessPassed),
+                        acceptedWords: guessEval.guessPassed ? (Array.isArray(guessEval.acceptedWords) && guessEval.acceptedWords.length ? guessEval.acceptedWords : cleanGuesses) : [],
+                        feedback: safeGuessFeedback
+                    });
+                }
+
+                // --- FASE 2: EVALUASI TULISAN AKHIR (KRITIS LOGIKA & ALUR) ---
                 const cleanAnswer = sanitizeText(userAnswer || '');
                 const words = cleanAnswer ? cleanAnswer.split(/\s+/).filter(Boolean) : [];
                 const lines = cleanAnswer ? cleanAnswer.split(/\r?\n+/).map((l) => l.trim()).filter(Boolean) : [];
@@ -2261,79 +2581,83 @@ FORMAT TIAP ELEMEN JSON:
                     ? String(mode).toLowerCase()
                     : 'santai';
                 const numStage = Math.max(1, Math.min(8, Number(stage) || 1));
-                const reqWords = Array.isArray(challenge.requiredWords) ? challenge.requiredWords : [];
+                const activeReqWords = (Array.isArray(acceptedWords) && acceptedWords.length > 0) ? acceptedWords : reqWords;
                 const forbiddenWords = Array.isArray(challenge.forbiddenWords) ? challenge.forbiddenWords : [];
                 const minWords = Number(challenge.minWords) || (challenge.format === 'puisi_2_larik' ? 6 : 12);
                 const minLines = Number(challenge.minLines) || (challenge.format === 'puisi_2_larik' ? 2 : 1);
 
-                // 1. Pre-check keras (spam, kosong, plagiat instruksi, kata terlarang, panjang minimal)
+                // 1. Pre-check keras (spam, kosong, menyalin instruksi/pola contoh, kata terlarang)
                 const hasSpamRepeat = /(.)\1{5,}/i.test(cleanAnswer);
                 const promptSample = String(challenge.prompt || '').toLowerCase().slice(0, 45);
-                const copiedPrompt = promptSample.length > 20 && lowerAns.includes(promptSample);
+                const patternSample = String(challenge.examplePattern || '').toLowerCase().slice(0, 45);
+                const copiedPrompt = (promptSample.length > 20 && lowerAns.includes(promptSample))
+                    || (patternSample.length > 20 && lowerAns.includes(patternSample));
 
                 if (!cleanAnswer || words.length < 4 || hasSpamRepeat || copiedPrompt) {
                     return res.status(200).json({
                         passed: false,
                         score: 18,
-                        engine: 'guardrail',
                         criteria: {
-                            unsurWajib: { ok: false, note: 'Tulisan terlalu singkat, berulang, atau menyalin soal.' },
-                            kesesuaianBentuk: { ok: false, note: 'Belum membentuk karya tulis utuh.' },
-                            kedalamanKreatif: { ok: false, note: 'Tuliskan karya orisinalmu sesuai tantangan.' }
+                            unsurWajib: { ok: false, note: 'Tulisan terlalu singkat, berulang, atau menyalin contoh soal.' },
+                            kesesuaianBentuk: { ok: false, note: 'Belum membentuk karya orisinal utuh.' },
+                            kedalamanKreatif: { ok: false, note: 'Tulis karyamu sendiri dengan alur yang masuk akal.' }
                         },
-                        feedback: 'Tulisan belum memenuhi wujud karya yang diminta (terlalu singkat atau sekadar mengulang instruksi).',
-                        bearReaction: 'Hooaam... Si Beruang menguap dan kembali tidur karena ceritanya belum jadi!'
+                        feedback: 'Si Beruang butuh karya aslimu sendiri (jangan menyalin kalimat pola contoh atau menulis terlalu singkat).',
+                        bearReaction: 'Hooaam... Si Beruang menguap dan kembali tidur karena ceritanya belum orisinal!'
                     });
                 }
 
-                const missingKeywords = reqWords.filter((w) => !lowerAns.includes(String(w).toLowerCase().trim()));
+                const missingKeywords = activeReqWords.filter((w) => {
+                    const base = String(w || '').toLowerCase().trim();
+                    return base && !lowerAns.includes(base);
+                });
                 const hitForbidden = forbiddenWords.filter((w) => lowerAns.includes(String(w).toLowerCase().trim()));
                 if (hitForbidden.length > 0) {
                     return res.status(200).json({
                         passed: false,
                         score: 35,
-                        engine: 'guardrail',
                         criteria: {
-                            unsurWajib: { ok: false, note: `Memakai kata terlarang: "${hitForbidden.join(', ')}".` },
+                            unsurWajib: { ok: false, note: `Memakai kata pantangan: "${hitForbidden.join(', ')}".` },
                             kesesuaianBentuk: { ok: lines.length >= minLines, note: `Terdeteksi ${lines.length} baris / ${words.length} kata.` },
-                            kedalamanKreatif: { ok: false, note: 'Patuhi pantangan diksi pada soal.' }
+                            kedalamanKreatif: { ok: false, note: 'Patuhi pantangan diksi pada tantangan.' }
                         },
-                        feedback: `Terdapat kata yang dilarang dipakai dalam tantangan ini (${hitForbidden.join(', ')}).`,
-                        bearReaction: 'Ups! Ada kata pantangan tertulis, Si Beruang menutup mata dan tidur lagi!'
+                        feedback: `Wah, ada kata yang dilarang dipakai pada tantangan ini (${hitForbidden.join(', ')}).`,
+                        bearReaction: 'Ups! Kata pantangan tertulis, Si Beruang menutup mata dan tidur lagi!'
                     });
                 }
 
-                const stripThinkBlocks = (raw) => String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-                const passThreshold = cleanMode === 'tantangan' ? 74 : (cleanMode === 'acak' ? 70 : 65);
+                const passThreshold = cleanMode === 'tantangan' ? 75 : (cleanMode === 'acak' ? 70 : 65);
 
-                const systemPrompt = `Kamu adalah Juri Sastra AI yang TELITI, ADIL, dan TEGAS untuk game "Tulis Aku" Cendekia Aksara.
-Kamu TIDAK BOLEH langsung meluluskan jawaban secara asal. Nilai karya siswa berdasarkan BUKTI TEKS AKTUAL dengan ketat!
+                const systemPrompt = `Kamu adalah Pembaca & Kritikus Sastra yang TELITI, KRITIS, dan ADIL untuk game "Tulis Aku".
+Nilai karya siswa dengan menelusuri ALUR LOGIKA, SEBAB-AKIBAT, dan KESATUAN MAKNA — jangan meluluskan tulisan yang hanya asal menempelkan kata kunci tanpa nalar cerita yang masuk akal!
+PENTING: Jangan pernah menyebut kata "AI", "Groq", "sistem", atau "model". Pakai gaya bicara Si Beruang yang cerdas namun hangat.
 
-TANTANGAN:
-- Mode: ${cleanMode.toUpperCase()} | Tahap Beruang: ${numStage} dari 8
-- Format Diminta: ${challenge.formatLabel || challenge.format || 'Bebas'} (Minimal ${minWords} kata, minimal ${minLines} baris jika puisi)
-- Instruksi Lengkap: ${challenge.prompt || '-'}
-- Kata Kunci Wajib: ${JSON.stringify(reqWords)}
-- Tema / Unsur Adegan Wajib: ${challenge.requiredTheme || '-'}
-- Pertimbangan Penilaian Khusus: ${challenge.evaluationHints || '-'}
+DETAIL TANTANGAN:
+- Mode: ${cleanMode.toUpperCase()} | Tahap Pertumbuhan: ${numStage} dari 8
+- Bentuk Diminta: ${challenge.formatLabel || challenge.format || 'Bebas'} (Min. ${minWords} kata, min. ${minLines} baris jika puisi)
+- Tema / Situasi: ${challenge.themeSummary || challenge.requiredTheme || '-'}
+- Contoh Pola & Instruksi: ${challenge.examplePattern || ''} | ${challenge.prompt || '-'}
+- Kata Kunci yang Harus Terjalin: ${JSON.stringify(activeReqWords)}
+- Pertimbangan Penilaian: ${challenge.evaluationHints || '-'}
 
-ATURAN PENILAIAN KETAT:
-1. Periksa apakah UNSUR TEMA WAJIB benar-benar hidup di dalam tulisan! (Contoh: jika soal meminta adegan tentang "mogok kerja", tetapi tulisan hanya membicarakan hal lain tanpa peristiwa/konflik mogok kerja -> passed HARUS false!).
-2. Periksa apakah semua kata kunci wajib hadir secara natural, tidak asal tempel di kalimat acak.
-3. Periksa bentuk tulisan: jika diminta "puisi 2 larik", harus tampak sebagai 2 baris puitis bermakna; jika "1 paragraf adegan", harus memuat latar, aksi/peristiwa, atau emosi yang jelas.
-4. Ambang kelulusan skor untuk mode ini adalah ${passThreshold}/100. Bila di bawah ${passThreshold} atau unsur utama tidak ada -> "passed": false!
+KRITERIA PENILAIAN KRITIS:
+1. LOGIKA & SEBAB-AKIBAT: Apakah rangkaian peristiwa, dialog, atau imaji puisi berjalan masuk akal? (Contoh: bila adegan mogok kerja, harus terlihat hubungan antara tuntutan/konflik dan aksi di tempat; bila puisi kontras, harus terasa pertentangan maknanya — BUKAN kalimat terputus yang asal menyelipkan kata kunci -> jika tidak logis/asal tempel, "passed": false!).
+2. KESESUAIAN TEMA: Apakah tema "${challenge.requiredTheme || challenge.themeSummary}" benar-benar hidup, bukan sekadar basa-basi?
+3. KEPADUAN KATA KUNCI: Apakah semua kata kunci terpakai menyatu alami dengan kalimat?
+4. KESESUAIAN BENTUK: Untuk "puisi 2 larik", wajib 2 larik utuh bermakna puitis; untuk "1 paragraf adegan", wajib memaparkan latar, aksi, dan suasana dengan jumlah kata memadai.
+5. Ambang kelulusan mode ini: ${passThreshold}/100.
 
-KELUARAN WAJIB JSON OBJECT MURNI TANPA MARKDOWN:
+KELUARAN WAJIB JSON MURNI TANPA MARKDOWN:
 {
   "passed": true atau false,
   "score": angka 0-100,
   "criteria": {
-    "unsurWajib": { "ok": true/false, "note": "Penilaian jujur soal kata kunci & unsur tema" },
-    "kesesuaianBentuk": { "ok": true/false, "note": "Penilaian bentuk puisi/paragraf/panjang" },
-    "kedalamanKreatif": { "ok": true/false, "note": "Penilaian diksi, logika adegan, & daya hidup" }
+    "unsurWajib": { "ok": true/false, "note": "Penilaian jujur pemakaian kata kunci & tema" },
+    "kesesuaianBentuk": { "ok": true/false, "note": "Penilaian bentuk puisi/paragraf & panjang kata" },
+    "kedalamanKreatif": { "ok": true/false, "note": "Penilaian kritis alur logika sebab-akibat & daya hidup" }
   },
-  "feedback": "1-2 kalimat evaluasi spesifik menyebut bukti dari teks siswa.",
-  "bearReaction": "1 kalimat lucu ekspresi Si Beruang (senang jika lulus, atau kecewa & kembali tertidur jika gagal)."
+  "feedback": "1-2 kalimat tanggapan kritis Si Beruang yang spesifik menyebut bagian tulisan siswa (tanpa kata AI/Groq).",
+  "bearReaction": "1 kalimat ekspresi Si Beruang (semangat tumbuh jika lulus, atau menguap tertidur lagi jika alurnya masih lemah)."
 }`;
 
                 const userPrompt = `Karya Siswa (${words.length} kata, ${lines.length} baris):
@@ -2342,7 +2666,6 @@ ${cleanAnswer}
 """`;
 
                 let parsedEval = null;
-                let engineUsed = 'groq';
 
                 if (groq) {
                     for (const model of GROQ_MODELS) {
@@ -2360,7 +2683,6 @@ ${cleanAnswer}
                             const candidate = extractJSON(raw);
                             if (candidate && typeof candidate.score !== 'undefined') {
                                 parsedEval = candidate;
-                                engineUsed = `groq (${model})`;
                                 break;
                             }
                         } catch (err) {
@@ -2373,15 +2695,12 @@ ${cleanAnswer}
                     try {
                         const rawFallback = stripThinkBlocks(await generateWithFallback(systemPrompt, userPrompt, 0.25, true, false));
                         parsedEval = extractJSON(rawFallback);
-                        engineUsed = 'fallback-ai';
                     } catch (err) {
-                        console.warn('Eval fallback AI gagal:', err.message);
+                        console.warn('Eval fallback gagal:', err.message);
                     }
                 }
 
-                // Deterministic local heuristic evaluation if all AI engines fail
                 if (!parsedEval) {
-                    engineUsed = 'heuristic';
                     const wordsOk = words.length >= minWords;
                     const linesOk = lines.length >= minLines;
                     const kwOk = missingKeywords.length === 0;
@@ -2393,7 +2712,7 @@ ${cleanAnswer}
                         criteria: {
                             unsurWajib: {
                                 ok: kwOk,
-                                note: kwOk ? 'Kata kunci wajib terdeteksi.' : `Kata kunci belum muncul: ${missingKeywords.join(', ')}.`
+                                note: kwOk ? 'Kata kunci hasil tebakan terjalin dalam tulisan.' : `Kata kunci belum muncul: ${missingKeywords.join(', ')}.`
                             },
                             kesesuaianBentuk: {
                                 ok: wordsOk && linesOk,
@@ -2401,40 +2720,42 @@ ${cleanAnswer}
                             },
                             kedalamanKreatif: {
                                 ok: passedLocal,
-                                note: passedLocal ? 'Struktur kalimat cukup utuh.' : 'Kembangkan isi agar unsur tema terasa lebih hidup.'
+                                note: passedLocal ? 'Alur kalimat cukup runtut dan utuh.' : 'Kembangkan alur sebab-akibat agar tema lebih terasa hidup.'
                             }
                         },
                         feedback: passedLocal
-                            ? 'Unsur kunci dan struktur tantangan sudah terpenuhi dengan rapi.'
-                            : `Masih ada syarat yang belum lengkap (${!kwOk ? `kata: ${missingKeywords.join(', ')}` : `minimal ${minWords} kata & ${minLines} baris`}).`,
+                            ? 'Alur tulisanmu runtut dan seluruh kata kunci menyatu rapi dengan tema.'
+                            : `Masih ada bagian yang perlu dilengkapi (${!kwOk ? `kata kunci: ${missingKeywords.join(', ')}` : `minimal ${minWords} kata & ${minLines} baris`}).`,
                         bearReaction: passedLocal
                             ? 'Yeay! Si Beruang membuka mata dan bertambah semangat!'
-                            : 'Hooaam... Si Beruang merasa unsurnya belum pas dan kembali tidur!'
+                            : 'Hooaam... Si Beruang merasa alurnya belum pas dan kembali tidur!'
                     };
                 }
 
-                // Enforced consistency between criteria/missing keywords & final boolean passed
                 const numericScore = Math.max(0, Math.min(100, Number(parsedEval.score) || 0));
                 const critUnsur = parsedEval.criteria?.unsurWajib;
                 const critForm = parsedEval.criteria?.kesesuaianBentuk;
+                const critLogic = parsedEval.criteria?.kedalamanKreatif;
                 const strictPass = Boolean(parsedEval.passed)
                     && numericScore >= passThreshold
                     && (critUnsur ? critUnsur.ok !== false : true)
-                    && (cleanMode === 'tantangan' ? missingKeywords.length === 0 && words.length >= Math.max(4, minWords - 2) : true);
+                    && (critLogic ? critLogic.ok !== false : true)
+                    && missingKeywords.length === 0
+                    && words.length >= Math.max(4, minWords - 2)
+                    && lines.length >= minLines;
 
                 return res.status(200).json({
                     passed: strictPass,
                     score: numericScore,
-                    engine: engineUsed,
                     criteria: {
                         unsurWajib: critUnsur || { ok: missingKeywords.length === 0, note: missingKeywords.length ? `Kurang kata: ${missingKeywords.join(', ')}` : 'Unsur utama terpenuhi.' },
-                        kesesuaianBentuk: critForm || { ok: lines.length >= minLines && words.length >= Math.max(4, minWords - 3), note: `${words.length} kata, ${lines.length} baris.` },
-                        kedalamanKreatif: parsedEval.criteria?.kedalamanKreatif || { ok: strictPass, note: parsedEval.feedback || '-' }
+                        kesesuaianBentuk: critForm || { ok: lines.length >= minLines && words.length >= Math.max(4, minWords - 2), note: `${words.length} kata, ${lines.length} baris.` },
+                        kedalamanKreatif: critLogic || { ok: strictPass, note: parsedEval.feedback || '-' }
                     },
-                    feedback: parsedEval.feedback || (strictPass ? 'Karyamu memenuhi tantangan dengan baik!' : 'Beberapa pertimbangan tantangan belum terpenuhi.'),
+                    feedback: parsedEval.feedback || (strictPass ? 'Karyamu memenuhi alur logika dan tantangan dengan baik!' : 'Beberapa alur logika atau syarat tantangan belum terpenuhi.'),
                     bearReaction: parsedEval.bearReaction || (strictPass
                         ? 'Hore! Si Beruang makin bersemangat dan naik ke tahap berikutnya!'
-                        : 'Yah... Unsur ceritanya belum mengena, Si Beruang pun tertidur lagi.')
+                        : 'Yah... Alur ceritanya belum mengena, Si Beruang pun tertidur lagi.')
                 });
             }
 

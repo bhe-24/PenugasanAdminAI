@@ -54,23 +54,25 @@
                 : `<path d="M-6 9 Q0 13 6 9" fill="none" stroke="${FUR_DARK}" stroke-width="2" stroke-linecap="round"/>`;
 
         return `
-            <g class="bear-head" transform="translate(${cx}, ${cy}) scale(${scale})">
-                <g class="bear-ear-l">
-                    <circle cx="-30" cy="-24" r="13" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2"/>
-                    <circle cx="-30" cy="-24" r="7" fill="${FUR_MID}"/>
+            <g class="bear-head-anchor" transform="translate(${cx}, ${cy}) scale(${scale})">
+                <g class="bear-head">
+                    <g class="bear-ear-l">
+                        <circle cx="-30" cy="-24" r="13" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2"/>
+                        <circle cx="-30" cy="-24" r="7" fill="${FUR_MID}"/>
+                    </g>
+                    <g class="bear-ear-r">
+                        <circle cx="30" cy="-24" r="13" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2"/>
+                        <circle cx="30" cy="-24" r="7" fill="${FUR_MID}"/>
+                    </g>
+                    <ellipse cx="0" cy="0" rx="39" ry="33" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2.2"/>
+                    <ellipse cx="-24" cy="6" rx="6.5" ry="4.5" fill="${CHEEK}" opacity="0.85"/>
+                    <ellipse cx="24" cy="6" rx="6.5" ry="4.5" fill="${CHEEK}" opacity="0.85"/>
+                    <ellipse cx="0" cy="8" rx="14.5" ry="11" fill="${CREAM}"/>
+                    <ellipse cx="0" cy="3" rx="5.5" ry="3.8" fill="${FUR_DARK}"/>
+                    ${mouth}
+                    ${leftEye}
+                    ${rightEye}
                 </g>
-                <g class="bear-ear-r">
-                    <circle cx="30" cy="-24" r="13" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2"/>
-                    <circle cx="30" cy="-24" r="7" fill="${FUR_MID}"/>
-                </g>
-                <ellipse cx="0" cy="0" rx="39" ry="33" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2.2"/>
-                <ellipse cx="-24" cy="6" rx="6.5" ry="4.5" fill="${CHEEK}" opacity="0.85"/>
-                <ellipse cx="24" cy="6" rx="6.5" ry="4.5" fill="${CHEEK}" opacity="0.85"/>
-                <ellipse cx="0" cy="8" rx="14.5" ry="11" fill="${CREAM}"/>
-                <ellipse cx="0" cy="3" rx="5.5" ry="3.8" fill="${FUR_DARK}"/>
-                ${mouth}
-                ${leftEye}
-                ${rightEye}
             </g>
         `;
     }
@@ -196,7 +198,7 @@
             `;
         } else if (isCrossed) {
             armsHtml = `
-                <g class="bear-torso">
+                <g class="bear-arms-crossed">
                     <rect x="98" y="128" width="64" height="17" rx="8.5" fill="${FUR_MID}" stroke="${FUR_DARK}" stroke-width="2"/>
                     <ellipse cx="114" cy="136" rx="12" ry="7" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="1.8"/>
                     <ellipse cx="146" cy="136" rx="12" ry="7" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="1.8"/>
@@ -228,7 +230,7 @@
 
         const faceProps = {
             cx: 130,
-            cy: effectiveStage === 3 ? 80 : 72,
+            cy: effectiveStage === 3 ? 79 : 72,
             scale: effectiveStage === 3 ? 0.94 : 1,
             eyesClosed: effectiveStage === 7 || effectiveStage === 8,
             winkLeft: effectiveStage === 6,
@@ -237,10 +239,11 @@
 
         const bodyW = effectiveStage >= 7 ? 38 : 32;
         const bodyH = effectiveStage >= 7 ? 36 : 31;
-        const bodyY = effectiveStage === 3 ? 142 : 138;
+        const bodyY = effectiveStage === 3 ? 140 : 138;
+        const neckTop = bodyY - bodyH + 2;
 
         return `
-            <svg class="ta-bear-svg ${svgMods}" viewBox="0 0 260 205" aria-label="Si Beruang Tahap ${effectiveStage}">
+            <svg class="ta-bear-svg ${svgMods}" style="display:block;" viewBox="0 0 260 205" aria-label="Si Beruang Tahap ${effectiveStage}">
                 <ellipse cx="130" cy="184" rx="54" ry="10" fill="rgba(0,31,63,0.12)"/>
                 <g class="bear-whole">
                     <circle class="bear-tail" cx="92" cy="160" r="9" fill="${FUR}" stroke="${FUR_DARK}" stroke-width="2"/>
@@ -256,8 +259,8 @@
                         <ellipse cx="130" cy="${bodyY + 4}" rx="${bodyW - 14}" ry="${bodyH - 13}" fill="${FUR_MID}" opacity="0.5"/>
                         ${strapsHtml}
                         <g class="bear-scarf">
-                            <path d="M104 109 Q130 120 156 109 L146 130 Q130 137 114 130 Z" fill="${SCARF}" stroke="${SCARF_DARK}" stroke-width="1.8"/>
-                            ${renderBookLogo(130, 118)}
+                            <path d="M104 ${neckTop} Q130 ${neckTop + 11} 156 ${neckTop} L146 ${neckTop + 21} Q130 ${neckTop + 28} 114 ${neckTop + 21} Z" fill="${SCARF}" stroke="${SCARF_DARK}" stroke-width="1.8"/>
+                            ${renderBookLogo(130, neckTop + 9)}
                         </g>
                     </g>
                     ${armsHtml}
