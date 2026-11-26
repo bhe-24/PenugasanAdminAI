@@ -76,20 +76,8 @@ function formatCountdownMs(diffMs) {
 function startCountdowns() {
     const tick = () => {
         const now = Date.now();
-        const wib = new Date(now + WIB_OFFSET_MS);
 
-        // Next 12:00 WIB
-        const next12WibAsUtc = Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate(), 12, 0, 0) - WIB_OFFSET_MS;
-        const target12 = now < next12WibAsUtc ? next12WibAsUtc : next12WibAsUtc + 86400000;
-        const el12 = document.getElementById('taCountdown12Wib');
-        if (el12) el12.textContent = formatCountdownMs(target12 - now);
-
-        // Next 00:00 WIB (beruang kembali tidur)
-        const next00WibAsUtc = Date.UTC(wib.getUTCFullYear(), wib.getUTCMonth(), wib.getUTCDate() + 1, 0, 0, 0) - WIB_OFFSET_MS;
-        const el00 = document.getElementById('taCountdown00Wib');
-        if (el00) el00.textContent = formatCountdownMs(next00WibAsUtc - now);
-
-        // If midnight crossed while playing, reset bear gracefully!
+        // Jika melewati tengah malam 00:00 WIB atau slot 12:00 WIB saat bermain, perbarui sesi otomatis
         const liveDay = getWibDayKey(now);
         const liveSlot = get12WibSlotKey(now);
         if (state.wibDayKey && liveDay !== state.wibDayKey) {
@@ -101,7 +89,7 @@ function startCountdowns() {
             ensureQuestionsForCurrentSlot(true);
         }
 
-        // Update elapsed play timer if actively waking bear
+        // Perbarui waktu berjalan yang aktif
         if (!state.completedToday && state.startedAtMs > 0) {
             const sec = Math.max(0, Math.floor((now - state.startedAtMs) / 1000));
             const minTxt = String(Math.floor(sec / 60)).padStart(2, '0');
@@ -966,20 +954,28 @@ async function submitChallengeAnswer() {
     }
 }
 
+function renderHeaderModePill() {
+    const modePill = document.getElementById('taActiveModePill');
+    if (!modePill) return;
+
+    const modeMap = {
+        santai: { icon: 'coffee', label: 'Santai', bg: '#ede9fe', color: '#6d28d9', border: '#ddd6fe' },
+        tantangan: { icon: 'zap', label: 'Tantangan', bg: '#fef3c7', color: '#b45309', border: '#fde68a' },
+        acak: { icon: 'shuffle', label: 'Acak', bg: '#e0e7ff', color: '#4338ca', border: '#c7d2fe' }
+    };
+    const m = modeMap[state.mode] || modeMap.santai;
+    modePill.style.background = m.bg;
+    modePill.style.color = m.color;
+    modePill.style.borderColor = m.border;
+    modePill.innerHTML = `<i data-lucide="${m.icon}" style="width:11px; height:11px; flex-shrink:0;"></i> ${m.label}`;
+    if (window.lucide) window.lucide.createIcons();
+}
+
 function renderFullArena() {
     const xpBadge = document.getElementById('taXpBadge');
     if (xpBadge) xpBadge.textContent = `+${state.xpEarnedToday} XP`;
 
-    const modePill = document.getElementById('taActiveModePill');
-    if (modePill) {
-        const modeMap = {
-            santai: '☕ Mode Santai',
-            tantangan: '⚡ Mode Tantangan',
-            acak: '🎲 Mode Acak'
-        };
-        modePill.textContent = modeMap[state.mode] || '☕ Mode Santai';
-    }
-
+    renderHeaderModePill();
     updateBearView();
     renderChallengeArea();
 }
@@ -1049,6 +1045,7 @@ async function loadGameSession() {
 function initUiControls() {
     const btnBack = document.getElementById('taBackLink');
     if (btnBack && cfg.backUrl) btnBack.href = cfg.backUrl;
+    renderHeaderModePill();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -166,6 +166,11 @@
             border-color: #cbd5e1;
         }
 
+        .option-label-card.locked {
+            cursor: default;
+            pointer-events: none;
+        }
+
         .option-label-card.selected {
             background: #f0fdf4;
             border-color: #22c55e;
@@ -580,7 +585,8 @@
 
             rawQuestions.forEach((q, idx) => {
                 const qNum = idx + 1;
-                const isAnswered = userAnswers[idx] !== undefined;
+                const isAnswered = userAnswers[idx] !== undefined && userAnswers[idx] !== null;
+                const isLocked = isAnswered || isReviewMode;
                 const selectedOpt = userAnswers[idx];
                 const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
 
@@ -611,11 +617,12 @@
                     }
 
                     optionsHtml += `
-                        <label class="option-label-card ${isSelected ? 'selected' : ''}" style="${optCustomStyle}" onclick="handleOptionSelect(${idx}, ${optIdx})">
-                            <input type="radio" name="opt_radio_${idx}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${isReviewMode ? 'disabled' : ''}>
+                        <label class="option-label-card ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}" style="${optCustomStyle}" ${isLocked ? '' : `onclick="handleOptionSelect(${idx}, ${optIdx})"`}>
+                            <input type="radio" name="opt_radio_${idx}" value="${optIdx}" ${isSelected ? 'checked' : ''} ${isLocked ? 'disabled' : ''}>
                             <span class="opt-letter-circle">${letter}</span>
                             <span class="opt-text-val">${cleanOpt}</span>
                             ${isAnswered && optIdx === correctIdx ? '<span style="font-size:0.68rem; font-weight:700; color:#059669; margin-left:auto;"><i data-lucide="check" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Benar</span>' : ''}
+                            ${isAnswered && isSelected && optIdx !== correctIdx ? '<span style="font-size:0.68rem; font-weight:700; color:#dc2626; margin-left:auto;"><i data-lucide="x" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Pilihanmu</span>' : ''}
                         </label>
                     `;
                 });
@@ -630,8 +637,8 @@
                     <div class="q-top-row">
                         <span class="q-num-badge">Nomor ${qNum}</span>
                         <span class="q-status-tag ${isAnswered ? 'done' : ''}" id="statusTag_${idx}">
-                            <i data-lucide="${isAnswered ? 'check-circle-2' : 'circle'}" style="width:13px; height:13px;"></i>
-                            ${isAnswered ? 'Terjawab' : 'Belum Dijawab'}
+                            <i data-lucide="${isAnswered ? 'lock' : 'circle'}" style="width:13px; height:13px;"></i>
+                            ${isAnswered ? 'Terjawab &amp; Terkunci' : 'Belum Dijawab'}
                         </span>
                     </div>
                     <div class="q-text-body">${q.q || q.question}</div>
@@ -647,9 +654,10 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        // Handler saat siswa memilih opsi jawaban (Evaluasi Langsung Otomatis & Kutipan Materi)
+        // Handler saat siswa memilih opsi jawaban (Evaluasi Langsung & Kunci Permanen per Soal)
         window.handleOptionSelect = (qIdx, optIdx) => {
-            if (isSubmitted) return; // Mode evaluasi terkunci
+            if (isSubmitted) return; // Mode evaluasi akhir terkunci
+            if (userAnswers[qIdx] !== undefined && userAnswers[qIdx] !== null) return; // Sudah dijawab — kunci jawaban tidak bisa dipindah!
 
             userAnswers[qIdx] = optIdx;
 
@@ -663,13 +671,17 @@
             const q = rawQuestions[qIdx];
             const correctIdx = q.correctIndex !== undefined ? q.correctIndex : (q.answer !== undefined ? q.answer : (q.answerIndex !== undefined ? q.answerIndex : (q.correctIdx !== undefined ? q.correctIdx : 0)));
 
-            // Perbarui visual opsi kartu yang dipilih secara instan
+            // Perbarui visual opsi kartu yang dipilih & KUNCI semua opsi soal ini
             const card = document.getElementById(`qCard_${qIdx}`);
             if (card) {
                 card.classList.add('answered');
                 const labels = card.querySelectorAll('.option-label-card');
                 labels.forEach((lbl, idx) => {
+                    lbl.classList.add('locked');
+                    lbl.removeAttribute('onclick');
                     const radio = lbl.querySelector('input[type="radio"]');
+                    if (radio) radio.disabled = true;
+
                     if (idx === optIdx) {
                         lbl.classList.add('selected');
                         if (radio) radio.checked = true;
@@ -678,16 +690,19 @@
                             lbl.style.background = '#ecfdf5';
                             lbl.style.color = '#065f46';
                             lbl.style.fontWeight = '700';
+                            lbl.insertAdjacentHTML('beforeend', '<span style="font-size:0.68rem; font-weight:700; color:#059669; margin-left:auto;"><i data-lucide="check" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Benar</span>');
                         } else {
                             lbl.style.borderColor = '#dc2626';
                             lbl.style.background = '#fef2f2';
                             lbl.style.color = '#991b1b';
+                            lbl.insertAdjacentHTML('beforeend', '<span style="font-size:0.68rem; font-weight:700; color:#dc2626; margin-left:auto;"><i data-lucide="x" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Pilihanmu</span>');
                         }
                     } else if (idx === correctIdx) {
                         // Sorot opsi yang benar agar siswa langsung paham
                         lbl.classList.remove('selected');
                         lbl.style.borderColor = '#059669';
                         lbl.style.background = '#f0fdf4';
+                        lbl.insertAdjacentHTML('beforeend', '<span style="font-size:0.68rem; font-weight:700; color:#059669; margin-left:auto;"><i data-lucide="check" style="width:13px; height:13px; display:inline-block; vertical-align:middle;"></i> Benar</span>');
                     } else {
                         lbl.classList.remove('selected');
                         lbl.style.borderColor = '';
@@ -700,7 +715,7 @@
                 const tag = document.getElementById(`statusTag_${qIdx}`);
                 if (tag) {
                     tag.className = 'q-status-tag done';
-                    tag.innerHTML = '<i data-lucide="check-circle-2" style="width:13px; height:13px;"></i> Terjawab';
+                    tag.innerHTML = '<i data-lucide="lock" style="width:13px; height:13px;"></i> Terjawab &amp; Terkunci';
                 }
 
                 // Render atau perbarui kotak evaluasi langsung
