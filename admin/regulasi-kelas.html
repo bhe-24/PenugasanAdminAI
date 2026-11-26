@@ -339,6 +339,23 @@
         }
     });
 
+    function parseSemNum(val) {
+        const parsed = parseInt(String(val ?? 1).replace(/\D+/g, ''), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    }
+
+    function sortStudentClasses(list, userSem) {
+        return list.slice().sort((a, b) => {
+            const aActive = a.status !== 'inactive' ? 0 : 1;
+            const bActive = b.status !== 'inactive' ? 0 : 1;
+            if (aActive !== bActive) return aActive - bActive;
+            const aMatch = a.semester === userSem ? 0 : 1;
+            const bMatch = b.semester === userSem ? 0 : 1;
+            if (aMatch !== bMatch) return aMatch - bMatch;
+            return b.semester - a.semester;
+        });
+    }
+
     window.reloadAllData = async function () {
         document.getElementById('loading-overlay').classList.remove('hidden');
         try {
@@ -355,14 +372,21 @@
             studentClassMap = {};
             allClasses.forEach((cls) => {
                 const members = Array.isArray(cls.students) ? cls.students : [];
+                const clsSem = parseSemNum(cls.semester || 1);
                 members.forEach((uid) => {
                     if (!studentClassMap[uid]) studentClassMap[uid] = [];
                     studentClassMap[uid].push({
                         id: cls.id,
                         name: cls.name || cls.nama || 'Kelas Reguler',
-                        semester: Number(cls.semester || 1)
+                        semester: clsSem,
+                        status: cls.status || 'active'
                     });
                 });
+            });
+            Object.keys(studentClassMap).forEach((uid) => {
+                const u = allUsers.find((user) => user.id === uid);
+                const uSem = parseSemNum(u?.semester || 1);
+                studentClassMap[uid] = sortStudentClasses(studentClassMap[uid], uSem);
             });
 
             updateCounters();
@@ -451,7 +475,16 @@
             const inst = (r.instansi || u.instansi || '').toLowerCase();
             const nis = (u.nis || r.nis || '').toLowerCase();
             const clsNames = classes.map((c) => c.name.toLowerCase()).join(' ');
-            const semVal = String(classes[0]?.semester || r.requestedSemester || u.semester || 1);
+            const userSem = parseSemNum(u.semester || 1);
+            const activeClsSem = classes[0] ? parseSemNum(classes[0].semester) : 0;
+            const isExplicitPending = r.status === 'pending_verification' || u.classRegStatus === 'pending_verification';
+            const isExplicitRejected = r.status === 'rejected';
+            const effectiveSem = classes[0]
+                ? Math.max(userSem, activeClsSem)
+                : (userSem >= 2 && !isExplicitPending && !isExplicitRejected && u.classRegStatus !== 'unregistered'
+                    ? userSem
+                    : parseSemNum(r.requestedSemester || u.semester || 1));
+            const semVal = String(effectiveSem);
 
             const matchSearch = !keyword || name.includes(keyword) || email.includes(keyword) || inst.includes(keyword) || nis.includes(keyword) || clsNames.includes(keyword);
             const matchSem = semFilter === 'all' || semVal === semFilter;
@@ -476,21 +509,30 @@
             const tier = (r.package || u.package || 'free').toUpperCase();
             const classes = studentClassMap[uid] || [];
             const activeCls = classes[0] || null;
+            const userSem = parseSemNum(u.semester || 1);
+            const effectiveSem = activeCls ? Math.max(userSem, parseSemNum(activeCls.semester)) : userSem;
             const requestedSem = r.requestedSemester || u.semester || 1;
             const nis = u.nis || '-';
+            const isExplicitPending = r.status === 'pending_verification' || u.classRegStatus === 'pending_verification';
+            const isExplicitRejected = r.status === 'rejected';
+            const isAdvancedActive = !activeCls && userSem >= 2 && !isExplicitPending && !isExplicitRejected && u.classRegStatus !== 'unregistered';
 
             let statusBadge = '<span class="badge badge-empty"><i class="fa-regular fa-circle"></i> Belum Terdaftar</span>';
             if (activeCls) {
                 statusBadge = '<span class="badge badge-verified"><i class="fa-solid fa-check-circle"></i> Aktif di Kelas</span>';
-            } else if (r.status === 'pending_verification') {
+            } else if (isExplicitPending) {
                 statusBadge = '<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Menunggu Verifikasi</span>';
-            } else if (r.status === 'rejected') {
+            } else if (isExplicitRejected) {
                 statusBadge = '<span class="badge badge-rejected"><i class="fa-solid fa-ban"></i> Ditolak</span>';
+            } else if (isAdvancedActive) {
+                statusBadge = `<span class="badge badge-verified"><i class="fa-solid fa-check-circle"></i> Aktif (Sem ${userSem})</span>`;
             }
 
             const classColHtml = activeCls
-                ? `<strong>${escapeHtml(activeCls.name)}</strong><br><span class="badge badge-sem" style="margin-top:4px;">Semester ${activeCls.semester}</span>`
-                : `<span style="color:#64748b; font-size:0.78rem;">Belum masuk rombel</span><br><span class="badge badge-sem" style="margin-top:4px;">Ajuan: Sem ${requestedSem}</span>`;
+                ? `<strong>${escapeHtml(activeCls.name)}</strong><br><span class="badge badge-sem" style="margin-top:4px;">Semester ${effectiveSem}</span>`
+                : isAdvancedActive
+                    ? `<span style="color:#0284c7; font-size:0.78rem; font-weight:600;">Siswa Aktif Lanjutan (Belum Masuk Rombel)</span><br><span class="badge badge-sem" style="margin-top:4px;">Semester ${userSem}</span>`
+                    : `<span style="color:#64748b; font-size:0.78rem;">Belum masuk rombel</span><br><span class="badge badge-sem" style="margin-top:4px;">Ajuan: Sem ${requestedSem}</span>`;
 
             const timeVal = r.createdAt || u.createdAt || '';
 

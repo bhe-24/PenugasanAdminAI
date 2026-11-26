@@ -753,7 +753,9 @@ async function saveStudentTarget() {
 async function loadEnrolledAcademicData() {
     const uid = state.uid;
     const sem = state.semester;
-    const classId = state.enrolledClass?.id || '';
+    const rawClassId = state.enrolledClass?.id || '';
+    const isRealClassDoc = Boolean(rawClassId && !state.enrolledClass?.isVirtualSemester);
+    const classId = isRealClassDoc ? rawClassId : '';
     const u = state.user || {};
 
     const queries = await Promise.allSettled([
@@ -782,13 +784,18 @@ async function loadEnrolledAcademicData() {
     const pendingAssignments = semAssign.filter((a) => !subByAssign[a.id]);
     const submittedCount = semAssign.filter((a) => !!subByAssign[a.id]).length;
 
-    // Attendance
-    const attDocs = (valAt(2)?.docs || []).map((d) => ({ id: d.id, ...d.data() }));
+    // Attendance (jika punya classId spesifik pakai kelas itu, kalau tidak filter seluruh sesi yang mencatat presensi uid)
+    let attDocs = (valAt(2)?.docs || []).map((d) => ({ id: d.id, ...d.data() }));
+    if (attDocs.length === 0 && Array.isArray(state.studentAttDocs) && state.studentAttDocs.length > 0) {
+        attDocs = state.studentAttDocs;
+    }
     let totalSessions = attDocs.length;
     let presentCount = 0;
     attDocs.forEach((docItem) => {
         const st = docItem.presensi?.[uid];
-        if (st && String(st).toLowerCase().includes('hadir')) presentCount++;
+        if (st && (String(st).toLowerCase().includes('hadir') || String(st).toLowerCase().includes('bimbingan'))) {
+            presentCount++;
+        }
     });
     const attendancePct = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
 
@@ -948,11 +955,70 @@ async function loadEnrolledAcademicData() {
     runTargetAiAnalysis(false);
 }
 
+function parseSemNum(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number' && !Number.isNaN(val)) return val;
+    const extracted = parseInt(String(val).replace(/\D+/g, ''), 10);
+    return Number.isNaN(extracted) ? 0 : extracted;
+}
+
+function isValidRealUid(val) {
+    const s = String(val || '').trim();
+    return Boolean(s) && !s.startsWith('guest_');
+}
+
+function getLocalFallbackIdentity() {
+    let localApp = {};
+    try { localApp = window.CendekiaApp?.getUser ? window.CendekiaApp.getUser() : {}; } catch (_) {}
+    let leg = {};
+    try { leg = JSON.parse(localStorage.getItem('cendekia_user') || '{}'); } catch (_) {}
+    let freeU = {};
+    try { freeU = JSON.parse(localStorage.getItem('cendekia_free_user') || '{}'); } catch (_) {}
+
+    const uidCandidates = [localApp?.uid, localApp?.id, leg?.uid, leg?.id, freeU?.uid, freeU?.id];
+    const uid = uidCandidates.find(isValidRealUid) || '';
+    const email = String(localApp?.email || leg?.email || freeU?.email || '').trim();
+    return { localUser: { ...freeU, ...leg, ...localApp }, uid, email };
+}
+
+function isMemberInClass(studentsArr, targetUid, targetEmail) {
+    if (!Array.isArray(studentsArr)) return false;
+    const cleanUid = String(targetUid || '').trim();
+    const cleanEmail = String(targetEmail || '').trim().toLowerCase();
+    return studentsArr.some((item) => {
+        if (typeof item === 'string') {
+            const s = item.trim();
+            return (cleanUid && s === cleanUid) || (cleanEmail && s.toLowerCase() === cleanEmail);
+        }
+        if (item && typeof item === 'object') {
+            const s = String(item.uid || item.id || item.studentId || '').trim();
+            const em = String(item.email || '').trim().toLowerCase();
+            return (cleanUid && s === cleanUid) || (cleanEmail && em === cleanEmail);
+        }
+        return false;
+    });
+}
+
 async function resolveStudentEnrollment(firebaseUser) {
-    const localUser = window.CendekiaApp?.getUser ? window.CendekiaApp.getUser() : {};
-    const uid = firebaseUser?.uid || localUser?.uid || localUser?.id || '';
+    const { localUser, uid: localUid, email: localEmail } = getLocalFallbackIdentity();
+    let uid = isValidRealUid(firebaseUser?.uid)
+        ? firebaseUser.uid
+        : (isValidRealUid(auth.currentUser?.uid) ? auth.currentUser.uid : localUid);
+    const email = String(firebaseUser?.email || auth.currentUser?.email || localEmail || '').trim();
+
+    if (!uid && email) {
+        try {
+            const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+            if (!emailSnap.empty) uid = emailSnap.docs[0].id;
+        } catch (_) {}
+    }
+
     state.uid = uid;
-    state.user = { ...localUser, ...(firebaseUser ? { uid: firebaseUser.uid, email: firebaseUser.email, photoURL: firebaseUser.photoURL } : {}) };
+    state.user = {
+        ...localUser,
+        ...(firebaseUser ? { uid: firebaseUser.uid, email: firebaseUser.email, photoURL: firebaseUser.photoURL } : {})
+    };
+    state.studentAttDocs = [];
 
     if (!uid) {
         state.enrolledClass = null;
@@ -962,43 +1028,129 @@ async function resolveStudentEnrollment(firebaseUser) {
     }
 
     try {
-        const [userSnap, regSnap, classesSnap] = await Promise.all([
+        // Gunakan Promise.allSettled agar gagalnya satu koleksi (misal class_registrations / dailyAttendance) TIDAK membatalkan data kelas & user
+        const [userRes, regRes, classesRes, attRes] = await Promise.allSettled([
             getDoc(doc(db, 'users', uid)),
             getDoc(doc(db, 'class_registrations', uid)),
-            getDocs(collection(db, 'classes'))
+            getDocs(collection(db, 'classes')),
+            getDocs(collection(db, 'dailyAttendance'))
         ]);
 
-        if (userSnap.exists()) {
+        const userSnap = userRes.status === 'fulfilled' ? userRes.value : null;
+        const regSnap = regRes.status === 'fulfilled' ? regRes.value : null;
+        const classesSnap = classesRes.status === 'fulfilled' ? classesRes.value : null;
+        const attSnap = attRes.status === 'fulfilled' ? attRes.value : null;
+
+        if (userSnap && userSnap.exists()) {
             state.user = { ...state.user, uid, ...userSnap.data() };
             if (window.CendekiaApp?.saveUser) window.CendekiaApp.saveUser(state.user);
         }
 
-        state.regData = regSnap.exists() ? regSnap.data() : null;
+        // Jika akun diarsipkan oleh Admin, jangan tampilkan sebagai aktif
+        if (state.user?.role === 'archived') {
+            state.enrolledClass = null;
+            state.regData = regSnap && regSnap.exists() ? regSnap.data() : null;
+            renderCardShell('empty');
+            return;
+        }
 
-        let matchedClass = null;
-        classesSnap.forEach((docSnap) => {
-            const c = docSnap.data();
-            if (Array.isArray(c.students) && c.students.includes(uid)) {
-                matchedClass = { id: docSnap.id, ...c };
-            }
+        state.regData = regSnap && regSnap.exists() ? regSnap.data() : null;
+        const userEmail = String(state.user?.email || email || '').trim().toLowerCase();
+        const userSem = parseSemNum(state.user?.semester) || parseSemNum(state.regData?.assignedSemester) || 1;
+
+        const allClasses = [];
+        if (classesSnap) {
+            classesSnap.forEach((docSnap) => {
+                allClasses.push({ id: docSnap.id, ...docSnap.data() });
+            });
+        }
+
+        // 1. Cari di koleksi classes (Sumber Utama Halaman Presensi Admin), prioritaskan kelas aktif & semester sesuai
+        const matchedClasses = allClasses.filter((c) => isMemberInClass(c.students, uid, userEmail));
+        matchedClasses.sort((a, b) => {
+            const aActive = a.status !== 'inactive' ? 1 : 0;
+            const bActive = b.status !== 'inactive' ? 1 : 0;
+            if (aActive !== bActive) return bActive - aActive;
+
+            const aSem = parseSemNum(a.semester) || 1;
+            const bSem = parseSemNum(b.semester) || 1;
+            const aExact = aSem === userSem ? 1 : 0;
+            const bExact = bSem === userSem ? 1 : 0;
+            if (aExact !== bExact) return bExact - aExact;
+
+            return bSem - aSem;
         });
 
-        // Fallback if admin assigned classId directly on users/{uid} while verified
-        if (!matchedClass && state.user?.classId && state.user?.classRegStatus === 'verified') {
-            matchedClass = {
-                id: state.user.classId,
-                name: state.user.className || 'Kelas Reguler',
-                semester: Number(state.user.semester || 1)
+        let matchedClass = matchedClasses[0] || null;
+
+        // 2. Cek rekam presensi (dailyAttendance) — berguna jika siswa hadir di sesi presensi Admin/Pengajar
+        const studentAttDocs = [];
+        if (attSnap) {
+            attSnap.forEach((d) => {
+                const data = d.data();
+                if (data.presensi && data.presensi[uid] !== undefined) {
+                    studentAttDocs.push({ id: d.id, ...data });
+                }
+            });
+        }
+        state.studentAttDocs = studentAttDocs;
+
+        if (!matchedClass && studentAttDocs.length > 0) {
+            studentAttDocs.sort((a, b) => {
+                const aMs = a.date?.toDate ? a.date.toDate().getTime() : new Date(a.date || 0).getTime();
+                const bMs = b.date?.toDate ? b.date.toDate().getTime() : new Date(b.date || 0).getTime();
+                return (bMs || 0) - (aMs || 0);
+            });
+            const latestAtt = studentAttDocs[0];
+            const attCls = allClasses.find((c) => c.id === latestAtt.classId);
+            matchedClass = attCls || {
+                id: latestAtt.classId || `sem${parseSemNum(latestAtt.semester) || userSem}_presensi`,
+                name: latestAtt.className || `Kelas Semester ${parseSemNum(latestAtt.semester) || userSem}`,
+                semester: parseSemNum(latestAtt.semester) || userSem
             };
+        }
+
+        const regStatus = state.regData?.status || state.user?.classRegStatus || '';
+        const isExplicitPending = regStatus === 'pending_verification';
+        const isExplicitBlocked = regStatus === 'rejected' || regStatus === 'unregistered';
+
+        // 3. Fallback bila admin mengisi classId / verifikasi langsung di users/{uid} atau class_registrations/{uid}
+        if (!matchedClass && !isExplicitBlocked && !isExplicitPending) {
+            const directClassId = state.user?.classId || (regStatus === 'verified' ? state.regData?.assignedClassId : '');
+            if (directClassId) {
+                const foundById = allClasses.find((c) => c.id === directClassId);
+                matchedClass = foundById || {
+                    id: directClassId,
+                    name: state.user?.className || state.regData?.assignedClassName || 'Kelas Reguler',
+                    semester: parseSemNum(state.regData?.assignedSemester) || userSem
+                };
+            }
+        }
+
+        // 4. Fallback khusus Semester 2 & Semester 3: siswa yang sudah naik semester di Admin Siswa/E-Rapor/Inkubasi
+        //    tetap berstatus resmi aktif meski rombel di koleksi classes belum diperbarui atau terhapus
+        if (!matchedClass && !isExplicitBlocked && !isExplicitPending) {
+            const userRole = state.user?.role;
+            const isStudentRole = !userRole || userRole === 'siswa';
+            if (isStudentRole && userSem >= 2) {
+                matchedClass = {
+                    id: state.user?.classId || `sem${userSem}_resmi`,
+                    name: state.user?.className || (userSem >= 3 ? 'Studio Inkubasi Penulis' : `Kelas Reguler Semester ${userSem}`),
+                    semester: userSem,
+                    isVirtualSemester: true
+                };
+            }
         }
 
         state.enrolledClass = matchedClass;
 
         if (matchedClass) {
-            state.semester = Number(matchedClass.semester || state.user?.semester || 1);
+            // Jangan turunkan semester siswa yang sudah dinaikkan (misal masih terdaftar di dokumen kelas Sem 1 lama)
+            const clsSem = parseSemNum(matchedClass.semester) || 1;
+            state.semester = Math.max(userSem, clsSem);
             renderCardShell('enrolled');
             await loadEnrolledAcademicData();
-        } else if (state.regData?.status === 'pending_verification' || state.user?.classRegStatus === 'pending_verification') {
+        } else if (isExplicitPending) {
             renderCardShell('pending');
         } else {
             renderCardShell('empty');
@@ -1067,6 +1219,12 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, (firebaseUser) => {
         resolvedOnce = true;
         resolveStudentEnrollment(firebaseUser);
+    });
+
+    window.addEventListener('cendekia:synced', () => {
+        if (!state.enrolledClass) {
+            resolveStudentEnrollment(auth.currentUser);
+        }
     });
 
     // Jika auth lambat/kosong saat fallback lokal

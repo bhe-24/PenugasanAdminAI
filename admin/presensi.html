@@ -371,13 +371,29 @@
             });
         }
 
+        function parseSemNum(val) {
+            const parsed = parseInt(String(val ?? 1).replace(/\D+/g, ''), 10);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         async function loadStudents() {
             try {
-                const q = query(collection(db, 'users'), where('role', '==', 'siswa'));
-                const snap = await getDocs(q);
+                const snap = await getDocs(collection(db, 'users'));
                 allStudents = [];
                 snap.forEach(d => {
-                    allStudents.push({ id: d.id, ...d.data() });
+                    const data = d.data() || {};
+                    if (!data.role || data.role === 'siswa') {
+                        allStudents.push({ id: d.id, ...data });
+                    }
                 });
             } catch(e) { console.error(e); }
         }
@@ -388,6 +404,14 @@
                 allClasses = [];
                 snap.forEach(d => {
                     allClasses.push({ id: d.id, ...d.data() });
+                });
+                allClasses.sort((a, b) => {
+                    const aActive = a.status !== 'inactive' ? 0 : 1;
+                    const bActive = b.status !== 'inactive' ? 0 : 1;
+                    if (aActive !== bActive) return aActive - bActive;
+                    const semDiff = parseSemNum(a.semester) - parseSemNum(b.semester);
+                    if (semDiff !== 0) return semDiff;
+                    return String(a.name || '').localeCompare(String(b.name || ''));
                 });
                 displayClasses();
             } catch(e) { console.error(e); }
@@ -464,19 +488,24 @@
             container.innerHTML = '';
             
             const cls = allClasses.find(c => c.id === classId);
-            const existingStudents = cls.students || [];
+            const existingStudents = Array.isArray(cls?.students) ? cls.students : [];
+            const targetSem = parseSemNum(cls?.semester);
             
-            const availableStudents = allStudents.filter(s => parseInt(s.semester || 1) === parseInt(cls.semester));
+            const availableStudents = allStudents
+                .filter(s => parseSemNum(s.semester) === targetSem || existingStudents.includes(s.id))
+                .sort((a, b) => String(a.name || a.displayName || '').localeCompare(String(b.name || b.displayName || '')));
             
             if (availableStudents.length === 0) {
                 container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">Belum ada siswa terdaftar di semester ini.</div>';
             } else {
                 availableStudents.forEach(s => {
                     const isChecked = existingStudents.includes(s.id) ? 'checked' : '';
+                    const stuSem = parseSemNum(s.semester);
+                    const stuName = escapeHtml(s.name || s.displayName || s.email || s.id);
                     container.innerHTML += `
                         <label class="student-checkbox-item">
-                            <input type="checkbox" name="student_ids" value="${s.id}" ${isChecked}>
-                            <span>${s.name}</span>
+                            <input type="checkbox" name="student_ids" value="${escapeHtml(s.id)}" ${isChecked}>
+                            <span>${stuName} <small style="color:#64748b;">(Sem ${stuSem})</small></span>
                         </label>
                     `;
                 });
@@ -495,10 +524,64 @@
             try {
                 const checkboxes = document.querySelectorAll('input[name="student_ids"]:checked');
                 const selectedStudentIds = Array.from(checkboxes).map(cb => cb.value);
+                const cls = allClasses.find(c => c.id === currentClassId) || {};
+                const prevStudents = Array.isArray(cls.students) ? cls.students : [];
+                const targetSem = parseSemNum(cls.semester);
+                const isClassActive = cls.status !== 'inactive';
 
                 await updateDoc(doc(db, 'classes', currentClassId), { students: selectedStudentIds });
+
+                // Sinkronkan metadata kelas & semester ke dokumen users siswa terkait
+                const syncPromises = [];
+                if (isClassActive) {
+                    selectedStudentIds.forEach((uid) => {
+                        const stu = allStudents.find(s => s.id === uid);
+                        const nextSem = Math.max(parseSemNum(stu?.semester), targetSem);
+                        syncPromises.push(
+                            updateDoc(doc(db, 'users', uid), {
+                                classId: currentClassId,
+                                className: cls.name || '',
+                                semester: nextSem,
+                                classRegStatus: 'verified'
+                            }).catch(() => {})
+                        );
+                    });
+                }
+
+                const removedIds = prevStudents.filter(uid => !selectedStudentIds.includes(uid));
+                removedIds.forEach((uid) => {
+                    const stu = allStudents.find(s => s.id === uid);
+                    const fallbackCls = allClasses.find(c =>
+                        c.id !== currentClassId &&
+                        c.status !== 'inactive' &&
+                        Array.isArray(c.students) &&
+                        c.students.includes(uid)
+                    );
+                    if (fallbackCls) {
+                        const fallbackSem = Math.max(parseSemNum(stu?.semester), parseSemNum(fallbackCls.semester));
+                        syncPromises.push(
+                            updateDoc(doc(db, 'users', uid), {
+                                classId: fallbackCls.id,
+                                className: fallbackCls.name || '',
+                                semester: fallbackSem,
+                                classRegStatus: 'verified'
+                            }).catch(() => {})
+                        );
+                    } else if (stu && stu.classId === currentClassId) {
+                        syncPromises.push(
+                            updateDoc(doc(db, 'users', uid), {
+                                classId: '',
+                                className: ''
+                            }).catch(() => {})
+                        );
+                    }
+                });
+
+                if (syncPromises.length > 0) {
+                    await Promise.all(syncPromises);
+                }
                 
-                await loadClasses();
+                await Promise.all([loadStudents(), loadClasses()]);
                 window.closeModal('modal-add-student');
                 Swal.fire('Berhasil!', 'Daftar siswa di kelas ini telah diperbarui.', 'success');
             } catch(error) {
